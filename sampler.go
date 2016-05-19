@@ -8,53 +8,61 @@ import (
 
 	"github.com/uber/jaeger-client-go/thrift/gen/sampling"
 	"github.com/uber/jaeger-client-go/utils"
-
-	"github.com/uber/tchannel-go"
-	"github.com/uber/tchannel-go/thrift"
 )
 
-// Sampler decides whether a new trace should be sampled or not.
+// Sampler1 decides whether a new trace should be sampled or not.
 type Sampler interface {
+	// IsSampled decides whether a trace with given `id` should be sampled.
 	IsSampled(id uint64) bool
 
-	// Close does a clean shutdown of the sampler, stopping any background go-routines it may have started.
+	// Close does a clean shutdown of the sampler, stopping any background
+	// go-routines it may have started.
 	Close()
 
-	// Equal checks if the `other` sampler is functionally equivalent to this sampler
+	// Equal checks if the `other` sampler is functionally equivalent
+	// to this sampler.
 	Equal(other Sampler) bool
 }
 
-type constSampler struct {
-	decision bool
+// -----------------------
+
+// ConstSampler is a sampler that always makes the same decision.
+type ConstSampler struct {
+	Decision bool
 }
 
-// NewConstSampler creates a sampler that always makes the same decision equal to the 'sample' argument.
+// NewConstSampler creates a ConstSampler.
 func NewConstSampler(sample bool) Sampler {
-	return &constSampler{decision: sample}
+	return &ConstSampler{Decision: sample}
 }
 
-func (s *constSampler) IsSampled(id uint64) bool {
-	return s.decision
+// IsSampled implements IsSampled() of Sampler.
+func (s *ConstSampler) IsSampled(id uint64) bool {
+	return s.Decision
 }
 
-func (s *constSampler) Close() {
+// Close implements Close() of Sampler.
+func (s *ConstSampler) Close() {
 	// nothing to do
 }
 
-func (s *constSampler) Equal(other Sampler) bool {
-	if o, ok := other.(*constSampler); ok {
-		return s.decision == o.decision
+// Equal implements Equal() of Sampler.
+func (s *ConstSampler) Equal(other Sampler) bool {
+	if o, ok := other.(*ConstSampler); ok {
+		return s.Decision == o.Decision
 	}
 	return false
 }
 
 // -----------------------
 
-type probabilisticSampler struct {
-	samplingBoundary uint64
+// ProbabilisticSampler is a sampler that randomly samples a certain percentage
+// of traces.
+type ProbabilisticSampler struct {
+	SamplingBoundary uint64
 }
 
-var maxRandomNumber = ^(uint64(1) << 63) // i.e. 7fffffffffffffff
+const maxRandomNumber = ^(uint64(1) << 63) // i.e. 0x7fffffffffffffff
 
 // NewProbabilisticSampler creates a sampler that randomly samples a certain percentage of traces specified by the
 // samplingRate, in the range between 0.0 and 1.0.
@@ -65,21 +73,23 @@ func NewProbabilisticSampler(samplingRate float64) (Sampler, error) {
 	if samplingRate < 0.0 || samplingRate > 1.0 {
 		return nil, fmt.Errorf("Sampling Rate must be between 0.0 and 1.0, received %f", samplingRate)
 	}
-	return &probabilisticSampler{uint64(float64(maxRandomNumber) * samplingRate)}, nil
+	return &ProbabilisticSampler{uint64(float64(maxRandomNumber) * samplingRate)}, nil
 }
 
 // IsSampled implements IsSampled() of Sampler.
-func (s *probabilisticSampler) IsSampled(id uint64) bool {
-	return s.samplingBoundary >= id
+func (s *ProbabilisticSampler) IsSampled(id uint64) bool {
+	return s.SamplingBoundary >= id
 }
 
-func (s *probabilisticSampler) Close() {
+// Close implements Close() of Sampler.
+func (s *ProbabilisticSampler) Close() {
 	// nothing to do
 }
 
-func (s *probabilisticSampler) Equal(other Sampler) bool {
-	if o, ok := other.(*probabilisticSampler); ok {
-		return s.samplingBoundary == o.samplingBoundary
+// Equal implements Equal() of Sampler.
+func (s *ProbabilisticSampler) Equal(other Sampler) bool {
+	if o, ok := other.(*ProbabilisticSampler); ok {
+		return s.SamplingBoundary == o.SamplingBoundary
 	}
 	return false
 }
@@ -120,7 +130,10 @@ func (s *rateLimitingSampler) Equal(other Sampler) bool {
 
 // -----------------------
 
-type remoteControlledSampler struct {
+// RemotelyControlledSampler is a delegating sampler that polls a remote server
+// for the appropriate sampling strategy, constructs a corresponding sampler and
+// delegates to it for sampling decisions.
+type RemotelyControlledSampler struct {
 	serviceName string
 	manager     sampling.SamplingManager
 	logger      Logger
@@ -129,31 +142,6 @@ type remoteControlledSampler struct {
 	sampler     Sampler
 	pollStopped sync.WaitGroup
 	metrics     Metrics
-}
-
-type tcollectorSamplingManager struct {
-	client sampling.TChanSamplingManager
-}
-
-func (s *tcollectorSamplingManager) GetSamplingStrategy(serviceName string) (*sampling.SamplingStrategyResponse, error) {
-	ctx, cancel := tchannel.NewContextBuilder(time.Second).DisableTracing().Build()
-	defer cancel()
-	return s.client.GetSamplingStrategy(ctx, serviceName)
-}
-
-// NewTCollectorControlledSampler creates a sampler that periodically pulls
-// the sampling strategy from Jaeger collectors.
-func NewTCollectorControlledSampler(
-	serviceName string,
-	initial Sampler,
-	ch *tchannel.Channel,
-	metrics *Metrics,
-	logger Logger,
-) Sampler {
-	thriftClient := thrift.NewClient(ch, defaultTChannelServiceName, nil)
-	client := sampling.NewTChanSamplingManagerClient(thriftClient)
-	manager := &tcollectorSamplingManager{client}
-	return newRemoteControlledSampler(manager, serviceName, initial, metrics, logger)
 }
 
 type httpSamplingManager struct {
@@ -170,35 +158,23 @@ func (s *httpSamplingManager) GetSamplingStrategy(serviceName string) (*sampling
 	return &out, nil
 }
 
-// NewHTTPRemoteControlledSampler creates a sampler that periodically pulls
+// NewRemotelyControlledSampler creates a sampler that periodically pulls
 // the sampling strategy from an HTTP sampling server (e.g. jaeger-agent).
-func NewHTTPRemoteControlledSampler(
+func NewRemotelyControlledSampler(
 	serviceName string,
 	initial Sampler,
 	hostPort string,
 	metrics *Metrics,
 	logger Logger,
-) Sampler {
+) *RemotelyControlledSampler {
 	if hostPort == "" {
 		hostPort = defaultSamplingServerHostPort
 	}
 	manager := &httpSamplingManager{serverURL: "http://" + hostPort}
-	return newRemoteControlledSampler(manager, serviceName, initial, metrics, logger)
-}
-
-// newRemoteControlledSampler creates a sampler that periodically pulls
-// the sampling strategy from a remote server via `manager`.
-func newRemoteControlledSampler(
-	manager sampling.SamplingManager,
-	serviceName string,
-	initial Sampler,
-	metrics *Metrics,
-	logger Logger,
-) Sampler {
 	if logger == nil {
 		logger = NullLogger
 	}
-	sampler := &remoteControlledSampler{
+	sampler := &RemotelyControlledSampler{
 		serviceName: serviceName,
 		manager:     manager,
 		logger:      logger,
@@ -215,13 +191,14 @@ func newRemoteControlledSampler(
 }
 
 // IsSampled implements IsSampled() of Sampler.
-func (s *remoteControlledSampler) IsSampled(id uint64) bool {
+func (s *RemotelyControlledSampler) IsSampled(id uint64) bool {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 	return s.sampler.IsSampled(id)
 }
 
-func (s *remoteControlledSampler) Close() {
+// Close implements Close() of Sampler.
+func (s *RemotelyControlledSampler) Close() {
 	s.lock.RLock()
 	s.timer.Stop()
 	s.lock.RUnlock()
@@ -229,8 +206,9 @@ func (s *remoteControlledSampler) Close() {
 	s.pollStopped.Wait()
 }
 
-func (s *remoteControlledSampler) Equal(other Sampler) bool {
-	if o, ok := other.(*remoteControlledSampler); ok {
+// Equal implements Equal() of Sampler.
+func (s *RemotelyControlledSampler) Equal(other Sampler) bool {
+	if o, ok := other.(*RemotelyControlledSampler); ok {
 		s.lock.RLock()
 		o.lock.RLock()
 		defer s.lock.RUnlock()
@@ -240,7 +218,7 @@ func (s *remoteControlledSampler) Equal(other Sampler) bool {
 	return false
 }
 
-func (s *remoteControlledSampler) pollController() {
+func (s *RemotelyControlledSampler) pollController() {
 	// in unit tests we re-assign the timer Ticker, so need to lock to avoid data races
 	s.lock.Lock()
 	timer := s.timer
@@ -252,7 +230,7 @@ func (s *remoteControlledSampler) pollController() {
 	s.pollStopped.Add(1)
 }
 
-func (s *remoteControlledSampler) updateSampler() {
+func (s *RemotelyControlledSampler) updateSampler() {
 	if res, err := s.manager.GetSamplingStrategy(s.serviceName); err == nil {
 		if sampler, err := s.extractSampler(res); err == nil {
 			s.metrics.SamplerRetrieved.Inc(1)
@@ -271,7 +249,7 @@ func (s *remoteControlledSampler) updateSampler() {
 	}
 }
 
-func (s *remoteControlledSampler) extractSampler(res *sampling.SamplingStrategyResponse) (Sampler, error) {
+func (s *RemotelyControlledSampler) extractSampler(res *sampling.SamplingStrategyResponse) (Sampler, error) {
 	if probabilistic := res.GetProbabilisticSampling(); probabilistic != nil {
 		sampler, err := NewProbabilisticSampler(probabilistic.SamplingRate)
 		if err != nil {

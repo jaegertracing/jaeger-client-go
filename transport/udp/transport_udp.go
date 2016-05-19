@@ -1,12 +1,13 @@
-package jaeger
+package udp
 
 import (
 	"errors"
 
-	"github.com/uber/jaeger-client-go/thrift/gen/zipkincore"
-	"github.com/uber/jaeger-client-go/utils"
-
 	"github.com/apache/thrift/lib/go/thrift"
+
+	"github.com/uber/jaeger-client-go/thrift/gen/zipkincore"
+	"github.com/uber/jaeger-client-go/transport"
+	"github.com/uber/jaeger-client-go/utils"
 )
 
 // Empirically obtained constant for how many bytes in the message are used for envelope.
@@ -15,6 +16,8 @@ import (
 // Note that due to the use of Compact Thrift protocol, overhead grows with the number of spans
 // in the batch, because the length of the list is encoded as varint32, as well as SeqId.
 const emitSpanBatchOverhead = 30
+
+const defaultUDPSpanServerHostPort = "localhost:5775"
 
 var errSpanTooLarge = errors.New("Span is too large")
 
@@ -28,8 +31,8 @@ type udpSender struct {
 	thriftProtocol thrift.TProtocol
 }
 
-// NewUDPSender creates a reporter that submits spans to jaeger-agent
-func NewUDPSender(hostPort string, maxPacketSize int) (Sender, error) {
+// NewUDPTransport creates a reporter that submits spans to jaeger-agent
+func NewUDPTransport(hostPort string, maxPacketSize int) (transport.Transport, error) {
 	if len(hostPort) == 0 {
 		hostPort = defaultUDPSpanServerHostPort
 	}

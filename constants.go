@@ -32,11 +32,7 @@ const (
 	// This must be in lower-case to avoid mismatches when decoding incoming headers.
 	TraceBaggageHeaderPrefix = "uberctx-"
 
-	defaultUDPSpanServerHostPort = "localhost:5775"
-
 	defaultSamplingServerHostPort = "localhost:5778"
-
-	defaultTChannelServiceName = "tcollector"
 )
 
 var (

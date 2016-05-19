@@ -38,6 +38,7 @@ var (
 	ErrNotFourOctets = errors.New("Wrong number of octets")
 )
 
+// GetLocalIP returns the IP of the host, preferring public over loopback.
 func GetLocalIP() net.IP {
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {

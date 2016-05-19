@@ -30,6 +30,8 @@ func (nullStatsReporter) RecordTimer(name string, tags map[string]string, d time
 
 // InMemoryStatsCollector collects all stats in-memory and provides access to them via snapshots.
 // Currently only the counters are implemented.
+//
+// This is only meant for testing, not optimized for production use.
 type InMemoryStatsCollector struct {
 	counters map[string]*inMemoryCounter
 	cMutex   sync.Mutex

@@ -1,4 +1,4 @@
-package jaeger
+package udp
 
 import (
 	"testing"
@@ -54,7 +54,7 @@ func TestUDPSenderFlush(t *testing.T) {
 	span := &zipkincore.Span{Name: "test-span"}
 	spanSize := getThriftSpanByteLength(t, span)
 
-	sender, err := NewUDPSender(agent.SpanServerAddr(), 5*spanSize+emitSpanBatchOverhead)
+	sender, err := NewUDPTransport(agent.SpanServerAddr(), 5*spanSize+emitSpanBatchOverhead)
 	require.NoError(t, err)
 	udpSender := sender.(*udpSender)
 
@@ -107,7 +107,7 @@ func TestUDPSenderAppend(t *testing.T) {
 
 	for _, test := range tests {
 		bufferSize := 5*spanSize + test.bufferSizeOffset + emitSpanBatchOverhead
-		sender, err := NewUDPSender(agent.SpanServerAddr(), bufferSize)
+		sender, err := NewUDPTransport(agent.SpanServerAddr(), bufferSize)
 		require.NoError(t, err, test.description)
 
 		agent.ResetZipkinSpans()
@@ -154,7 +154,7 @@ func TestUDPSenderHugeSpan(t *testing.T) {
 	span := &zipkincore.Span{Name: "test-span"}
 	spanSize := getThriftSpanByteLength(t, span)
 
-	sender, err := NewUDPSender(agent.SpanServerAddr(), spanSize/2+emitSpanBatchOverhead)
+	sender, err := NewUDPTransport(agent.SpanServerAddr(), spanSize/2+emitSpanBatchOverhead)
 	require.NoError(t, err)
 
 	n, err := sender.Append(span)

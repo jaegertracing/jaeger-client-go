@@ -2,7 +2,7 @@
 
 set -e
 
-COVER=cover
+COVER=.cover
 ROOT_PKG=github.com/uber/jaeger-client-go/
 
 if [[ -d "$COVER" ]]; then

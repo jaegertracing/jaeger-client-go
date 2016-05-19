@@ -5,9 +5,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	z "github.com/uber/jaeger-client-go/thrift/gen/zipkincore"
-
 	"github.com/opentracing/opentracing-go"
+
+	"github.com/uber/jaeger-client-go/thrift/gen/zipkincore"
+	"github.com/uber/jaeger-client-go/transport"
 )
 
 // Reporter is called by the tracer when a span is completed to report the span to the tracing collector.
@@ -132,14 +133,13 @@ func (r *compositeReporter) Close() {
 
 const (
 	defaultQueueSize           = 100
-	defaultBatchSize           = 10
 	defaultBufferFlushInterval = 10 * time.Second
 )
 
 type remoteReporter struct {
 	ReporterOptions
-	sender       Sender
-	queue        chan *z.Span
+	sender       transport.Transport
+	queue        chan *zipkincore.Span
 	queueLength  int64 // signed because metric's gauge is signed
 	queueDrained sync.WaitGroup
 	flushSignal  chan *sync.WaitGroup
@@ -158,7 +158,7 @@ type ReporterOptions struct {
 }
 
 // NewRemoteReporter creates a new reporter that sends spans out of process by means of Sender
-func NewRemoteReporter(sender Sender, options *ReporterOptions) Reporter {
+func NewRemoteReporter(sender transport.Transport, options *ReporterOptions) Reporter {
 	if options == nil {
 		options = &ReporterOptions{}
 	}
@@ -178,7 +178,7 @@ func NewRemoteReporter(sender Sender, options *ReporterOptions) Reporter {
 	reporter := &remoteReporter{
 		ReporterOptions: *options,
 		sender:          sender,
-		queue:           make(chan *z.Span, options.QueueSize),
+		queue:           make(chan *zipkincore.Span, options.QueueSize),
 		flushSignal:     make(chan *sync.WaitGroup),
 	}
 	go reporter.processQueue()

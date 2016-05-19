@@ -1,17 +1,33 @@
-PACKAGES := $(shell glide novendor)
+PACKAGES := $(shell glide novendor | grep -v ./thrift/...)
 
 export GO15VENDOREXPERIMENT=1
+
+GOTEST=go test -v
+GOLINT=golint
+GOVET=go vet
+GOFMT=go fmt
+
+
+.PHONY: test
+test:
+	$(GOTEST) $(PACKAGES)
+
+
+.PHONY: fmt
+fmt:
+	$(GOFMT) $(PACKAGES)
+
+
+.PHONY: lint
+lint:
+	$(foreach pkg, $(PACKAGES), $(GOLINT) $(pkg) | grep -v crossdock/thrift || true;)
+	$(GOVET) $(PACKAGES)
 
 
 .PHONY: install
 install:
 	glide --version || go get github.com/Masterminds/glide
 	glide install
-
-
-.PHONY: test
-test:
-	go test -v $(PACKAGES)
 
 
 .PHONY: cover

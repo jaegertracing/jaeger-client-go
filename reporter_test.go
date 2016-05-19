@@ -37,6 +37,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"github.com/uber/jaeger-client-go/transport"
+	"github.com/uber/jaeger-client-go/transport/tchannel"
+	"github.com/uber/jaeger-client-go/transport/udp"
 	"github.com/uber/tchannel-go/thrift"
 )
 
@@ -55,7 +58,7 @@ func (s *reporterSuite) SetupTest() {
 	metrics := NewMetrics(s.stats, nil)
 	s.serviceName = "DOOP"
 	s.collector = &fakeZipkinCollector{}
-	sender := &tchannelSender{client: s.collector}
+	sender := &tchannel.Transport{Client: s.collector}
 	s.reporter = NewRemoteReporter(sender, &ReporterOptions{Metrics: metrics}).(*remoteReporter)
 
 	s.tracer, s.closer = NewTracer(
@@ -183,8 +186,8 @@ func TestTCollectorReporter(t *testing.T) {
 	defer collector.Close()
 
 	testRemoteReporter(t,
-		func(m *Metrics) (Sender, error) {
-			return NewTChannelSender(collector.Channel, "", 0), nil
+		func(m *Metrics) (transport.Transport, error) {
+			return tchannel.New(collector.Channel, "", 0), nil
 		},
 		func() []*z.Span {
 			return collector.GetZipkinSpans()
@@ -197,15 +200,19 @@ func TestUDPReporter(t *testing.T) {
 	defer agent.Close()
 
 	testRemoteReporter(t,
-		func(m *Metrics) (Sender, error) {
-			return NewUDPSender(agent.SpanServerAddr(), 0)
+		func(m *Metrics) (transport.Transport, error) {
+			return udp.NewUDPTransport(agent.SpanServerAddr(), 0)
 		},
 		func() []*z.Span {
 			return agent.GetZipkinSpans()
 		})
 }
 
-func testRemoteReporter(t *testing.T, factory func(m *Metrics) (Sender, error), getSpans func() []*z.Span) {
+func testRemoteReporter(
+	t *testing.T,
+	factory func(m *Metrics) (transport.Transport, error),
+	getSpans func() []*z.Span,
+) {
 	stats := NewInMemoryStatsCollector()
 	metrics := NewMetrics(stats, nil)
 

@@ -1,22 +1,29 @@
-package jaeger
+package tchannel
 
 import (
 	"time"
 
-	z "github.com/uber/jaeger-client-go/thrift/gen/zipkincore"
-
 	"github.com/uber/tchannel-go"
 	"github.com/uber/tchannel-go/thrift"
+
+	"github.com/uber/jaeger-client-go/thrift/gen/zipkincore"
+	"github.com/uber/jaeger-client-go/transport"
 )
 
-type tchannelSender struct {
-	client    z.TChanZipkinCollector
+const (
+	defaultTChannelServiceName = "tcollector"
+	defaultBatchSize           = 10
+)
+
+// Transport submits Thrift spans over TChannel
+type Transport struct {
+	Client    zipkincore.TChanZipkinCollector
 	batchSize int
-	buffer    []*z.Span
+	buffer    []*zipkincore.Span
 }
 
-// NewTChannelSender creates a reporter that submits spans to a TChannel service `serviceName`
-func NewTChannelSender(ch *tchannel.Channel, serviceName string, batchSize int) Sender {
+// New creates a reporter that submits spans to a TChannel service `serviceName`
+func New(ch *tchannel.Channel, serviceName string, batchSize int) transport.Transport {
 	if serviceName == "" {
 		serviceName = defaultTChannelServiceName
 	}
@@ -25,15 +32,15 @@ func NewTChannelSender(ch *tchannel.Channel, serviceName string, batchSize int) 
 	}
 
 	thriftClient := thrift.NewClient(ch, serviceName, nil)
-	client := z.NewTChanZipkinCollectorClient(thriftClient)
-	return &tchannelSender{
-		client:    client,
+	client := zipkincore.NewTChanZipkinCollectorClient(thriftClient)
+	return &Transport{
+		Client:    client,
 		batchSize: batchSize,
-		buffer:    make([]*z.Span, 0, batchSize)}
+		buffer:    make([]*zipkincore.Span, 0, batchSize)}
 }
 
 // Append implements Append() of Sender
-func (s *tchannelSender) Append(span *z.Span) (int, error) {
+func (s *Transport) Append(span *zipkincore.Span) (int, error) {
 	s.buffer = append(s.buffer, span)
 	if len(s.buffer) >= s.batchSize {
 		return s.Flush()
@@ -42,7 +49,7 @@ func (s *tchannelSender) Append(span *z.Span) (int, error) {
 }
 
 // Flush implements Flush() of Sender
-func (s *tchannelSender) Flush() (int, error) {
+func (s *Transport) Flush() (int, error) {
 	if len(s.buffer) == 0 {
 		return 0, nil
 	}
@@ -52,7 +59,7 @@ func (s *tchannelSender) Flush() (int, error) {
 	ctx, cancel := tchannel.NewContextBuilder(5 * time.Second).DisableTracing().Build()
 	defer cancel()
 
-	_, err := s.client.SubmitZipkinBatch(ctx, s.buffer)
+	_, err := s.Client.SubmitZipkinBatch(ctx, s.buffer)
 
 	for i := range s.buffer {
 		s.buffer[i] = nil
@@ -64,6 +71,6 @@ func (s *tchannelSender) Flush() (int, error) {
 }
 
 // Close implements Close() of Sender. Does nothing, since we do not own the TChannel.
-func (s *tchannelSender) Close() error {
+func (s *Transport) Close() error {
 	return nil
 }

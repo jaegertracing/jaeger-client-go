@@ -1,8 +1,11 @@
-package jaeger
+package config
 
 import (
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/uber/jaeger-client-go"
 )
 
 func TestNewSamplerConst(t *testing.T) {
@@ -14,9 +17,9 @@ func TestNewSamplerConst(t *testing.T) {
 		cfg := &SamplerConfig{Type: samplerTypeConst, Param: tst.param}
 		s, err := cfg.NewSampler("x", nil)
 		require.NoError(t, err)
-		s1, ok := s.(*constSampler)
+		s1, ok := s.(*jaeger.ConstSampler)
 		require.True(t, ok, "converted to constSampler")
-		require.Equal(t, tst.decision, s1.decision, "decision")
+		require.Equal(t, tst.decision, s1.Decision, "decision")
 	}
 }
 
@@ -32,17 +35,17 @@ func TestNewSamplerProbabilistic(t *testing.T) {
 			require.Error(t, err)
 		} else {
 			require.NoError(t, err)
-			_, ok := s.(*probabilisticSampler)
-			require.True(t, ok, "converted to probabilisticSampler")
+			_, ok := s.(*jaeger.ProbabilisticSampler)
+			require.True(t, ok, "converted to ProbabilisticSampler")
 		}
 	}
 }
 
 func TestDefaultSampler(t *testing.T) {
 	cfg := &SamplerConfig{}
-	s, err := cfg.NewSampler("x", NewMetrics(NullStatsReporter, nil))
+	s, err := cfg.NewSampler("x", jaeger.NewMetrics(jaeger.NullStatsReporter, nil))
 	require.NoError(t, err)
-	rcs, ok := s.(*remoteControlledSampler)
-	require.True(t, ok, "converted to remoteControlledSampler")
+	rcs, ok := s.(*jaeger.RemotelyControlledSampler)
+	require.True(t, ok, "converted to RemotelyControlledSampler")
 	rcs.Close()
 }

@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package jaeger
+package config
 
 import (
 	"errors"
@@ -26,12 +26,11 @@ import (
 	"io"
 	"time"
 
-	opentracing "github.com/opentracing/opentracing-go"
-)
+	"github.com/opentracing/opentracing-go"
 
-var (
-	// ErrNoServiceName is returned if blank service name is given to New function
-	ErrNoServiceName = errors.New("no service name provided")
+	"github.com/uber/jaeger-client-go"
+	"github.com/uber/jaeger-client-go/transport"
+	"github.com/uber/jaeger-client-go/transport/udp"
 )
 
 // Configuration configures and creates Jaeger Tracer
@@ -43,7 +42,7 @@ type Configuration struct {
 	// Logger can be provided to log Reporter errors, as well as to log spans
 	// if Reporter.LogSpans is set to true. This cannot be specified in
 	// the configuration file, it must be specified in code.
-	Logger Logger `yaml:"-"`
+	Logger jaeger.Logger `yaml:"-"`
 }
 
 // SamplerConfig allows initializing a non-default sampler.  All fields are optional.
@@ -93,13 +92,13 @@ func (*nullCloser) Close() error { return nil }
 // before shutdown.
 func (c Configuration) New(
 	serviceName string,
-	statsReporter StatsReporter,
+	statsReporter jaeger.StatsReporter,
 ) (opentracing.Tracer, io.Closer, error) {
 	if c.Disabled {
 		return &opentracing.NoopTracer{}, &nullCloser{}, nil
 	}
 	if serviceName == "" {
-		return nil, nil, ErrNoServiceName
+		return nil, nil, errors.New("no service name provided")
 	}
 	if c.Sampler == nil {
 		c.Sampler = &SamplerConfig{Type: samplerTypeProbabilistic, Param: 0.01}
@@ -108,7 +107,7 @@ func (c Configuration) New(
 		c.Reporter = &ReporterConfig{}
 	}
 
-	metrics := NewMetrics(statsReporter, nil)
+	metrics := jaeger.NewMetrics(statsReporter, nil)
 
 	sampler, err := c.Sampler.NewSampler(serviceName, metrics)
 	if err != nil {
@@ -120,11 +119,11 @@ func (c Configuration) New(
 		return nil, nil, err
 	}
 
-	tracer, closer := NewTracer(
+	tracer, closer := jaeger.NewTracer(
 		serviceName,
 		sampler,
 		reporter,
-		TracerOptions.Metrics(metrics))
+		jaeger.TracerOptions.Metrics(metrics))
 
 	return tracer, closer, nil
 }
@@ -133,7 +132,7 @@ func (c Configuration) New(
 // It returns a closer func that can be used to flush buffers before shutdown.
 func (c Configuration) InitGlobalTracer(
 	serviceName string,
-	statsReporter StatsReporter,
+	statsReporter jaeger.StatsReporter,
 ) (io.Closer, error) {
 	if c.Disabled {
 		return &nullCloser{}, nil
@@ -156,14 +155,14 @@ const (
 // NewSampler creates a new sampler based on the configuration
 func (sc *SamplerConfig) NewSampler(
 	serviceName string,
-	metrics *Metrics,
-) (Sampler, error) {
+	metrics *jaeger.Metrics,
+) (jaeger.Sampler, error) {
 	if sc.Type == samplerTypeConst {
-		return NewConstSampler(sc.Param != 0), nil
+		return jaeger.NewConstSampler(sc.Param != 0), nil
 	}
 	if sc.Type == samplerTypeProbabilistic {
 		if sc.Param >= 0 && sc.Param <= 1.0 {
-			return NewProbabilisticSampler(sc.Param)
+			return jaeger.NewProbabilisticSampler(sc.Param)
 		}
 		return nil, fmt.Errorf(
 			"Invalid Param for probabilistic sampler: %v. Expecting value between 0 and 1",
@@ -171,7 +170,7 @@ func (sc *SamplerConfig) NewSampler(
 		)
 	}
 	if sc.Type == samplerTypeRateLimiting {
-		return NewRateLimitingSampler(sc.Param)
+		return jaeger.NewRateLimitingSampler(sc.Param)
 	}
 	if sc.Type == samplerTypeRemote || sc.Type == "" {
 		sc2 := *sc
@@ -180,8 +179,8 @@ func (sc *SamplerConfig) NewSampler(
 		if err != nil {
 			return nil, err
 		}
-		return NewHTTPRemoteControlledSampler(serviceName, initSampler,
-			sc.LocalAgentHostPort, metrics, NullLogger), nil
+		return jaeger.NewRemotelyControlledSampler(serviceName, initSampler,
+			sc.LocalAgentHostPort, metrics, jaeger.NullLogger), nil
 	}
 	return nil, fmt.Errorf("Unknown sampler type %v", sc.Type)
 }
@@ -189,28 +188,28 @@ func (sc *SamplerConfig) NewSampler(
 // NewReporter instantiates a new reporter that submits spans to tcollector
 func (rc *ReporterConfig) NewReporter(
 	serviceName string,
-	metrics *Metrics,
-	logger Logger,
-) (Reporter, error) {
-	sender, err := rc.newSender()
+	metrics *jaeger.Metrics,
+	logger jaeger.Logger,
+) (jaeger.Reporter, error) {
+	sender, err := rc.newTransport()
 	if err != nil {
 		return nil, err
 	}
 
-	reporter := NewRemoteReporter(
+	reporter := jaeger.NewRemoteReporter(
 		sender,
-		&ReporterOptions{
+		&jaeger.ReporterOptions{
 			QueueSize:           rc.QueueSize,
 			BufferFlushInterval: rc.BufferFlushInterval,
 			Logger:              logger,
 			Metrics:             metrics})
 	if rc.LogSpans && logger != nil {
 		logger.Infof("Initializing logging reporter\n")
-		reporter = NewCompositeReporter(NewLoggingReporter(logger), reporter)
+		reporter = jaeger.NewCompositeReporter(jaeger.NewLoggingReporter(logger), reporter)
 	}
 	return reporter, err
 }
 
-func (rc *ReporterConfig) newSender() (Sender, error) {
-	return NewUDPSender(rc.LocalAgentHostPort, 0)
+func (rc *ReporterConfig) newTransport() (transport.Transport, error) {
+	return udp.NewUDPTransport(rc.LocalAgentHostPort, 0)
 }

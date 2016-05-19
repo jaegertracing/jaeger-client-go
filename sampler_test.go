@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/uber/tchannel-go/thrift"
 
 	"github.com/uber/jaeger-client-go/testutils"
 	"github.com/uber/jaeger-client-go/thrift/gen/sampling"
@@ -55,64 +54,34 @@ func TestRateLimitingSampler(t *testing.T) {
 	assert.False(t, sampler.Equal(NewConstSampler(false)))
 }
 
-func TestTCollectorControlledSampler(t *testing.T) {
-	collector, err := testutils.StartMockTCollector()
-	require.NoError(t, err)
-
-	testRemoteControlledSampler(t,
-		func(service string, m *Metrics) Sampler {
-			return NewTCollectorControlledSampler(service, nil, /* init sampler */
-				collector.Channel, m, NullLogger)
-		},
-		func(service string, strategy *sampling.SamplingStrategyResponse) {
-			collector.AddSamplingStrategy(service, strategy)
-		})
-}
-
-func TestRemoteControlledSamplerHTTP(t *testing.T) {
+func TestRemotelyControlledSampler(t *testing.T) {
 	agent, err := testutils.StartMockAgent()
 	require.NoError(t, err)
 	defer agent.Close()
 
-	testRemoteControlledSampler(t,
-		func(service string, m *Metrics) Sampler {
-			return NewHTTPRemoteControlledSampler(service, nil, /* init sampler */
-				agent.SamplingServerAddr(), m, NullLogger)
-		},
-		func(service string, strategy *sampling.SamplingStrategyResponse) {
-			agent.AddSamplingStrategy(service, strategy)
-		})
-}
-
-func testRemoteControlledSampler(
-	t *testing.T,
-	factory func(service string, m *Metrics) Sampler,
-	addStrategy func(service string, strategy *sampling.SamplingStrategyResponse),
-) {
 	stats := NewInMemoryStatsCollector()
 	metrics := NewMetrics(stats, nil)
 
-	samplerIface := factory("client app", metrics)
-	assert.NotNil(t, samplerIface)
-	sampler := samplerIface.(*remoteControlledSampler)
+	sampler := NewRemotelyControlledSampler("client app", nil, /* init sampler */
+		agent.SamplingServerAddr(), metrics, NullLogger)
 
-	initSampler, ok := sampler.sampler.(*probabilisticSampler)
+	initSampler, ok := sampler.sampler.(*ProbabilisticSampler)
 	assert.True(t, ok)
 
 	sampler.Close() // stop timer-based updates, we want to call them manually
 
-	addStrategy("client app", &sampling.SamplingStrategyResponse{
+	agent.AddSamplingStrategy("client app", &sampling.SamplingStrategyResponse{
 		StrategyType: sampling.SamplingStrategyType_PROBABILISTIC,
 		ProbabilisticSampling: &sampling.ProbabilisticSamplingStrategy{
 			SamplingRate: 1.5, // bad value
 		}})
 	sampler.updateSampler()
 	assert.Equal(t, map[string]int64{"jaeger.sampler|phase=parsing|state=failure": 1}, stats.GetCounterValues())
-	_, ok = sampler.sampler.(*probabilisticSampler)
+	_, ok = sampler.sampler.(*ProbabilisticSampler)
 	assert.True(t, ok)
 	assert.Equal(t, initSampler, sampler.sampler, "Sampler should not have been updated")
 
-	addStrategy("client app", &sampling.SamplingStrategyResponse{
+	agent.AddSamplingStrategy("client app", &sampling.SamplingStrategyResponse{
 		StrategyType: sampling.SamplingStrategyType_PROBABILISTIC,
 		ProbabilisticSampling: &sampling.ProbabilisticSamplingStrategy{
 			SamplingRate: 0.5, // good value
@@ -123,7 +92,7 @@ func testRemoteControlledSampler(
 		"jaeger.sampler|state=retrieved":             1,
 		"jaeger.sampler|state=updated":               1,
 	}, stats.GetCounterValues())
-	_, ok = sampler.sampler.(*probabilisticSampler)
+	_, ok = sampler.sampler.(*ProbabilisticSampler)
 	assert.True(t, ok)
 	assert.NotEqual(t, initSampler, sampler.sampler, "Sampler should have been updated")
 
@@ -142,11 +111,11 @@ func testRemoteControlledSampler(
 	time.Sleep(10 * time.Millisecond)
 	sampler.Close()
 
-	_, ok = sampler.sampler.(*probabilisticSampler)
+	_, ok = sampler.sampler.(*ProbabilisticSampler)
 	assert.True(t, ok)
 	assert.NotEqual(t, initSampler, sampler.sampler, "Sampler should have been updated from timer")
 
-	_, err := sampler.extractSampler(&sampling.SamplingStrategyResponse{})
+	_, err = sampler.extractSampler(&sampling.SamplingStrategyResponse{})
 	assert.Error(t, err)
 	_, err = sampler.extractSampler(&sampling.SamplingStrategyResponse{
 		ProbabilisticSampling: &sampling.ProbabilisticSamplingStrategy{SamplingRate: 1.1}})
@@ -154,20 +123,20 @@ func testRemoteControlledSampler(
 }
 
 func TestSamplerQueryError(t *testing.T) {
-	collector, err := testutils.StartMockTCollector()
+	agent, err := testutils.StartMockAgent()
 	require.NoError(t, err)
+	defer agent.Close()
 
 	stats := NewInMemoryStatsCollector()
 	metrics := NewMetrics(stats, nil)
 
-	samplerIface := NewTCollectorControlledSampler("clientapp", nil, /* init sampler */
-		collector.Channel, metrics, NullLogger)
-	assert.NotNil(t, samplerIface)
-	sampler := samplerIface.(*remoteControlledSampler)
-	// override the actual handler
-	sampler.manager.(*tcollectorSamplingManager).client = &fakeSamplingManager{}
+	sampler := NewRemotelyControlledSampler("client app", nil, /* init sampler */
+		agent.SamplingServerAddr(), metrics, NullLogger)
 
-	initSampler, ok := sampler.sampler.(*probabilisticSampler)
+	// override the actual handler
+	sampler.manager = &fakeSamplingManager{}
+
+	initSampler, ok := sampler.sampler.(*ProbabilisticSampler)
 	assert.True(t, ok)
 
 	sampler.Close() // stop timer-based updates, we want to call them manually
@@ -179,6 +148,6 @@ func TestSamplerQueryError(t *testing.T) {
 
 type fakeSamplingManager struct{}
 
-func (c *fakeSamplingManager) GetSamplingStrategy(ctx thrift.Context, serviceName string) (*sampling.SamplingStrategyResponse, error) {
+func (c *fakeSamplingManager) GetSamplingStrategy(serviceName string) (*sampling.SamplingStrategyResponse, error) {
 	return nil, errors.New("query error")
 }

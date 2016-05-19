@@ -1,9 +1,9 @@
 package server
 
 import (
+	"github.com/opentracing/opentracing-go"
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/crossdock/thrift/tracetest"
-	"github.com/opentracing/opentracing-go"
 	"github.com/uber/tchannel-go"
 	"github.com/uber/tchannel-go/thrift"
 	"golang.org/x/net/context"
