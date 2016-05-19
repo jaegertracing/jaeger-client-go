@@ -18,6 +18,7 @@ import:
   - thrift
   - thrift/gen-go/meta
   - tnet
+  - trace/thrift/gen-go/tcollector
   - typed
 - package: github.com/stretchr/testify
   version: e3a8ff8ce36581f87a15341206f205b1da467059
