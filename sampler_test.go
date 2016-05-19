@@ -5,12 +5,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/uber/jaeger-client-go/testutils"
-	"github.com/uber/jaeger-client-go/thrift/gen/sampling"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/uber/tchannel-go/thrift"
+
+	"github.com/uber/jaeger-client-go/testutils"
+	"github.com/uber/jaeger-client-go/thrift/gen/sampling"
+	"github.com/uber/jaeger-client-go/utils"
 )
 
 func TestProbabilisticSamplerErrors(t *testing.T) {
@@ -33,7 +34,7 @@ func TestProbabilisticSampler(t *testing.T) {
 func TestProbabilisticSamplerPerformance(t *testing.T) {
 	t.Skip("Skipped performance test")
 	sampler, _ := NewProbabilisticSampler(0.01)
-	rand := NewRand(8736823764)
+	rand := utils.NewRand(8736823764)
 	var count uint64
 	for i := 0; i < 100000000; i++ {
 		id := uint64(rand.Int63())
@@ -52,38 +53,6 @@ func TestRateLimitingSampler(t *testing.T) {
 	assert.True(t, sampler.Equal(sampler2))
 	assert.False(t, sampler.Equal(sampler3))
 	assert.False(t, sampler.Equal(NewConstSampler(false)))
-
-	limiter := sampler.(*rateLimitingSampler).rateLimiter.(*rateLimiter)
-	// stop time
-	ts := time.Now()
-	limiter.lastTick = ts
-	limiter.timeNow = func() time.Time {
-		return ts
-	}
-	assert.True(t, sampler.IsSampled(0))
-	assert.True(t, sampler.IsSampled(0))
-	assert.False(t, sampler.IsSampled(0))
-	// move time 250ms forward, not enough credits to pay for one sample
-	limiter.timeNow = func() time.Time {
-		return ts.Add(time.Second / 4)
-	}
-	assert.False(t, limiter.CheckCredit(1.0))
-	// move time 500ms forward, now enough credits to pay for one sample
-	limiter.timeNow = func() time.Time {
-		return ts.Add(time.Second/4 + time.Second/2)
-	}
-	assert.True(t, sampler.IsSampled(0))
-	assert.False(t, sampler.IsSampled(0))
-	// move time 5s forward, enough to accumulate credits for 10 samples, but it should still be capped at 2
-	limiter.lastTick = ts
-	limiter.timeNow = func() time.Time {
-		return ts.Add(5 * time.Second)
-	}
-	assert.True(t, sampler.IsSampled(0))
-	assert.True(t, sampler.IsSampled(0))
-	assert.False(t, sampler.IsSampled(0))
-	assert.False(t, sampler.IsSampled(0))
-	assert.False(t, sampler.IsSampled(0))
 }
 
 func TestTCollectorControlledSampler(t *testing.T) {

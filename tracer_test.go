@@ -28,6 +28,8 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/uber/jaeger-client-go/utils"
 )
 
 type tracerSuite struct {
@@ -150,6 +152,6 @@ func (s *tracerSuite) TestRandomIDNotZero() {
 	sp := s.tracer.StartSpan("get_name").(*span)
 	s.EqualValues(int64(1), sp.traceID)
 
-	rng := NewRand(0)
+	rng := utils.NewRand(0)
 	rng.Seed(1) // for test coverage
 }

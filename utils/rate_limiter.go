@@ -1,4 +1,4 @@
-package jaeger
+package utils
 
 import "time"
 

@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/uber/jaeger-client-go"
+	"golang.org/x/net/context"
+
 	"github.com/uber/jaeger-client-go/crossdock/client/behavior"
 	"github.com/uber/jaeger-client-go/crossdock/common"
 	"github.com/uber/jaeger-client-go/crossdock/thrift/tracetest"
-
-	"golang.org/x/net/context"
+	"github.com/uber/jaeger-client-go/utils"
 )
 
 func (c *Client) trace(s behavior.Sink, ps behavior.Params) {
@@ -89,7 +89,7 @@ func validateTrace(
 }
 
 func randomBaggage() string {
-	r := jaeger.NewRand(time.Now().UnixNano())
+	r := utils.NewRand(time.Now().UnixNano())
 	n := uint64(r.Int63())
 	return fmt.Sprintf("%x", n)
 }

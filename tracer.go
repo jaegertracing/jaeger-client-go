@@ -74,7 +74,7 @@ func NewTracer(
 	}
 
 	if t.randomNumber == nil {
-		rng := NewRand(time.Now().UnixNano())
+		rng := utils.NewRand(time.Now().UnixNano())
 		t.randomNumber = func() uint64 { return uint64(rng.Int63()) }
 	}
 	if t.timeNow == nil {

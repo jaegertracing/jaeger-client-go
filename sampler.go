@@ -88,7 +88,7 @@ func (s *probabilisticSampler) Equal(other Sampler) bool {
 
 type rateLimitingSampler struct {
 	maxTracesPerSecond float64
-	rateLimiter        RateLimiter
+	rateLimiter        utils.RateLimiter
 }
 
 // NewRateLimitingSampler creates a sampler that samples at most maxTracesPerSecond. The distribution of sampled
@@ -98,7 +98,7 @@ type rateLimitingSampler struct {
 func NewRateLimitingSampler(maxTracesPerSecond float64) (Sampler, error) {
 	return &rateLimitingSampler{
 		maxTracesPerSecond: maxTracesPerSecond,
-		rateLimiter:        NewRateLimiter(maxTracesPerSecond),
+		rateLimiter:        utils.NewRateLimiter(maxTracesPerSecond),
 	}, nil
 }
 
