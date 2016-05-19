@@ -50,9 +50,10 @@ for pkg in "$@"; do
 
 	args=""
 	if [[ -n "$coverpkg" ]]; then
-		args="-coverprofile $COVER/cover.${i}.out -coverpkg $coverpkg"
+		args="-coverprofile $COVER/cover.${i}.out" # -coverpkg $coverpkg"
 	fi
 
+    echo go test -v "$pkg"
 	go test $args -v "$pkg"
 done
 

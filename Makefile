@@ -69,4 +69,4 @@ install_ci: install
 
 .PHONY: test_ci
 test_ci:
-	./scripts/cover.sh $(shell go list $(PACKAGES))
+	@./scripts/cover.sh $(shell go list $(PACKAGES))
