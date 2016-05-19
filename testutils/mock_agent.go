@@ -39,7 +39,7 @@ import (
 // StartMockAgent runs a mock representation of jaeger-agent.
 // This function returns a started server.
 func StartMockAgent() (*MockAgent, error) {
-	transport, err := NewTUDPServerTransport(":0")
+	transport, err := NewTUDPServerTransport("127.0.0.1:0")
 	if err != nil {
 		return nil, err
 	}

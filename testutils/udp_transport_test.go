@@ -10,7 +10,7 @@ import (
 )
 
 func TestUDPTransport(t *testing.T) {
-	server, err := NewTUDPServerTransport(":0")
+	server, err := NewTUDPServerTransport("127.0.0.1:0")
 	require.NoError(t, err)
 	defer server.Close()
 

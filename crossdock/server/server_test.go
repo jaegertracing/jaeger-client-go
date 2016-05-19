@@ -19,7 +19,7 @@ func TestServerJSON(t *testing.T) {
 		jaeger.NewNoopReporter())
 	defer tCloser.Close()
 
-	s := &Server{HostPortHTTP: ":0", HostPortTChannel: ":0", Tracer: tracer}
+	s := &Server{HostPortHTTP: "127.0.0.1:0", HostPortTChannel: "127.0.0.1:0", Tracer: tracer}
 	err := s.Start()
 	require.NoError(t, err)
 	defer s.Close()

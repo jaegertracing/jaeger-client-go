@@ -20,13 +20,13 @@ func TestClient(t *testing.T) {
 		jaeger.NewNoopReporter())
 	defer tCloser.Close()
 
-	s := &server.Server{HostPortHTTP: ":0", HostPortTChannel: ":0", Tracer: tracer}
+	s := &server.Server{HostPortHTTP: "127.0.0.1:0", HostPortTChannel: "127.0.0.1:0", Tracer: tracer}
 	err := s.Start()
 	require.NoError(t, err)
 	defer s.Close()
 
 	c := &Client{
-		ClientHostPort:     ":0",
+		ClientHostPort:     "127.0.0.1:0",
 		ServerPortHTTP:     s.GetPortHTTP(),
 		ServerPortTChannel: s.GetPortTChannel()}
 	err = c.Listen()
