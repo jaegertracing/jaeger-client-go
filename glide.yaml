@@ -1,0 +1,35 @@
+package: github.com/uber/jaeger-client-go
+import:
+- package: github.com/apache/thrift
+  version: cada37008ce6e609fe6312596d3ced760e5cd60c
+  subpackages:
+  - lib/go/thrift
+- package: github.com/opentracing/opentracing-go
+  version: 01498abd158dfdbe8e251856bc7d14cb0f046fa3
+  subpackages:
+  - ext
+- package: golang.org/x/net
+  subpackages:
+  - context
+- package: github.com/uber/tchannel-go
+  version: 3e3e53962cc103863e644ac84dcda5169ead0467
+  subpackages:
+  - atomic
+  - thrift
+  - thrift/gen-go/meta
+  - tnet
+  - typed
+- package: github.com/stretchr/testify
+  version: e3a8ff8ce36581f87a15341206f205b1da467059
+  subpackages:
+  - assert
+  - require
+  - suite
+- package: github.com/davecgh/go-spew
+  version: 5215b55f46b2b919f50a1df0eaa5886afe4e3b3d
+  subpackages:
+  - spew
+- package: github.com/pmezard/go-difflib
+  version: e8554b8641db39598be7f6342874b958f12ae1d4
+  subpackages:
+  - difflib
