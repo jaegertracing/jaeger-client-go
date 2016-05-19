@@ -1,0 +1,52 @@
+sudo: required
+
+language: go
+
+go:
+  - 1.5
+  - 1.6
+
+services:
+  - docker
+
+env:
+  global:
+    - DOCKER_VERSION=1.10.1-0~trusty
+    - DOCKER_COMPOSE_VERSION=1.6.0
+    - GO15VENDOREXPERIMENT=1
+    - COMMIT=${TRAVIS_COMMIT::8}
+    - secure: rZOVU0zQTkPvaG43IIt/guPoq3EAE6/So/+elGcmHF14PsfPcPQ6MyexqdwRkVPd/fAuNwiXXwTXHkjI8ECYz5LF+m+g2VwvrhE9H1wfLuGbtgXSSXqB+dqylHGUz4ksm4q1gwiet8fpVHlNfbSfu+lhTpbl4+SUfFK+s9LqnAKbm+Hi8vKzyhGhvlTngi0Y2O4Z2FLUgU2fkUm5fesdUyW0H2/Bn5KRqJRtcyTmmj4eD/qMq5WDe8n5Sy9J+kuCpweC8vBZQzAGuPpGdj8jvbPCO+N2xM26Y7DNKMsgj6IU49D6sbmLvyVMbI1pBeAQ54TCJx5LySuZpLAzyaaqHEDwOs4+cRolZSQwpd7Q8/wOxZ13KqMhYOokBIcDlLs0yB9J3KOTS1lxU8YC6A3j+Wenw9/JjL0sXSSeOAvNkAeVtEu3dqXg326HJjzXgIQbci83TTtWv4MsQKIXMADOgMnQdgd4JRaGyfxM2hswsE2/Y5OlyXqrqtFHvgKy6MpLTB26r3aRA22VY6p5hFhuEGLClbHidyeHgkNI2iHOXZqoEdmno33Eq7WicH64bezmq+Z4nwyjBOLTblcG7V79s9hI296zGdAN+KLXezlS00qhWH3UVmsi/hYTyXbWXay3S0Hc5jB+YUrHZ1y+OM6fm442qzz+M5q+MdtCfRad7ZM=
+    - secure: Vg1mnR5Eu98dQ30rNb2fFblehh71a6goJz/Crhh+kae1z1Ec6NuQ6b0mNrzZMIXg6QktZ9gK0bJHjg1t90QpDfWHtSqAhQ0Z5yI4xH7Dt7jEMSYhGQ+YSmG6qo4c6Rh7CrIYXFRenS+qzhA8h7m48O8j1Z5G24qfen3y9cs7TNWKi43kGY8kSue3+xMi8hVErFLhfyhLNkOMJzWes+22apwEWIYwZWALYLpkmpYmgK8+nw+cZrI/r1WX5f6tdyZ/CRD/BAMgCwJYo7SNMuqTzsKTdqlHr7p2j7vcZtBSk5SJwzeChNJQwy94k+HF79R0WX8T8wuvxZKGtRqo7kf5bHAg2NRNDEL1KjBjV8tCJoh7FHLmQenQKfAt7x/eQu9r/+3do9Wvyan5MV3zYpDlCFZrRua9BL+cuSQaDAvGDAfqbzuDdlqUJLmn+t2+yyrxJS1NX5fLi6MX8cyh/11JkcIXifM9HqD1yM9S99MA8M3/O2g71oEbvcktkRCMOGga68sap+GzavVElyuutzHDGrPSvSqFw42yBAEKbnEJDbsMYL/6xxN/Xd3ez3YuwRs4R1m2NRN4Nq53ERozW8k7uVxmaEBioGfO+e5n0MfDQXY6uvdCx/R32ub4QDYOAovvoxhg042pYMbxWJkO73RMWTQzJvY8dbrxdMkw4xyq3Ic=
+    - secure: dhvshW7GvphJ6xvS8MxEtJGN+4C4d64hqOcaCKXXXVqyeunJ1gH/Cb6v1RcETgtRxOIHyyHo218j0cs0hNtIWCZq5YVbXMAJ5Sret+cKA3aZNMCbgwPNS48WdVZsCHurW22abq41ejfKuuFqSI+ooMprrsGeRjHMbJZM86k7UuEqxdvqGjotYugGcfiCjxnNtMHd1M6AQ9fPFzhg8TUeqPy7eDIdKTcqwa/h7ZsYn/WJp1LkUtwyHsfpweIv6JBQ9/xUDzjcoz5MA6Nj75/Mk4bJzzLEem3EKs1TTZOqV1NVt7VJ887NPe4fLIxP1/jQLzsh6kShTcctLszc70NgrowdwhdIqN/3TUmxkVbGP2JzbQ4yR6LVKCDDeWpKGiPsIKy75kEiW4ZlEZhnwCOKaR94FyBy1HEnhyoD9OJD6Gq/u4UdEw/QuNfE89gbr47LA4z487AzYGzH+1J3MlEbTNgTCmWduC0ghTx33vItrYMXXabGDe7XwfdJKTnMjfXVv+CVBdMAZVtDL27sEmbbAzIrRjP+JOFm7ZRYfzvxu5vCWlB/3wMMt7DzcutjxR4tyYs71Ec5zdUH/16wSvjQR1laJZCujlNSA/3FZUizCzW3qFVsBkaWRF+/C/cksi6cR83xIrc4y4WRLttAcbfqmsXaigL5Iz4GbLg62vmFP88=
+
+before_install:
+  - apt-cache madison docker-engine
+  - sudo apt-get -o Dpkg::Options::="--force-confnew" install -y docker-engine=${DOCKER_VERSION}
+  - docker version
+  - sudo rm /usr/local/bin/docker-compose
+  - curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > docker-compose
+  - chmod +x docker-compose
+  - sudo mv docker-compose /usr/local/bin
+  - docker-compose version
+
+install:
+  - make install_ci
+
+script:
+  - make test_ci
+  - make test-examples
+  - travis_retry goveralls -coverprofile=cover.out -service=travis-ci
+  - make crossdock
+  - timeout 5 docker-compose logs || true
+
+after_success:
+  - export REPO=uber/jaeger-client-go
+  - export PR=https://api.github.com/repos/$TRAVIS_REPO_SLUG/pulls/$TRAVIS_PULL_REQUEST
+  - export BRANCH=$(if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then echo $TRAVIS_BRANCH; else echo `curl -s $PR | jq -r .head.ref`; fi)
+  - export TAG=`if [ "$BRANCH" == "master" ]; then echo "latest"; else echo $BRANCH; fi`
+  - echo "TRAVIS_BRANCH=$TRAVIS_BRANCH, REPO=$REPO, PR=$PR, BRANCH=$BRANCH, TAG=$TAG"
+  - docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS
+  - docker build -f Dockerfile -t $REPO:$COMMIT .
+  - docker tag $REPO:$COMMIT $REPO:$TAG
+  - docker tag $REPO:$COMMIT $REPO:travis-$TRAVIS_BUILD_NUMBER
+  - docker push $REPO
