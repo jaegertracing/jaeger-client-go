@@ -1,0 +1,48 @@
+version: '2'
+
+services:
+    crossdock:
+        image: yarpc/crossdock
+        links:
+            - go
+        environment:
+            - WAIT_FOR=go
+
+            - AXIS_CLIENT=go
+            - AXIS_S1NAME=go
+            - AXIS_SAMPLED=true,false
+            - AXIS_S2NAME=go
+            - AXIS_S2CLIENT=any
+            - AXIS_S2TRANSPORT=http,tchannel
+            - AXIS_S3NAME=go
+            - AXIS_S3CLIENT=any
+            - AXIS_S3TRANSPORT=http,tchannel
+
+            - BEHAVIOR_TRACE=client,s1name,sampled,s2name,s2client,s2transport,s3name,s3client,s3transport
+
+    go:
+        build: .
+        ports:
+            - "8080-8082"
+
+#    node:
+#        image: yarpc/yarpc-node
+#        ports:
+#            - "8080-8082"
+#
+#    java:
+#        image: yarpc/yarpc-java
+#        ports:
+#            - "8080-8082"
+#
+#    python:
+#        image: yarpc/yarpc-python
+#        ports:
+#            - "8080:8082"
+#
+#    python-sync:
+#        image: yarpc/yarpc-python
+#        ports:
+#            - 8080
+#        environment:
+#            - SYNC=1
