@@ -28,7 +28,7 @@ type udpSender struct {
 	thriftProtocol thrift.TProtocol
 }
 
-// NewUDPSender creates a reporter that submits spans to Jaeger's tcollector
+// NewUDPSender creates a reporter that submits spans to jaeger-agent
 func NewUDPSender(hostPort string, maxPacketSize int) (Sender, error) {
 	if len(hostPort) == 0 {
 		hostPort = defaultUDPSpanServerHostPort

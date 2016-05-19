@@ -1,12 +1,13 @@
 package jaeger
 
 import (
+	"encoding/binary"
 	"fmt"
 	"time"
 
-	z "github.com/uber/jaeger-client-go/thrift/gen/zipkincore"
-
 	"github.com/opentracing/opentracing-go/ext"
+
+	z "github.com/uber/jaeger-client-go/thrift/gen/zipkincore"
 )
 
 const (
@@ -87,16 +88,20 @@ func buildBinaryAnnotations(span *span, endpoint *z.Endpoint) []*z.BinaryAnnotat
 	}
 
 	if span.peerDefined() && span.isRPC() {
+		peer := z.Endpoint{
+			Ipv4:        span.peer.Ipv4,
+			Port:        span.peer.Port,
+			ServiceName: span.peer.ServiceName}
 		label := z.CLIENT_ADDR
 		if span.isRPCClient() {
 			label = z.SERVER_ADDR
 		}
-		peer := &z.BinaryAnnotation{
+		anno := &z.BinaryAnnotation{
 			Key:            label,
 			Value:          []byte{1},
 			AnnotationType: z.AnnotationType_BOOL,
-			Host:           &span.peer}
-		annotations = append(annotations, peer)
+			Host:           &peer}
+		annotations = append(annotations, anno)
 	}
 	if !span.isRPC() {
 		// TODO(yurishkuro) deal with local component name
@@ -156,4 +161,32 @@ func truncateString(value string) string {
 		return value[:maxAnnotationLength]
 	}
 	return value
+}
+
+func boolToByte(b bool) byte {
+	if b {
+		return 1
+	}
+	return 0
+}
+
+// Passing time by value is faster than passing a pointer!
+// BenchmarkTimeByValue-8	2000000000	         1.37 ns/op
+// BenchmarkTimeByPtr-8  	2000000000	         1.98 ns/op
+func timeToMicrosecondsSinceEpochInt64(t time.Time) int64 {
+	return t.UnixNano() / 1000
+}
+
+// int32ToBytes converts int32 to bytes.
+func int32ToBytes(i int32) []byte {
+	buf := make([]byte, 4)
+	binary.BigEndian.PutUint32(buf, uint32(i))
+	return buf
+}
+
+// int64ToBytes converts int64 to bytes.
+func int64ToBytes(i int64) []byte {
+	buf := make([]byte, 8)
+	binary.BigEndian.PutUint64(buf, uint64(i))
+	return buf
 }

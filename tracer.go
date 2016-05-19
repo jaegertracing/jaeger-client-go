@@ -25,7 +25,9 @@ import (
 	"sync"
 	"time"
 
-	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go"
+
+	"github.com/uber/jaeger-client-go/utils"
 )
 
 type tracer struct {
@@ -80,8 +82,8 @@ func NewTracer(
 	}
 	if t.hostIPv4 == 0 {
 		var localIPInt32 uint32
-		if localIP := getLocalIP(); localIP != nil {
-			localIPInt32, _ = IPToUint32(localIP.String())
+		if localIP := utils.GetLocalIP(); localIP != nil {
+			localIPInt32, _ = utils.IPToUint32(localIP.String())
 		}
 		t.hostIPv4 = localIPInt32
 	}

@@ -21,12 +21,14 @@
 package jaeger
 
 import (
+	"strings"
 	"sync"
 	"time"
 
-	z "github.com/uber/jaeger-client-go/thrift/gen/zipkincore"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
+
+	"github.com/uber/jaeger-client-go/utils"
 )
 
 type span struct {
@@ -57,7 +59,11 @@ type span struct {
 	// peer points to the peer service participating in this span,
 	// e.g. the Client if this span is a server span,
 	// or Server if this span is a client span
-	peer z.Endpoint
+	peer struct {
+		Ipv4        int32
+		Port        int16
+		ServiceName string
+	}
 
 	// tags attached to this span
 	tags []tag
@@ -217,7 +223,7 @@ func setPeerIPv4(s *span, key string, value interface{}) bool {
 	s.Lock()
 	defer s.Unlock()
 	if val, ok := value.(string); ok {
-		if ip, err := IPToUint32(val); err == nil {
+		if ip, err := utils.IPToUint32(val); err == nil {
 			s.peer.Ipv4 = int32(ip)
 			return true
 		}
@@ -237,7 +243,7 @@ func setPeerPort(s *span, key string, value interface{}) bool {
 	s.Lock()
 	defer s.Unlock()
 	if val, ok := value.(string); ok {
-		if port, err := ParsePort(val); err == nil {
+		if port, err := utils.ParsePort(val); err == nil {
 			s.peer.Port = int16(port)
 			return true
 		}
@@ -275,4 +281,11 @@ func setSamplingPriority(s *span, key string, value interface{}) bool {
 		return true
 	}
 	return false
+}
+
+// Converts end-user baggage key into internal representation.
+// Used for both read and write access to baggage items.
+func normalizeBaggageKey(key string) string {
+	// TODO(yurishkuro) normalizeBaggageKey: cache the results in some bounded LRU cache
+	return strings.Replace(strings.ToLower(key), "_", "-", -1)
 }

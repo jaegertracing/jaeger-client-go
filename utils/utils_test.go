@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package jaeger
+package utils
 
 import (
 	"testing"
@@ -28,7 +28,7 @@ import (
 )
 
 func TestGetLocalIP(t *testing.T) {
-	ip := getLocalIP()
+	ip := GetLocalIP()
 	assert.NotNil(t, ip, "assert we have an ip")
 }
 
@@ -51,43 +51,6 @@ func TestIPToInt32Error(t *testing.T) {
 	intIP, err := IPToUint32(ip)
 	assert.Equal(t, ErrNotFourOctets, err)
 	assert.Equal(t, uint32(0), intIP, "expected ip of 0")
-}
-
-func TestParseHostPort(t *testing.T) {
-	host, port, err := ParseHostPort("127.0.0.1:666")
-	assert.NoError(t, err)
-	assert.Equal(t, uint32((127<<24)|1), host)
-	assert.Equal(t, uint16(666), port)
-}
-
-func TestParseHostPortError(t *testing.T) {
-	host, port, err := ParseHostPort("abc")
-	assert.Equal(t, ErrNotHostColonPort, err)
-	assert.EqualValues(t, 0, host)
-	assert.EqualValues(t, 0, port)
-
-	host, port, err = ParseHostPort("x.x.x:666")
-	assert.Equal(t, ErrNotFourOctets, err)
-	assert.EqualValues(t, 0, host)
-	assert.EqualValues(t, 0, port)
-
-	host, port, err = ParseHostPort("1.2.3.4:port")
-	assert.Error(t, err)
-	assert.EqualValues(t, 0, host)
-	assert.EqualValues(t, 0, port)
-}
-
-func TestAddPeerHostPort(t *testing.T) {
-	sp := &span{TraceContext: TraceContext{flags: flagSampled}}
-	err := AddPeerHostPort(sp, "127.0.0.1:666")
-	assert.NoError(t, err)
-	assert.EqualValues(t, (127<<24)|1, sp.peer.Ipv4, "hosts are equal")
-	assert.EqualValues(t, 666, sp.peer.Port, "ports are equal")
-
-	err = AddPeerHostPort(sp, "localhost:12345")
-	assert.NoError(t, err)
-	assert.EqualValues(t, (127<<24)|1, sp.peer.Ipv4, "hosts are equal")
-	assert.EqualValues(t, 12345, sp.peer.Port, "ports are equal")
 }
 
 // Various benchmarks
