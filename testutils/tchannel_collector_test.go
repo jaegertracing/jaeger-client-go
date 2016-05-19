@@ -1,21 +1,20 @@
-package testutils_test
+package testutils
 
 import (
 	"testing"
 	"time"
 
-	tu "github.com/uber/jaeger-client-go/testutils"
-	"github.com/uber/jaeger-client-go/thrift/gen/sampling"
-	"github.com/uber/jaeger-client-go/thrift/gen/tcollector"
-	"github.com/uber/jaeger-client-go/thrift/gen/zipkincore"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/uber/tchannel-go/trace/thrift/gen-go/tcollector"
 	"github.com/uber/tchannel-go/thrift"
+
+	"github.com/uber/jaeger-client-go/thrift/gen/sampling"
+	"github.com/uber/jaeger-client-go/thrift/gen/zipkincore"
 )
 
-func withTCollector(t *testing.T, fn func(collector *tu.MockTCollector, ctx thrift.Context)) {
-	collector, err := tu.StartMockTCollector()
+func withTCollector(t *testing.T, fn func(collector *MockTCollector, ctx thrift.Context)) {
+	collector, err := StartMockTCollector()
 	require.NoError(t, err)
 	defer collector.Close()
 
@@ -27,8 +26,8 @@ func withTCollector(t *testing.T, fn func(collector *tu.MockTCollector, ctx thri
 	fn(collector, ctx)
 }
 
-func withSamplingClient(t *testing.T, fn func(collector *tu.MockTCollector, ctx thrift.Context, client sampling.TChanSamplingManager)) {
-	withTCollector(t, func(collector *tu.MockTCollector, ctx thrift.Context) {
+func withSamplingClient(t *testing.T, fn func(collector *MockTCollector, ctx thrift.Context, client sampling.TChanSamplingManager)) {
+	withTCollector(t, func(collector *MockTCollector, ctx thrift.Context) {
 		thriftClient := thrift.NewClient(collector.Channel, "tcollector", nil)
 		client := sampling.NewTChanSamplingManagerClient(thriftClient)
 
@@ -36,8 +35,8 @@ func withSamplingClient(t *testing.T, fn func(collector *tu.MockTCollector, ctx 
 	})
 }
 
-func withTCollectorClient(t *testing.T, fn func(collector *tu.MockTCollector, ctx thrift.Context, client tcollector.TChanTCollector)) {
-	withTCollector(t, func(collector *tu.MockTCollector, ctx thrift.Context) {
+func withTCollectorClient(t *testing.T, fn func(collector *MockTCollector, ctx thrift.Context, client tcollector.TChanTCollector)) {
+	withTCollector(t, func(collector *MockTCollector, ctx thrift.Context) {
 		thriftClient := thrift.NewClient(collector.Channel, "tcollector", nil)
 		client := tcollector.NewTChanTCollectorClient(thriftClient)
 
@@ -45,8 +44,8 @@ func withTCollectorClient(t *testing.T, fn func(collector *tu.MockTCollector, ct
 	})
 }
 
-func withZipkinClient(t *testing.T, fn func(collector *tu.MockTCollector, ctx thrift.Context, client zipkincore.TChanZipkinCollector)) {
-	withTCollector(t, func(collector *tu.MockTCollector, ctx thrift.Context) {
+func withZipkinClient(t *testing.T, fn func(collector *MockTCollector, ctx thrift.Context, client zipkincore.TChanZipkinCollector)) {
+	withTCollector(t, func(collector *MockTCollector, ctx thrift.Context) {
 		thriftClient := thrift.NewClient(collector.Channel, "tcollector", nil)
 		client := zipkincore.NewTChanZipkinCollectorClient(thriftClient)
 
@@ -55,7 +54,7 @@ func withZipkinClient(t *testing.T, fn func(collector *tu.MockTCollector, ctx th
 }
 
 func TestMockTCollector(t *testing.T) {
-	withSamplingClient(t, func(collector *tu.MockTCollector, ctx thrift.Context, client sampling.TChanSamplingManager) {
+	withSamplingClient(t, func(collector *MockTCollector, ctx thrift.Context, client sampling.TChanSamplingManager) {
 		s, err := client.GetSamplingStrategy(ctx, "default-service")
 		require.NoError(t, err)
 		require.Equal(t, sampling.SamplingStrategyType_PROBABILISTIC, s.StrategyType)
@@ -75,7 +74,7 @@ func TestMockTCollector(t *testing.T) {
 		assert.EqualValues(t, 10, s.RateLimitingSampling.MaxTracesPerSecond)
 	})
 
-	withTCollectorClient(t, func(collector *tu.MockTCollector, ctx thrift.Context, client tcollector.TChanTCollector) {
+	withTCollectorClient(t, func(collector *MockTCollector, ctx thrift.Context, client tcollector.TChanTCollector) {
 		span := &tcollector.Span{
 			TraceId:           []byte{0, 0, 0, 0, 0, 0, 0, 1},
 			Host:              &tcollector.Endpoint{Ipv4: 0, Port: 0, ServiceName: "service1"},
@@ -96,7 +95,7 @@ func TestMockTCollector(t *testing.T) {
 		}
 	})
 
-	withZipkinClient(t, func(collector *tu.MockTCollector, ctx thrift.Context, client zipkincore.TChanZipkinCollector) {
+	withZipkinClient(t, func(collector *MockTCollector, ctx thrift.Context, client zipkincore.TChanZipkinCollector) {
 		span := &zipkincore.Span{Name: "service3"}
 		_, err := client.SubmitZipkinBatch(ctx, []*zipkincore.Span{span})
 		require.NoError(t, err)
@@ -105,7 +104,7 @@ func TestMockTCollector(t *testing.T) {
 		assert.Equal(t, "service3", spans[0].Name)
 	})
 
-	collector := &tu.MockTCollector{}
+	collector := &MockTCollector{}
 	_, err := collector.GetSamplingStrategy(nil, "service1")
 	assert.Error(t, err)
 }
