@@ -1,4 +1,4 @@
 FROM golang
-ADD crossdock-main /
-CMD ["/crossdock-main"]
+ADD crossdock/crossdock /
+CMD ["/crossdock"]
 EXPOSE 8080-8082

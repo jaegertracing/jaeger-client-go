@@ -43,8 +43,13 @@ test-examples:
 	make -C examples
 
 
+.PHONY: bins
+bins:
+	CGO_ENABLED=0 GOOS=linux time go build -a -installsuffix cgo -o crossdock/crossdock ./crossdock
+
+
 .PHONY: crossdock
-crossdock:
+crossdock: bins
 	docker-compose kill go
 	docker-compose rm -f go
 	docker-compose build go
@@ -52,7 +57,7 @@ crossdock:
 
 
 .PHONY: crossdock-fresh
-crossdock-fresh: install
+crossdock-fresh: bins
 	docker-compose kill
 	docker-compose rm --force
 	docker-compose pull
