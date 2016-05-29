@@ -47,7 +47,7 @@ func (s *tracerSuite) SetupTest() {
 
 	s.tracer, s.closer = NewTracer("DOOP", // respect the classics, man!
 		NewConstSampler(true),
-		NewNoopReporter(),
+		NewNullReporter(),
 		TracerOptions.Metrics(metrics),
 		TracerOptions.HostIPv4(IP))
 	s.NotNil(s.tracer)

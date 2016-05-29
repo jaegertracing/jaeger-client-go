@@ -17,7 +17,7 @@ func TestClient(t *testing.T) {
 	tracer, tCloser := jaeger.NewTracer(
 		"crossdock",
 		jaeger.NewConstSampler(false),
-		jaeger.NewNoopReporter())
+		jaeger.NewNullReporter())
 	defer tCloser.Close()
 
 	s := &server.Server{HostPortHTTP: "127.0.0.1:0", HostPortTChannel: "127.0.0.1:0", Tracer: tracer}

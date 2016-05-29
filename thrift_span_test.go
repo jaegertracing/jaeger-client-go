@@ -10,7 +10,7 @@ import (
 func TestFirstInProcessSpan(t *testing.T) {
 	tracer, closer := NewTracer("DOOP",
 		NewConstSampler(true),
-		NewNoopReporter())
+		NewNullReporter())
 	defer closer.Close()
 
 	sp1 := tracer.StartSpan("s1").(*span)

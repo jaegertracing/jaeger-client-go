@@ -127,7 +127,7 @@ func TestDecodingError(t *testing.T) {
 }
 
 func TestBaggagePropagationHTTP(t *testing.T) {
-	tracer, closer := NewTracer("DOOP", NewConstSampler(true), NewNoopReporter())
+	tracer, closer := NewTracer("DOOP", NewConstSampler(true), NewNullReporter())
 	defer closer.Close()
 
 	sp1 := tracer.StartSpan("s1").(*span)

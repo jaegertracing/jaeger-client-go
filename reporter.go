@@ -42,21 +42,21 @@ type Reporter interface {
 
 // ------------------------------
 
-type noopReporter struct{}
+type nullReporter struct{}
 
-// NewNoopReporter creates a reporter that ignores all reported spans.
-func NewNoopReporter() Reporter {
-	return &noopReporter{}
+// NewNullReporter creates a no-op reporter that ignores all reported spans.
+func NewNullReporter() Reporter {
+	return &nullReporter{}
 }
 
 // Report implements Report() method of Reporter by doing nothing.
-func (r *noopReporter) Report(span *span) {
-	// noop
+func (r *nullReporter) Report(span *span) {
+	// no-op
 }
 
 // Close implements Close() method of Reporter by doing nothing.
-func (r *noopReporter) Close() {
-	// noop
+func (r *nullReporter) Close() {
+	// no-op
 }
 
 // ------------------------------
@@ -77,7 +77,7 @@ func (r *loggingReporter) Report(span *span) {
 
 // Close implements Close() method of Reporter by doing nothing.
 func (r *loggingReporter) Close() {
-	// noop
+	// no-op
 }
 
 // ------------------------------
@@ -105,7 +105,7 @@ func (r *InMemoryReporter) Report(span *span) {
 
 // Close implements Close() method of Reporter by doing nothing.
 func (r *InMemoryReporter) Close() {
-	// noop
+	// no-op
 }
 
 // SpansSubmitted returns the number of spans accumulated in the buffer.
