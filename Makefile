@@ -6,7 +6,7 @@ GOTEST=go test -v
 GOLINT=golint
 GOVET=go vet
 GOFMT=go fmt
-
+XDOCK_YAML=crossdock/docker-compose.yml
 
 .PHONY: test
 test:
@@ -50,19 +50,19 @@ bins:
 
 .PHONY: crossdock
 crossdock: bins
-	docker-compose kill go
-	docker-compose rm -f go
-	docker-compose build go
-	docker-compose run crossdock
+	docker-compose -f $(XDOCK_YAML) kill go
+	docker-compose -f $(XDOCK_YAML) rm -f go
+	docker-compose -f $(XDOCK_YAML) build go
+	docker-compose -f $(XDOCK_YAML) run crossdock
 
 
 .PHONY: crossdock-fresh
 crossdock-fresh: bins
-	docker-compose kill
-	docker-compose rm --force
-	docker-compose pull
-	docker-compose build
-	docker-compose run crossdock
+	docker-compose -f $(XDOCK_YAML) kill
+	docker-compose -f $(XDOCK_YAML) rm --force
+	docker-compose -f $(XDOCK_YAML) pull
+	docker-compose -f $(XDOCK_YAML) build
+	docker-compose -f $(XDOCK_YAML) run crossdock
 
 
 .PHONY: install_ci
