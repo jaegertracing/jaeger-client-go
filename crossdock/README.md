@@ -20,7 +20,7 @@ for each axis.
 Client runs as part of the `jaeger-client/go` image and orchestrates
 the actual test case with the servers S1-S3.  The incoming request
 from the driver is expected to have parameters defined in
-[client/constants.go][1], which specify
+[client/constants.go](client/constants.go), which specify
 
   1. The type of test to execute (only `trace` is currently supported)
   1. Whether the trace should be sampled or not
@@ -47,7 +47,8 @@ Servers must be implemented for each supported language, and potentially
 multiple times for a given language depending on the framework used to build
 the service, such as Flask vs. Tornado in Python.  Each implementation of the
 server may act as any of the S1-S3 servers in the test.  Each server must
-implement the `TracedService` interface from [thrift/tracetest.thrift][2]:
+implement the `TracedService` interface from
+[thrift/tracetest.thrift](thrift/tracetest.thrift):
 
     service TracedService {
         TraceResponse startTrace(1: StartTraceRequest request)
@@ -57,7 +58,7 @@ implement the `TracedService` interface from [thrift/tracetest.thrift][2]:
   * In `startTrace` the server is supposed to ignore any trace it may have
     received via inbound request and start a brand new trace, with the
     sampling flag set appropriately, using `sampling.priority` tag,
-    see [Go server implementation][3] for example.
+    see [Go server implementation](server/trace.go) for example.
   * In `joinTrace` the server is supposed to respect the trace in the
     inbound request and propagate it to the outbound downstream request.
 
@@ -75,16 +76,3 @@ a new image from the modified version of the library, and use the existing
 images for the other languages.  The `docker-compose.yaml` file refers to those
 images by name.
 
-Because we do not have a private docker registry available to store these test
-images, before running docker-compose we need to run a build step that will
-ensure that the require images are built for each library and stored in the
-local registry on the host. That means in addition to each language library
-knowing (via its `docker-compose.yaml file`) about other docker images from
-other libraries, it also needs to know their Git repository names, so that
-the pre-build step can pull those repositories, and verify that local docker
-registry contains the image corresponding to the latest Git SHA in the other
-library, else rebuild them using that library's `Makefile`.
-
-  [1] client/constants.go
-  [2] thrift/tracetest.thrift
-  [3] server/trace.go
