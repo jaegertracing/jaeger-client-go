@@ -110,7 +110,6 @@ are available:
   1. `RateLimitingSampler` can be used to allow only a certain fixed
      number of traces to be sampled per second.
 
-## Data Format
 
 [doc-img]: https://godoc.org/github.com/uber/jaeger-client-go?status.svg
 [doc]: https://godoc.org/github.com/uber/jaeger-client-go

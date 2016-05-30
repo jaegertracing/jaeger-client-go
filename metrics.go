@@ -27,38 +27,6 @@ import (
 	"time"
 )
 
-// stat is a container of stats identity.
-// It is used by counter, gauge, and timer structs that each expose a single update method.
-type stat struct {
-	name     string
-	tags     map[string]string
-	reporter StatsReporter
-}
-
-type counter struct {
-	stat
-}
-
-func (c *counter) Inc(delta int64) {
-	c.reporter.IncCounter(c.name, c.tags, delta)
-}
-
-type gauge struct {
-	stat
-}
-
-func (c *gauge) Update(value int64) {
-	c.reporter.UpdateGauge(c.name, c.tags, value)
-}
-
-type timer struct {
-	stat
-}
-
-func (c *timer) Record(d time.Duration) {
-	c.reporter.RecordTimer(c.name, c.tags, d)
-}
-
 // Metrics is a container of all stats emitted by Jaeger tracer.
 type Metrics struct {
 	// Number of traces started by this tracer as sampled
@@ -120,6 +88,38 @@ func NewMetrics(reporter StatsReporter, globalTags map[string]string) *Metrics {
 		panic(err.Error())
 	}
 	return m
+}
+
+// stat is a container of stats identity.
+// It is used by counter, gauge, and timer structs that each expose a single update method.
+type stat struct {
+	name     string
+	tags     map[string]string
+	reporter StatsReporter
+}
+
+type counter struct {
+	stat
+}
+
+func (c *counter) Inc(delta int64) {
+	c.reporter.IncCounter(c.name, c.tags, delta)
+}
+
+type gauge struct {
+	stat
+}
+
+func (c *gauge) Update(value int64) {
+	c.reporter.UpdateGauge(c.name, c.tags, value)
+}
+
+type timer struct {
+	stat
+}
+
+func (c *timer) Record(d time.Duration) {
+	c.reporter.RecordTimer(c.name, c.tags, d)
 }
 
 // initMetrics uses reflection to initialize a struct containing metrics fields
