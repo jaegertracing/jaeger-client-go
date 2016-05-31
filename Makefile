@@ -1,19 +1,26 @@
 PROJECT_ROOT=github.com/uber/jaeger-client-go
-PACKAGES := $(shell glide novendor | grep -v ./thrift/...)
+PACKAGES := $(shell glide novendor | grep -v ./thrift-gen/...)
+# all .go files that don't exist in hidden directories
+ALL_SRC := $(shell find . -name "*.go" | grep -v -e vendor -e thrift-gen \
+        -e ".*/\..*" \
+        -e ".*/_.*" \
+        -e ".*/mocks.*")
 
 export GO15VENDOREXPERIMENT=1
 
 GOTEST=go test -v $(RACE)
 GOLINT=golint
 GOVET=go vet
-GOFMT=go fmt
+GOFMT=gofmt
+FMT_LOG=fmt.log
+LINT_LOG=lint.log
 XDOCK_YAML=crossdock/docker-compose.yml
 
 THRIFT_VER=0.9.3
 THRIFT_IMG=thrift:$(THRIFT_VER)
 THRIFT=docker run -v "${PWD}:/data" $(THRIFT_IMG) thrift
 THRIFT_GO_ARGS=thrift_import="github.com/apache/thrift/lib/go/thrift"
-THRIFT_GEN_DIR=thrift/gen
+THRIFT_GEN_DIR=thrift-gen
 
 .PHONY: test
 test:
@@ -22,13 +29,16 @@ test:
 
 .PHONY: fmt
 fmt:
-	$(GOFMT) $(PACKAGES)
-
+	go fmt $(PACKAGES)
 
 .PHONY: lint
 lint:
-	$(foreach pkg, $(PACKAGES), $(GOLINT) $(pkg) | grep -v crossdock/thrift || true;)
 	$(GOVET) $(PACKAGES)
+	@cat /dev/null > $(LINT_LOG)
+	@$(foreach pkg, $(PACKAGES), $(GOLINT) $(pkg) | grep -v crossdock/thrift >> $(LINT_LOG) || true;)
+	@[ ! -s "$(LINT_LOG)" ] || (echo "Lint Failures" | cat - $(LINT_LOG) && false)
+	@$(GOFMT) -e -s -l $(ALL_SRC) > $(FMT_LOG)
+	@[ ! -s "$(FMT_LOG)" ] || (echo "Go Fmt Failures, run 'make fmt'" | cat - $(FMT_LOG) && false)
 
 
 .PHONY: install
@@ -57,10 +67,10 @@ bins:
 # TODO at the moment we're not generating tchan_*.go files
 thrift: idl-submodule thrift-image
 	$(THRIFT) -o /data --gen go:$(THRIFT_GO_ARGS) --out /data/$(THRIFT_GEN_DIR) /data/idl/thrift/agent.thrift
-	sed -i '' 's|"zipkincore"|"$(PROJECT_ROOT)/thrift/gen/zipkincore"|g' $(THRIFT_GEN_DIR)/agent/*.go
+	sed -i '' 's|"zipkincore"|"$(PROJECT_ROOT)/thrift-gen/zipkincore"|g' $(THRIFT_GEN_DIR)/agent/*.go
 	$(THRIFT) -o /data --gen go:$(THRIFT_GO_ARGS) --out /data/$(THRIFT_GEN_DIR) /data/idl/thrift/sampling.thrift
 	$(THRIFT) -o /data --gen go:$(THRIFT_GO_ARGS) --out /data/$(THRIFT_GEN_DIR) /data/idl/thrift/zipkincore.thrift
-	rm -rf thrift/gen/*/*-remote
+	rm -rf thrift-gen/*/*-remote
 
 idl-submodule:
 	git submodule init
@@ -97,3 +107,5 @@ install_ci: install
 .PHONY: test_ci
 test_ci:
 	@./scripts/cover.sh $(shell go list $(PACKAGES))
+	make lint
+
