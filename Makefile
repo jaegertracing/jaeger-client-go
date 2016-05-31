@@ -3,7 +3,7 @@ PACKAGES := $(shell glide novendor | grep -v ./thrift/...)
 
 export GO15VENDOREXPERIMENT=1
 
-GOTEST=go test -v
+GOTEST=go test -v $(RACE)
 GOLINT=golint
 GOVET=go vet
 GOFMT=go fmt
