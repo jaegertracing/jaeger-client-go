@@ -28,8 +28,8 @@ import (
 	"github.com/uber/tchannel-go/thrift"
 	"github.com/uber/tchannel-go/trace/thrift/gen-go/tcollector"
 
-	"github.com/uber/jaeger-client-go/thrift/gen/sampling"
-	"github.com/uber/jaeger-client-go/thrift/gen/zipkincore"
+	"github.com/uber/jaeger-client-go/thrift-gen/sampling"
+	"github.com/uber/jaeger-client-go/thrift-gen/zipkincore"
 )
 
 var errTCollectorSamplingNotImplemented = errors.New("TCollector.GetSamplingStrategy method not implemented")

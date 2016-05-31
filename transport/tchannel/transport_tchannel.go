@@ -26,7 +26,7 @@ import (
 	"github.com/uber/tchannel-go"
 	"github.com/uber/tchannel-go/thrift"
 
-	"github.com/uber/jaeger-client-go/thrift/gen/zipkincore"
+	"github.com/uber/jaeger-client-go/thrift-gen/zipkincore"
 	"github.com/uber/jaeger-client-go/transport"
 )
 

@@ -23,7 +23,7 @@ package transport
 import (
 	"io"
 
-	"github.com/uber/jaeger-client-go/thrift/gen/zipkincore"
+	"github.com/uber/jaeger-client-go/thrift-gen/zipkincore"
 )
 
 // Transport abstracts the method of sending spans out of process.

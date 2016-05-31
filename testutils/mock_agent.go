@@ -28,9 +28,9 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/uber/jaeger-client-go/thrift/gen/agent"
-	"github.com/uber/jaeger-client-go/thrift/gen/sampling"
-	"github.com/uber/jaeger-client-go/thrift/gen/zipkincore"
+	"github.com/uber/jaeger-client-go/thrift-gen/agent"
+	"github.com/uber/jaeger-client-go/thrift-gen/sampling"
+	"github.com/uber/jaeger-client-go/thrift-gen/zipkincore"
 	"github.com/uber/jaeger-client-go/utils"
 
 	"github.com/apache/thrift/lib/go/thrift"

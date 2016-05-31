@@ -7,6 +7,7 @@
 *.iml
 *.cov
 *.html
+*.log
 gen/thrift/js
 gen/thrift/py
 vendor/

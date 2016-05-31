@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/uber/jaeger-client-go/testutils"
-	"github.com/uber/jaeger-client-go/thrift/gen/sampling"
+	"github.com/uber/jaeger-client-go/thrift-gen/sampling"
 	"github.com/uber/jaeger-client-go/utils"
 )
 

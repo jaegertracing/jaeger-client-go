@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/uber/jaeger-client-go/thrift/gen/sampling"
-	"github.com/uber/jaeger-client-go/thrift/gen/zipkincore"
+	"github.com/uber/jaeger-client-go/thrift-gen/sampling"
+	"github.com/uber/jaeger-client-go/thrift-gen/zipkincore"
 	"github.com/uber/jaeger-client-go/utils"
 
 	"github.com/stretchr/testify/assert"

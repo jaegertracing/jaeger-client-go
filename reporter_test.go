@@ -30,7 +30,7 @@ import (
 	"time"
 
 	"github.com/uber/jaeger-client-go/testutils"
-	z "github.com/uber/jaeger-client-go/thrift/gen/zipkincore"
+	z "github.com/uber/jaeger-client-go/thrift-gen/zipkincore"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
