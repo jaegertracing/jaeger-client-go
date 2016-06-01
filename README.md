@@ -9,8 +9,10 @@ data model.
 ## Initialization
 
 ```go
-import "github.com/opentracing/opentracing-go"
-import "github.com/uber/jaeger-client-go"
+import (
+    "github.com/opentracing/opentracing-go"
+    "github.com/uber/jaeger-client-go"
+)
 
 type AppConfig struct {
     ...
