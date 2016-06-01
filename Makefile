@@ -6,6 +6,8 @@ ALL_SRC := $(shell find . -name "*.go" | grep -v -e vendor -e thrift-gen \
         -e ".*/_.*" \
         -e ".*/mocks.*")
 
+-include crossdock/rules.mk
+
 export GO15VENDOREXPERIMENT=1
 
 GOTEST=go test -v $(RACE)
@@ -14,7 +16,6 @@ GOVET=go vet
 GOFMT=gofmt
 FMT_LOG=fmt.log
 LINT_LOG=lint.log
-XDOCK_YAML=crossdock/docker-compose.yml
 
 THRIFT_VER=0.9.3
 THRIFT_IMG=thrift:$(THRIFT_VER)
@@ -80,28 +81,12 @@ thrift-image:
 	docker pull $(THRIFT_IMG)
 	$(THRIFT) -version
 
-.PHONY: crossdock
-crossdock: bins
-	docker-compose -f $(XDOCK_YAML) kill go
-	docker-compose -f $(XDOCK_YAML) rm -f go
-	docker-compose -f $(XDOCK_YAML) build go
-	docker-compose -f $(XDOCK_YAML) run crossdock
-
-
-.PHONY: crossdock-fresh
-crossdock-fresh: bins
-	docker-compose -f $(XDOCK_YAML) kill
-	docker-compose -f $(XDOCK_YAML) rm --force
-	docker-compose -f $(XDOCK_YAML) pull
-	docker-compose -f $(XDOCK_YAML) build
-	docker-compose -f $(XDOCK_YAML) run crossdock
-
-
 .PHONY: install_ci
 install_ci: install
 	go get github.com/wadey/gocovmerge
 	go get github.com/mattn/goveralls
 	go get golang.org/x/tools/cmd/cover
+	go get github.com/golang/lint/golint
 
 
 .PHONY: test_ci
