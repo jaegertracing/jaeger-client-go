@@ -21,6 +21,7 @@
 package server
 
 import (
+	"fmt"
 	"github.com/opentracing/opentracing-go"
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/crossdock/common"
@@ -51,6 +52,7 @@ func (s *Server) startTChannelServer() error {
 		return err
 	}
 	s.HostPortTChannel = ch.PeerInfo().HostPort
+	fmt.Println("server host port", s.HostPortTChannel)
 
 	return nil
 }
@@ -74,7 +76,17 @@ func (s *Server) callDownstreamTChannel(ctx context.Context, downstream *tracete
 
 	// These two operations are idempotent
 	subchannel := s.channel.GetSubChannel(downstream.Host, tchannel.Isolated)
-	subchannel.Peers().Add(s.channel.PeerInfo().HostPort)
+
+	fmt.Printf("peer info %t %v\n", s.channel.PeerInfo().HostPort, s.channel.PeerInfo().HostPort)
+	fmt.Printf("downstream %s\n", fmt.Sprintf("%s:%s", downstream.Host, downstream.Port))
+	fmt.Println("peerlist:", subchannel.Peers().Copy())
+
+	peers := subchannel.Peers().Copy()
+	hostPort := fmt.Sprintf("%s:%s", downstream.Host, downstream.Port)
+	if len(peers) == 0 {
+		fmt.Println("Adding one peer.")
+		subchannel.Peers().Add(hostPort)
+	}
 
 	thriftClient := thrift.NewClient(s.channel, downstream.Host, nil)
 	client := tracetest.NewTChanTracedServiceClient(thriftClient)
