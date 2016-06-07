@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/uber/jaeger-client-go"
+	"github.com/uber/jaeger-client-go/crossdock/common"
 	"github.com/uber/jaeger-client-go/crossdock/server"
 	"github.com/uber/jaeger-client-go/utils"
 
@@ -45,7 +46,7 @@ func TestClient(t *testing.T) {
 		behaviorParam:         "trace",
 		sampledParam:          "true",
 		server1NameParam:      "localhost",
-		server2NameParam:      "localhost",
+		server2NameParam:      common.TChannelServiceName,
 		server2ClientParam:    "any",
 		server2TransportParam: "tchannel",
 		server3NameParam:      "localhost",
