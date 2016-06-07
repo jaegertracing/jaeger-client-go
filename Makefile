@@ -72,6 +72,8 @@ thrift: idl-submodule thrift-image
 	$(THRIFT) -o /data --gen go:$(THRIFT_GO_ARGS) --out /data/$(THRIFT_GEN_DIR) /data/idl/thrift/sampling.thrift
 	$(THRIFT) -o /data --gen go:$(THRIFT_GO_ARGS) --out /data/$(THRIFT_GEN_DIR) /data/idl/thrift/zipkincore.thrift
 	rm -rf thrift-gen/*/*-remote
+	$(THRIFT) -o /data --gen go:$(THRIFT_GO_ARGS) --out /data/crossdock/thrift/ /data/crossdock/thrift/tracetest.thrift
+	rm -rf crossdock/thrift/*/*-remote
 
 idl-submodule:
 	git submodule init
