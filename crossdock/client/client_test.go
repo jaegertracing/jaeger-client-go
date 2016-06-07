@@ -45,7 +45,7 @@ func TestClient(t *testing.T) {
 		behaviorParam:         "trace",
 		sampledParam:          "true",
 		server1NameParam:      "localhost",
-		server2NameParam:      "localhost",
+		server2NameParam:      "127.0.0.1",
 		server2ClientParam:    "any",
 		server2TransportParam: "tchannel",
 		server3NameParam:      "localhost",

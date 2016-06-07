@@ -32,7 +32,7 @@ func TestServerJSON(t *testing.T) {
 		Port:      s.GetPortHTTP(),
 		Transport: tracetest.Transport_HTTP,
 		Downstream: &tracetest.Downstream{
-			Host:      "localhost",
+			Host:      "127.0.0.1",
 			Port:      s.GetPortTChannel(),
 			Transport: tracetest.Transport_TCHANNEL,
 		},

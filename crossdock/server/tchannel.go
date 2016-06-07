@@ -21,8 +21,10 @@
 package server
 
 import (
+	"fmt"
 	"github.com/opentracing/opentracing-go"
 	"github.com/uber/jaeger-client-go"
+	"github.com/uber/jaeger-client-go/crossdock/common"
 	"github.com/uber/jaeger-client-go/crossdock/thrift/tracetest"
 	"github.com/uber/tchannel-go"
 	"github.com/uber/tchannel-go/thrift"
@@ -35,7 +37,7 @@ func (s *Server) startTChannelServer() error {
 	channelOpts := &tchannel.ChannelOptions{
 		TraceSampleRate: &traceSampleRate,
 	}
-	ch, err := tchannel.NewChannel("go", channelOpts)
+	ch, err := tchannel.NewChannel(common.TChannelServiceName, channelOpts)
 	if err != nil {
 		return err
 	}
@@ -49,9 +51,8 @@ func (s *Server) startTChannelServer() error {
 	if err := ch.ListenAndServe(s.HostPortTChannel); err != nil {
 		return err
 	}
-	subchannel := ch.GetSubChannel("go", tchannel.Isolated)
-	subchannel.Peers().Add(ch.PeerInfo().HostPort)
 	s.HostPortTChannel = ch.PeerInfo().HostPort
+	fmt.Println("server host port", s.HostPortTChannel)
 
 	return nil
 }
@@ -73,7 +74,21 @@ func (s *Server) callDownstreamTChannel(ctx context.Context, downstream *tracete
 
 	println("calling downstream over tchannel")
 
-	thriftClient := thrift.NewClient(s.channel, "go", nil)
+	// These two operations are idempotent
+	subchannel := s.channel.GetSubChannel(downstream.Host, tchannel.Isolated)
+
+	fmt.Printf("peer info %t %v\n", s.channel.PeerInfo().HostPort, s.channel.PeerInfo().HostPort)
+	fmt.Printf("downstream %s\n", fmt.Sprintf("%s:%s", downstream.Host, downstream.Port))
+	fmt.Println("peerlist:", subchannel.Peers().Copy())
+
+	peers := subchannel.Peers().Copy()
+	hostPort := fmt.Sprintf("%s:%s", downstream.Host, downstream.Port)
+	if len(peers) == 0 {
+		fmt.Println("Adding one peer.")
+		subchannel.Peers().Add(hostPort)
+	}
+
+	thriftClient := thrift.NewClient(s.channel, downstream.Host, nil)
 	client := tracetest.NewTChanTracedServiceClient(thriftClient)
 
 	// Manual bridging of OpenTracing Span into TChannel Span
