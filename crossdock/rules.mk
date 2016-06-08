@@ -9,7 +9,8 @@ crossdock: crossdock-linux-bin
 	docker-compose -f $(XDOCK_YAML) kill go
 	docker-compose -f $(XDOCK_YAML) rm -f go
 	docker-compose -f $(XDOCK_YAML) build go
-	docker-compose -f $(XDOCK_YAML) run crossdock
+	docker-compose -f $(XDOCK_YAML) run crossdock 2>&1 | tee run-crossdock.log
+	grep 'Tests passed!' run-crossdock.log
 
 
 .PHONY: crossdock-fresh
@@ -20,3 +21,6 @@ crossdock-fresh: crossdock-linux-bin
 	docker-compose -f $(XDOCK_YAML) build
 	docker-compose -f $(XDOCK_YAML) run crossdock
 
+.PHONE: crossdock-logs
+crossdock-logs:
+	docker-compose -f $(XDOCK_YAML) logs

@@ -53,7 +53,7 @@ func (s *Server) startTChannelServer() error {
 		return err
 	}
 	s.HostPortTChannel = ch.PeerInfo().HostPort
-
+	fmt.Printf("Started tchannel server at %s\n", s.HostPortTChannel)
 	return nil
 }
 
@@ -72,20 +72,17 @@ func (s *Server) JoinTrace(ctx thrift.Context, request *tracetest.JoinTraceReque
 func (s *Server) callDownstreamTChannel(ctx context.Context, downstream *tracetest.Downstream) (*tracetest.TraceResponse, error) {
 	req := &tracetest.JoinTraceRequest{Downstream: downstream.Downstream}
 
-	fmt.Printf("calling downstream service '%s' over tchannel\n", downstream.ServiceName)
-
 	hostPort := fmt.Sprintf("%s:%s", downstream.Host, downstream.Port)
-	subchannel := s.channel.GetSubChannel(downstream.ServiceName, tchannel.Isolated)
-	peers := subchannel.Peers().Copy()
-	if len(peers) == 0 {
-		subchannel.Peers().Add(hostPort)
-	} else if _, ok := peers[hostPort]; !ok {
-		return nil, fmt.Errorf(
-			"Subchannel for '%s' already has a peer different from %s",
-			downstream.ServiceName, hostPort)
+	fmt.Printf("calling downstream '%s' over tchannel:%s\n", downstream.ServiceName, hostPort)
+
+	ch, err := tchannel.NewChannel("tchannel-client", nil)
+	if err != nil {
+		return nil, err
 	}
 
-	thriftClient := thrift.NewClient(s.channel, downstream.ServiceName, nil)
+	opts := &thrift.ClientOptions{HostPort: hostPort}
+	thriftClient := thrift.NewClient(ch, downstream.ServiceName, opts)
+
 	client := tracetest.NewTChanTracedServiceClient(thriftClient)
 
 	// Manual bridging of OpenTracing Span into TChannel Span
