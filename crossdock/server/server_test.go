@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+	"golang.org/x/net/context"
+
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/crossdock/common"
 	"github.com/uber/jaeger-client-go/crossdock/thrift/tracetest"
-
-	"github.com/stretchr/testify/require"
-	"golang.org/x/net/context"
 )
 
 func TestServerJSON(t *testing.T) {
@@ -28,13 +28,15 @@ func TestServerJSON(t *testing.T) {
 	req.Sampled = true
 	req.Baggage = "Zoidberg"
 	req.Downstream = &tracetest.Downstream{
-		Host:      "localhost",
-		Port:      s.GetPortHTTP(),
-		Transport: tracetest.Transport_HTTP,
+		ServiceName: "go",
+		Host:        "localhost",
+		Port:        s.GetPortHTTP(),
+		Transport:   tracetest.Transport_HTTP,
 		Downstream: &tracetest.Downstream{
-			Host:      "localhost",
-			Port:      s.GetPortTChannel(),
-			Transport: tracetest.Transport_TCHANNEL,
+			ServiceName: "go",
+			Host:        "localhost",
+			Port:        s.GetPortTChannel(),
+			Transport:   tracetest.Transport_TCHANNEL,
 		},
 	}
 

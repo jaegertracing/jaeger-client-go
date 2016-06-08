@@ -21,13 +21,16 @@
 package server
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/opentracing/opentracing-go"
-	"github.com/uber/jaeger-client-go"
-	"github.com/uber/jaeger-client-go/crossdock/thrift/tracetest"
 	"github.com/uber/tchannel-go"
 	"github.com/uber/tchannel-go/thrift"
 	"golang.org/x/net/context"
-	"time"
+
+	"github.com/uber/jaeger-client-go"
+	"github.com/uber/jaeger-client-go/crossdock/thrift/tracetest"
 )
 
 func (s *Server) startTChannelServer() error {
@@ -49,8 +52,6 @@ func (s *Server) startTChannelServer() error {
 	if err := ch.ListenAndServe(s.HostPortTChannel); err != nil {
 		return err
 	}
-	subchannel := ch.GetSubChannel("go", tchannel.Isolated)
-	subchannel.Peers().Add(ch.PeerInfo().HostPort)
 	s.HostPortTChannel = ch.PeerInfo().HostPort
 
 	return nil
@@ -71,9 +72,20 @@ func (s *Server) JoinTrace(ctx thrift.Context, request *tracetest.JoinTraceReque
 func (s *Server) callDownstreamTChannel(ctx context.Context, downstream *tracetest.Downstream) (*tracetest.TraceResponse, error) {
 	req := &tracetest.JoinTraceRequest{Downstream: downstream.Downstream}
 
-	println("calling downstream over tchannel")
+	fmt.Printf("calling downstream service '%s' over tchannel\n", downstream.ServiceName)
 
-	thriftClient := thrift.NewClient(s.channel, "go", nil)
+	hostPort := fmt.Sprintf("%s:%s", downstream.Host, downstream.Port)
+	subchannel := s.channel.GetSubChannel(downstream.ServiceName, tchannel.Isolated)
+	peers := subchannel.Peers().Copy()
+	if len(peers) == 0 {
+		subchannel.Peers().Add(hostPort)
+	} else if _, ok := peers[hostPort]; !ok {
+		return nil, fmt.Errorf(
+			"Subchannel for '%s' already has a peer different from %s",
+			downstream.ServiceName, hostPort)
+	}
+
+	thriftClient := thrift.NewClient(s.channel, downstream.ServiceName, nil)
 	client := tracetest.NewTChanTracedServiceClient(thriftClient)
 
 	// Manual bridging of OpenTracing Span into TChannel Span

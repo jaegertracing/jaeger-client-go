@@ -29,4 +29,7 @@ const (
 
 	// DefaultServerPortTChannel is the port where TChannel server runs
 	DefaultServerPortTChannel = "8082"
+
+	// DefaultServiceName is the service name used by TChannel server
+	DefaultServiceName = "go"
 )

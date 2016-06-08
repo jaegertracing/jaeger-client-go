@@ -36,6 +36,7 @@ type Client struct {
 	ServerPortHTTP     string
 	ServerPortTChannel string
 	listener           net.Listener
+	hostMapper         func(service string) string
 }
 
 // Start begins a blocking Crossdock client
@@ -107,6 +108,14 @@ func (c *Client) dispatch(s behavior.Sink, ps behavior.Params) {
 	default:
 		behavior.Skipf(s, "unknown behavior %q", v)
 	}
+}
+
+func (c *Client) mapServiceToHost(service string) string {
+	mapper := c.hostMapper
+	if mapper == nil {
+		return service
+	}
+	return mapper(service)
 }
 
 // httpParams provides access to behavior parameters that are stored inside an
