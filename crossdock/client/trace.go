@@ -42,20 +42,23 @@ func (c *Client) trace(s behavior.Sink, ps behavior.Params) {
 	server1 := ps.Param(server1NameParam)
 
 	level2 := tracetest.NewDownstream()
-	level2.Host = ps.Param(server2NameParam)
+	level2.ServiceName = ps.Param(server2NameParam)
+	level2.Host = c.mapServiceToHost(level2.ServiceName)
 	level2.Port = c.transport2port(ps.Param(server2TransportParam))
 	level2.Transport = transport2transport(ps.Param(server2TransportParam))
 	level2.ClientType = ps.Param(server2ClientParam)
 	level1.Downstream = level2
 
 	level3 := tracetest.NewDownstream()
-	level3.Host = ps.Param(server3NameParam)
+	level3.ServiceName = ps.Param(server3NameParam)
+	level3.Host = c.mapServiceToHost(level3.ServiceName)
 	level3.Port = c.transport2port(ps.Param(server3TransportParam))
 	level3.Transport = transport2transport(ps.Param(server3TransportParam))
 	level3.ClientType = ps.Param(server3ClientParam)
 	level2.Downstream = level3
 
-	url := fmt.Sprintf("http://%s:%s/start_trace", server1, c.ServerPortHTTP)
+	server1host := c.mapServiceToHost(server1)
+	url := fmt.Sprintf("http://%s:%s/start_trace", server1host, c.ServerPortHTTP)
 	resp, err := common.PostJSON(context.Background(), url, level1)
 	if err != nil {
 		behavior.Errorf(s, err.Error())

@@ -80,7 +80,6 @@ idl-submodule:
 	git submodule update
 
 thrift-image:
-	docker pull $(THRIFT_IMG)
 	$(THRIFT) -version
 
 .PHONY: install_ci

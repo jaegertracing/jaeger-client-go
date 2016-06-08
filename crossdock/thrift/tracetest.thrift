@@ -3,11 +3,12 @@ namespace java com.uber.jaeger.crossdock.tracetest
 enum Transport { HTTP, TCHANNEL }
 
 struct Downstream {
-    1: required string host
-    2: required string port
-    3: required Transport transport
-    4: required string clientType
-    5: optional Downstream downstream
+    1: required string serviceName
+    2: required string host
+    3: required string port
+    4: required Transport transport
+    5: required string clientType
+    6: optional Downstream downstream
 }
 
 struct StartTraceRequest {

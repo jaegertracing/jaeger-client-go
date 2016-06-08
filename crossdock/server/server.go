@@ -52,6 +52,9 @@ func (s *Server) Start() error {
 	if s.HostPortHTTP == "" {
 		s.HostPortHTTP = ":" + common.DefaultServerPortHTTP
 	}
+	if s.HostPortTChannel == "" {
+		s.HostPortTChannel = ":" + common.DefaultServerPortTChannel
+	}
 
 	if err := s.startTChannelServer(); err != nil {
 		return err

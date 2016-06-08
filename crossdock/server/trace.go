@@ -23,13 +23,13 @@ package server
 import (
 	"fmt"
 
-	"github.com/uber/jaeger-client-go"
-	"github.com/uber/jaeger-client-go/crossdock/common"
-	"github.com/uber/jaeger-client-go/crossdock/thrift/tracetest"
-
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"golang.org/x/net/context"
+
+	"github.com/uber/jaeger-client-go"
+	"github.com/uber/jaeger-client-go/crossdock/common"
+	"github.com/uber/jaeger-client-go/crossdock/thrift/tracetest"
 )
 
 func (s *Server) doStartTrace(req *tracetest.StartTraceRequest) (*tracetest.TraceResponse, error) {
@@ -83,7 +83,7 @@ func (s *Server) callDownstream(ctx context.Context, downstream *tracetest.Downs
 func (s *Server) callDownstreamHTTP(ctx context.Context, downstream *tracetest.Downstream) (*tracetest.TraceResponse, error) {
 	req := &tracetest.JoinTraceRequest{Downstream: downstream.Downstream}
 	url := fmt.Sprintf("http://%s:%s/join_trace", downstream.Host, downstream.Port)
-	println("Calling downstream at", url)
+	fmt.Printf("Calling downstream service '%s' at %s\n", downstream.ServiceName, url)
 	return common.PostJSON(ctx, url, req)
 }
 
