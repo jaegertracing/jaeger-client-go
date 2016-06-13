@@ -12,13 +12,11 @@ services:
             - AXIS_S1NAME=go
             - AXIS_SAMPLED=true,false
             - AXIS_S2NAME=go
-            - AXIS_S2CLIENT=any
             - AXIS_S2TRANSPORT=http,tchannel
             - AXIS_S3NAME=go
-            - AXIS_S3CLIENT=any
             - AXIS_S3TRANSPORT=http,tchannel
 
-            - BEHAVIOR_TRACE=client,s1name,sampled,s2name,s2client,s2transport,s3name,s3client,s3transport
+            - BEHAVIOR_TRACE=client,s1name,sampled,s2name,s2transport,s3name,s3transport
 
     go:
         build: .

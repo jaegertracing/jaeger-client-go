@@ -60,17 +60,17 @@ func (p *Transport) UnmarshalText(text []byte) error {
 
 // Attributes:
 //  - ServiceName
+//  - ServerRole
 //  - Host
 //  - Port
 //  - Transport
-//  - ClientType
 //  - Downstream
 type Downstream struct {
 	ServiceName string      `thrift:"serviceName,1,required" json:"serviceName"`
-	Host        string      `thrift:"host,2,required" json:"host"`
-	Port        string      `thrift:"port,3,required" json:"port"`
-	Transport   Transport   `thrift:"transport,4,required" json:"transport"`
-	ClientType  string      `thrift:"clientType,5,required" json:"clientType"`
+	ServerRole  string      `thrift:"serverRole,2,required" json:"serverRole"`
+	Host        string      `thrift:"host,3,required" json:"host"`
+	Port        string      `thrift:"port,4,required" json:"port"`
+	Transport   Transport   `thrift:"transport,5,required" json:"transport"`
 	Downstream  *Downstream `thrift:"downstream,6" json:"downstream,omitempty"`
 }
 
@@ -80,6 +80,10 @@ func NewDownstream() *Downstream {
 
 func (p *Downstream) GetServiceName() string {
 	return p.ServiceName
+}
+
+func (p *Downstream) GetServerRole() string {
+	return p.ServerRole
 }
 
 func (p *Downstream) GetHost() string {
@@ -92,10 +96,6 @@ func (p *Downstream) GetPort() string {
 
 func (p *Downstream) GetTransport() Transport {
 	return p.Transport
-}
-
-func (p *Downstream) GetClientType() string {
-	return p.ClientType
 }
 
 var Downstream_Downstream_DEFAULT Downstream
@@ -116,10 +116,10 @@ func (p *Downstream) Read(iprot thrift.TProtocol) error {
 	}
 
 	var issetServiceName bool = false
+	var issetServerRole bool = false
 	var issetHost bool = false
 	var issetPort bool = false
 	var issetTransport bool = false
-	var issetClientType bool = false
 
 	for {
 		_, fieldTypeId, fieldId, err := iprot.ReadFieldBegin()
@@ -139,22 +139,22 @@ func (p *Downstream) Read(iprot thrift.TProtocol) error {
 			if err := p.readField2(iprot); err != nil {
 				return err
 			}
-			issetHost = true
+			issetServerRole = true
 		case 3:
 			if err := p.readField3(iprot); err != nil {
 				return err
 			}
-			issetPort = true
+			issetHost = true
 		case 4:
 			if err := p.readField4(iprot); err != nil {
 				return err
 			}
-			issetTransport = true
+			issetPort = true
 		case 5:
 			if err := p.readField5(iprot); err != nil {
 				return err
 			}
-			issetClientType = true
+			issetTransport = true
 		case 6:
 			if err := p.readField6(iprot); err != nil {
 				return err
@@ -174,6 +174,9 @@ func (p *Downstream) Read(iprot thrift.TProtocol) error {
 	if !issetServiceName {
 		return thrift.NewTProtocolExceptionWithType(thrift.INVALID_DATA, fmt.Errorf("Required field ServiceName is not set"))
 	}
+	if !issetServerRole {
+		return thrift.NewTProtocolExceptionWithType(thrift.INVALID_DATA, fmt.Errorf("Required field ServerRole is not set"))
+	}
 	if !issetHost {
 		return thrift.NewTProtocolExceptionWithType(thrift.INVALID_DATA, fmt.Errorf("Required field Host is not set"))
 	}
@@ -182,9 +185,6 @@ func (p *Downstream) Read(iprot thrift.TProtocol) error {
 	}
 	if !issetTransport {
 		return thrift.NewTProtocolExceptionWithType(thrift.INVALID_DATA, fmt.Errorf("Required field Transport is not set"))
-	}
-	if !issetClientType {
-		return thrift.NewTProtocolExceptionWithType(thrift.INVALID_DATA, fmt.Errorf("Required field ClientType is not set"))
 	}
 	return nil
 }
@@ -202,7 +202,7 @@ func (p *Downstream) readField2(iprot thrift.TProtocol) error {
 	if v, err := iprot.ReadString(); err != nil {
 		return thrift.PrependError("error reading field 2: ", err)
 	} else {
-		p.Host = v
+		p.ServerRole = v
 	}
 	return nil
 }
@@ -211,26 +211,26 @@ func (p *Downstream) readField3(iprot thrift.TProtocol) error {
 	if v, err := iprot.ReadString(); err != nil {
 		return thrift.PrependError("error reading field 3: ", err)
 	} else {
-		p.Port = v
+		p.Host = v
 	}
 	return nil
 }
 
 func (p *Downstream) readField4(iprot thrift.TProtocol) error {
-	if v, err := iprot.ReadI32(); err != nil {
+	if v, err := iprot.ReadString(); err != nil {
 		return thrift.PrependError("error reading field 4: ", err)
 	} else {
-		temp := Transport(v)
-		p.Transport = temp
+		p.Port = v
 	}
 	return nil
 }
 
 func (p *Downstream) readField5(iprot thrift.TProtocol) error {
-	if v, err := iprot.ReadString(); err != nil {
+	if v, err := iprot.ReadI32(); err != nil {
 		return thrift.PrependError("error reading field 5: ", err)
 	} else {
-		p.ClientType = v
+		temp := Transport(v)
+		p.Transport = temp
 	}
 	return nil
 }
@@ -288,53 +288,53 @@ func (p *Downstream) writeField1(oprot thrift.TProtocol) (err error) {
 }
 
 func (p *Downstream) writeField2(oprot thrift.TProtocol) (err error) {
-	if err := oprot.WriteFieldBegin("host", thrift.STRING, 2); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T write field begin error 2:host: ", p), err)
+	if err := oprot.WriteFieldBegin("serverRole", thrift.STRING, 2); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T write field begin error 2:serverRole: ", p), err)
 	}
-	if err := oprot.WriteString(string(p.Host)); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T.host (2) field write error: ", p), err)
+	if err := oprot.WriteString(string(p.ServerRole)); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T.serverRole (2) field write error: ", p), err)
 	}
 	if err := oprot.WriteFieldEnd(); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T write field end error 2:host: ", p), err)
+		return thrift.PrependError(fmt.Sprintf("%T write field end error 2:serverRole: ", p), err)
 	}
 	return err
 }
 
 func (p *Downstream) writeField3(oprot thrift.TProtocol) (err error) {
-	if err := oprot.WriteFieldBegin("port", thrift.STRING, 3); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T write field begin error 3:port: ", p), err)
+	if err := oprot.WriteFieldBegin("host", thrift.STRING, 3); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T write field begin error 3:host: ", p), err)
 	}
-	if err := oprot.WriteString(string(p.Port)); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T.port (3) field write error: ", p), err)
+	if err := oprot.WriteString(string(p.Host)); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T.host (3) field write error: ", p), err)
 	}
 	if err := oprot.WriteFieldEnd(); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T write field end error 3:port: ", p), err)
+		return thrift.PrependError(fmt.Sprintf("%T write field end error 3:host: ", p), err)
 	}
 	return err
 }
 
 func (p *Downstream) writeField4(oprot thrift.TProtocol) (err error) {
-	if err := oprot.WriteFieldBegin("transport", thrift.I32, 4); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T write field begin error 4:transport: ", p), err)
+	if err := oprot.WriteFieldBegin("port", thrift.STRING, 4); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T write field begin error 4:port: ", p), err)
 	}
-	if err := oprot.WriteI32(int32(p.Transport)); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T.transport (4) field write error: ", p), err)
+	if err := oprot.WriteString(string(p.Port)); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T.port (4) field write error: ", p), err)
 	}
 	if err := oprot.WriteFieldEnd(); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T write field end error 4:transport: ", p), err)
+		return thrift.PrependError(fmt.Sprintf("%T write field end error 4:port: ", p), err)
 	}
 	return err
 }
 
 func (p *Downstream) writeField5(oprot thrift.TProtocol) (err error) {
-	if err := oprot.WriteFieldBegin("clientType", thrift.STRING, 5); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T write field begin error 5:clientType: ", p), err)
+	if err := oprot.WriteFieldBegin("transport", thrift.I32, 5); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T write field begin error 5:transport: ", p), err)
 	}
-	if err := oprot.WriteString(string(p.ClientType)); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T.clientType (5) field write error: ", p), err)
+	if err := oprot.WriteI32(int32(p.Transport)); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T.transport (5) field write error: ", p), err)
 	}
 	if err := oprot.WriteFieldEnd(); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T write field end error 5:clientType: ", p), err)
+		return thrift.PrependError(fmt.Sprintf("%T write field end error 5:transport: ", p), err)
 	}
 	return err
 }
@@ -362,17 +362,23 @@ func (p *Downstream) String() string {
 }
 
 // Attributes:
+//  - ServerRole
 //  - Sampled
 //  - Baggage
 //  - Downstream
 type StartTraceRequest struct {
-	Sampled    bool        `thrift:"sampled,1,required" json:"sampled"`
-	Baggage    string      `thrift:"baggage,2,required" json:"baggage"`
-	Downstream *Downstream `thrift:"downstream,3,required" json:"downstream"`
+	ServerRole string      `thrift:"serverRole,1,required" json:"serverRole"`
+	Sampled    bool        `thrift:"sampled,2,required" json:"sampled"`
+	Baggage    string      `thrift:"baggage,3,required" json:"baggage"`
+	Downstream *Downstream `thrift:"downstream,4,required" json:"downstream"`
 }
 
 func NewStartTraceRequest() *StartTraceRequest {
 	return &StartTraceRequest{}
+}
+
+func (p *StartTraceRequest) GetServerRole() string {
+	return p.ServerRole
 }
 
 func (p *StartTraceRequest) GetSampled() bool {
@@ -400,6 +406,7 @@ func (p *StartTraceRequest) Read(iprot thrift.TProtocol) error {
 		return thrift.PrependError(fmt.Sprintf("%T read error: ", p), err)
 	}
 
+	var issetServerRole bool = false
 	var issetSampled bool = false
 	var issetBaggage bool = false
 	var issetDownstream bool = false
@@ -417,14 +424,19 @@ func (p *StartTraceRequest) Read(iprot thrift.TProtocol) error {
 			if err := p.readField1(iprot); err != nil {
 				return err
 			}
-			issetSampled = true
+			issetServerRole = true
 		case 2:
 			if err := p.readField2(iprot); err != nil {
 				return err
 			}
-			issetBaggage = true
+			issetSampled = true
 		case 3:
 			if err := p.readField3(iprot); err != nil {
+				return err
+			}
+			issetBaggage = true
+		case 4:
+			if err := p.readField4(iprot); err != nil {
 				return err
 			}
 			issetDownstream = true
@@ -440,6 +452,9 @@ func (p *StartTraceRequest) Read(iprot thrift.TProtocol) error {
 	if err := iprot.ReadStructEnd(); err != nil {
 		return thrift.PrependError(fmt.Sprintf("%T read struct end error: ", p), err)
 	}
+	if !issetServerRole {
+		return thrift.NewTProtocolExceptionWithType(thrift.INVALID_DATA, fmt.Errorf("Required field ServerRole is not set"))
+	}
 	if !issetSampled {
 		return thrift.NewTProtocolExceptionWithType(thrift.INVALID_DATA, fmt.Errorf("Required field Sampled is not set"))
 	}
@@ -453,24 +468,33 @@ func (p *StartTraceRequest) Read(iprot thrift.TProtocol) error {
 }
 
 func (p *StartTraceRequest) readField1(iprot thrift.TProtocol) error {
-	if v, err := iprot.ReadBool(); err != nil {
+	if v, err := iprot.ReadString(); err != nil {
 		return thrift.PrependError("error reading field 1: ", err)
+	} else {
+		p.ServerRole = v
+	}
+	return nil
+}
+
+func (p *StartTraceRequest) readField2(iprot thrift.TProtocol) error {
+	if v, err := iprot.ReadBool(); err != nil {
+		return thrift.PrependError("error reading field 2: ", err)
 	} else {
 		p.Sampled = v
 	}
 	return nil
 }
 
-func (p *StartTraceRequest) readField2(iprot thrift.TProtocol) error {
+func (p *StartTraceRequest) readField3(iprot thrift.TProtocol) error {
 	if v, err := iprot.ReadString(); err != nil {
-		return thrift.PrependError("error reading field 2: ", err)
+		return thrift.PrependError("error reading field 3: ", err)
 	} else {
 		p.Baggage = v
 	}
 	return nil
 }
 
-func (p *StartTraceRequest) readField3(iprot thrift.TProtocol) error {
+func (p *StartTraceRequest) readField4(iprot thrift.TProtocol) error {
 	p.Downstream = &Downstream{}
 	if err := p.Downstream.Read(iprot); err != nil {
 		return thrift.PrependError(fmt.Sprintf("%T error reading struct: ", p.Downstream), err)
@@ -491,6 +515,9 @@ func (p *StartTraceRequest) Write(oprot thrift.TProtocol) error {
 	if err := p.writeField3(oprot); err != nil {
 		return err
 	}
+	if err := p.writeField4(oprot); err != nil {
+		return err
+	}
 	if err := oprot.WriteFieldStop(); err != nil {
 		return thrift.PrependError("write field stop error: ", err)
 	}
@@ -501,40 +528,53 @@ func (p *StartTraceRequest) Write(oprot thrift.TProtocol) error {
 }
 
 func (p *StartTraceRequest) writeField1(oprot thrift.TProtocol) (err error) {
-	if err := oprot.WriteFieldBegin("sampled", thrift.BOOL, 1); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T write field begin error 1:sampled: ", p), err)
+	if err := oprot.WriteFieldBegin("serverRole", thrift.STRING, 1); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T write field begin error 1:serverRole: ", p), err)
 	}
-	if err := oprot.WriteBool(bool(p.Sampled)); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T.sampled (1) field write error: ", p), err)
+	if err := oprot.WriteString(string(p.ServerRole)); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T.serverRole (1) field write error: ", p), err)
 	}
 	if err := oprot.WriteFieldEnd(); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T write field end error 1:sampled: ", p), err)
+		return thrift.PrependError(fmt.Sprintf("%T write field end error 1:serverRole: ", p), err)
 	}
 	return err
 }
 
 func (p *StartTraceRequest) writeField2(oprot thrift.TProtocol) (err error) {
-	if err := oprot.WriteFieldBegin("baggage", thrift.STRING, 2); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T write field begin error 2:baggage: ", p), err)
+	if err := oprot.WriteFieldBegin("sampled", thrift.BOOL, 2); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T write field begin error 2:sampled: ", p), err)
 	}
-	if err := oprot.WriteString(string(p.Baggage)); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T.baggage (2) field write error: ", p), err)
+	if err := oprot.WriteBool(bool(p.Sampled)); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T.sampled (2) field write error: ", p), err)
 	}
 	if err := oprot.WriteFieldEnd(); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T write field end error 2:baggage: ", p), err)
+		return thrift.PrependError(fmt.Sprintf("%T write field end error 2:sampled: ", p), err)
 	}
 	return err
 }
 
 func (p *StartTraceRequest) writeField3(oprot thrift.TProtocol) (err error) {
-	if err := oprot.WriteFieldBegin("downstream", thrift.STRUCT, 3); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T write field begin error 3:downstream: ", p), err)
+	if err := oprot.WriteFieldBegin("baggage", thrift.STRING, 3); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T write field begin error 3:baggage: ", p), err)
+	}
+	if err := oprot.WriteString(string(p.Baggage)); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T.baggage (3) field write error: ", p), err)
+	}
+	if err := oprot.WriteFieldEnd(); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T write field end error 3:baggage: ", p), err)
+	}
+	return err
+}
+
+func (p *StartTraceRequest) writeField4(oprot thrift.TProtocol) (err error) {
+	if err := oprot.WriteFieldBegin("downstream", thrift.STRUCT, 4); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T write field begin error 4:downstream: ", p), err)
 	}
 	if err := p.Downstream.Write(oprot); err != nil {
 		return thrift.PrependError(fmt.Sprintf("%T error writing struct: ", p.Downstream), err)
 	}
 	if err := oprot.WriteFieldEnd(); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T write field end error 3:downstream: ", p), err)
+		return thrift.PrependError(fmt.Sprintf("%T write field end error 4:downstream: ", p), err)
 	}
 	return err
 }
@@ -547,13 +587,19 @@ func (p *StartTraceRequest) String() string {
 }
 
 // Attributes:
+//  - ServerRole
 //  - Downstream
 type JoinTraceRequest struct {
-	Downstream *Downstream `thrift:"downstream,1" json:"downstream,omitempty"`
+	ServerRole string      `thrift:"serverRole,1,required" json:"serverRole"`
+	Downstream *Downstream `thrift:"downstream,2" json:"downstream,omitempty"`
 }
 
 func NewJoinTraceRequest() *JoinTraceRequest {
 	return &JoinTraceRequest{}
+}
+
+func (p *JoinTraceRequest) GetServerRole() string {
+	return p.ServerRole
 }
 
 var JoinTraceRequest_Downstream_DEFAULT *Downstream
@@ -573,6 +619,8 @@ func (p *JoinTraceRequest) Read(iprot thrift.TProtocol) error {
 		return thrift.PrependError(fmt.Sprintf("%T read error: ", p), err)
 	}
 
+	var issetServerRole bool = false
+
 	for {
 		_, fieldTypeId, fieldId, err := iprot.ReadFieldBegin()
 		if err != nil {
@@ -584,6 +632,11 @@ func (p *JoinTraceRequest) Read(iprot thrift.TProtocol) error {
 		switch fieldId {
 		case 1:
 			if err := p.readField1(iprot); err != nil {
+				return err
+			}
+			issetServerRole = true
+		case 2:
+			if err := p.readField2(iprot); err != nil {
 				return err
 			}
 		default:
@@ -598,10 +651,22 @@ func (p *JoinTraceRequest) Read(iprot thrift.TProtocol) error {
 	if err := iprot.ReadStructEnd(); err != nil {
 		return thrift.PrependError(fmt.Sprintf("%T read struct end error: ", p), err)
 	}
+	if !issetServerRole {
+		return thrift.NewTProtocolExceptionWithType(thrift.INVALID_DATA, fmt.Errorf("Required field ServerRole is not set"))
+	}
 	return nil
 }
 
 func (p *JoinTraceRequest) readField1(iprot thrift.TProtocol) error {
+	if v, err := iprot.ReadString(); err != nil {
+		return thrift.PrependError("error reading field 1: ", err)
+	} else {
+		p.ServerRole = v
+	}
+	return nil
+}
+
+func (p *JoinTraceRequest) readField2(iprot thrift.TProtocol) error {
 	p.Downstream = &Downstream{}
 	if err := p.Downstream.Read(iprot); err != nil {
 		return thrift.PrependError(fmt.Sprintf("%T error reading struct: ", p.Downstream), err)
@@ -616,6 +681,9 @@ func (p *JoinTraceRequest) Write(oprot thrift.TProtocol) error {
 	if err := p.writeField1(oprot); err != nil {
 		return err
 	}
+	if err := p.writeField2(oprot); err != nil {
+		return err
+	}
 	if err := oprot.WriteFieldStop(); err != nil {
 		return thrift.PrependError("write field stop error: ", err)
 	}
@@ -626,15 +694,28 @@ func (p *JoinTraceRequest) Write(oprot thrift.TProtocol) error {
 }
 
 func (p *JoinTraceRequest) writeField1(oprot thrift.TProtocol) (err error) {
+	if err := oprot.WriteFieldBegin("serverRole", thrift.STRING, 1); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T write field begin error 1:serverRole: ", p), err)
+	}
+	if err := oprot.WriteString(string(p.ServerRole)); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T.serverRole (1) field write error: ", p), err)
+	}
+	if err := oprot.WriteFieldEnd(); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T write field end error 1:serverRole: ", p), err)
+	}
+	return err
+}
+
+func (p *JoinTraceRequest) writeField2(oprot thrift.TProtocol) (err error) {
 	if p.IsSetDownstream() {
-		if err := oprot.WriteFieldBegin("downstream", thrift.STRUCT, 1); err != nil {
-			return thrift.PrependError(fmt.Sprintf("%T write field begin error 1:downstream: ", p), err)
+		if err := oprot.WriteFieldBegin("downstream", thrift.STRUCT, 2); err != nil {
+			return thrift.PrependError(fmt.Sprintf("%T write field begin error 2:downstream: ", p), err)
 		}
 		if err := p.Downstream.Write(oprot); err != nil {
 			return thrift.PrependError(fmt.Sprintf("%T error writing struct: ", p.Downstream), err)
 		}
 		if err := oprot.WriteFieldEnd(); err != nil {
-			return thrift.PrependError(fmt.Sprintf("%T write field end error 1:downstream: ", p), err)
+			return thrift.PrependError(fmt.Sprintf("%T write field end error 2:downstream: ", p), err)
 		}
 	}
 	return err
@@ -824,12 +905,19 @@ func (p *ObservedSpan) String() string {
 	return fmt.Sprintf("ObservedSpan(%+v)", *p)
 }
 
+// Each server must include the information about the span it observed.
+// It can only be omitted from the response if notImplementedError field is not empty.
+// If the server was instructed to make a downstream call, it must embed the
+// downstream response in its own response.
+//
 // Attributes:
 //  - Span
 //  - Downstream
+//  - NotImplementedError
 type TraceResponse struct {
-	Span       *ObservedSpan  `thrift:"span,1,required" json:"span"`
-	Downstream *TraceResponse `thrift:"downstream,2" json:"downstream,omitempty"`
+	Span                *ObservedSpan  `thrift:"span,1" json:"span,omitempty"`
+	Downstream          *TraceResponse `thrift:"downstream,2" json:"downstream,omitempty"`
+	NotImplementedError string         `thrift:"notImplementedError,3,required" json:"notImplementedError"`
 }
 
 func NewTraceResponse() *TraceResponse {
@@ -853,6 +941,10 @@ func (p *TraceResponse) GetDownstream() TraceResponse {
 	}
 	return *p.Downstream
 }
+
+func (p *TraceResponse) GetNotImplementedError() string {
+	return p.NotImplementedError
+}
 func (p *TraceResponse) IsSetSpan() bool {
 	return p.Span != nil
 }
@@ -866,7 +958,7 @@ func (p *TraceResponse) Read(iprot thrift.TProtocol) error {
 		return thrift.PrependError(fmt.Sprintf("%T read error: ", p), err)
 	}
 
-	var issetSpan bool = false
+	var issetNotImplementedError bool = false
 
 	for {
 		_, fieldTypeId, fieldId, err := iprot.ReadFieldBegin()
@@ -881,11 +973,15 @@ func (p *TraceResponse) Read(iprot thrift.TProtocol) error {
 			if err := p.readField1(iprot); err != nil {
 				return err
 			}
-			issetSpan = true
 		case 2:
 			if err := p.readField2(iprot); err != nil {
 				return err
 			}
+		case 3:
+			if err := p.readField3(iprot); err != nil {
+				return err
+			}
+			issetNotImplementedError = true
 		default:
 			if err := iprot.Skip(fieldTypeId); err != nil {
 				return err
@@ -898,8 +994,8 @@ func (p *TraceResponse) Read(iprot thrift.TProtocol) error {
 	if err := iprot.ReadStructEnd(); err != nil {
 		return thrift.PrependError(fmt.Sprintf("%T read struct end error: ", p), err)
 	}
-	if !issetSpan {
-		return thrift.NewTProtocolExceptionWithType(thrift.INVALID_DATA, fmt.Errorf("Required field Span is not set"))
+	if !issetNotImplementedError {
+		return thrift.NewTProtocolExceptionWithType(thrift.INVALID_DATA, fmt.Errorf("Required field NotImplementedError is not set"))
 	}
 	return nil
 }
@@ -920,6 +1016,15 @@ func (p *TraceResponse) readField2(iprot thrift.TProtocol) error {
 	return nil
 }
 
+func (p *TraceResponse) readField3(iprot thrift.TProtocol) error {
+	if v, err := iprot.ReadString(); err != nil {
+		return thrift.PrependError("error reading field 3: ", err)
+	} else {
+		p.NotImplementedError = v
+	}
+	return nil
+}
+
 func (p *TraceResponse) Write(oprot thrift.TProtocol) error {
 	if err := oprot.WriteStructBegin("TraceResponse"); err != nil {
 		return thrift.PrependError(fmt.Sprintf("%T write struct begin error: ", p), err)
@@ -928,6 +1033,9 @@ func (p *TraceResponse) Write(oprot thrift.TProtocol) error {
 		return err
 	}
 	if err := p.writeField2(oprot); err != nil {
+		return err
+	}
+	if err := p.writeField3(oprot); err != nil {
 		return err
 	}
 	if err := oprot.WriteFieldStop(); err != nil {
@@ -940,14 +1048,16 @@ func (p *TraceResponse) Write(oprot thrift.TProtocol) error {
 }
 
 func (p *TraceResponse) writeField1(oprot thrift.TProtocol) (err error) {
-	if err := oprot.WriteFieldBegin("span", thrift.STRUCT, 1); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T write field begin error 1:span: ", p), err)
-	}
-	if err := p.Span.Write(oprot); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T error writing struct: ", p.Span), err)
-	}
-	if err := oprot.WriteFieldEnd(); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T write field end error 1:span: ", p), err)
+	if p.IsSetSpan() {
+		if err := oprot.WriteFieldBegin("span", thrift.STRUCT, 1); err != nil {
+			return thrift.PrependError(fmt.Sprintf("%T write field begin error 1:span: ", p), err)
+		}
+		if err := p.Span.Write(oprot); err != nil {
+			return thrift.PrependError(fmt.Sprintf("%T error writing struct: ", p.Span), err)
+		}
+		if err := oprot.WriteFieldEnd(); err != nil {
+			return thrift.PrependError(fmt.Sprintf("%T write field end error 1:span: ", p), err)
+		}
 	}
 	return err
 }
@@ -963,6 +1073,19 @@ func (p *TraceResponse) writeField2(oprot thrift.TProtocol) (err error) {
 		if err := oprot.WriteFieldEnd(); err != nil {
 			return thrift.PrependError(fmt.Sprintf("%T write field end error 2:downstream: ", p), err)
 		}
+	}
+	return err
+}
+
+func (p *TraceResponse) writeField3(oprot thrift.TProtocol) (err error) {
+	if err := oprot.WriteFieldBegin("notImplementedError", thrift.STRING, 3); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T write field begin error 3:notImplementedError: ", p), err)
+	}
+	if err := oprot.WriteString(string(p.NotImplementedError)); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T.notImplementedError (3) field write error: ", p), err)
+	}
+	if err := oprot.WriteFieldEnd(); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T write field end error 3:notImplementedError: ", p), err)
 	}
 	return err
 }

@@ -37,24 +37,25 @@ func (c *Client) trace(s behavior.Sink, ps behavior.Params) {
 	baggage := randomBaggage()
 
 	level1 := tracetest.NewStartTraceRequest()
+	level1.ServerRole = common.RoleS1
 	level1.Sampled = sampled
 	level1.Baggage = baggage
 	server1 := ps.Param(server1NameParam)
 
 	level2 := tracetest.NewDownstream()
 	level2.ServiceName = ps.Param(server2NameParam)
+	level2.ServerRole = common.RoleS2
 	level2.Host = c.mapServiceToHost(level2.ServiceName)
 	level2.Port = c.transport2port(ps.Param(server2TransportParam))
 	level2.Transport = transport2transport(ps.Param(server2TransportParam))
-	level2.ClientType = ps.Param(server2ClientParam)
 	level1.Downstream = level2
 
 	level3 := tracetest.NewDownstream()
 	level3.ServiceName = ps.Param(server3NameParam)
+	level3.ServerRole = common.RoleS3
 	level3.Host = c.mapServiceToHost(level3.ServiceName)
 	level3.Port = c.transport2port(ps.Param(server3TransportParam))
 	level3.Transport = transport2transport(ps.Param(server3TransportParam))
-	level3.ClientType = ps.Param(server3ClientParam)
 	level2.Downstream = level3
 
 	server1host := c.mapServiceToHost(server1)
@@ -62,6 +63,11 @@ func (c *Client) trace(s behavior.Sink, ps behavior.Params) {
 	resp, err := common.PostJSON(context.Background(), url, level1)
 	if err != nil {
 		behavior.Errorf(s, err.Error())
+		return
+	}
+
+	if resp.NotImplementedError != "" {
+		behavior.Skipf(s, resp.NotImplementedError)
 		return
 	}
 

@@ -20,7 +20,7 @@
 
 package client
 
-// Different parameter keys used by the system
+// Different parameter keys and values used by the system
 const (
 	behaviorParam = "behavior"
 	// S1 instructions
@@ -28,10 +28,13 @@ const (
 	server1NameParam = "s1name"
 	// S1->S2 instructions
 	server2NameParam      = "s2name"
-	server2ClientParam    = "s2client"
 	server2TransportParam = "s2transport"
 	// S2->S3 instructions
 	server3NameParam      = "s3name"
-	server3ClientParam    = "s3client"
 	server3TransportParam = "s3transport"
+
+	transportHTTP     = "http"
+	transportTChannel = "tchannel"
+
+	behaviorTrace = "tracer"
 )

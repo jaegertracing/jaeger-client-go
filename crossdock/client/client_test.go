@@ -50,15 +50,13 @@ func TestClient(t *testing.T) {
 	defer c.Close()
 
 	exec(t, c, map[string]string{
-		behaviorParam:         "trace",
+		behaviorParam:         behaviorTrace,
 		sampledParam:          "true",
 		server1NameParam:      common.DefaultServiceName,
 		server2NameParam:      common.DefaultServiceName,
-		server2ClientParam:    "any",
-		server2TransportParam: "tchannel",
+		server2TransportParam: transportTChannel,
 		server3NameParam:      common.DefaultServiceName,
-		server3ClientParam:    "any",
-		server3TransportParam: "http",
+		server3TransportParam: transportHTTP,
 	})
 }
 

@@ -103,7 +103,7 @@ func (c *Client) behaviorRequestHandler(w http.ResponseWriter, r *http.Request) 
 func (c *Client) dispatch(s behavior.Sink, ps behavior.Params) {
 	v := ps.Param(behaviorParam)
 	switch v {
-	case "trace":
+	case behaviorTrace:
 		c.trace(s, ps)
 	default:
 		behavior.Skipf(s, "unknown behavior %q", v)
@@ -118,8 +118,8 @@ func (c *Client) mapServiceToHost(service string) string {
 	return mapper(service)
 }
 
-// httpParams provides access to behavior parameters that are stored inside an
-// HTTP request.
+// httpParams provides access to behavior parameters that are stored
+// inside an HTTP request.
 type httpParams struct {
 	Request *http.Request
 }
