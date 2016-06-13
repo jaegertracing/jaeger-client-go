@@ -66,14 +66,17 @@ func (s *Server) StartTrace(ctx thrift.Context, request *tracetest.StartTraceReq
 func (s *Server) JoinTrace(ctx thrift.Context, request *tracetest.JoinTraceRequest) (*tracetest.TraceResponse, error) {
 	println("tchannel server handling JoinTrace")
 	ctx2 := setupOpenTracingContext(s.Tracer, ctx, "tchannel", ctx.Headers())
-	return s.prepareResponse(ctx2, request.Downstream)
+	return s.prepareResponse(ctx2, request.ServerRole, request.Downstream)
 }
 
-func (s *Server) callDownstreamTChannel(ctx context.Context, downstream *tracetest.Downstream) (*tracetest.TraceResponse, error) {
-	req := &tracetest.JoinTraceRequest{Downstream: downstream.Downstream}
+func (s *Server) callDownstreamTChannel(ctx context.Context, target *tracetest.Downstream) (*tracetest.TraceResponse, error) {
+	req := &tracetest.JoinTraceRequest{
+		ServerRole: target.ServerRole,
+		Downstream: target.Downstream,
+	}
 
-	hostPort := fmt.Sprintf("%s:%s", downstream.Host, downstream.Port)
-	fmt.Printf("calling downstream '%s' over tchannel:%s\n", downstream.ServiceName, hostPort)
+	hostPort := fmt.Sprintf("%s:%s", target.Host, target.Port)
+	fmt.Printf("calling downstream '%s' over tchannel:%s\n", target.ServiceName, hostPort)
 
 	ch, err := tchannel.NewChannel("tchannel-client", nil)
 	if err != nil {
@@ -81,7 +84,7 @@ func (s *Server) callDownstreamTChannel(ctx context.Context, downstream *tracete
 	}
 
 	opts := &thrift.ClientOptions{HostPort: hostPort}
-	thriftClient := thrift.NewClient(ch, downstream.ServiceName, opts)
+	thriftClient := thrift.NewClient(ch, target.ServiceName, opts)
 
 	client := tracetest.NewTChanTracedServiceClient(thriftClient)
 

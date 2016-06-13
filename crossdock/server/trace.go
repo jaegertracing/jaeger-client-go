@@ -33,7 +33,7 @@ import (
 )
 
 func (s *Server) doStartTrace(req *tracetest.StartTraceRequest) (*tracetest.TraceResponse, error) {
-	span := s.Tracer.StartSpan("s1")
+	span := s.Tracer.StartSpan(req.ServerRole)
 	if req.Sampled {
 		ext.SamplingPriority.Set(span, 1)
 	}
@@ -42,14 +42,14 @@ func (s *Server) doStartTrace(req *tracetest.StartTraceRequest) (*tracetest.Trac
 
 	ctx := opentracing.ContextWithSpan(context.Background(), span)
 
-	return s.prepareResponse(ctx, req.Downstream)
+	return s.prepareResponse(ctx, req.ServerRole, req.Downstream)
 }
 
 func (s *Server) doJoinTrace(ctx context.Context, req *tracetest.JoinTraceRequest) (*tracetest.TraceResponse, error) {
-	return s.prepareResponse(ctx, req.Downstream)
+	return s.prepareResponse(ctx, req.ServerRole, req.Downstream)
 }
 
-func (s *Server) prepareResponse(ctx context.Context, reqDwn *tracetest.Downstream) (*tracetest.TraceResponse, error) {
+func (s *Server) prepareResponse(ctx context.Context, role string, reqDwn *tracetest.Downstream) (*tracetest.TraceResponse, error) {
 	observedSpan, err := observeSpan(ctx, s.Tracer)
 	if err != nil {
 		return nil, err
@@ -59,31 +59,43 @@ func (s *Server) prepareResponse(ctx context.Context, reqDwn *tracetest.Downstre
 	resp.Span = observedSpan
 
 	if reqDwn != nil {
-		downstreamResp, err := s.callDownstream(ctx, reqDwn)
+		downstreamResp, err := s.callDownstream(ctx, role, reqDwn)
 		if err != nil {
 			return nil, err
 		}
 		resp.Downstream = downstreamResp
+		if downstreamResp.NotImplementedError != "" {
+			resp.NotImplementedError = downstreamResp.NotImplementedError
+			resp.Span = nil
+		}
 	}
 
 	return resp, nil
 }
 
-func (s *Server) callDownstream(ctx context.Context, downstream *tracetest.Downstream) (*tracetest.TraceResponse, error) {
+func (s *Server) callDownstream(ctx context.Context, role string, downstream *tracetest.Downstream) (*tracetest.TraceResponse, error) {
 	switch downstream.Transport {
 	case tracetest.Transport_HTTP:
 		return s.callDownstreamHTTP(ctx, downstream)
 	case tracetest.Transport_TCHANNEL:
+		// example of how the server could respond if TChannel transport was not supported
+		//return &tracetest.TraceResponse{
+		//	NotImplementedError: fmt.Sprintf(
+		//		"Downstream TChannel transport not implemented in Go server %s", role),
+		//}, nil
 		return s.callDownstreamTChannel(ctx, downstream)
 	default:
 		return nil, errUnrecognizedProtocol
 	}
 }
 
-func (s *Server) callDownstreamHTTP(ctx context.Context, downstream *tracetest.Downstream) (*tracetest.TraceResponse, error) {
-	req := &tracetest.JoinTraceRequest{Downstream: downstream.Downstream}
-	url := fmt.Sprintf("http://%s:%s/join_trace", downstream.Host, downstream.Port)
-	fmt.Printf("Calling downstream service '%s' at %s\n", downstream.ServiceName, url)
+func (s *Server) callDownstreamHTTP(ctx context.Context, target *tracetest.Downstream) (*tracetest.TraceResponse, error) {
+	req := &tracetest.JoinTraceRequest{
+		ServerRole: target.ServerRole,
+		Downstream: target.Downstream,
+	}
+	url := fmt.Sprintf("http://%s:%s/join_trace", target.Host, target.Port)
+	fmt.Printf("Calling downstream service '%s' at %s\n", target.ServiceName, url)
 	return common.PostJSON(ctx, url, req)
 }
 
