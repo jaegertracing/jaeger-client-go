@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/uber/jaeger-client-go"
-	"github.com/uber/jaeger-client-go/crossdock/common"
 	"github.com/uber/jaeger-client-go/crossdock/server"
 	"github.com/uber/jaeger-client-go/utils"
 )
@@ -49,14 +48,15 @@ func TestClient(t *testing.T) {
 	started.Wait()
 	defer c.Close()
 
+	// This emulates a call from crossdock, so we do not use constants
 	exec(t, c, map[string]string{
-		behaviorParam:         behaviorTrace,
+		behaviorParam:         "trace",
 		sampledParam:          "true",
-		server1NameParam:      common.DefaultServiceName,
-		server2NameParam:      common.DefaultServiceName,
-		server2TransportParam: transportTChannel,
-		server3NameParam:      common.DefaultServiceName,
-		server3TransportParam: transportHTTP,
+		server1NameParam:      "go",
+		server2NameParam:      "go",
+		server2TransportParam: "tchannel",
+		server3NameParam:      "go",
+		server3TransportParam: "http",
 	})
 }
 

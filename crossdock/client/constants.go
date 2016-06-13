@@ -36,5 +36,14 @@ const (
 	transportHTTP     = "http"
 	transportTChannel = "tchannel"
 
-	behaviorTrace = "tracer"
+	behaviorTrace = "trace"
+
+	// RoleS1 is the name of the role for server S1
+	RoleS1 = "S1"
+
+	// RoleS2 is the name of the role for server S2
+	RoleS2 = "S2"
+
+	// RoleS3 is the name of the role for server S3
+	RoleS3 = "S3"
 )

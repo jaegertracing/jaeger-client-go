@@ -33,7 +33,7 @@ import (
 )
 
 func (s *Server) doStartTrace(req *tracetest.StartTraceRequest) (*tracetest.TraceResponse, error) {
-	span := s.Tracer.StartSpan("s1")
+	span := s.Tracer.StartSpan(req.ServerRole)
 	if req.Sampled {
 		ext.SamplingPriority.Set(span, 1)
 	}
@@ -42,7 +42,7 @@ func (s *Server) doStartTrace(req *tracetest.StartTraceRequest) (*tracetest.Trac
 
 	ctx := opentracing.ContextWithSpan(context.Background(), span)
 
-	return s.prepareResponse(ctx, common.RoleS1, req.Downstream)
+	return s.prepareResponse(ctx, req.ServerRole, req.Downstream)
 }
 
 func (s *Server) doJoinTrace(ctx context.Context, req *tracetest.JoinTraceRequest) (*tracetest.TraceResponse, error) {
