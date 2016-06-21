@@ -11,19 +11,21 @@ data model.
 ```go
 import (
     "github.com/opentracing/opentracing-go"
-    "github.com/uber/jaeger-client-go"
+    "github.com/uber/jaeger-client-go/config"
 )
 
 type AppConfig struct {
     ...
-    Tracing jaeger.Config
+    Tracing config.Configuration
     ...
 }
 
 func main() {
     config := loadAppConfig() // e.g. from a yaml file
 
-    tracer := config.Tracing.New("your-service-name", nil)
+    tracer, closer, err := config.Tracing.New("your-service-name", nil)
+    // check err
+    defer closer()
 
     opentracing.InitGlobalTracer(tracer)
     ...
@@ -32,7 +34,7 @@ func main() {
 
 ### Metrics & Monitoring
 
-The tracer emits a number of different metrics, defined in 
+The tracer emits a number of different metrics, defined in
 [metrics.go](metrics.go). The monitoring backend is expected to support
 tag-based metric names, e.g. instead of `statsd`-style string names
 like `counters.my-service.jaeger.spans.started.sampled`, the metrics
