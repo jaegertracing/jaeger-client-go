@@ -21,9 +21,9 @@ type AppConfig struct {
 }
 
 func main() {
-    config := loadAppConfig() // e.g. from a yaml file
+    cfg := loadAppConfig() // e.g. from a yaml file
 
-    tracer, closer, err := config.Tracing.New("your-service-name", nil)
+    tracer, closer, err := cfg.Tracing.New("your-service-name", nil)
     // check err
     defer closer()
 
