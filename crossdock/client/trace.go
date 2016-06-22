@@ -66,9 +66,11 @@ func (c *Client) trace(s behavior.Sink, ps behavior.Params) {
 		return
 	}
 
-	if resp.NotImplementedError != "" {
-		behavior.Skipf(s, resp.NotImplementedError)
-		return
+	for r := resp; r != nil; r = r.Downstream {
+		if r.NotImplementedError != "" {
+			behavior.Skipf(s, r.NotImplementedError)
+			return
+		}
 	}
 
 	traceID := resp.Span.TraceId
