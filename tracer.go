@@ -45,9 +45,8 @@ type tracer struct {
 	poolSpans bool
 	spanPool  sync.Pool
 
-	textPropagator    *textMapPropagator
-	binaryPropagator  *binaryPropagator
-	interopPropagator *jaegerTraceContextPropagator
+	injectors  map[interface{}]Injector
+	extractors map[interface{}]Extractor
 }
 
 // NewTracer creates Tracer implementation that reports tracing to Jaeger.
@@ -63,11 +62,30 @@ func NewTracer(
 		serviceName: serviceName,
 		sampler:     sampler,
 		reporter:    reporter,
+		injectors:   make(map[interface{}]Injector),
+		extractors:  make(map[interface{}]Extractor),
 		metrics:     *NewMetrics(NullStatsReporter, nil),
 		spanPool: sync.Pool{New: func() interface{} {
 			return &span{}
 		}},
 	}
+
+	// register default injectors/extractors
+	textPropagator := newTextMapPropagator(t)
+	t.injectors[opentracing.TextMap] = textPropagator
+	t.extractors[opentracing.TextMap] = textPropagator
+
+	binaryPropagator := newBinaryPropagator(t)
+	t.injectors[opentracing.Binary] = binaryPropagator
+	t.extractors[opentracing.Binary] = binaryPropagator
+
+	interopPropagator := &jaegerTraceContextPropagator{tracer: t}
+	t.injectors[TraceContextFormat] = interopPropagator
+	t.extractors[TraceContextFormat] = interopPropagator
+
+	zipkinPropagator := &zipkinPropagator{tracer: t}
+	t.injectors[ZipkinSpanFormat] = zipkinPropagator
+	t.extractors[ZipkinSpanFormat] = zipkinPropagator
 
 	for _, option := range options {
 		option(t)
@@ -88,10 +106,6 @@ func NewTracer(
 		t.hostIPv4 = localIPInt32
 	}
 
-	// TODO convert to a map of propagators
-	t.textPropagator = newTextMapPropagator(t)
-	t.binaryPropagator = newBinaryPropagator(t)
-	t.interopPropagator = &jaegerTraceContextPropagator{tracer: t}
 	return t, t
 }
 
@@ -145,24 +159,10 @@ func (t *tracer) StartSpanWithOptions(options opentracing.StartSpanOptions) open
 
 // Inject implements Inject() method of opentracing.Tracer
 func (t *tracer) Inject(sp opentracing.Span, format interface{}, carrier interface{}) error {
-	injector := t.injector(format)
-	if injector == nil {
-		return opentracing.ErrUnsupportedFormat
+	if injector, ok := t.injectors[format]; ok {
+		return injector.InjectSpan(sp, carrier)
 	}
-	return injector.InjectSpan(sp, carrier)
-}
-
-func (t *tracer) injector(format interface{}) Injector {
-	if format == opentracing.TextMap {
-		return t.textPropagator
-	}
-	if format == opentracing.Binary {
-		return t.binaryPropagator
-	}
-	if format == TraceContextFormat {
-		return t.interopPropagator
-	}
-	return nil
+	return opentracing.ErrUnsupportedFormat
 }
 
 // Join implements Join() method of opentracing.Tracer
@@ -171,24 +171,10 @@ func (t *tracer) Join(
 	format interface{},
 	carrier interface{},
 ) (opentracing.Span, error) {
-	extractor := t.extractor(format)
-	if extractor == nil {
-		return nil, opentracing.ErrUnsupportedFormat
+	if extractor, ok := t.extractors[format]; ok {
+		return extractor.Join(operationName, carrier)
 	}
-	return extractor.Join(operationName, carrier)
-}
-
-func (t *tracer) extractor(format interface{}) Extractor {
-	if format == opentracing.TextMap {
-		return t.textPropagator
-	}
-	if format == opentracing.Binary {
-		return t.binaryPropagator
-	}
-	if format == TraceContextFormat {
-		return t.interopPropagator
-	}
-	return nil
+	return nil, opentracing.ErrUnsupportedFormat
 }
 
 // Close releases all resources used by the Tracer and flushes any remaining buffered spans.

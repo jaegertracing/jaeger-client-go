@@ -71,3 +71,15 @@ func (tracerOptions) HostIPv4(hostIPv4 uint32) TracerOption {
 		tracer.hostIPv4 = hostIPv4
 	}
 }
+
+func (tracerOptions) Injector(format interface{}, injector Injector) TracerOption {
+	return func(tracer *tracer) {
+		tracer.injectors[format] = injector
+	}
+}
+
+func (tracerOptions) Extractor(format interface{}, extractor Extractor) TracerOption {
+	return func(tracer *tracer) {
+		tracer.extractors[format] = extractor
+	}
+}
