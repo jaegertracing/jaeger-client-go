@@ -78,7 +78,7 @@ func (s *tracerSuite) TestBeginRootSpan() {
 	ss := sp.(*span)
 	s.NotNil(ss.tracer, "Tracer must be referenced from span")
 	s.Equal("get_name", ss.operationName)
-	s.Equal("s", ss.spanKind, "Span must be server-side")
+	s.Equal("server", ss.spanKind, "Span must be server-side")
 	s.Equal("peer-service", ss.peer.ServiceName, "Client is 'peer-service'")
 
 	s.EqualValues(someID, ss.traceID)
