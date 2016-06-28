@@ -172,6 +172,14 @@ func (s *span) BaggageItem(key string) string {
 	return s.baggage[key]
 }
 
+func (s *span) ForeachBaggageItem(handler func(k, v string)) {
+	s.RLock()
+	defer s.RUnlock()
+	for k, v := range s.baggage {
+		handler(k, v)
+	}
+}
+
 func (s *span) Tracer() opentracing.Tracer {
 	return s.tracer
 }

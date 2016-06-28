@@ -27,6 +27,7 @@ import (
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/uber/jaeger-client-go/utils"
@@ -77,7 +78,7 @@ func (s *tracerSuite) TestBeginRootSpan() {
 	ss := sp.(*span)
 	s.NotNil(ss.tracer, "Tracer must be referenced from span")
 	s.Equal("get_name", ss.operationName)
-	s.Equal("s", ss.spanKind, "Span must be server-side")
+	s.Equal("server", ss.spanKind, "Span must be server-side")
 	s.Equal("peer-service", ss.peer.ServiceName, "Client is 'peer-service'")
 
 	s.EqualValues(someID, ss.traceID)
@@ -154,4 +155,54 @@ func (s *tracerSuite) TestRandomIDNotZero() {
 
 	rng := utils.NewRand(0)
 	rng.Seed(1) // for test coverage
+}
+
+func TestInjectorExtractorOptions(t *testing.T) {
+	tracer, tc := NewTracer("x", NewConstSampler(true), NewNullReporter(),
+		TracerOptions.Injector("dummy", &dummyPropagator{}),
+		TracerOptions.Extractor("dummy", &dummyPropagator{}),
+	)
+	defer tc.Close()
+
+	sp := tracer.StartSpan("x")
+	c := &dummyCarrier{}
+	err := tracer.Inject(sp, "dummy", []int{})
+	assert.Equal(t, opentracing.ErrInvalidCarrier, err)
+	err = tracer.Inject(sp, "dummy", c)
+	assert.NoError(t, err)
+	assert.True(t, c.ok)
+
+	c.ok = false
+	_, err = tracer.Join("z", "dummy", []int{})
+	assert.Equal(t, opentracing.ErrInvalidCarrier, err)
+	_, err = tracer.Join("z", "dummy", c)
+	assert.Equal(t, opentracing.ErrTraceNotFound, err)
+	c.ok = true
+	_, err = tracer.Join("z", "dummy", c)
+	assert.NoError(t, err)
+}
+
+type dummyPropagator struct{}
+type dummyCarrier struct {
+	ok bool
+}
+
+func (p *dummyPropagator) InjectSpan(span opentracing.Span, carrier interface{}) error {
+	c, ok := carrier.(*dummyCarrier)
+	if !ok {
+		return opentracing.ErrInvalidCarrier
+	}
+	c.ok = true
+	return nil
+}
+
+func (p *dummyPropagator) Join(operationName string, carrier interface{}) (opentracing.Span, error) {
+	c, ok := carrier.(*dummyCarrier)
+	if !ok {
+		return nil, opentracing.ErrInvalidCarrier
+	}
+	if c.ok {
+		return nil, nil
+	}
+	return nil, opentracing.ErrTraceNotFound
 }
