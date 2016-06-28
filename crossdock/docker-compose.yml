@@ -2,7 +2,7 @@ version: '2'
 
 services:
     crossdock:
-        image: yarpc/crossdock
+        image: crossdock/crossdock
         links:
             - go
         environment:
