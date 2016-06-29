@@ -3,6 +3,7 @@ package jaeger
 import (
 	"testing"
 
+	"github.com/opentracing/opentracing-go"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -50,3 +51,27 @@ func (s *TestZipkinSpan) SetTraceID(traceID uint64)   { s.traceID = traceID }
 func (s *TestZipkinSpan) SetSpanID(spanID uint64)     { s.spanID = spanID }
 func (s *TestZipkinSpan) SetParentID(parentID uint64) { s.parentID = parentID }
 func (s *TestZipkinSpan) SetFlags(flags byte)         { s.flags = flags }
+
+func TestBaggageOnlyTextMapPropagator(t *testing.T) {
+	tracer, tCloser := NewTracer("x", NewConstSampler(true), NewNullReporter())
+	defer tCloser.Close()
+
+	span := tracer.StartSpan("x")
+	span.SetBaggageItem("baggage", "luggage")
+
+	baggage := make(map[string]string)
+	carrier := opentracing.TextMapCarrier(baggage)
+
+	err := tracer.Inject(span, BaggageOnlyTextMap, carrier)
+	assert.NoError(t, err)
+	assert.Equal(t, map[string]string{"baggage": "luggage"}, baggage)
+
+	// for contrast, regular TextMap format will also insert trace ID
+	baggage = make(map[string]string)
+	carrier = opentracing.TextMapCarrier(baggage)
+
+	err = tracer.Inject(span, opentracing.TextMap, carrier)
+	assert.NoError(t, err)
+	assert.NotEqual(t, map[string]string{"baggage": "luggage"}, baggage)
+	assert.Equal(t, 2, len(baggage))
+}

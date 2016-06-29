@@ -87,6 +87,9 @@ func NewTracer(
 	t.injectors[ZipkinSpanFormat] = zipkinPropagator
 	t.extractors[ZipkinSpanFormat] = zipkinPropagator
 
+	baggageOnlyPropagator := &baggageOnlyTextMapPropagator{tracer: t}
+	t.injectors[BaggageOnlyTextMap] = baggageOnlyPropagator // no extractor
+
 	for _, option := range options {
 		option(t)
 	}
