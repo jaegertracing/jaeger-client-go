@@ -5,7 +5,7 @@ import:
   subpackages:
   - lib/go/thrift
 - package: github.com/opentracing/opentracing-go
-  version: 01498abd158dfdbe8e251856bc7d14cb0f046fa3
+  version: d5b9be1fcf7d467664d3b8f9cb4f3c8c5ac0a753
   subpackages:
   - ext
 - package: golang.org/x/net

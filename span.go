@@ -172,11 +172,13 @@ func (s *span) BaggageItem(key string) string {
 	return s.baggage[key]
 }
 
-func (s *span) ForeachBaggageItem(handler func(k, v string)) {
+func (s *span) ForeachBaggageItem(handler func(k, v string) bool) {
 	s.RLock()
 	defer s.RUnlock()
 	for k, v := range s.baggage {
-		handler(k, v)
+		if !handler(k, v) {
+			break
+		}
 	}
 }
 

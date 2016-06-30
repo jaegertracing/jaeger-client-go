@@ -14,8 +14,16 @@ func TestBaggageIterator(t *testing.T) {
 	sp1.SetBaggageItem("Some-other-key", "42")
 
 	b := make(map[string]string)
-	sp1.ForeachBaggageItem(func(k, v string) {
+	sp1.ForeachBaggageItem(func(k, v string) bool {
 		b[k] = v
+		return true
 	})
 	assert.Equal(t, map[string]string{"some-key": "12345", "some-other-key": "42"}, b)
+
+	b = make(map[string]string)
+	sp1.ForeachBaggageItem(func(k, v string) bool {
+		b[k] = v
+		return false // break out early
+	})
+	assert.Equal(t, 1, len(b), "only one baggage item should be extracted")
 }

@@ -6,7 +6,7 @@ imports:
   subpackages:
   - lib/go/thrift
 - name: github.com/opentracing/opentracing-go
-  version: b228439c64c2c323dec3ebd9d445f168d4fae60c
+  version: d5b9be1fcf7d467664d3b8f9cb4f3c8c5ac0a753
   subpackages:
   - ext
 - name: github.com/stretchr/testify
