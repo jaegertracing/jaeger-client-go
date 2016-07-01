@@ -1,16 +1,16 @@
-hash: d96d8b2d7e94230c6f446c2bb5167b7d5b99d99d37de801e4fd2be50ebf15de7
-updated: 2016-05-31T23:57:48.183043797-04:00
+hash: 0325a1df93c5516ac66092a24099b50ce20bacea5f3165a8574f771f96080cc3
+updated: 2016-07-01T12:00:45.680560744-04:00
 imports:
 - name: github.com/apache/thrift
   version: 23d6746079d7b5fdb38214387c63f987e68a6d8f
   subpackages:
   - lib/go/thrift
 - name: github.com/opentracing/opentracing-go
-  version: 9e6d3e21876169b028e75016a19d75c4ad54cb11
+  version: d5b9be1fcf7d467664d3b8f9cb4f3c8c5ac0a753
   subpackages:
   - ext
 - name: github.com/stretchr/testify
-  version: 8d64eb7173c7753d6419fd4a9caf057398611364
+  version: d77da356e56a7428ad25149ca77381849a6a5232
   subpackages:
   - assert
   - require
@@ -25,7 +25,7 @@ imports:
   - trace/thrift/gen-go/tcollector
   - typed
 - name: golang.org/x/net
-  version: c4c3ea71919de159c9e246d7be66deb7f0a39a58
+  version: b400c2eff1badec7022a8c8f5bea058b6315eed7
   subpackages:
   - context
 devImports: []
