@@ -124,6 +124,13 @@ func (r *InMemoryReporter) GetSpans() []opentracing.Span {
 	return copied
 }
 
+// Reset clears all accumulated spans.
+func (r *InMemoryReporter) Reset() {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	r.spans = nil
+}
+
 // ------------------------------
 
 type compositeReporter struct {
