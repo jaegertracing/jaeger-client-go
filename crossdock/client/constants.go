@@ -22,7 +22,6 @@ package client
 
 // Different parameter keys and values used by the system
 const (
-	behaviorParam = "behavior"
 	// S1 instructions
 	sampledParam     = "sampled"
 	server1NameParam = "s1name"

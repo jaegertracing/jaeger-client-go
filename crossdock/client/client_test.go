@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/uber/jaeger-client-go"
+	"github.com/uber/jaeger-client-go/crossdock/common"
 	"github.com/uber/jaeger-client-go/crossdock/server"
 )
 
@@ -55,15 +56,14 @@ func TestCrossdock(t *testing.T) {
 		axes axes
 	}{
 		{
-			name: "raw",
+			name: behaviorTrace,
 			axes: axes{
-				"client":      []string{"go"},
-				"s1name":      []string{"go"},
-				"sampled":     []string{"true", "false"},
-				"s2name":      []string{"go"},
-				"s2transport": []string{"http", "tchannel"},
-				"s3name":      []string{"go"},
-				"s3transport": []string{"http", "tchannel"},
+				server1NameParam:      []string{common.DefaultServiceName},
+				sampledParam:          []string{"true", "false"},
+				server2NameParam:      []string{common.DefaultServiceName},
+				server2TransportParam: []string{transportHTTP, transportTChannel},
+				server3NameParam:      []string{common.DefaultServiceName},
+				server3TransportParam: []string{transportHTTP, transportTChannel},
 			},
 		},
 	}
@@ -74,6 +74,7 @@ func TestCrossdock(t *testing.T) {
 			for k, v := range entry {
 				entryArgs.Set(k, v)
 			}
+			// test via real HTTP call
 			crossdock.Call(t, c.ClientURL, bb.name, entryArgs)
 		}
 	}
