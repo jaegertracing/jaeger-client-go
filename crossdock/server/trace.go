@@ -22,6 +22,7 @@ package server
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
@@ -78,11 +79,6 @@ func (s *Server) callDownstream(ctx context.Context, role string, downstream *tr
 	case tracetest.Transport_HTTP:
 		return s.callDownstreamHTTP(ctx, downstream)
 	case tracetest.Transport_TCHANNEL:
-		// example of how the server could respond if TChannel transport was not supported
-		//return &tracetest.TraceResponse{
-		//	NotImplementedError: fmt.Sprintf(
-		//		"Downstream TChannel transport not implemented in Go server %s", role),
-		//}, nil
 		return s.callDownstreamTChannel(ctx, downstream)
 	default:
 		return nil, errUnrecognizedProtocol
@@ -95,7 +91,7 @@ func (s *Server) callDownstreamHTTP(ctx context.Context, target *tracetest.Downs
 		Downstream: target.Downstream,
 	}
 	url := fmt.Sprintf("http://%s:%s/join_trace", target.Host, target.Port)
-	fmt.Printf("Calling downstream service '%s' at %s\n", target.ServiceName, url)
+	log.Printf("Calling downstream service '%s' at %s", target.ServiceName, url)
 	return common.PostJSON(ctx, url, req)
 }
 

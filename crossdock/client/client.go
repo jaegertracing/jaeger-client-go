@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"sync"
 
 	"github.com/uber/jaeger-client-go/crossdock/client/behavior"
 	"github.com/uber/jaeger-client-go/crossdock/common"
@@ -33,6 +34,7 @@ import (
 // Client is a controller for the tests
 type Client struct {
 	ClientHostPort     string
+	ClientURL          string
 	ServerPortHTTP     string
 	ServerPortTChannel string
 	listener           net.Listener
@@ -45,6 +47,22 @@ func (c *Client) Start() error {
 		return nil
 	}
 	return c.Serve()
+}
+
+// AsyncStart begins a Crossdock client in the background,
+// but does not return until it started serving.
+func (c *Client) AsyncStart() error {
+	if err := c.Listen(); err != nil {
+		return err
+	}
+	var started sync.WaitGroup
+	started.Add(1)
+	go func() {
+		started.Done()
+		c.Serve()
+	}()
+	started.Wait()
+	return nil
 }
 
 // Listen initializes the server
@@ -61,6 +79,7 @@ func (c *Client) Listen() error {
 	}
 	c.listener = listener
 	c.ClientHostPort = listener.Addr().String()
+	c.ClientURL = fmt.Sprintf("http://%s/", c.ClientHostPort)
 	return nil
 }
 

@@ -2,23 +2,25 @@ package client
 
 import (
 	"fmt"
+	"log"
 	"net/url"
-	"sync"
 	"testing"
 
+	"github.com/crossdock/crossdock-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/crossdock/server"
-	"github.com/uber/jaeger-client-go/utils"
 )
 
-func TestClient(t *testing.T) {
+func TestCrossdock(t *testing.T) {
+	log.Println("Starting crossdock test")
+
 	tracer, tCloser := jaeger.NewTracer(
-		"crossdock",
+		"crossdock-go",
 		jaeger.NewConstSampler(false),
-		jaeger.NewNullReporter())
+		jaeger.NewInMemoryReporter())
 	defer tCloser.Close()
 
 	s := &server.Server{
@@ -36,44 +38,44 @@ func TestClient(t *testing.T) {
 		ServerPortTChannel: s.GetPortTChannel(),
 		hostMapper:         func(server string) string { return "localhost" },
 	}
-	err = c.Listen()
+	err = c.AsyncStart()
 	require.NoError(t, err)
-
-	var started sync.WaitGroup
-	started.Add(1)
-	go func() {
-		started.Done()
-		c.Serve()
-	}()
-	started.Wait()
 	defer c.Close()
 
-	// This emulates a call from crossdock, so we do not use constants
-	exec(t, c, map[string]string{
-		behaviorParam:         "trace",
-		sampledParam:          "true",
-		server1NameParam:      "go",
-		server2NameParam:      "go",
-		server2TransportParam: "tchannel",
-		server3NameParam:      "go",
-		server3TransportParam: "http",
-	})
-}
+	serverURL := fmt.Sprintf("http://%s/", s.HostPortHTTP)
 
-func exec(t *testing.T, c *Client, params map[string]string) {
-	values := url.Values{}
-	for k, v := range params {
-		values.Add(k, v)
+	crossdock.Wait(t, serverURL, 10)
+	crossdock.Wait(t, c.ClientURL, 10)
+
+	type params map[string]string
+	type axes map[string][]string
+
+	behaviors := []struct {
+		name string
+		axes axes
+	}{
+		{
+			name: "raw",
+			axes: axes{
+				"client":      []string{"go"},
+				"s1name":      []string{"go"},
+				"sampled":     []string{"true", "false"},
+				"s2name":      []string{"go"},
+				"s2transport": []string{"http", "tchannel"},
+				"s3name":      []string{"go"},
+				"s3transport": []string{"http", "tchannel"},
+			},
+		},
 	}
-	url := c.URL() + "/?" + values.Encode()
-	entries := []map[string]string{}
-	fmt.Printf("Executing %s\n", url)
-	err := utils.GetJSON(url, &entries)
-	require.NoError(t, err)
-	assert.Equal(t, 1, len(entries), "expecting one success entry")
-	fmt.Printf("Output: %+v\n", entries)
-	for _, e := range entries {
-		assert.Equal(t, "passed", e["status"], e["output"])
+
+	for _, bb := range behaviors {
+		for _, entry := range crossdock.Combinations(bb.axes) {
+			entryArgs := url.Values{}
+			for k, v := range entry {
+				entryArgs.Set(k, v)
+			}
+			crossdock.Call(t, c.ClientURL, bb.name, entryArgs)
+		}
 	}
 }
 

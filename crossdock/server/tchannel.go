@@ -22,6 +22,7 @@ package server
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
@@ -53,7 +54,7 @@ func (s *Server) startTChannelServer() error {
 		return err
 	}
 	s.HostPortTChannel = ch.PeerInfo().HostPort
-	fmt.Printf("Started tchannel server at %s\n", s.HostPortTChannel)
+	log.Printf("Started tchannel server at %s\n", s.HostPortTChannel)
 	return nil
 }
 
@@ -64,7 +65,7 @@ func (s *Server) StartTrace(ctx thrift.Context, request *tracetest.StartTraceReq
 
 // JoinTrace implements JoinTrace() of TChanTracedService
 func (s *Server) JoinTrace(ctx thrift.Context, request *tracetest.JoinTraceRequest) (*tracetest.TraceResponse, error) {
-	println("tchannel server handling JoinTrace")
+	log.Printf("tchannel server handling JoinTrace")
 	ctx2 := setupOpenTracingContext(s.Tracer, ctx, "tchannel", ctx.Headers())
 	return s.prepareResponse(ctx2, request.ServerRole, request.Downstream)
 }
@@ -76,7 +77,7 @@ func (s *Server) callDownstreamTChannel(ctx context.Context, target *tracetest.D
 	}
 
 	hostPort := fmt.Sprintf("%s:%s", target.Host, target.Port)
-	fmt.Printf("calling downstream '%s' over tchannel:%s\n", target.ServiceName, hostPort)
+	log.Printf("calling downstream '%s' over tchannel:%s", target.ServiceName, hostPort)
 
 	ch, err := tchannel.NewChannel("tchannel-client", nil)
 	if err != nil {
