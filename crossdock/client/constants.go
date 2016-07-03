@@ -34,6 +34,7 @@ const (
 
 	transportHTTP     = "http"
 	transportTChannel = "tchannel"
+	transportDummy    = "dummy"
 
 	behaviorTrace = "trace"
 

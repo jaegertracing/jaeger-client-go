@@ -65,10 +65,6 @@ func (s *Server) prepareResponse(ctx context.Context, role string, reqDwn *trace
 			return nil, err
 		}
 		resp.Downstream = downstreamResp
-		if downstreamResp.NotImplementedError != "" {
-			resp.NotImplementedError = downstreamResp.NotImplementedError
-			resp.Span = nil
-		}
 	}
 
 	return resp, nil
@@ -80,6 +76,8 @@ func (s *Server) callDownstream(ctx context.Context, role string, downstream *tr
 		return s.callDownstreamHTTP(ctx, downstream)
 	case tracetest.Transport_TCHANNEL:
 		return s.callDownstreamTChannel(ctx, downstream)
+	case tracetest.Transport_DUMMY:
+		return &tracetest.TraceResponse{NotImplementedError: "DUMMY transport not implemented"}, nil
 	default:
 		return nil, errUnrecognizedProtocol
 	}

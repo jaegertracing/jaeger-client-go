@@ -22,6 +22,7 @@ package client
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/crossdock/crossdock-go"
@@ -69,6 +70,7 @@ func (c *Client) trace(t crossdock.T) {
 	for r := resp; r != nil; r = r.Downstream {
 		if r.NotImplementedError != "" {
 			t.Skipf(r.NotImplementedError)
+			log.Printf("SKIP: %s", r.NotImplementedError)
 			return
 		}
 	}
@@ -82,6 +84,7 @@ func (c *Client) trace(t crossdock.T) {
 	success := validateTrace(t, level1.Downstream, resp, server1, 1, traceID, sampled, baggage)
 	if success {
 		t.Successf("trace checks out")
+		log.Println("PASS")
 	}
 }
 
@@ -145,10 +148,12 @@ func str2bool(v string) bool {
 
 func (c *Client) transport2port(v string) string {
 	switch v {
-	case "http":
+	case transportHTTP:
 		return c.ServerPortHTTP
-	case "tchannel":
+	case transportTChannel:
 		return c.ServerPortTChannel
+	case transportDummy:
+		return "9999"
 	default:
 		panic("Unknown protocol " + v)
 	}
@@ -156,10 +161,12 @@ func (c *Client) transport2port(v string) string {
 
 func transport2transport(v string) tracetest.Transport {
 	switch v {
-	case "http":
+	case transportHTTP:
 		return tracetest.Transport_HTTP
-	case "tchannel":
+	case transportTChannel:
 		return tracetest.Transport_TCHANNEL
+	case transportDummy:
+		return tracetest.Transport_DUMMY
 	default:
 		panic("Unknown protocol " + v)
 	}

@@ -18,9 +18,9 @@ func TestCrossdock(t *testing.T) {
 	log.Println("Starting crossdock test")
 
 	tracer, tCloser := jaeger.NewTracer(
-		"crossdock-go",
+		"crossdock",
 		jaeger.NewConstSampler(false),
-		jaeger.NewInMemoryReporter())
+		jaeger.NewNullReporter())
 	defer tCloser.Close()
 
 	s := &server.Server{
@@ -45,20 +45,17 @@ func TestCrossdock(t *testing.T) {
 	crossdock.Wait(t, s.URL(), 10)
 	crossdock.Wait(t, c.URL(), 10)
 
-	type params map[string]string
-	type axes map[string][]string
-
 	behaviors := []struct {
 		name string
-		axes axes
+		axes map[string][]string
 	}{
 		{
 			name: behaviorTrace,
-			axes: axes{
+			axes: map[string][]string{
 				server1NameParam:      []string{common.DefaultServiceName},
 				sampledParam:          []string{"true", "false"},
 				server2NameParam:      []string{common.DefaultServiceName},
-				server2TransportParam: []string{transportHTTP, transportTChannel},
+				server2TransportParam: []string{transportHTTP, transportTChannel, transportDummy},
 				server3NameParam:      []string{common.DefaultServiceName},
 				server3TransportParam: []string{transportHTTP, transportTChannel},
 			},
