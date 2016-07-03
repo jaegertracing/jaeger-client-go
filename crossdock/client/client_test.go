@@ -52,12 +52,12 @@ func TestCrossdock(t *testing.T) {
 		{
 			name: behaviorTrace,
 			axes: map[string][]string{
-				server1NameParam:      []string{common.DefaultServiceName},
-				sampledParam:          []string{"true", "false"},
-				server2NameParam:      []string{common.DefaultServiceName},
-				server2TransportParam: []string{transportHTTP, transportTChannel, transportDummy},
-				server3NameParam:      []string{common.DefaultServiceName},
-				server3TransportParam: []string{transportHTTP, transportTChannel},
+				server1NameParam:      {common.DefaultServiceName},
+				sampledParam:          {"true", "false"},
+				server2NameParam:      {common.DefaultServiceName},
+				server2TransportParam: {transportHTTP, transportTChannel, transportDummy},
+				server3NameParam:      {common.DefaultServiceName},
+				server3TransportParam: {transportHTTP, transportTChannel},
 			},
 		},
 	}

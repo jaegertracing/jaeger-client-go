@@ -30,7 +30,7 @@ test:
 
 .PHONY: fmt
 fmt:
-	go fmt $(PACKAGES)
+	$(GOFMT) -e -s -l -w $(ALL_SRC)
 
 .PHONY: lint
 lint:
