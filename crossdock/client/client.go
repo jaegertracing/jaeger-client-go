@@ -37,7 +37,6 @@ import (
 // Client is a controller for the tests
 type Client struct {
 	ClientHostPort     string
-	ClientURL          string
 	ServerPortHTTP     string
 	ServerPortTChannel string
 	listener           net.Listener
@@ -82,7 +81,6 @@ func (c *Client) Listen() error {
 	}
 	c.listener = listener
 	c.ClientHostPort = listener.Addr().String()
-	c.ClientURL = fmt.Sprintf("http://%s/", c.ClientHostPort)
 	return nil
 }
 

@@ -95,6 +95,11 @@ func (s *Server) Start() error {
 	return nil
 }
 
+// URL returns URL of the HTTP server
+func (s *Server) URL() string {
+	return fmt.Sprintf("http://%s/", s.HostPortHTTP)
+}
+
 // Close stops the server
 func (s *Server) Close() error {
 	return s.listener.Close()

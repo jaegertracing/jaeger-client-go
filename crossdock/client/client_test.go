@@ -1,7 +1,6 @@
 package client
 
 import (
-	"fmt"
 	"log"
 	"net/url"
 	"testing"
@@ -43,10 +42,8 @@ func TestCrossdock(t *testing.T) {
 	require.NoError(t, err)
 	defer c.Close()
 
-	serverURL := fmt.Sprintf("http://%s/", s.HostPortHTTP)
-
-	crossdock.Wait(t, serverURL, 10)
-	crossdock.Wait(t, c.ClientURL, 10)
+	crossdock.Wait(t, s.URL(), 10)
+	crossdock.Wait(t, c.URL(), 10)
 
 	type params map[string]string
 	type axes map[string][]string
@@ -75,7 +72,7 @@ func TestCrossdock(t *testing.T) {
 				entryArgs.Set(k, v)
 			}
 			// test via real HTTP call
-			crossdock.Call(t, c.ClientURL, bb.name, entryArgs)
+			crossdock.Call(t, c.URL(), bb.name, entryArgs)
 		}
 	}
 }
