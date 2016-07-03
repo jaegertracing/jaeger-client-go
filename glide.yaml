@@ -25,3 +25,4 @@ import:
   - assert
   - require
   - suite
+- package: github.com/crossdock/crossdock-go

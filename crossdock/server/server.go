@@ -24,18 +24,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net"
 	"net/http"
 	"strings"
 	"sync"
 
-	"github.com/uber/jaeger-client-go/crossdock/common"
-	"github.com/uber/jaeger-client-go/crossdock/thrift/tracetest"
-
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/uber/tchannel-go"
 	"golang.org/x/net/context"
+
+	"github.com/uber/jaeger-client-go/crossdock/common"
+	"github.com/uber/jaeger-client-go/crossdock/thrift/tracetest"
 )
 
 // Server implements S1-S3 servers
@@ -60,14 +61,16 @@ func (s *Server) Start() error {
 		return err
 	}
 
-	http.HandleFunc("/start_trace", func(w http.ResponseWriter, r *http.Request) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { return }) // health check
+	mux.HandleFunc("/start_trace", func(w http.ResponseWriter, r *http.Request) {
 		s.handleJSON(w, r, func() interface{} {
 			return tracetest.NewStartTraceRequest()
 		}, func(ctx context.Context, req interface{}) (interface{}, error) {
 			return s.doStartTrace(req.(*tracetest.StartTraceRequest))
 		})
 	})
-	http.HandleFunc("/join_trace", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/join_trace", func(w http.ResponseWriter, r *http.Request) {
 		s.handleJSON(w, r, func() interface{} {
 			return tracetest.NewJoinTraceRequest()
 		}, func(ctx context.Context, req interface{}) (interface{}, error) {
@@ -85,11 +88,16 @@ func (s *Server) Start() error {
 	started.Add(1)
 	go func() {
 		started.Done()
-		http.Serve(listener, nil)
+		http.Serve(listener, mux)
 	}()
 	started.Wait()
-
+	log.Printf("Started http server at %s\n", s.HostPortHTTP)
 	return nil
+}
+
+// URL returns URL of the HTTP server
+func (s *Server) URL() string {
+	return fmt.Sprintf("http://%s/", s.HostPortHTTP)
 }
 
 // Close stops the server
@@ -97,9 +105,9 @@ func (s *Server) Close() error {
 	return s.listener.Close()
 }
 
-// GetPortHTTP returns the actual port the server listens to
+// GetPortHTTP returns the network port the server listens to.
 func (s *Server) GetPortHTTP() string {
-	hostPort := s.listener.Addr().String()
+	hostPort := s.HostPortHTTP
 	hostPortSplit := strings.Split(hostPort, ":")
 	port := hostPortSplit[len(hostPortSplit)-1]
 	return port
@@ -136,7 +144,7 @@ func (s *Server) handleJSON(
 		http.Error(w, fmt.Sprintf("Cannot read request body: %+v", err), http.StatusInternalServerError)
 		return
 	}
-	println("Server request:", string(body))
+	log.Printf("Server request: %s", string(body))
 	req := newReq()
 	if err := json.Unmarshal(body, req); err != nil {
 		http.Error(w, fmt.Sprintf("Cannot parse request JSON: %+v. body=[%s]", err, string(body)), http.StatusBadRequest)
@@ -144,7 +152,7 @@ func (s *Server) handleJSON(
 	}
 	resp, err := handle(ctx, req)
 	if err != nil {
-		println("Handle error:", err.Error())
+		log.Printf("Handle error: %s", err.Error())
 		http.Error(w, fmt.Sprintf("Execution error: %+v", err), http.StatusInternalServerError)
 		return
 	}
@@ -153,7 +161,7 @@ func (s *Server) handleJSON(
 		http.Error(w, fmt.Sprintf("Cannot marshall response to JSON: %+v", err), http.StatusInternalServerError)
 		return
 	}
-	println("Server response:", string(json))
+	log.Printf("Server response: %s", string(json))
 	w.Header().Add("Content-Type", "application/json")
 	if _, err := w.Write(json); err != nil {
 		return

@@ -23,10 +23,14 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
+	"net/url"
+	"sync"
 
-	"github.com/uber/jaeger-client-go/crossdock/client/behavior"
+	"github.com/crossdock/crossdock-go"
+
 	"github.com/uber/jaeger-client-go/crossdock/common"
 )
 
@@ -45,6 +49,22 @@ func (c *Client) Start() error {
 		return nil
 	}
 	return c.Serve()
+}
+
+// AsyncStart begins a Crossdock client in the background,
+// but does not return until it started serving.
+func (c *Client) AsyncStart() error {
+	if err := c.Listen(); err != nil {
+		return err
+	}
+	var started sync.WaitGroup
+	started.Add(1)
+	go func() {
+		started.Done()
+		c.Serve()
+	}()
+	started.Wait()
+	return nil
 }
 
 // Listen initializes the server
@@ -90,8 +110,9 @@ func (c *Client) behaviorRequestHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	entries := behavior.Run(func(s behavior.Sink) {
-		c.dispatch(s, httpParams{r})
+	params := extractParams(r.URL.Query())
+	entries := crossdock.Run(params, func(t crossdock.T) {
+		c.dispatch(t)
 	})
 
 	enc := json.NewEncoder(w)
@@ -100,13 +121,14 @@ func (c *Client) behaviorRequestHandler(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-func (c *Client) dispatch(s behavior.Sink, ps behavior.Params) {
-	v := ps.Param(behaviorParam)
-	switch v {
+func (c *Client) dispatch(t crossdock.T) {
+	behavior := t.Behavior()
+	log.Printf("Client handling behavior='%s'", behavior)
+	switch behavior {
 	case behaviorTrace:
-		c.trace(s, ps)
+		c.trace(t)
 	default:
-		behavior.Skipf(s, "unknown behavior %q", v)
+		t.Errorf("unknown behavior '%q'", behavior)
 	}
 }
 
@@ -118,12 +140,13 @@ func (c *Client) mapServiceToHost(service string) string {
 	return mapper(service)
 }
 
-// httpParams provides access to behavior parameters that are stored
-// inside an HTTP request.
-type httpParams struct {
-	Request *http.Request
-}
-
-func (h httpParams) Param(name string) string {
-	return h.Request.FormValue(name)
+// extractParams returns a map of params from url values
+func extractParams(p url.Values) crossdock.Params {
+	params := crossdock.Params{}
+	for k, l := range p {
+		for _, v := range l {
+			params[k] = v
+		}
+	}
+	return params
 }

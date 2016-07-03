@@ -21,6 +21,7 @@ type Transport int64
 const (
 	Transport_HTTP     Transport = 0
 	Transport_TCHANNEL Transport = 1
+	Transport_DUMMY    Transport = 2
 )
 
 func (p Transport) String() string {
@@ -29,6 +30,8 @@ func (p Transport) String() string {
 		return "HTTP"
 	case Transport_TCHANNEL:
 		return "TCHANNEL"
+	case Transport_DUMMY:
+		return "DUMMY"
 	}
 	return "<UNSET>"
 }
@@ -39,6 +42,8 @@ func TransportFromString(s string) (Transport, error) {
 		return Transport_HTTP, nil
 	case "TCHANNEL":
 		return Transport_TCHANNEL, nil
+	case "DUMMY":
+		return Transport_DUMMY, nil
 	}
 	return Transport(0), fmt.Errorf("not a valid Transport string")
 }
