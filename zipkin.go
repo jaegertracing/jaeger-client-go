@@ -4,8 +4,11 @@ import (
 	"github.com/opentracing/opentracing-go"
 )
 
-// ZipkinSpanFormat is an OpenTracing carrier format constant
+// ZipkinSpanFormat is an OpenTracing carrier format constant for ZipkinSpan carrier type below.
 const ZipkinSpanFormat = "zipkin-span-format"
+
+// BaggageOnlyTextMap is a variation of TextMap OpenTracing format which only stores baggage.
+const BaggageOnlyTextMap = "baggage-only-textmap"
 
 // ZipkinSpan is a type of Carrier used for integration with Zipkin-aware RPC frameworks
 // (like TChannel). It does not support baggage, only trace IDs.
@@ -72,4 +75,31 @@ func (p *zipkinPropagator) Join(
 		nil,
 		true, // join with external trace
 	), nil
+}
+
+type baggageOnlyTextMapPropagator struct {
+	tracer *tracer
+}
+
+func (p *baggageOnlyTextMapPropagator) InjectSpan(
+	sp opentracing.Span,
+	abstractCarrier interface{},
+) error {
+	sc, ok := sp.(*span)
+	if !ok {
+		return opentracing.ErrInvalidSpan
+	}
+	carrier, ok := abstractCarrier.(opentracing.TextMapWriter)
+	if !ok {
+		return opentracing.ErrInvalidCarrier
+	}
+
+	sc.RLock()
+	defer sc.RUnlock()
+
+	for k, v := range sc.baggage {
+		carrier.Set(k, v)
+	}
+
+	return nil
 }
