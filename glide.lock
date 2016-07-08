@@ -19,15 +19,17 @@ imports:
   subpackages:
   - ext
 - name: github.com/pmezard/go-difflib
-  version: e8554b8641db39598be7f6342874b958f12ae1d4
+  version: 792786c7400a136282c1664665ae0a8db921c6c2
   subpackages:
   - difflib
 - name: github.com/stretchr/testify
-  version: d77da356e56a7428ad25149ca77381849a6a5232
+  version: f390dcf405f7b83c997eac1b06768bb9f44dec18
   subpackages:
   - assert
   - require
   - suite
+- name: github.com/uber-go/atomic
+  version: e682c1008ac17bf26d2e4b5ad6cdd08520ed0b22
 - name: github.com/uber/tchannel-go
   version: 86ee2b2f880b5b1b5d34564dc1e1bb7492437e7f
   subpackages:
@@ -37,6 +39,8 @@ imports:
   - tnet
   - trace/thrift/gen-go/tcollector
   - typed
+  - relay
+  - trand
 - name: golang.org/x/net
   version: 075e191f18186a8ff2becaf64478e30f4545cdad
   subpackages:
