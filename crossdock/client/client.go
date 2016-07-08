@@ -21,12 +21,9 @@
 package client
 
 import (
-	"encoding/json"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
-	"net/url"
 	"sync"
 
 	"github.com/crossdock/crossdock-go"
@@ -73,7 +70,11 @@ func (c *Client) Listen() error {
 	c.setDefaultPort(&c.ServerPortHTTP, common.DefaultServerPortHTTP)
 	c.setDefaultPort(&c.ServerPortTChannel, common.DefaultServerPortTChannel)
 
-	http.HandleFunc("/", c.behaviorRequestHandler)
+	behaviors := crossdock.Behaviors{
+		behaviorTrace: c.trace,
+	}
+
+	http.Handle("/", crossdock.Handler(behaviors, true))
 
 	listener, err := net.Listen("tcp", c.ClientHostPort)
 	if err != nil {
@@ -105,48 +106,10 @@ func (c *Client) setDefaultPort(port *string, defaultPort string) {
 	}
 }
 
-func (c *Client) behaviorRequestHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "HEAD" {
-		return
-	}
-
-	params := extractParams(r.URL.Query())
-	entries := crossdock.Run(params, func(t crossdock.T) {
-		c.dispatch(t)
-	})
-
-	enc := json.NewEncoder(w)
-	if err := enc.Encode(entries); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
-func (c *Client) dispatch(t crossdock.T) {
-	behavior := t.Behavior()
-	log.Printf("Client handling behavior='%s'", behavior)
-	switch behavior {
-	case behaviorTrace:
-		c.trace(t)
-	default:
-		t.Errorf("unknown behavior '%q'", behavior)
-	}
-}
-
 func (c *Client) mapServiceToHost(service string) string {
 	mapper := c.hostMapper
 	if mapper == nil {
 		return service
 	}
 	return mapper(service)
-}
-
-// extractParams returns a map of params from url values
-func extractParams(p url.Values) crossdock.Params {
-	params := crossdock.Params{}
-	for k, l := range p {
-		for _, v := range l {
-			params[k] = v
-		}
-	}
-	return params
 }
