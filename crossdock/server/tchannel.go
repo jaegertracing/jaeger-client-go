@@ -31,14 +31,12 @@ import (
 	"github.com/uber/tchannel-go/thrift"
 	"golang.org/x/net/context"
 
-	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/crossdock/thrift/tracetest"
 )
 
-func (s *Server) startTChannelServer() error {
-	var traceSampleRate float64
+func (s *Server) startTChannelServer(tracer opentracing.Tracer) error {
 	channelOpts := &tchannel.ChannelOptions{
-		TraceSampleRate: &traceSampleRate,
+		Tracer: tracer,
 	}
 	ch, err := tchannel.NewChannel("go", channelOpts)
 	if err != nil {
@@ -66,9 +64,8 @@ func (s *Server) StartTrace(ctx thrift.Context, request *tracetest.StartTraceReq
 
 // JoinTrace implements JoinTrace() of TChanTracedService
 func (s *Server) JoinTrace(ctx thrift.Context, request *tracetest.JoinTraceRequest) (*tracetest.TraceResponse, error) {
-	log.Printf("tchannel server handling JoinTrace request %+v", request)
-	ctx2 := setupOpenTracingContext(s.Tracer, ctx, "tchannel", ctx.Headers())
-	return s.prepareResponse(ctx2, request.ServerRole, request.Downstream)
+	log.Printf("tchannel server handling JoinTrace")
+	return s.prepareResponse(ctx, request.ServerRole, request.Downstream)
 }
 
 func (s *Server) callDownstreamTChannel(ctx context.Context, target *tracetest.Downstream) (*tracetest.TraceResponse, error) {
@@ -80,7 +77,10 @@ func (s *Server) callDownstreamTChannel(ctx context.Context, target *tracetest.D
 	hostPort := fmt.Sprintf("%s:%s", target.Host, target.Port)
 	log.Printf("calling downstream '%s' over tchannel:%s", target.ServiceName, hostPort)
 
-	ch, err := tchannel.NewChannel("tchannel-client", nil)
+	channelOpts := &tchannel.ChannelOptions{
+		Tracer: s.Tracer,
+	}
+	ch, err := tchannel.NewChannel("tchannel-client", channelOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -89,10 +89,9 @@ func (s *Server) callDownstreamTChannel(ctx context.Context, target *tracetest.D
 	thriftClient := thrift.NewClient(ch, target.ServiceName, opts)
 
 	client := tracetest.NewTChanTracedServiceClient(thriftClient)
-
-	// Manual bridging of OpenTracing Span into TChannel Span
-	tCtx, cx := WrapContext(ctx, time.Second)
+	ctx, cx := context.WithTimeout(ctx, time.Second)
 	defer cx()
+<<<<<<< ee3f52fb3a3193863fefd17d66f83a2b2316498b
 
 	return client.JoinTrace(tCtx, req)
 }
@@ -159,4 +158,7 @@ func setupOpenTracingContext(tracer opentracing.Tracer, ctx context.Context, met
 		ctx = opentracing.ContextWithSpan(ctx, span)
 	}
 	return thrift.WithHeaders(ctx, headers)
+=======
+	return client.JoinTrace(thrift.Wrap(ctx), req)
+>>>>>>> Upgrade TChannel to OpenTracing compatible version
 }

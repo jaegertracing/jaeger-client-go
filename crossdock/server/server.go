@@ -57,7 +57,7 @@ func (s *Server) Start() error {
 		s.HostPortTChannel = ":" + common.DefaultServerPortTChannel
 	}
 
-	if err := s.startTChannelServer(); err != nil {
+	if err := s.startTChannelServer(s.Tracer); err != nil {
 		return err
 	}
 

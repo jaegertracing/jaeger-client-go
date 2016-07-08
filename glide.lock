@@ -29,7 +29,7 @@ imports:
   - require
   - suite
 - name: github.com/uber/tchannel-go
-  version: 3e3e53962cc103863e644ac84dcda5169ead0467
+  version: 86ee2b2f880b5b1b5d34564dc1e1bb7492437e7f
   subpackages:
   - atomic
   - thrift
