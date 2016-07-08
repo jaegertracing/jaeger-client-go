@@ -1,16 +1,24 @@
 hash: a491069b174ad3476c71f7c2fcb693b1c9357af31910266a821a15851cdfea01
-updated: 2016-07-02T19:13:37.837699407-04:00
+updated: 2016-07-07T20:04:42.16621302-04:00
 imports:
 - name: github.com/apache/thrift
   version: 23d6746079d7b5fdb38214387c63f987e68a6d8f
   subpackages:
   - lib/go/thrift
 - name: github.com/crossdock/crossdock-go
-  version: e53a1feb15cb012ae9b6691f1acdaa62b480cf92
+  version: dd5d4a171de672de94a3d2650348ef37b029cbd4
+- name: github.com/davecgh/go-spew
+  version: 5215b55f46b2b919f50a1df0eaa5886afe4e3b3d
+  subpackages:
+  - spew
 - name: github.com/opentracing/opentracing-go
   version: d5b9be1fcf7d467664d3b8f9cb4f3c8c5ac0a753
   subpackages:
   - ext
+- name: github.com/pmezard/go-difflib
+  version: e8554b8641db39598be7f6342874b958f12ae1d4
+  subpackages:
+  - difflib
 - name: github.com/stretchr/testify
   version: d77da356e56a7428ad25149ca77381849a6a5232
   subpackages:
@@ -27,7 +35,8 @@ imports:
   - trace/thrift/gen-go/tcollector
   - typed
 - name: golang.org/x/net
-  version: b400c2eff1badec7022a8c8f5bea058b6315eed7
+  version: f841c39de738b1d0df95b5a7187744f0e03d8112
   subpackages:
   - context
+  - context/ctxhttp
 devImports: []
