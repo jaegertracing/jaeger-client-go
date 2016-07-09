@@ -122,7 +122,7 @@ func (p *textMapPropagator) Extract(abstractCarrier interface{}) (*SpanContext, 
 		p.tracer.metrics.DecodingErrors.Inc(1)
 		return nil, err
 	}
-	if ctx.traceID == 0 {
+	if ctx == nil || ctx.traceID == 0 {
 		return nil, opentracing.ErrSpanContextNotFound
 	}
 	ctx.baggage = baggage

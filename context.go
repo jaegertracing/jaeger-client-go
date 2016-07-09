@@ -143,8 +143,8 @@ func (c SpanContext) ParentID() uint64 {
 	return c.parentID
 }
 
-// NewTraceContext creates a new instance of TraceContext
-func NewTraceContext(traceID, spanID, parentID uint64, sampled bool) *SpanContext {
+// NewSpanContext creates a new instance of SpanContext
+func NewSpanContext(traceID, spanID, parentID uint64, sampled bool) *SpanContext {
 	flags := byte(0)
 	if sampled {
 		flags = flagSampled

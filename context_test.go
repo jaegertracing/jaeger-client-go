@@ -27,7 +27,7 @@ func TestContextFromString(t *testing.T) {
 	assert.EqualValues(t, 1, ctx.spanID)
 	assert.EqualValues(t, 1, ctx.parentID)
 	assert.EqualValues(t, 1, ctx.flags)
-	ctx = NewTraceContext(1, 1, 1, true)
+	ctx = NewSpanContext(1, 1, 1, true)
 	assert.EqualValues(t, 1, ctx.traceID)
 	assert.EqualValues(t, 1, ctx.spanID)
 	assert.EqualValues(t, 1, ctx.parentID)

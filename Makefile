@@ -1,5 +1,5 @@
 PROJECT_ROOT=github.com/uber/jaeger-client-go
-PACKAGES := $(shell glide novendor | grep -v ./thrift-gen/... | grep -v crossdock)
+PACKAGES := $(shell glide novendor | grep -v ./thrift-gen/...)
 # all .go files that don't exist in hidden directories
 ALL_SRC := $(shell find . -name "*.go" | grep -v -e vendor -e thrift-gen \
         -e ".*/\..*" \
