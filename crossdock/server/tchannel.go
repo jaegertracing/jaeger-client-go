@@ -121,7 +121,7 @@ func convertOpenTracingSpan(ctx context.Context, builder *tchannel.ContextBuilde
 		return
 	}
 	builder.SetExternalSpan(sc.TraceID(), sc.SpanID(), sc.ParentID(), sc.IsSampled())
-	sc.ForeachBaggageItem(func (k, v string) bool {
+	sc.ForeachBaggageItem(func(k, v string) bool {
 		builder.AddHeader(k, v)
 		return true
 	})

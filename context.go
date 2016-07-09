@@ -40,7 +40,7 @@ var (
 	errMalformedTracerStateString = errors.New("String does not match tracer state format")
 )
 
-// TraceContext represents propagated span identity and state
+// SpanContext represents propagated span identity and state
 type SpanContext struct {
 	sync.RWMutex
 
@@ -63,17 +63,19 @@ type SpanContext struct {
 	baggage map[string]string
 }
 
-func (s *SpanContext) SetBaggageItem(key, value string) opentracing.SpanContext {
+// SetBaggageItem implements SetBaggageItem() of opentracing.SpanContext
+func (c *SpanContext) SetBaggageItem(key, value string) opentracing.SpanContext {
 	key = normalizeBaggageKey(key)
-	s.Lock()
-	defer s.Unlock()
-	if s.baggage == nil {
-		s.baggage = make(map[string]string)
+	c.Lock()
+	defer c.Unlock()
+	if c.baggage == nil {
+		c.baggage = make(map[string]string)
 	}
-	s.baggage[key] = value
-	return s
+	c.baggage[key] = value
+	return c
 }
 
+// BaggageItem implements BaggageItem() of opentracing.SpanContext
 func (c *SpanContext) BaggageItem(key string) string {
 	key = normalizeBaggageKey(key)
 	c.RLock()
@@ -81,6 +83,7 @@ func (c *SpanContext) BaggageItem(key string) string {
 	return c.baggage[key]
 }
 
+// ForeachBaggageItem implements ForeachBaggageItem() of opentracing.SpanContext
 func (c *SpanContext) ForeachBaggageItem(handler func(k, v string) bool) {
 	c.RLock()
 	defer c.RUnlock()
@@ -130,17 +133,17 @@ func ContextFromString(value string) (*SpanContext, error) {
 }
 
 // TraceID implements TraceID() of SpanID
-func (c SpanContext) TraceID() uint64 {
+func (c *SpanContext) TraceID() uint64 {
 	return c.traceID
 }
 
 // SpanID implements SpanID() of SpanID
-func (c SpanContext) SpanID() uint64 {
+func (c *SpanContext) SpanID() uint64 {
 	return c.spanID
 }
 
 // ParentID implements ParentID() of SpanID
-func (c SpanContext) ParentID() uint64 {
+func (c *SpanContext) ParentID() uint64 {
 	return c.parentID
 }
 
@@ -157,6 +160,7 @@ func NewSpanContext(traceID, spanID, parentID uint64, sampled bool) *SpanContext
 		flags:    flags}
 }
 
+// CopyFrom copies data from ctx into this context, including span identity and baggage.
 func (c *SpanContext) CopyFrom(ctx *SpanContext) {
 	c.Lock()
 	defer c.Unlock()

@@ -21,11 +21,11 @@
 package jaeger
 
 import (
+	"fmt"
 	"io"
+	"reflect"
 	"sync"
 	"time"
-	"fmt"
-	"reflect"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
