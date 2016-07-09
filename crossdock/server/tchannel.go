@@ -117,7 +117,7 @@ func convertOpenTracingSpan(ctx context.Context, builder *tchannel.ContextBuilde
 		return
 	}
 	sc := new(jaeger.SpanContext)
-	if err := span.Tracer().Inject(span.Context(), jaeger.TraceContextFormat, sc); err != nil {
+	if err := span.Tracer().Inject(span.Context(), jaeger.SpanContextFormat, sc); err != nil {
 		return
 	}
 	builder.SetExternalSpan(sc.TraceID(), sc.SpanID(), sc.ParentID(), sc.IsSampled())

@@ -84,8 +84,8 @@ func NewTracer(
 	t.extractors[opentracing.Binary] = binaryPropagator
 
 	interopPropagator := &jaegerTraceContextPropagator{tracer: t}
-	t.injectors[TraceContextFormat] = interopPropagator
-	t.extractors[TraceContextFormat] = interopPropagator
+	t.injectors[SpanContextFormat] = interopPropagator
+	t.extractors[SpanContextFormat] = interopPropagator
 
 	zipkinPropagator := &zipkinPropagator{tracer: t}
 	t.injectors[ZipkinSpanFormat] = zipkinPropagator

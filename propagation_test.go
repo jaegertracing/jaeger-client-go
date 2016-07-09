@@ -23,7 +23,7 @@ func TestSpanPropagator(t *testing.T) {
 	tests := []struct {
 		format, carrier, formatName interface{}
 	}{
-		{TraceContextFormat, new(SpanContext), "TraceContextFormat"},
+		{SpanContextFormat, new(SpanContext), "TraceContextFormat"},
 		{opentracing.Binary, new(bytes.Buffer), "Binary"},
 		{opentracing.TextMap, tmc, "TextMap"},
 	}

@@ -28,10 +28,10 @@ import (
 
 type formatKey int
 
-// TraceContextFormat is a constant used as OpenTracing Format.
+// SpanContextFormat is a constant used as OpenTracing Format.
 // Requires *SpanContext as carrier.
 // This format is intended for interop with TChannel or other Zipkin-like tracers.
-const TraceContextFormat formatKey = iota
+const SpanContextFormat formatKey = iota
 
 type jaegerTraceContextPropagator struct {
 	tracer *tracer
