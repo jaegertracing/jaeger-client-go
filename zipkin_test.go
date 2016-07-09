@@ -3,8 +3,8 @@ package jaeger
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/opentracing/opentracing-go/ext"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestZipkinPropagator(t *testing.T) {

@@ -27,10 +27,10 @@ import (
 
 	"github.com/opentracing/opentracing-go"
 
-	"github.com/uber/jaeger-client-go/utils"
 	"fmt"
-	"reflect"
 	"github.com/opentracing/opentracing-go/ext"
+	"github.com/uber/jaeger-client-go/utils"
+	"reflect"
 )
 
 type tracer struct {
@@ -258,7 +258,10 @@ func (t *tracer) startSpanInternal(
 	if tags != nil && len(tags) > 0 {
 		sp.tags = make([]tag, 0, len(tags))
 		for k, v := range tags {
-			sp.tags = append(sp.tags, tag{key: k, value: v})
+			if k == string(ext.SamplingPriority) && setSamplingPriority(sp, k, v) {
+				continue
+			}
+			sp.setTagNoLocking(k, v)
 		}
 	}
 	// emit metrics

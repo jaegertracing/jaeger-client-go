@@ -31,7 +31,6 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/uber/jaeger-client-go/utils"
-	"fmt"
 )
 
 type tracerSuite struct {
@@ -125,9 +124,6 @@ func (s *tracerSuite) TestStartChildSpan() {
 func (s *tracerSuite) TestStartRPCServerSpan() {
 	sp1 := s.tracer.StartSpan("get_address")
 	sp2 := s.tracer.StartSpan("get_street", ext.RPCServerOption(sp1.Context()))
-	fmt.Printf("sp1 = %+v\n", sp1)
-	fmt.Printf("sp2 = %+v\n", sp2)
-	s.Equal([]tag{tag{"span.kind", ext.SpanKindRPCServerEnum}}, sp2.(*span).tags, )
 	s.Equal(sp1.(*span).context.spanID, sp2.(*span).context.spanID)
 	s.Equal(sp1.(*span).context.parentID, sp2.(*span).context.parentID)
 	sp2.Finish()

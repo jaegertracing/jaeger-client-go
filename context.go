@@ -23,10 +23,10 @@ package jaeger
 import (
 	"errors"
 	"fmt"
+	"github.com/opentracing/opentracing-go"
 	"strconv"
 	"strings"
 	"sync"
-	"github.com/opentracing/opentracing-go"
 )
 
 const (

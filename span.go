@@ -93,17 +93,21 @@ func (s *span) SetTag(key string, value interface{}) opentracing.Span {
 		return s
 	}
 	if s.context.IsSampled() {
-		handled := false
-		if handler, ok := specialTagHandlers[key]; ok {
-			handled = handler(s, key, value)
-		}
-		if !handled {
-			s.Lock()
-			defer s.Unlock()
-			s.tags = append(s.tags, tag{key: key, value: value})
-		}
+		s.Lock()
+		defer s.Unlock()
+		s.setTagNoLocking(key, value)
 	}
 	return s
+}
+
+func (s *span) setTagNoLocking(key string, value interface{}) {
+	handled := false
+	if handler, ok := specialTagHandlers[key]; ok {
+		handled = handler(s, key, value)
+	}
+	if !handled {
+		s.tags = append(s.tags, tag{key: key, value: value})
+	}
 }
 
 func (s *span) LogEvent(event string) {
@@ -189,8 +193,6 @@ var specialTagHandlers = map[string]func(*span, string, interface{}) bool{
 }
 
 func setSpanKind(s *span, key string, value interface{}) bool {
-	s.Lock()
-	defer s.Unlock()
 	if val, ok := value.(string); ok {
 		s.spanKind = val
 		return true
@@ -203,8 +205,6 @@ func setSpanKind(s *span, key string, value interface{}) bool {
 }
 
 func setPeerIPv4(s *span, key string, value interface{}) bool {
-	s.Lock()
-	defer s.Unlock()
 	if val, ok := value.(string); ok {
 		if ip, err := utils.IPToUint32(val); err == nil {
 			s.peer.Ipv4 = int32(ip)
@@ -223,8 +223,6 @@ func setPeerIPv4(s *span, key string, value interface{}) bool {
 }
 
 func setPeerPort(s *span, key string, value interface{}) bool {
-	s.Lock()
-	defer s.Unlock()
 	if val, ok := value.(string); ok {
 		if port, err := utils.ParsePort(val); err == nil {
 			s.peer.Port = int16(port)
@@ -243,8 +241,6 @@ func setPeerPort(s *span, key string, value interface{}) bool {
 }
 
 func setPeerService(s *span, key string, value interface{}) bool {
-	s.Lock()
-	defer s.Unlock()
 	if val, ok := value.(string); ok {
 		s.peer.ServiceName = val
 		return true

@@ -3,15 +3,13 @@ package jaeger
 import (
 	"bytes"
 	"net/http"
-	"reflect"
 	"testing"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/opentracing/opentracing-go/ext"
-	"fmt"
 )
 
 func TestSpanPropagator(t *testing.T) {
@@ -31,32 +29,29 @@ func TestSpanPropagator(t *testing.T) {
 	}
 
 	sp := tracer.StartSpan(op)
+	sp.SetTag("x", "y") // to avoid later comparing nil vs. []
 	sp.Context().SetBaggageItem("foo", "bar")
-	for i, test := range tests {
+	for _, test := range tests {
+		// starting normal child to extract its serialized context
 		child := tracer.StartSpan(op, opentracing.ChildOf(sp.Context()))
-		if err := tracer.Inject(child.Context(), test.format, test.carrier); err != nil {
-			t.Fatalf("test %d, format %+v: %v", i, test.formatName, err)
-		}
+		err := tracer.Inject(child.Context(), test.format, test.carrier)
+		assert.NoError(t, err)
 		// Note: we're not finishing the above span
 		childCtx, err := tracer.Extract(test.format, test.carrier)
-		if err != nil {
-			t.Fatalf("test %d, format %+v: %v", i, test.formatName, err)
-		}
+		assert.NoError(t, err)
 		child = tracer.StartSpan(op, ext.RPCServerOption(childCtx))
+		child.SetTag("x", "y") // to avoid later comparing nil vs. []
 		child.Finish()
 	}
 	sp.Finish()
 	closer.Close()
 
 	otSpans := reporter.GetSpans()
-	if a, e := len(otSpans), len(tests)+1; a != e {
-		t.Fatalf("expected %d spans, got %d", e, a)
-	}
+	require.Equal(t, len(tests)+1, len(otSpans), "unexpected number of spans reporter")
 
 	spans := make([]*span, len(otSpans))
 	for i, s := range otSpans {
 		spans[i] = s.(*span)
-		fmt.Printf("Reported span %+v\n", s)
 	}
 
 	// The last span is the original one.
@@ -76,17 +71,17 @@ func TestSpanPropagator(t *testing.T) {
 			sp.context.spanID, sp.context.parentID = exp.context.SpanID(), 0
 			sp.duration, sp.startTime = exp.duration, exp.startTime
 		}
-		if a, e := sp.context.TraceID(), exp.context.TraceID(); a != e {
-			t.Fatalf("%d: TraceID changed from %d to %d", i, e, a)
-		}
-		if !reflect.DeepEqual(exp.context, sp.context) {
-			t.Fatalf("%d: wanted %+v, got %+v", i, exp.context, sp.context)
-		}
-		// Strictly speaking, the above two checks are not necessary, but they are helpful
-		// for troubleshooting when something does not compare equal.
-		if !reflect.DeepEqual(exp, sp) {
-			t.Fatalf("%d: wanted %+v, got %+v", i, exp, sp)
-		}
+		assert.Equal(t, exp.context, sp.context)
+		assert.Equal(t, exp.tags, sp.tags)
+		assert.Equal(t, exp.logs, sp.logs)
+		assert.EqualValues(t, "server", sp.spanKind)
+		// Override collections to avoid tripping comparison on different pointers
+		sp.context = exp.context
+		sp.tags = exp.tags
+		sp.logs = exp.logs
+		sp.spanKind = exp.spanKind
+		// Compare the rest of the fields
+		assert.Equal(t, exp, sp)
 	}
 
 	assert.EqualValues(t, map[string]int64{

@@ -1,5 +1,5 @@
 PROJECT_ROOT=github.com/uber/jaeger-client-go
-PACKAGES := $(shell glide novendor | grep -v ./thrift-gen/...)
+PACKAGES := $(shell glide novendor | grep -v ./thrift-gen/... | grep -v crossdock)
 # all .go files that don't exist in hidden directories
 ALL_SRC := $(shell find . -name "*.go" | grep -v -e vendor -e thrift-gen \
         -e ".*/\..*" \
@@ -23,10 +23,13 @@ THRIFT=docker run -v "${PWD}:/data" $(THRIFT_IMG) thrift
 THRIFT_GO_ARGS=thrift_import="github.com/apache/thrift/lib/go/thrift"
 THRIFT_GEN_DIR=thrift-gen
 
+PASS=$(shell printf "\033[32mPASS\033[0m")
+FAIL=$(shell printf "\033[31mFAIL\033[0m")
+COLORIZE=sed ''/PASS/s//$(PASS)/'' | sed ''/FAIL/s//$(FAIL)/''
+
 .PHONY: test
 test:
-	$(GOTEST) $(PACKAGES)
-
+	$(GOTEST) $(PACKAGES) | $(COLORIZE)
 
 .PHONY: fmt
 fmt:
