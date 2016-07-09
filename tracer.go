@@ -24,13 +24,13 @@ import (
 	"io"
 	"sync"
 	"time"
+	"fmt"
+	"reflect"
 
 	"github.com/opentracing/opentracing-go"
-
-	"fmt"
 	"github.com/opentracing/opentracing-go/ext"
+
 	"github.com/uber/jaeger-client-go/utils"
-	"reflect"
 )
 
 type tracer struct {

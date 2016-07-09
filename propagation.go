@@ -76,7 +76,7 @@ func newBinaryPropagator(tracer *tracer) *binaryPropagator {
 }
 
 func (p *textMapPropagator) Inject(
-	ctx *SpanContext,
+	sc *SpanContext,
 	abstractCarrier interface{},
 ) error {
 	textMapWriter, ok := abstractCarrier.(opentracing.TextMapWriter)
@@ -84,11 +84,11 @@ func (p *textMapPropagator) Inject(
 		return opentracing.ErrInvalidCarrier
 	}
 
-	ctx.RLock()
-	defer ctx.RUnlock()
+	sc.RLock()
+	defer sc.RUnlock()
 
-	textMapWriter.Set(TracerStateHeaderName, ctx.String())
-	for k, v := range ctx.baggage {
+	textMapWriter.Set(TracerStateHeaderName, sc.String())
+	for k, v := range sc.baggage {
 		safeKey := encodeBaggageKeyAsHeader(k)
 		textMapWriter.Set(safeKey, v)
 	}
@@ -130,7 +130,7 @@ func (p *textMapPropagator) Extract(abstractCarrier interface{}) (*SpanContext, 
 }
 
 func (p *binaryPropagator) Inject(
-	ctx *SpanContext,
+	sc *SpanContext,
 	abstractCarrier interface{},
 ) error {
 	carrier, ok := abstractCarrier.(io.Writer)
@@ -139,28 +139,28 @@ func (p *binaryPropagator) Inject(
 	}
 	var err error
 
-	ctx.RLock()
-	defer ctx.RUnlock()
+	sc.RLock()
+	defer sc.RUnlock()
 
 	// Handle the tracer context
-	if err := binary.Write(carrier, binary.BigEndian, ctx.traceID); err != nil {
+	if err := binary.Write(carrier, binary.BigEndian, sc.traceID); err != nil {
 		return err
 	}
-	if err := binary.Write(carrier, binary.BigEndian, ctx.spanID); err != nil {
+	if err := binary.Write(carrier, binary.BigEndian, sc.spanID); err != nil {
 		return err
 	}
-	if err := binary.Write(carrier, binary.BigEndian, ctx.parentID); err != nil {
+	if err := binary.Write(carrier, binary.BigEndian, sc.parentID); err != nil {
 		return err
 	}
-	if err := binary.Write(carrier, binary.BigEndian, ctx.flags); err != nil {
+	if err := binary.Write(carrier, binary.BigEndian, sc.flags); err != nil {
 		return err
 	}
 
 	// Handle the baggage items
-	if err := binary.Write(carrier, binary.BigEndian, int32(len(ctx.baggage))); err != nil {
+	if err := binary.Write(carrier, binary.BigEndian, int32(len(sc.baggage))); err != nil {
 		return err
 	}
-	for k, v := range ctx.baggage {
+	for k, v := range sc.baggage {
 		if err = binary.Write(carrier, binary.BigEndian, int32(len(k))); err != nil {
 			return err
 		}

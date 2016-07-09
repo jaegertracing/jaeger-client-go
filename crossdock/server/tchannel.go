@@ -26,13 +26,13 @@ import (
 	"time"
 
 	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 	"github.com/uber/tchannel-go"
 	"github.com/uber/tchannel-go/thrift"
 	"golang.org/x/net/context"
 
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/crossdock/thrift/tracetest"
-	"github.com/opentracing/opentracing-go/ext"
 )
 
 func (s *Server) startTChannelServer() error {
