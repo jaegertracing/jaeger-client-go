@@ -35,7 +35,7 @@ type span struct {
 	sync.RWMutex
 	tracer *tracer
 
-	TraceContext
+	context *SpanContext
 
 	// The name of the "operation" this span is an instance of.
 	// Known as a "span name" in some implementations.
@@ -70,9 +70,6 @@ type span struct {
 
 	// The span's "micro-log"
 	logs []opentracing.LogData
-
-	// Distributed Context baggage
-	baggage map[string]string
 }
 
 type tag struct {
@@ -82,7 +79,7 @@ type tag struct {
 
 // Sets or changes the operation name.
 func (s *span) SetOperationName(operationName string) opentracing.Span {
-	if s.IsSampled() {
+	if s.context.IsSampled() {
 		s.Lock()
 		defer s.Unlock()
 		s.operationName = operationName
@@ -95,7 +92,7 @@ func (s *span) SetTag(key string, value interface{}) opentracing.Span {
 	if key == string(ext.SamplingPriority) && setSamplingPriority(s, key, value) {
 		return s
 	}
-	if s.IsSampled() {
+	if s.context.IsSampled() {
 		handled := false
 		if handler, ok := specialTagHandlers[key]; ok {
 			handled = handler(s, key, value)
@@ -110,19 +107,19 @@ func (s *span) SetTag(key string, value interface{}) opentracing.Span {
 }
 
 func (s *span) LogEvent(event string) {
-	if s.IsSampled() {
+	if s.context.IsSampled() {
 		s.Log(opentracing.LogData{Event: event})
 	}
 }
 
 func (s *span) LogEventWithPayload(event string, payload interface{}) {
-	if s.IsSampled() {
+	if s.context.IsSampled() {
 		s.Log(opentracing.LogData{Event: event, Payload: payload})
 	}
 }
 
 func (s *span) Log(ld opentracing.LogData) {
-	if s.IsSampled() {
+	if s.context.IsSampled() {
 		s.Lock()
 		defer s.Unlock()
 
@@ -138,7 +135,7 @@ func (s *span) Finish() {
 }
 
 func (s *span) FinishWithOptions(options opentracing.FinishOptions) {
-	if s.IsSampled() {
+	if s.context.IsSampled() {
 		finishTime := options.FinishTime
 		if finishTime.IsZero() {
 			finishTime = s.tracer.timeNow()
@@ -154,32 +151,8 @@ func (s *span) FinishWithOptions(options opentracing.FinishOptions) {
 	s.tracer.reportSpan(s)
 }
 
-func (s *span) SetBaggageItem(key, value string) opentracing.Span {
-	key = normalizeBaggageKey(key)
-	s.Lock()
-	defer s.Unlock()
-	if s.baggage == nil {
-		s.baggage = make(map[string]string)
-	}
-	s.baggage[key] = value
-	return s
-}
-
-func (s *span) BaggageItem(key string) string {
-	key = normalizeBaggageKey(key)
-	s.RLock()
-	defer s.RUnlock()
-	return s.baggage[key]
-}
-
-func (s *span) ForeachBaggageItem(handler func(k, v string) bool) {
-	s.RLock()
-	defer s.RUnlock()
-	for k, v := range s.baggage {
-		if !handler(k, v) {
-			break
-		}
-	}
+func (s *span) Context() opentracing.SpanContext {
+	return s.context
 }
 
 func (s *span) Tracer() opentracing.Tracer {
@@ -189,7 +162,7 @@ func (s *span) Tracer() opentracing.Tracer {
 func (s *span) String() string {
 	s.RLock()
 	defer s.RUnlock()
-	return s.TraceContext.String()
+	return s.context.String()
 }
 
 func (s *span) peerDefined() bool {
@@ -199,13 +172,13 @@ func (s *span) peerDefined() bool {
 func (s *span) isRPC() bool {
 	s.RLock()
 	defer s.RUnlock()
-	return s.spanKind == string(ext.SpanKindRPCClient) || s.spanKind == string(ext.SpanKindRPCServer)
+	return s.spanKind == string(ext.SpanKindRPCClientEnum) || s.spanKind == string(ext.SpanKindRPCServerEnum)
 }
 
 func (s *span) isRPCClient() bool {
 	s.RLock()
 	defer s.RUnlock()
-	return s.spanKind == string(ext.SpanKindRPCClient)
+	return s.spanKind == string(ext.SpanKindRPCClientEnum)
 }
 
 var specialTagHandlers = map[string]func(*span, string, interface{}) bool{
@@ -284,9 +257,9 @@ func setSamplingPriority(s *span, key string, value interface{}) bool {
 	defer s.Unlock()
 	if val, ok := value.(uint16); ok {
 		if val > 0 {
-			s.flags = s.flags | flagDebug | flagSampled
+			s.context.flags = s.context.flags | flagDebug | flagSampled
 		} else {
-			s.flags = s.flags & (^flagSampled)
+			s.context.flags = s.context.flags & (^flagSampled)
 		}
 		return true
 	}

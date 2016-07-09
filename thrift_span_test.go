@@ -14,7 +14,7 @@ func TestFirstInProcessSpan(t *testing.T) {
 	defer closer.Close()
 
 	sp1 := tracer.StartSpan("s1").(*span)
-	sp2 := opentracing.StartChildSpan(sp1, "sp2").(*span)
+	sp2 := tracer.StartSpan("sp2", opentracing.ChildOf(sp1.Context())).(*span)
 	sp2.Finish()
 	sp1.Finish()
 
