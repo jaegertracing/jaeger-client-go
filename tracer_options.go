@@ -38,6 +38,13 @@ func (tracerOptions) Metrics(m *Metrics) TracerOption {
 	}
 }
 
+// Logger creates a TracerOption that gives the tracer a Logger.
+func (tracerOptions) Logger(logger Logger) TracerOption {
+	return func(tracer *tracer) {
+		tracer.logger = logger
+	}
+}
+
 // TimeNow creates a TracerOption that gives the tracer a function
 // used to generate timestamps for spans.
 func (tracerOptions) TimeNow(timeNow func() time.Time) TracerOption {

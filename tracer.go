@@ -21,11 +21,14 @@
 package jaeger
 
 import (
+	"fmt"
 	"io"
+	"reflect"
 	"sync"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 
 	"github.com/uber/jaeger-client-go/utils"
 )
@@ -37,6 +40,7 @@ type tracer struct {
 	sampler  Sampler
 	reporter Reporter
 	metrics  Metrics
+	logger   Logger
 
 	timeNow      func() time.Time
 	randomNumber func() uint64
@@ -105,44 +109,82 @@ func NewTracer(
 		}
 		t.hostIPv4 = localIPInt32
 	}
+	if t.logger == nil {
+		t.logger = NullLogger
+	}
 
 	return t, t
 }
 
-func (t *tracer) StartSpan(operationName string) opentracing.Span {
-	return t.StartSpanWithOptions(
-		opentracing.StartSpanOptions{
-			OperationName: operationName,
-		})
+func (t *tracer) StartSpan(
+	operationName string,
+	options ...opentracing.StartSpanOption,
+) opentracing.Span {
+	sso := opentracing.StartSpanOptions{}
+	for _, o := range options {
+		o.Apply(&sso)
+	}
+	return t.startSpanWithOptions(operationName, sso)
 }
 
-func (t *tracer) StartSpanWithOptions(options opentracing.StartSpanOptions) opentracing.Span {
+func (t *tracer) startSpanWithOptions(
+	operationName string,
+	options opentracing.StartSpanOptions,
+) opentracing.Span {
 	startTime := options.StartTime
 	if startTime.IsZero() {
 		startTime = t.timeNow()
 	}
 
 	sp := t.newSpan()
-	if options.Parent == nil {
-		sp.traceID = t.randomID()
-		sp.spanID = sp.traceID
-		sp.parentID = 0
-		sp.flags = byte(0)
-		if t.sampler.IsSampled(sp.traceID) {
-			sp.flags |= flagSampled
+	ctx := new(SpanContext)
+	sp.context = ctx
+
+	var parent *SpanContext
+	for _, ref := range options.References {
+		if ref.Type == opentracing.ChildOfRef {
+			if p, ok := ref.Referee.(*SpanContext); ok {
+				parent = p
+			} else {
+				t.logger.Error(fmt.Sprintf(
+					"ChildOf reference contains invalid type of SpanReference: %s",
+					reflect.ValueOf(ref.Referee)))
+			}
+		} else {
+			// TODO support other types of span references
+		}
+	}
+
+	rpcServer := false
+	if v, ok := options.Tags[ext.SpanKindRPCServer.Key]; ok {
+		rpcServer = (v == ext.SpanKindRPCServerEnum || v == string(ext.SpanKindRPCServerEnum))
+	}
+
+	if parent == nil {
+		ctx.traceID = t.randomID()
+		ctx.spanID = ctx.traceID
+		ctx.parentID = 0
+		ctx.flags = byte(0)
+		if t.sampler.IsSampled(ctx.traceID) {
+			ctx.flags |= flagSampled
 		}
 	} else {
-		parent := options.Parent.(*span)
 		parent.RLock()
-		sp.traceID = parent.traceID
-		sp.spanID = t.randomID()
-		sp.parentID = parent.spanID
-		sp.flags = parent.flags
+		ctx.traceID = parent.traceID
+		if rpcServer {
+			// Support Zipkin's one-span-per-RPC model
+			ctx.spanID = parent.spanID
+			ctx.parentID = parent.parentID
+		} else {
+			ctx.spanID = t.randomID()
+			ctx.parentID = parent.spanID
+		}
+		ctx.flags = parent.flags
 		// copy baggage items
 		if l := len(parent.baggage); l > 0 {
-			sp.baggage = make(map[string]string, len(parent.baggage))
+			ctx.baggage = make(map[string]string, len(parent.baggage))
 			for k, v := range parent.baggage {
-				sp.baggage[k] = v
+				ctx.baggage[k] = v
 			}
 		}
 		parent.RUnlock()
@@ -150,29 +192,32 @@ func (t *tracer) StartSpanWithOptions(options opentracing.StartSpanOptions) open
 
 	return t.startSpanInternal(
 		sp,
-		options.OperationName,
+		operationName,
 		startTime,
 		options.Tags,
-		false, /* not a join with external trace */
+		rpcServer, /* joining with external trace if rpcServer */
 	)
 }
 
 // Inject implements Inject() method of opentracing.Tracer
-func (t *tracer) Inject(sp opentracing.Span, format interface{}, carrier interface{}) error {
+func (t *tracer) Inject(ctx opentracing.SpanContext, format interface{}, carrier interface{}) error {
+	c, ok := ctx.(*SpanContext)
+	if !ok {
+		return opentracing.ErrInvalidSpanContext
+	}
 	if injector, ok := t.injectors[format]; ok {
-		return injector.InjectSpan(sp, carrier)
+		return injector.Inject(c, carrier)
 	}
 	return opentracing.ErrUnsupportedFormat
 }
 
-// Join implements Join() method of opentracing.Tracer
-func (t *tracer) Join(
-	operationName string,
+// Extract implements Extract() method of opentracing.Tracer
+func (t *tracer) Extract(
 	format interface{},
 	carrier interface{},
-) (opentracing.Span, error) {
+) (opentracing.SpanContext, error) {
 	if extractor, ok := t.extractors[format]; ok {
-		return extractor.Join(operationName, carrier)
+		return extractor.Extract(carrier)
 	}
 	return nil, opentracing.ErrUnsupportedFormat
 }
@@ -191,10 +236,10 @@ func (t *tracer) newSpan() *span {
 		return &span{}
 	}
 	sp := t.spanPool.Get().(*span)
+	sp.context = nil
 	sp.tracer = nil
 	sp.tags = nil
 	sp.logs = nil
-	sp.baggage = nil
 	return sp
 }
 
@@ -209,36 +254,40 @@ func (t *tracer) startSpanInternal(
 	sp.operationName = operationName
 	sp.startTime = startTime
 	sp.duration = 0
-	sp.firstInProcess = join || sp.parentID == 0
+	sp.firstInProcess = join || sp.context.parentID == 0
 	if tags != nil && len(tags) > 0 {
 		sp.tags = make([]tag, 0, len(tags))
 		for k, v := range tags {
-			sp.tags = append(sp.tags, tag{key: k, value: v})
+			if k == string(ext.SamplingPriority) && setSamplingPriority(sp, k, v) {
+				continue
+			}
+			sp.setTagNoLocking(k, v)
 		}
 	}
 	// emit metrics
 	t.metrics.SpansStarted.Inc(1)
-	if sp.IsSampled() {
+	if sp.context.IsSampled() {
 		t.metrics.SpansSampled.Inc(1)
-		if sp.parentID == 0 {
-			t.metrics.TracesStartedSampled.Inc(1)
-		} else if join {
+		if join {
 			t.metrics.TracesJoinedSampled.Inc(1)
+		} else if sp.context.parentID == 0 {
+			t.metrics.TracesStartedSampled.Inc(1)
 		}
 	} else {
 		t.metrics.SpansNotSampled.Inc(1)
-		if sp.parentID == 0 {
-			t.metrics.TracesStartedNotSampled.Inc(1)
-		} else if join {
+		if join {
 			t.metrics.TracesJoinedNotSampled.Inc(1)
+		} else if sp.context.parentID == 0 {
+			t.metrics.TracesStartedNotSampled.Inc(1)
 		}
+
 	}
 	return sp
 }
 
 func (t *tracer) reportSpan(sp *span) {
 	t.metrics.SpansFinished.Inc(1)
-	if sp.IsSampled() {
+	if sp.context.IsSampled() {
 		t.reporter.Report(sp)
 	}
 	if t.poolSpans {

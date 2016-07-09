@@ -40,7 +40,7 @@ const (
 
 // buildThriftSpan builds thrift span based on internal span.
 func buildThriftSpan(span *span) *z.Span {
-	parentID := int64(span.parentID)
+	parentID := int64(span.context.parentID)
 	var ptrParentID *int64
 	if parentID != 0 {
 		ptrParentID = &parentID
@@ -51,8 +51,8 @@ func buildThriftSpan(span *span) *z.Span {
 		ServiceName: span.tracer.serviceName,
 		Ipv4:        int32(span.tracer.hostIPv4)}
 	thriftSpan := &z.Span{
-		TraceID:           int64(span.traceID),
-		ID:                int64(span.spanID),
+		TraceID:           int64(span.context.traceID),
+		ID:                int64(span.context.spanID),
 		ParentID:          ptrParentID,
 		Name:              span.operationName,
 		Timestamp:         &timestamp,
@@ -66,9 +66,9 @@ func buildAnnotations(span *span, endpoint *z.Endpoint) []*z.Annotation {
 	// automatically adding 2 Zipkin CoreAnnotations
 	annotations := make([]*z.Annotation, 0, 2+len(span.logs))
 	var startLabel, endLabel string
-	if span.spanKind == string(ext.SpanKindRPCClient) {
+	if span.spanKind == string(ext.SpanKindRPCClientEnum) {
 		startLabel, endLabel = z.CLIENT_SEND, z.CLIENT_RECV
-	} else if span.spanKind == string(ext.SpanKindRPCServer) {
+	} else if span.spanKind == string(ext.SpanKindRPCServerEnum) {
 		startLabel, endLabel = z.SERVER_RECV, z.SERVER_SEND
 	}
 	if !span.startTime.IsZero() && startLabel != "" {

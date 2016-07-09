@@ -31,34 +31,28 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 )
 
-// Injector is responsible for injecting Span instances in a manner suitable
+// Injector is responsible for injecting SpanContext instances in a manner suitable
 // for propagation via a format-specific "carrier" object. Typically the
 // injection will take place across an RPC boundary, but message queues and
 // other IPC mechanisms are also reasonable places to use an Injector.
 type Injector interface {
-	// InjectSpan takes `span` and injects it into `carrier`. The actual type
-	// of `carrier` depends on the `format` passed to `Tracer.Injector()`.
+	// Inject takes `SpanContext` and injects it into `carrier`. The actual type
+	// of `carrier` depends on the `format` passed to `Tracer.Inject()`.
 	//
 	// Implementations may return opentracing.ErrInvalidCarrier or any other
 	// implementation-specific error if injection fails.
-	InjectSpan(span opentracing.Span, carrier interface{}) error
+	Inject(ctx *SpanContext, carrier interface{}) error
 }
 
-// Extractor is responsible for extracting Span instances from an
+// Extractor is responsible for extracting SpanContext instances from a
 // format-specific "carrier" object. Typically the extraction will take place
 // on the server side of an RPC boundary, but message queues and other IPC
 // mechanisms are also reasonable places to use an Extractor.
 type Extractor interface {
-	// Join returns a Span instance with operation name `operationName`
-	// given `carrier`, or (nil, opentracing.ErrTraceNotFound) if no trace could be found to
-	// join with in the `carrier`.
-	//
-	// Implementations may return opentracing.ErrInvalidCarrier,
-	// opentracing.ErrTraceCorrupted, or implementation-specific errors if there
-	// are more fundamental problems with `carrier`.
-	//
-	// Upon success, the returned Span instance is already started.
-	Join(operationName string, carrier interface{}) (opentracing.Span, error)
+	// Extract decodes a SpanContext instance from the given `carrier`,
+	// or (nil, opentracing.ErrSpanContextNotFound) if no context could
+	// be found in the `carrier`.
+	Extract(carrier interface{}) (*SpanContext, error)
 }
 
 type textMapPropagator struct {
@@ -81,14 +75,10 @@ func newBinaryPropagator(tracer *tracer) *binaryPropagator {
 	}
 }
 
-func (p *textMapPropagator) InjectSpan(
-	sp opentracing.Span,
+func (p *textMapPropagator) Inject(
+	sc *SpanContext,
 	abstractCarrier interface{},
 ) error {
-	sc, ok := sp.(*span)
-	if !ok {
-		return opentracing.ErrInvalidSpan
-	}
 	textMapWriter, ok := abstractCarrier.(opentracing.TextMapWriter)
 	if !ok {
 		return opentracing.ErrInvalidCarrier
@@ -97,7 +87,7 @@ func (p *textMapPropagator) InjectSpan(
 	sc.RLock()
 	defer sc.RUnlock()
 
-	textMapWriter.Set(TracerStateHeaderName, sc.TraceContext.String())
+	textMapWriter.Set(TracerStateHeaderName, sc.String())
 	for k, v := range sc.baggage {
 		safeKey := encodeBaggageKeyAsHeader(k)
 		textMapWriter.Set(safeKey, v)
@@ -105,28 +95,26 @@ func (p *textMapPropagator) InjectSpan(
 	return nil
 }
 
-func (p *textMapPropagator) Join(
-	operationName string,
-	abstractCarrier interface{},
-) (opentracing.Span, error) {
+func (p *textMapPropagator) Extract(abstractCarrier interface{}) (*SpanContext, error) {
 	textMapReader, ok := abstractCarrier.(opentracing.TextMapReader)
 	if !ok {
 		return nil, opentracing.ErrInvalidCarrier
 	}
-	var carrier TraceContextCarrier
+	var ctx *SpanContext
+	var baggage map[string]string
 	err := textMapReader.ForeachKey(func(key, value string) error {
 		lowerCaseKey := strings.ToLower(key)
 		if lowerCaseKey == TracerStateHeaderName {
 			var err error
-			if carrier.TraceContext, err = ContextFromString(value); err != nil {
+			if ctx, err = ContextFromString(value); err != nil {
 				return err
 			}
 		} else if strings.HasPrefix(lowerCaseKey, TraceBaggageHeaderPrefix) {
-			if carrier.Baggage == nil {
-				carrier.Baggage = make(map[string]string)
+			if baggage == nil {
+				baggage = make(map[string]string)
 			}
 			dk := decodeBaggageHeaderKey(lowerCaseKey)
-			carrier.Baggage[dk] = value
+			baggage[dk] = value
 		}
 		return nil
 	})
@@ -134,29 +122,17 @@ func (p *textMapPropagator) Join(
 		p.tracer.metrics.DecodingErrors.Inc(1)
 		return nil, err
 	}
-	if carrier.TraceContext.traceID == 0 {
-		return nil, opentracing.ErrTraceNotFound
+	if ctx == nil || ctx.traceID == 0 {
+		return nil, opentracing.ErrSpanContextNotFound
 	}
-	sp := p.tracer.newSpan()
-	sp.TraceContext = carrier.TraceContext
-	sp.baggage = carrier.Baggage
-	return p.tracer.startSpanInternal(
-		sp,
-		operationName,
-		p.tracer.timeNow(),
-		nil,  // tags
-		true, // join
-	), nil
+	ctx.baggage = baggage
+	return ctx, nil
 }
 
-func (p *binaryPropagator) InjectSpan(
-	sp opentracing.Span,
+func (p *binaryPropagator) Inject(
+	sc *SpanContext,
 	abstractCarrier interface{},
 ) error {
-	sc, ok := sp.(*span)
-	if !ok {
-		return opentracing.ErrInvalidSpan
-	}
 	carrier, ok := abstractCarrier.(io.Writer)
 	if !ok {
 		return opentracing.ErrInvalidCarrier
@@ -198,75 +174,63 @@ func (p *binaryPropagator) InjectSpan(
 	return nil
 }
 
-func (p *binaryPropagator) Join(
-	operationName string,
-	abstractCarrier interface{},
-) (opentracing.Span, error) {
+func (p *binaryPropagator) Extract(abstractCarrier interface{}) (*SpanContext, error) {
 	carrier, ok := abstractCarrier.(io.Reader)
 	if !ok {
 		return nil, opentracing.ErrInvalidCarrier
 	}
-	var context TraceContext
+	ctx := new(SpanContext)
 
-	if err := binary.Read(carrier, binary.BigEndian, &context.traceID); err != nil {
-		return nil, opentracing.ErrTraceCorrupted
+	if err := binary.Read(carrier, binary.BigEndian, &ctx.traceID); err != nil {
+		return nil, opentracing.ErrSpanContextCorrupted
 	}
-	if err := binary.Read(carrier, binary.BigEndian, &context.spanID); err != nil {
-		return nil, opentracing.ErrTraceCorrupted
+	if err := binary.Read(carrier, binary.BigEndian, &ctx.spanID); err != nil {
+		return nil, opentracing.ErrSpanContextCorrupted
 	}
-	if err := binary.Read(carrier, binary.BigEndian, &context.parentID); err != nil {
-		return nil, opentracing.ErrTraceCorrupted
+	if err := binary.Read(carrier, binary.BigEndian, &ctx.parentID); err != nil {
+		return nil, opentracing.ErrSpanContextCorrupted
 	}
-	if err := binary.Read(carrier, binary.BigEndian, &context.flags); err != nil {
-		return nil, opentracing.ErrTraceCorrupted
+	if err := binary.Read(carrier, binary.BigEndian, &ctx.flags); err != nil {
+		return nil, opentracing.ErrSpanContextCorrupted
 	}
 
 	// Handle the baggage items
 	var numBaggage int32
 	if err := binary.Read(carrier, binary.BigEndian, &numBaggage); err != nil {
-		return nil, opentracing.ErrTraceCorrupted
+		return nil, opentracing.ErrSpanContextCorrupted
 	}
-	var baggageMap map[string]string
+	var baggage map[string]string
 	if iNumBaggage := int(numBaggage); iNumBaggage > 0 {
-		baggageMap = make(map[string]string, iNumBaggage)
+		baggage = make(map[string]string, iNumBaggage)
 		buf := p.buffers.Get().(*bytes.Buffer)
 		defer p.buffers.Put(buf)
 
 		var keyLen, valLen int32
 		for i := 0; i < iNumBaggage; i++ {
 			if err := binary.Read(carrier, binary.BigEndian, &keyLen); err != nil {
-				return nil, opentracing.ErrTraceCorrupted
+				return nil, opentracing.ErrSpanContextCorrupted
 			}
 			buf.Reset()
 			buf.Grow(int(keyLen))
 			if n, err := io.CopyN(buf, carrier, int64(keyLen)); err != nil || int32(n) != keyLen {
-				return nil, opentracing.ErrTraceCorrupted
+				return nil, opentracing.ErrSpanContextCorrupted
 			}
 			key := buf.String()
 
 			if err := binary.Read(carrier, binary.BigEndian, &valLen); err != nil {
-				return nil, opentracing.ErrTraceCorrupted
+				return nil, opentracing.ErrSpanContextCorrupted
 			}
 			buf.Reset()
 			buf.Grow(int(valLen))
 			if n, err := io.CopyN(buf, carrier, int64(valLen)); err != nil || int32(n) != valLen {
-				return nil, opentracing.ErrTraceCorrupted
+				return nil, opentracing.ErrSpanContextCorrupted
 			}
-			baggageMap[key] = buf.String()
+			baggage[key] = buf.String()
 		}
 	}
 
-	sp := p.tracer.newSpan()
-	sp.TraceContext = context
-	sp.baggage = baggageMap
-
-	return p.tracer.startSpanInternal(
-		sp,
-		operationName,
-		p.tracer.timeNow(),
-		nil,  // tags
-		true, // join
-	), nil
+	ctx.baggage = baggage
+	return ctx, nil
 }
 
 // Converts a baggage item key into an http header format,

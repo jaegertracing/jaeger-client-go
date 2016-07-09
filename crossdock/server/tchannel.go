@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 	"github.com/uber/tchannel-go"
 	"github.com/uber/tchannel-go/thrift"
 	"golang.org/x/net/context"
@@ -115,15 +116,15 @@ func convertOpenTracingSpan(ctx context.Context, builder *tchannel.ContextBuilde
 	if span == nil {
 		return
 	}
-	carrier := &jaeger.TraceContextCarrier{}
-	if err := span.Tracer().Inject(span, jaeger.TraceContextFormat, carrier); err != nil {
+	sc := new(jaeger.SpanContext)
+	if err := span.Tracer().Inject(span.Context(), jaeger.TraceContextFormat, sc); err != nil {
 		return
 	}
-	sc := carrier.TraceContext
 	builder.SetExternalSpan(sc.TraceID(), sc.SpanID(), sc.ParentID(), sc.IsSampled())
-	for k, v := range carrier.Baggage {
+	sc.ForeachBaggageItem(func(k, v string) bool {
 		builder.AddHeader(k, v)
-	}
+		return true
+	})
 }
 
 // setupOpenTracingContext extracts a TChannel tracing Span from the context, converts
@@ -143,15 +144,16 @@ func setupOpenTracingContext(tracer opentracing.Tracer, ctx context.Context, met
 	tSpan := tchannel.CurrentSpan(ctx)
 	if tSpan != nil {
 		// populate a fake carrier and try to create OpenTracing Span
-		carrier := &jaeger.TraceContextCarrier{Baggage: headers}
-		carrier.TraceContext = *jaeger.NewTraceContext(
+		sc := jaeger.NewSpanContext(
 			tSpan.TraceID(), tSpan.SpanID(), tSpan.ParentID(), tSpan.TracingEnabled())
+		for k, v := range headers {
+			sc.SetBaggageItem(k, v)
+		}
 		if tracer == nil {
 			tracer = opentracing.GlobalTracer()
 		}
-		if span, err := tracer.Join(method, jaeger.TraceContextFormat, carrier); err == nil {
-			ctx = opentracing.ContextWithSpan(ctx, span)
-		}
+		span := tracer.StartSpan(method, ext.RPCServerOption(sc))
+		ctx = opentracing.ContextWithSpan(ctx, span)
 	}
 	return thrift.WithHeaders(ctx, headers)
 }

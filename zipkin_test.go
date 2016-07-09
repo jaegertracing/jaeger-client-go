@@ -3,6 +3,7 @@ package jaeger
 import (
 	"testing"
 
+	"github.com/opentracing/opentracing-go/ext"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -14,24 +15,25 @@ func TestZipkinPropagator(t *testing.T) {
 	sp := tracer.StartSpan("y")
 
 	// Note: we intentionally use string as format, as that's what TChannel would need to do
-	if err := tracer.Inject(sp, "zipkin-span-format", carrier); err != nil {
+	if err := tracer.Inject(sp.Context(), "zipkin-span-format", carrier); err != nil {
 		t.Fatalf("Inject failed: %+v", err)
 	}
 	sp1 := sp.(*span)
-	assert.Equal(t, sp1.traceID, carrier.traceID)
-	assert.Equal(t, sp1.spanID, carrier.spanID)
-	assert.Equal(t, sp1.parentID, carrier.parentID)
-	assert.Equal(t, sp1.flags, carrier.flags)
+	assert.Equal(t, sp1.context.traceID, carrier.traceID)
+	assert.Equal(t, sp1.context.spanID, carrier.spanID)
+	assert.Equal(t, sp1.context.parentID, carrier.parentID)
+	assert.Equal(t, sp1.context.flags, carrier.flags)
 
-	sp2, err := tracer.Join("z", "zipkin-span-format", carrier)
+	sp2ctx, err := tracer.Extract("zipkin-span-format", carrier)
 	if err != nil {
 		t.Fatalf("Extract failed: %+v", err)
 	}
+	sp2 := tracer.StartSpan("x", ext.RPCServerOption(sp2ctx))
 	sp3 := sp2.(*span)
-	assert.Equal(t, sp1.traceID, sp3.traceID)
-	assert.Equal(t, sp1.spanID, sp3.spanID)
-	assert.Equal(t, sp1.parentID, sp3.parentID)
-	assert.Equal(t, sp1.flags, sp3.flags)
+	assert.Equal(t, sp1.context.traceID, sp3.context.traceID)
+	assert.Equal(t, sp1.context.spanID, sp3.context.spanID)
+	assert.Equal(t, sp1.context.parentID, sp3.context.parentID)
+	assert.Equal(t, sp1.context.flags, sp3.context.flags)
 }
 
 // TestZipkinSpan is a mock-up of TChannel's internal Span struct

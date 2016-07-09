@@ -93,7 +93,7 @@ func (s *reporterSuite) flushReporter() {
 
 func (s *reporterSuite) TestRootSpanAnnotations() {
 	sp := s.tracer.StartSpan("get_name")
-	ext.SpanKind.Set(sp, ext.SpanKindRPCServer)
+	ext.SpanKindRPCServer.Set(sp)
 	ext.PeerService.Set(sp, s.serviceName)
 	sp.Finish()
 	s.flushReporter()
@@ -108,17 +108,17 @@ func (s *reporterSuite) TestRootSpanAnnotations() {
 
 func (s *reporterSuite) TestClientSpanAnnotations() {
 	sp := s.tracer.StartSpan("get_name")
-	ext.SpanKind.Set(sp, ext.SpanKindRPCServer)
+	ext.SpanKindRPCServer.Set(sp)
 	ext.PeerService.Set(sp, s.serviceName)
-	sp2 := opentracing.StartChildSpan(sp, "get_last_name")
-	ext.SpanKind.Set(sp2, ext.SpanKindRPCClient)
+	sp2 := s.tracer.StartSpan("get_last_name", opentracing.ChildOf(sp.Context()))
+	ext.SpanKindRPCClient.Set(sp2)
 	ext.PeerService.Set(sp2, s.serviceName)
 	sp2.Finish()
 	sp.Finish()
 	s.flushReporter()
 	s.Equal(2, len(s.collector.Spans()))
 	zSpan := s.collector.Spans()[0] // child span is reported first
-	s.EqualValues(zSpan.ID, sp2.(*span).spanID)
+	s.EqualValues(zSpan.ID, sp2.(*span).context.spanID)
 	s.Equal(2, len(zSpan.Annotations), "expecting two annotations, cs and cr")
 	s.Equal(1, len(zSpan.BinaryAnnotations), "expecting one binary annotation sa")
 	s.NotNil(findAnnotation(zSpan, "cs"), "expecting cs annotation")
@@ -227,7 +227,7 @@ func testRemoteReporter(
 		TracerOptions.Metrics(metrics))
 
 	span := tracer.StartSpan("leela")
-	ext.SpanKind.Set(span, ext.SpanKindRPCClient)
+	ext.SpanKindRPCClient.Set(span)
 	ext.PeerService.Set(span, "downstream")
 	span.Finish()
 	closer.Close() // close the tracer, which also closes and flushes the reporter

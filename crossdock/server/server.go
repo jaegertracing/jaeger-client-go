@@ -126,18 +126,14 @@ func (s *Server) handleJSON(
 	newReq func() interface{},
 	handle func(ctx context.Context, req interface{}) (interface{}, error),
 ) {
-	span, err := s.Tracer.Join("post", opentracing.TextMap, opentracing.HTTPHeaderTextMapCarrier(r.Header))
-	if err != nil && err != opentracing.ErrTraceNotFound {
+	spanCtx, err := s.Tracer.Extract(opentracing.TextMap, opentracing.HTTPHeaderTextMapCarrier(r.Header))
+	if err != nil && err != opentracing.ErrSpanContextNotFound {
 		http.Error(w, fmt.Sprintf("Cannot read request body: %+v", err), http.StatusBadRequest)
 		return
 	}
-	if span != nil {
-		ext.SpanKind.Set(span, ext.SpanKindRPCServer)
-	}
+	span := s.Tracer.StartSpan("post", ext.RPCServerOption(spanCtx))
 	ctx := opentracing.ContextWithSpan(context.Background(), span)
-	if span != nil {
-		defer span.Finish()
-	}
+	defer span.Finish()
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {

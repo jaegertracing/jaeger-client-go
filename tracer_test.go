@@ -72,7 +72,7 @@ func (s *tracerSuite) TestBeginRootSpan() {
 	s.tracer.(*tracer).randomNumber = func() uint64 { return someID }
 
 	sp := s.tracer.StartSpan("get_name")
-	ext.SpanKind.Set(sp, ext.SpanKindRPCServer)
+	ext.SpanKindRPCServer.Set(sp)
 	ext.PeerService.Set(sp, "peer-service")
 	s.NotNil(sp)
 	ss := sp.(*span)
@@ -81,8 +81,8 @@ func (s *tracerSuite) TestBeginRootSpan() {
 	s.Equal("server", ss.spanKind, "Span must be server-side")
 	s.Equal("peer-service", ss.peer.ServiceName, "Client is 'peer-service'")
 
-	s.EqualValues(someID, ss.traceID)
-	s.EqualValues(0, ss.parentID)
+	s.EqualValues(someID, ss.context.traceID)
+	s.EqualValues(0, ss.context.parentID)
 
 	s.Equal(startTime, ss.startTime)
 
@@ -97,29 +97,42 @@ func (s *tracerSuite) TestBeginRootSpan() {
 	}, s.stats.GetCounterValues())
 }
 
-func (s *tracerSuite) TestBeginRootSpanWithOptions() {
+func (s *tracerSuite) TestStartRootSpanWithOptions() {
 	ts := time.Now()
-	options := opentracing.StartSpanOptions{
-		OperationName: "get_address",
-		StartTime:     ts,
-	}
-	sp := s.tracer.StartSpanWithOptions(options)
+	sp := s.tracer.StartSpan("get_address", opentracing.StartTime(ts))
 	ss := sp.(*span)
 	s.Equal("get_address", ss.operationName)
 	s.Equal("", ss.spanKind, "Span must not be RPC")
 	s.Equal(ts, ss.startTime)
 }
 
-func (s *tracerSuite) TestBeginChildSpan() {
+func (s *tracerSuite) TestStartChildSpan() {
 	sp1 := s.tracer.StartSpan("get_address")
-	sp2 := opentracing.StartChildSpan(sp1, "get_street")
-	s.Equal(sp1.(*span).spanID, sp2.(*span).parentID)
+	sp2 := s.tracer.StartSpan("get_street", opentracing.ChildOf(sp1.Context()))
+	s.Equal(sp1.(*span).context.spanID, sp2.(*span).context.parentID)
 	sp2.Finish()
 	s.NotNil(sp2.(*span).duration)
 	sp1.Finish()
 	s.EqualValues(map[string]int64{
 		"jaeger.spans|group=sampling|sampled=y":       2,
 		"jaeger.traces|sampled=y|state=started":       1,
+		"jaeger.spans|group=lifecycle|state=started":  2,
+		"jaeger.spans|group=lifecycle|state=finished": 2,
+	}, s.stats.GetCounterValues())
+}
+
+func (s *tracerSuite) TestStartRPCServerSpan() {
+	sp1 := s.tracer.StartSpan("get_address")
+	sp2 := s.tracer.StartSpan("get_street", ext.RPCServerOption(sp1.Context()))
+	s.Equal(sp1.(*span).context.spanID, sp2.(*span).context.spanID)
+	s.Equal(sp1.(*span).context.parentID, sp2.(*span).context.parentID)
+	sp2.Finish()
+	s.NotNil(sp2.(*span).duration)
+	sp1.Finish()
+	s.EqualValues(map[string]int64{
+		"jaeger.spans|group=sampling|sampled=y":       2,
+		"jaeger.traces|sampled=y|state=started":       1,
+		"jaeger.traces|sampled=y|state=joined":        1,
 		"jaeger.spans|group=lifecycle|state=started":  2,
 		"jaeger.spans|group=lifecycle|state=finished": 2,
 	}, s.stats.GetCounterValues())
@@ -134,12 +147,12 @@ func (s *tracerSuite) TestSetOperationName() {
 func (s *tracerSuite) TestSamplerEffects() {
 	s.tracer.(*tracer).sampler = NewConstSampler(true)
 	sp := s.tracer.StartSpan("test")
-	flags := sp.(*span).flags
+	flags := sp.(*span).context.flags
 	s.EqualValues(flagSampled, flags&flagSampled)
 
 	s.tracer.(*tracer).sampler = NewConstSampler(false)
 	sp = s.tracer.StartSpan("test")
-	flags = sp.(*span).flags
+	flags = sp.(*span).context.flags
 	s.EqualValues(0, flags&flagSampled)
 }
 
@@ -151,7 +164,7 @@ func (s *tracerSuite) TestRandomIDNotZero() {
 		return
 	}
 	sp := s.tracer.StartSpan("get_name").(*span)
-	s.EqualValues(int64(1), sp.traceID)
+	s.EqualValues(int64(1), sp.context.traceID)
 
 	rng := utils.NewRand(0)
 	rng.Seed(1) // for test coverage
@@ -166,19 +179,19 @@ func TestInjectorExtractorOptions(t *testing.T) {
 
 	sp := tracer.StartSpan("x")
 	c := &dummyCarrier{}
-	err := tracer.Inject(sp, "dummy", []int{})
+	err := tracer.Inject(sp.Context(), "dummy", []int{})
 	assert.Equal(t, opentracing.ErrInvalidCarrier, err)
-	err = tracer.Inject(sp, "dummy", c)
+	err = tracer.Inject(sp.Context(), "dummy", c)
 	assert.NoError(t, err)
 	assert.True(t, c.ok)
 
 	c.ok = false
-	_, err = tracer.Join("z", "dummy", []int{})
+	_, err = tracer.Extract("dummy", []int{})
 	assert.Equal(t, opentracing.ErrInvalidCarrier, err)
-	_, err = tracer.Join("z", "dummy", c)
-	assert.Equal(t, opentracing.ErrTraceNotFound, err)
+	_, err = tracer.Extract("dummy", c)
+	assert.Equal(t, opentracing.ErrSpanContextNotFound, err)
 	c.ok = true
-	_, err = tracer.Join("z", "dummy", c)
+	_, err = tracer.Extract("dummy", c)
 	assert.NoError(t, err)
 }
 
@@ -187,7 +200,7 @@ type dummyCarrier struct {
 	ok bool
 }
 
-func (p *dummyPropagator) InjectSpan(span opentracing.Span, carrier interface{}) error {
+func (p *dummyPropagator) Inject(ctx *SpanContext, carrier interface{}) error {
 	c, ok := carrier.(*dummyCarrier)
 	if !ok {
 		return opentracing.ErrInvalidCarrier
@@ -196,7 +209,7 @@ func (p *dummyPropagator) InjectSpan(span opentracing.Span, carrier interface{})
 	return nil
 }
 
-func (p *dummyPropagator) Join(operationName string, carrier interface{}) (opentracing.Span, error) {
+func (p *dummyPropagator) Extract(carrier interface{}) (*SpanContext, error) {
 	c, ok := carrier.(*dummyCarrier)
 	if !ok {
 		return nil, opentracing.ErrInvalidCarrier
@@ -204,5 +217,5 @@ func (p *dummyPropagator) Join(operationName string, carrier interface{}) (opent
 	if c.ok {
 		return nil, nil
 	}
-	return nil, opentracing.ErrTraceNotFound
+	return nil, opentracing.ErrSpanContextNotFound
 }

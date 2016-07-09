@@ -66,7 +66,7 @@ this interface can be set on the `Config` object before calling the
 
 Since this tracer is fully compliant with OpenTracing API 1.0,
 all code instrumentation should only use the API itself, as described
-in [opentracing-go]
+in the [opentracing-go]
 (https://github.com/opentracing/opentracing-go) documentation.
 
 ## Features
