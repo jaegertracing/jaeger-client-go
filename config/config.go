@@ -123,7 +123,8 @@ func (c Configuration) New(
 		serviceName,
 		sampler,
 		reporter,
-		jaeger.TracerOptions.Metrics(metrics))
+		jaeger.TracerOptions.Metrics(metrics),
+		jaeger.TracerOptions.Logger(c.Logger))
 
 	return tracer, closer, nil
 }
