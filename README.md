@@ -1,6 +1,6 @@
 [![GoDoc][doc-img]][doc] [![Build Status][ci-img]][ci] [![Coverage Status][cov-img]][cov]
 
-# jaeger-client-go
+# Jaeger Bindings for Go OpenTracing API
 
 This is a client side library that implements an
 [OpenTracing](http://opentracing.io) Tracer, with Zipkin-compatible
