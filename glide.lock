@@ -31,7 +31,7 @@ imports:
 - name: github.com/uber-go/atomic
   version: e682c1008ac17bf26d2e4b5ad6cdd08520ed0b22
 - name: github.com/uber/tchannel-go
-  version: 86ee2b2f880b5b1b5d34564dc1e1bb7492437e7f
+  version: f3d41bc853ca7cd7e1007db5495cd9cd5e32a673
   subpackages:
   - atomic
   - thrift
