@@ -22,7 +22,6 @@ package jaeger
 
 import (
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
@@ -32,7 +31,6 @@ import (
 )
 
 type span struct {
-	sync.RWMutex
 	tracer *tracer
 
 	context *SpanContext
@@ -79,9 +77,9 @@ type tag struct {
 
 // Sets or changes the operation name.
 func (s *span) SetOperationName(operationName string) opentracing.Span {
+	s.context.Lock()
+	defer s.context.Unlock()
 	if s.context.IsSampled() {
-		s.Lock()
-		defer s.Unlock()
 		s.operationName = operationName
 	}
 	return s
@@ -92,9 +90,9 @@ func (s *span) SetTag(key string, value interface{}) opentracing.Span {
 	if key == string(ext.SamplingPriority) && setSamplingPriority(s, key, value) {
 		return s
 	}
+	s.context.Lock()
+	defer s.context.Unlock()
 	if s.context.IsSampled() {
-		s.Lock()
-		defer s.Unlock()
 		s.setTagNoLocking(key, value)
 	}
 	return s
@@ -111,22 +109,17 @@ func (s *span) setTagNoLocking(key string, value interface{}) {
 }
 
 func (s *span) LogEvent(event string) {
-	if s.context.IsSampled() {
-		s.Log(opentracing.LogData{Event: event})
-	}
+	s.Log(opentracing.LogData{Event: event})
 }
 
 func (s *span) LogEventWithPayload(event string, payload interface{}) {
-	if s.context.IsSampled() {
-		s.Log(opentracing.LogData{Event: event, Payload: payload})
-	}
+	s.Log(opentracing.LogData{Event: event, Payload: payload})
 }
 
 func (s *span) Log(ld opentracing.LogData) {
+	s.context.Lock()
+	defer s.context.Unlock()
 	if s.context.IsSampled() {
-		s.Lock()
-		defer s.Unlock()
-
 		if ld.Timestamp.IsZero() {
 			ld.Timestamp = s.tracer.timeNow()
 		}
@@ -139,18 +132,18 @@ func (s *span) Finish() {
 }
 
 func (s *span) FinishWithOptions(options opentracing.FinishOptions) {
+	s.context.Lock()
 	if s.context.IsSampled() {
 		finishTime := options.FinishTime
 		if finishTime.IsZero() {
 			finishTime = s.tracer.timeNow()
 		}
-		s.Lock()
 		s.duration = finishTime.Sub(s.startTime)
 		if options.BulkLogData != nil {
 			s.logs = append(s.logs, options.BulkLogData...)
 		}
-		s.Unlock()
 	}
+	s.context.Unlock()
 	// call reportSpan even for non-sampled traces, to return span to the pool
 	s.tracer.reportSpan(s)
 }
@@ -164,8 +157,6 @@ func (s *span) Tracer() opentracing.Tracer {
 }
 
 func (s *span) String() string {
-	s.RLock()
-	defer s.RUnlock()
 	return s.context.String()
 }
 
@@ -174,14 +165,14 @@ func (s *span) peerDefined() bool {
 }
 
 func (s *span) isRPC() bool {
-	s.RLock()
-	defer s.RUnlock()
+	s.context.RLock()
+	defer s.context.RUnlock()
 	return s.spanKind == string(ext.SpanKindRPCClientEnum) || s.spanKind == string(ext.SpanKindRPCServerEnum)
 }
 
 func (s *span) isRPCClient() bool {
-	s.RLock()
-	defer s.RUnlock()
+	s.context.RLock()
+	defer s.context.RUnlock()
 	return s.spanKind == string(ext.SpanKindRPCClientEnum)
 }
 
@@ -249,8 +240,8 @@ func setPeerService(s *span, key string, value interface{}) bool {
 }
 
 func setSamplingPriority(s *span, key string, value interface{}) bool {
-	s.Lock()
-	defer s.Unlock()
+	s.context.Lock()
+	defer s.context.Unlock()
 	if val, ok := value.(uint16); ok {
 		if val > 0 {
 			s.context.flags = s.context.flags | flagDebug | flagSampled

@@ -101,6 +101,8 @@ func (c *SpanContext) IsSampled() bool {
 }
 
 func (c *SpanContext) String() string {
+	c.RLock()
+	defer c.RUnlock()
 	return fmt.Sprintf("%x:%x:%x:%x", c.traceID, c.spanID, c.parentID, c.flags)
 }
 
