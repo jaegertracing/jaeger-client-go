@@ -40,7 +40,7 @@ script:
   - timeout 5 docker-compose -f crossdock/docker-compose.yml logs || true
 
 after_success:
-  - export REPO=jaegertracing/jaeger-client-go
+  - export REPO=jaegertracing/xdock-go
   - export PR=https://api.github.com/repos/$TRAVIS_REPO_SLUG/pulls/$TRAVIS_PULL_REQUEST
   - export BRANCH=$(if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then echo $TRAVIS_BRANCH; else echo `curl -s $PR | jq -r .head.ref`; fi)
   - export TAG=`if [ "$BRANCH" == "master" ]; then echo "latest"; else echo $BRANCH; fi`
