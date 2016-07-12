@@ -50,6 +50,6 @@ func initTracer() (opentracing.Tracer, io.Closer) {
 	t, c := jaeger.NewTracer(
 		"crossdock-go",
 		jaeger.NewConstSampler(false),
-		jaeger.NewInMemoryReporter())
+		jaeger.NewLoggingReporter(jaeger.StdLogger))
 	return t, c
 }
