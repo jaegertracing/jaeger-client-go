@@ -38,9 +38,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"github.com/uber/jaeger-client-go/transport"
-	"github.com/uber/jaeger-client-go/transport/tchannel"
 	"github.com/uber/jaeger-client-go/transport/udp"
-	"github.com/uber/tchannel-go/thrift"
 )
 
 type reporterSuite struct {
@@ -49,7 +47,7 @@ type reporterSuite struct {
 	closer      io.Closer
 	serviceName string
 	reporter    *remoteReporter
-	collector   *fakeZipkinCollector
+	collector   *fakeSender
 	stats       *InMemoryStatsCollector
 }
 
@@ -57,9 +55,10 @@ func (s *reporterSuite) SetupTest() {
 	s.stats = NewInMemoryStatsCollector()
 	metrics := NewMetrics(s.stats, nil)
 	s.serviceName = "DOOP"
-	s.collector = &fakeZipkinCollector{}
-	sender := &tchannel.Transport{Client: s.collector}
-	s.reporter = NewRemoteReporter(sender, &ReporterOptions{Metrics: metrics}).(*remoteReporter)
+	s.collector = &fakeSender{}
+	s.reporter = NewRemoteReporter(
+		s.collector, &ReporterOptions{Metrics: metrics},
+	).(*remoteReporter)
 
 	s.tracer, s.closer = NewTracer(
 		"reporter-test-service",
@@ -180,20 +179,6 @@ func (s *reporterSuite) TestTagsAndEvents() {
 	s.EqualValues(256, len(longStr.Value), "long tag valur must be truncated")
 }
 
-func TestTCollectorReporter(t *testing.T) {
-	collector, err := testutils.StartMockTCollector()
-	require.NoError(t, err)
-	defer collector.Close()
-
-	testRemoteReporter(t,
-		func(m *Metrics) (transport.Transport, error) {
-			return tchannel.New(collector.Channel, "", 0), nil
-		},
-		func() []*z.Span {
-			return collector.GetZipkinSpans()
-		})
-}
-
 func TestUDPReporter(t *testing.T) {
 	agent, err := testutils.StartMockAgent()
 	require.NoError(t, err)
@@ -272,22 +257,28 @@ func findBinaryAnnotation(span *z.Span, name string) *z.BinaryAnnotation {
 	return nil
 }
 
-type fakeZipkinCollector struct {
+type fakeSender struct {
 	spans []*z.Span
 	mutex sync.Mutex
 }
 
-func (c *fakeZipkinCollector) SubmitZipkinBatch(ctx thrift.Context, spans []*z.Span) ([]*z.Response, error) {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	c.spans = append(c.spans, spans...)
-	return nil, nil
+func (s *fakeSender) Append(span *z.Span) (int, error) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	s.spans = append(s.spans, span)
+	return 1, nil
 }
 
-func (c *fakeZipkinCollector) Spans() []*z.Span {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	res := make([]*z.Span, len(c.spans))
-	copy(res, c.spans)
+func (s *fakeSender) Flush() (int, error) {
+	return 0, nil
+}
+
+func (s *fakeSender) Close() error { return nil }
+
+func (s *fakeSender) Spans() []*z.Span {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	res := make([]*z.Span, len(s.spans))
+	copy(res, s.spans)
 	return res
 }

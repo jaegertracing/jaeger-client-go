@@ -7,13 +7,18 @@ import (
 // ZipkinSpanFormat is an OpenTracing carrier format constant
 const ZipkinSpanFormat = "zipkin-span-format"
 
-// ZipkinSpan is a type of Carrier used for integration with Zipkin-aware RPC frameworks
-// (like TChannel). It does not support baggage, only trace IDs.
-type ZipkinSpan interface {
+// ExtractableZipkinSpan is a type of Carrier used for integration with Zipkin-aware
+// RPC frameworks (like TChannel). It does not support baggage, only trace IDs.
+type ExtractableZipkinSpan interface {
 	TraceID() uint64
 	SpanID() uint64
 	ParentID() uint64
 	Flags() byte
+}
+
+// InjectableZipkinSpan is a type of Carrier used for integration with Zipkin-aware
+// RPC frameworks (like TChannel). It does not support baggage, only trace IDs.
+type InjectableZipkinSpan interface {
 	SetTraceID(traceID uint64)
 	SetSpanID(spanID uint64)
 	SetParentID(parentID uint64)
@@ -28,7 +33,7 @@ func (p *zipkinPropagator) Inject(
 	ctx *SpanContext,
 	abstractCarrier interface{},
 ) error {
-	carrier, ok := abstractCarrier.(ZipkinSpan)
+	carrier, ok := abstractCarrier.(InjectableZipkinSpan)
 	if !ok {
 		return opentracing.ErrInvalidCarrier
 	}
@@ -44,7 +49,7 @@ func (p *zipkinPropagator) Inject(
 }
 
 func (p *zipkinPropagator) Extract(abstractCarrier interface{}) (*SpanContext, error) {
-	carrier, ok := abstractCarrier.(ZipkinSpan)
+	carrier, ok := abstractCarrier.(ExtractableZipkinSpan)
 	if !ok {
 		return nil, opentracing.ErrInvalidCarrier
 	}
