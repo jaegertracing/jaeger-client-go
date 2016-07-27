@@ -63,6 +63,14 @@ func newTextMapPropagator(tracer *tracer) *textMapPropagator {
 	return &textMapPropagator{tracer: tracer}
 }
 
+type httpHeaderPropagator struct {
+	tracer *tracer
+}
+
+func newHTTPHeaderPropagator(tracer *tracer) *httpHeaderPropagator {
+	return &httpHeaderPropagator{tracer: tracer}
+}
+
 type binaryPropagator struct {
 	tracer  *tracer
 	buffers sync.Pool
@@ -89,13 +97,65 @@ func (p *textMapPropagator) Inject(
 
 	textMapWriter.Set(TracerStateHeaderName, sc.String())
 	for k, v := range sc.baggage {
+		textMapWriter.Set(encodeBaggageKeyAsHeader(k), v)
+	}
+	return nil
+}
+
+func (p *textMapPropagator) Extract(abstractCarrier interface{}) (*SpanContext, error) {
+	textMapReader, ok := abstractCarrier.(opentracing.TextMapReader)
+	if !ok {
+		return nil, opentracing.ErrInvalidCarrier
+	}
+	var ctx *SpanContext
+	var baggage map[string]string
+	err := textMapReader.ForeachKey(func(key, value string) error {
+		if key == TracerStateHeaderName {
+			var err error
+			if ctx, err = ContextFromString(value); err != nil {
+				return err
+			}
+		} else if strings.HasPrefix(key, TraceBaggageHeaderPrefix) {
+			if baggage == nil {
+				baggage = make(map[string]string)
+			}
+			dk := decodeBaggageHeaderKey(key)
+			baggage[dk] = value
+		}
+		return nil
+	})
+	if err != nil {
+		p.tracer.metrics.DecodingErrors.Inc(1)
+		return nil, err
+	}
+	if ctx == nil || ctx.traceID == 0 {
+		return nil, opentracing.ErrSpanContextNotFound
+	}
+	ctx.baggage = baggage
+	return ctx, nil
+}
+
+func (p *httpHeaderPropagator) Inject(
+	sc *SpanContext,
+	abstractCarrier interface{},
+) error {
+	textMapWriter, ok := abstractCarrier.(opentracing.TextMapWriter)
+	if !ok {
+		return opentracing.ErrInvalidCarrier
+	}
+
+	sc.RLock()
+	defer sc.RUnlock()
+
+	textMapWriter.Set(TracerStateHeaderName, sc.String())
+	for k, v := range sc.baggage {
 		safeKey := encodeBaggageKeyAsHeader(k)
 		textMapWriter.Set(safeKey, v)
 	}
 	return nil
 }
 
-func (p *textMapPropagator) Extract(abstractCarrier interface{}) (*SpanContext, error) {
+func (p *httpHeaderPropagator) Extract(abstractCarrier interface{}) (*SpanContext, error) {
 	textMapReader, ok := abstractCarrier.(opentracing.TextMapReader)
 	if !ok {
 		return nil, opentracing.ErrInvalidCarrier

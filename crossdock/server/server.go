@@ -126,7 +126,7 @@ func (s *Server) handleJSON(
 	newReq func() interface{},
 	handle func(ctx context.Context, req interface{}) (interface{}, error),
 ) {
-	spanCtx, err := s.Tracer.Extract(opentracing.TextMap, opentracing.HTTPHeaderTextMapCarrier(r.Header))
+	spanCtx, err := s.Tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Header))
 	if err != nil && err != opentracing.ErrSpanContextNotFound {
 		http.Error(w, fmt.Sprintf("Cannot read request body: %+v", err), http.StatusBadRequest)
 		return

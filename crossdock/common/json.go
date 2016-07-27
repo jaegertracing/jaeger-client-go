@@ -73,7 +73,7 @@ func injectSpan(ctx context.Context, req *http.Request) (opentracing.Span, error
 	}
 	span = span.Tracer().StartSpan("post", opentracing.ChildOf(span.Context()))
 	ext.SpanKindRPCClient.Set(span)
-	c := opentracing.HTTPHeaderTextMapCarrier(req.Header)
-	err := span.Tracer().Inject(span.Context(), opentracing.TextMap, c)
+	c := opentracing.HTTPHeadersCarrier(req.Header)
+	err := span.Tracer().Inject(span.Context(), opentracing.HTTPHeaders, c)
 	return span, err
 }
