@@ -19,13 +19,15 @@ func TestSpanPropagator(t *testing.T) {
 	metrics := NewMetrics(stats, nil)
 	tracer, closer := NewTracer("x", NewConstSampler(true), reporter, TracerOptions.Metrics(metrics))
 
-	tmc := opentracing.HTTPHeaderTextMapCarrier(http.Header{})
+	mapc := opentracing.TextMapCarrier(make(map[string]string))
+	httpc := opentracing.HTTPHeadersCarrier(http.Header{})
 	tests := []struct {
 		format, carrier, formatName interface{}
 	}{
 		{SpanContextFormat, new(SpanContext), "TraceContextFormat"},
 		{opentracing.Binary, new(bytes.Buffer), "Binary"},
-		{opentracing.TextMap, tmc, "TextMap"},
+		{opentracing.TextMap, mapc, "TextMap"},
+		{opentracing.HTTPHeaders, httpc, "HTTPHeaders"},
 	}
 
 	sp := tracer.StartSpan(op)
@@ -39,7 +41,7 @@ func TestSpanPropagator(t *testing.T) {
 		// Note: we're not finishing the above span
 		childCtx, err := tracer.Extract(test.format, test.carrier)
 		assert.NoError(t, err)
-		child = tracer.StartSpan(op, ext.RPCServerOption(childCtx))
+		child = tracer.StartSpan(test.formatName.(string), ext.RPCServerOption(childCtx))
 		child.SetTag("x", "y") // to avoid later comparing nil vs. []
 		child.Finish()
 	}
@@ -64,6 +66,7 @@ func TestSpanPropagator(t *testing.T) {
 	}
 
 	for i, sp := range spans {
+		formatName := sp.operationName
 		if a, e := sp.context.ParentID(), exp.context.SpanID(); a != e {
 			t.Fatalf("%d: ParentID %d does not match expectation %d", i, a, e)
 		} else {
@@ -71,25 +74,26 @@ func TestSpanPropagator(t *testing.T) {
 			sp.context.spanID, sp.context.parentID = exp.context.SpanID(), 0
 			sp.duration, sp.startTime = exp.duration, exp.startTime
 		}
-		assert.Equal(t, exp.context, sp.context)
-		assert.Equal(t, exp.tags, sp.tags)
-		assert.Equal(t, exp.logs, sp.logs)
-		assert.EqualValues(t, "server", sp.spanKind)
+		assert.Equal(t, exp.context, sp.context, formatName)
+		assert.Equal(t, exp.tags, sp.tags, formatName)
+		assert.Equal(t, exp.logs, sp.logs, formatName)
+		assert.EqualValues(t, "server", sp.spanKind, formatName)
 		// Override collections to avoid tripping comparison on different pointers
 		sp.context = exp.context
 		sp.tags = exp.tags
 		sp.logs = exp.logs
 		sp.spanKind = exp.spanKind
+		sp.operationName = op
 		// Compare the rest of the fields
-		assert.Equal(t, exp, sp)
+		assert.Equal(t, exp, sp, formatName)
 	}
 
 	assert.EqualValues(t, map[string]int64{
-		"jaeger.spans|group=sampling|sampled=y":       7,
-		"jaeger.spans|group=lifecycle|state=started":  7,
-		"jaeger.spans|group=lifecycle|state=finished": 4,
+		"jaeger.spans|group=sampling|sampled=y":       int64(1 + 2*len(tests)),
+		"jaeger.spans|group=lifecycle|state=started":  int64(1 + 2*len(tests)),
+		"jaeger.spans|group=lifecycle|state=finished": int64(1 + len(tests)),
 		"jaeger.traces|sampled=y|state=started":       1,
-		"jaeger.traces|sampled=y|state=joined":        3,
+		"jaeger.traces|sampled=y|state=joined":        int64(len(tests)),
 	}, stats.GetCounterValues())
 }
 
@@ -115,8 +119,8 @@ func TestDecodingError(t *testing.T) {
 	badHeader := "x.x.x.x"
 	httpHeader := http.Header{}
 	httpHeader.Add(TracerStateHeaderName, badHeader)
-	tmc := opentracing.HTTPHeaderTextMapCarrier(httpHeader)
-	_, err := tracer.Extract(opentracing.TextMap, tmc)
+	tmc := opentracing.HTTPHeadersCarrier(httpHeader)
+	_, err := tracer.Extract(opentracing.HTTPHeaders, tmc)
 	assert.Error(t, err)
 	assert.Equal(t, map[string]int64{"jaeger.decoding-errors": 1}, stats.GetCounterValues())
 }
@@ -132,10 +136,10 @@ func TestBaggagePropagationHTTP(t *testing.T) {
 	assert.Equal(t, "98765", sp1.Context().BaggageItem("some-KEY"))
 
 	h := http.Header{}
-	err := tracer.Inject(sp1.context, opentracing.TextMap, opentracing.HTTPHeaderTextMapCarrier(h))
+	err := tracer.Inject(sp1.context, opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(h))
 	require.NoError(t, err)
 
-	sp2, err := tracer.Extract(opentracing.TextMap, opentracing.HTTPHeaderTextMapCarrier(h))
+	sp2, err := tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(h))
 	require.NoError(t, err)
 	assert.Equal(t, "98765", sp2.BaggageItem("some-KEY"))
 }

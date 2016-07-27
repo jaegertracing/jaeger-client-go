@@ -79,6 +79,10 @@ func NewTracer(
 	t.injectors[opentracing.TextMap] = textPropagator
 	t.extractors[opentracing.TextMap] = textPropagator
 
+	httpHeaderPropagator := newHTTPHeaderPropagator(t)
+	t.injectors[opentracing.HTTPHeaders] = httpHeaderPropagator
+	t.extractors[opentracing.HTTPHeaders] = httpHeaderPropagator
+
 	binaryPropagator := newBinaryPropagator(t)
 	t.injectors[opentracing.Binary] = binaryPropagator
 	t.extractors[opentracing.Binary] = binaryPropagator
@@ -143,12 +147,12 @@ func (t *tracer) startSpanWithOptions(
 	var parent *SpanContext
 	for _, ref := range options.References {
 		if ref.Type == opentracing.ChildOfRef {
-			if p, ok := ref.Referee.(*SpanContext); ok {
+			if p, ok := ref.ReferencedContext.(*SpanContext); ok {
 				parent = p
 			} else {
 				t.logger.Error(fmt.Sprintf(
 					"ChildOf reference contains invalid type of SpanReference: %s",
-					reflect.ValueOf(ref.Referee)))
+					reflect.ValueOf(ref.ReferencedContext)))
 			}
 		} else {
 			// TODO support other types of span references
