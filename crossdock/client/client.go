@@ -43,7 +43,7 @@ type Client struct {
 // Start begins a blocking Crossdock client
 func (c *Client) Start() error {
 	if err := c.Listen(); err != nil {
-		return nil
+		return err
 	}
 	return c.Serve()
 }
