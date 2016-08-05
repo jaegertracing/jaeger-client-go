@@ -27,9 +27,17 @@ func TestContextFromString(t *testing.T) {
 	assert.EqualValues(t, 1, ctx.spanID)
 	assert.EqualValues(t, 1, ctx.parentID)
 	assert.EqualValues(t, 1, ctx.flags)
-	ctx = NewSpanContext(1, 1, 1, true)
+	ctx = NewSpanContext(1, 1, 1, true, nil)
 	assert.EqualValues(t, 1, ctx.traceID)
 	assert.EqualValues(t, 1, ctx.spanID)
 	assert.EqualValues(t, 1, ctx.parentID)
 	assert.EqualValues(t, 1, ctx.flags)
+}
+
+func TestSpanContext_WithBaggageItem(t *testing.T) {
+	var ctx SpanContext
+	ctx = ctx.WithBaggageItem("some-KEY", "Some-Value")
+	assert.Equal(t, map[string]string{"some-KEY": "Some-Value"}, ctx.baggage)
+	ctx = ctx.WithBaggageItem("some-KEY", "Some-Other-Value")
+	assert.Equal(t, map[string]string{"some-KEY": "Some-Other-Value"}, ctx.baggage)
 }

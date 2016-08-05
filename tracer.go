@@ -87,10 +87,6 @@ func NewTracer(
 	t.injectors[opentracing.Binary] = binaryPropagator
 	t.extractors[opentracing.Binary] = binaryPropagator
 
-	interopPropagator := &jaegerTraceContextPropagator{tracer: t}
-	t.injectors[SpanContextFormat] = interopPropagator
-	t.extractors[SpanContextFormat] = interopPropagator
-
 	zipkinPropagator := &zipkinPropagator{tracer: t}
 	t.injectors[ZipkinSpanFormat] = zipkinPropagator
 	t.extractors[ZipkinSpanFormat] = zipkinPropagator
@@ -140,15 +136,14 @@ func (t *tracer) startSpanWithOptions(
 		startTime = t.timeNow()
 	}
 
-	sp := t.newSpan()
-	ctx := new(SpanContext)
-	sp.context = ctx
-
-	var parent *SpanContext
+	var parent SpanContext
+	var hasParent bool
 	for _, ref := range options.References {
 		if ref.Type == opentracing.ChildOfRef {
-			if p, ok := ref.ReferencedContext.(*SpanContext); ok {
+			if p, ok := ref.ReferencedContext.(SpanContext); ok {
 				parent = p
+				hasParent = true
+				break
 			} else {
 				t.logger.Error(fmt.Sprintf(
 					"ChildOf reference contains invalid type of SpanReference: %s",
@@ -164,7 +159,8 @@ func (t *tracer) startSpanWithOptions(
 		rpcServer = (v == ext.SpanKindRPCServerEnum || v == string(ext.SpanKindRPCServerEnum))
 	}
 
-	if parent == nil {
+	var ctx SpanContext
+	if !hasParent {
 		ctx.traceID = t.randomID()
 		ctx.spanID = ctx.traceID
 		ctx.parentID = 0
@@ -173,7 +169,6 @@ func (t *tracer) startSpanWithOptions(
 			ctx.flags |= flagSampled
 		}
 	} else {
-		parent.RLock()
 		ctx.traceID = parent.traceID
 		if rpcServer {
 			// Support Zipkin's one-span-per-RPC model
@@ -191,9 +186,10 @@ func (t *tracer) startSpanWithOptions(
 				ctx.baggage[k] = v
 			}
 		}
-		parent.RUnlock()
 	}
 
+	sp := t.newSpan()
+	sp.context = ctx
 	return t.startSpanInternal(
 		sp,
 		operationName,
@@ -205,7 +201,7 @@ func (t *tracer) startSpanWithOptions(
 
 // Inject implements Inject() method of opentracing.Tracer
 func (t *tracer) Inject(ctx opentracing.SpanContext, format interface{}, carrier interface{}) error {
-	c, ok := ctx.(*SpanContext)
+	c, ok := ctx.(SpanContext)
 	if !ok {
 		return opentracing.ErrInvalidSpanContext
 	}
@@ -240,7 +236,7 @@ func (t *tracer) newSpan() *span {
 		return &span{}
 	}
 	sp := t.spanPool.Get().(*span)
-	sp.context = nil
+	sp.context = emptyContext
 	sp.tracer = nil
 	sp.tags = nil
 	sp.logs = nil

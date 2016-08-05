@@ -200,7 +200,7 @@ type dummyCarrier struct {
 	ok bool
 }
 
-func (p *dummyPropagator) Inject(ctx *SpanContext, carrier interface{}) error {
+func (p *dummyPropagator) Inject(ctx SpanContext, carrier interface{}) error {
 	c, ok := carrier.(*dummyCarrier)
 	if !ok {
 		return opentracing.ErrInvalidCarrier
@@ -209,13 +209,13 @@ func (p *dummyPropagator) Inject(ctx *SpanContext, carrier interface{}) error {
 	return nil
 }
 
-func (p *dummyPropagator) Extract(carrier interface{}) (*SpanContext, error) {
+func (p *dummyPropagator) Extract(carrier interface{}) (SpanContext, error) {
 	c, ok := carrier.(*dummyCarrier)
 	if !ok {
-		return nil, opentracing.ErrInvalidCarrier
+		return emptyContext, opentracing.ErrInvalidCarrier
 	}
 	if c.ok {
-		return nil, nil
+		return emptyContext, nil
 	}
-	return nil, opentracing.ErrSpanContextNotFound
+	return emptyContext, opentracing.ErrSpanContextNotFound
 }

@@ -25,9 +25,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"sync"
-
-	"github.com/opentracing/opentracing-go"
 )
 
 const (
@@ -38,12 +35,12 @@ const (
 var (
 	errEmptyTracerStateString     = errors.New("Cannot convert empty string to tracer state")
 	errMalformedTracerStateString = errors.New("String does not match tracer state format")
+
+	emptyContext = SpanContext{}
 )
 
 // SpanContext represents propagated span identity and state
 type SpanContext struct {
-	sync.RWMutex
-
 	// traceID represents globally unique ID of the trace.
 	// Usually generated as a random number.
 	traceID uint64
@@ -59,34 +56,12 @@ type SpanContext struct {
 	// flags is a bitmap containing such bits as 'sampled' and 'debug'.
 	flags byte
 
-	// Distributed Context baggage
+	// Distributed Context baggage. The is a snapshot in time.
 	baggage map[string]string
 }
 
-// SetBaggageItem implements SetBaggageItem() of opentracing.SpanContext
-func (c *SpanContext) SetBaggageItem(key, value string) opentracing.SpanContext {
-	key = normalizeBaggageKey(key)
-	c.Lock()
-	defer c.Unlock()
-	if c.baggage == nil {
-		c.baggage = make(map[string]string)
-	}
-	c.baggage[key] = value
-	return c
-}
-
-// BaggageItem implements BaggageItem() of opentracing.SpanContext
-func (c *SpanContext) BaggageItem(key string) string {
-	key = normalizeBaggageKey(key)
-	c.RLock()
-	defer c.RUnlock()
-	return c.baggage[key]
-}
-
 // ForeachBaggageItem implements ForeachBaggageItem() of opentracing.SpanContext
-func (c *SpanContext) ForeachBaggageItem(handler func(k, v string) bool) {
-	c.RLock()
-	defer c.RUnlock()
+func (c SpanContext) ForeachBaggageItem(handler func(k, v string) bool) {
 	for k, v := range c.baggage {
 		if !handler(k, v) {
 			break
@@ -96,80 +71,74 @@ func (c *SpanContext) ForeachBaggageItem(handler func(k, v string) bool) {
 
 // IsSampled returns whether this trace was chosen for permanent storage
 // by the sampling mechanism of the tracer.
-func (c *SpanContext) IsSampled() bool {
+func (c SpanContext) IsSampled() bool {
 	return (c.flags & flagSampled) == flagSampled
 }
 
-func (c *SpanContext) String() string {
-	c.RLock()
-	defer c.RUnlock()
+func (c SpanContext) String() string {
 	return fmt.Sprintf("%x:%x:%x:%x", c.traceID, c.spanID, c.parentID, c.flags)
 }
 
 // ContextFromString reconstructs the Context encoded in a string
-func ContextFromString(value string) (*SpanContext, error) {
-	var context = new(SpanContext)
+func ContextFromString(value string) (SpanContext, error) {
+	var context SpanContext
 	if value == "" {
-		return nil, errEmptyTracerStateString
+		return emptyContext, errEmptyTracerStateString
 	}
 	parts := strings.Split(value, ":")
 	if len(parts) != 4 {
-		return nil, errMalformedTracerStateString
+		return emptyContext, errMalformedTracerStateString
 	}
 	var err error
 	if context.traceID, err = strconv.ParseUint(parts[0], 16, 64); err != nil {
-		return nil, err
+		return emptyContext, err
 	}
 	if context.spanID, err = strconv.ParseUint(parts[1], 16, 64); err != nil {
-		return nil, err
+		return emptyContext, err
 	}
 	if context.parentID, err = strconv.ParseUint(parts[2], 16, 64); err != nil {
-		return nil, err
+		return emptyContext, err
 	}
 	flags, err := strconv.ParseUint(parts[3], 10, 8)
 	if err != nil {
-		return nil, err
+		return emptyContext, err
 	}
 	context.flags = byte(flags)
 	return context, nil
 }
 
 // TraceID implements TraceID() of SpanID
-func (c *SpanContext) TraceID() uint64 {
+func (c SpanContext) TraceID() uint64 {
 	return c.traceID
 }
 
 // SpanID implements SpanID() of SpanID
-func (c *SpanContext) SpanID() uint64 {
+func (c SpanContext) SpanID() uint64 {
 	return c.spanID
 }
 
 // ParentID implements ParentID() of SpanID
-func (c *SpanContext) ParentID() uint64 {
+func (c SpanContext) ParentID() uint64 {
 	return c.parentID
 }
 
 // NewSpanContext creates a new instance of SpanContext
-func NewSpanContext(traceID, spanID, parentID uint64, sampled bool) *SpanContext {
+func NewSpanContext(traceID, spanID, parentID uint64, sampled bool, baggage map[string]string) SpanContext {
 	flags := byte(0)
 	if sampled {
 		flags = flagSampled
 	}
-	return &SpanContext{
+	return SpanContext{
 		traceID:  traceID,
 		spanID:   spanID,
 		parentID: parentID,
-		flags:    flags}
+		flags:    flags,
+		baggage:  baggage}
 }
 
 // CopyFrom copies data from ctx into this context, including span identity and baggage.
+// TODO This is only used by interop.go. Remove once TChannel Go supports OpenTracing.
 func (c *SpanContext) CopyFrom(ctx *SpanContext) {
-	c.Lock()
-	defer c.Unlock()
-
-	ctx.RLock()
-	defer ctx.RUnlock()
-
 	c.traceID = ctx.traceID
 	c.spanID = ctx.spanID
 	c.parentID = ctx.parentID
@@ -182,4 +151,20 @@ func (c *SpanContext) CopyFrom(ctx *SpanContext) {
 	} else {
 		c.baggage = nil
 	}
+}
+
+// WithBaggageItem creates a new context with an extra baggage item.
+func (c SpanContext) WithBaggageItem(key, value string) SpanContext {
+	var newBaggage map[string]string
+	if c.baggage == nil {
+		newBaggage = map[string]string{key: value}
+	} else {
+		newBaggage = make(map[string]string, len(c.baggage)+1)
+		for k, v := range c.baggage {
+			newBaggage[k] = v
+		}
+		newBaggage[key] = value
+	}
+	// Use positional parameters so the compiler will help catch new fields.
+	return SpanContext{c.traceID, c.spanID, c.parentID, c.flags, newBaggage}
 }

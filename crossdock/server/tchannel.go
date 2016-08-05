@@ -145,10 +145,7 @@ func setupOpenTracingContext(tracer opentracing.Tracer, ctx context.Context, met
 	if tSpan != nil {
 		// populate a fake carrier and try to create OpenTracing Span
 		sc := jaeger.NewSpanContext(
-			tSpan.TraceID(), tSpan.SpanID(), tSpan.ParentID(), tSpan.TracingEnabled())
-		for k, v := range headers {
-			sc.SetBaggageItem(k, v)
-		}
+			tSpan.TraceID(), tSpan.SpanID(), tSpan.ParentID(), tSpan.TracingEnabled(), headers)
 		if tracer == nil {
 			tracer = opentracing.GlobalTracer()
 		}
