@@ -38,7 +38,7 @@ func (s *Server) doStartTrace(req *tracetest.StartTraceRequest) (*tracetest.Trac
 	if req.Sampled {
 		ext.SamplingPriority.Set(span, 1)
 	}
-	span.Context().SetBaggageItem(BaggageKey, req.Baggage)
+	span.SetBaggageItem(BaggageKey, req.Baggage)
 	defer span.Finish()
 
 	ctx := opentracing.ContextWithSpan(context.Background(), span)
@@ -98,10 +98,10 @@ func observeSpan(ctx context.Context, tracer opentracing.Tracer) (*tracetest.Obs
 	if span == nil {
 		return nil, errNoSpanObserved
 	}
-	sc := span.Context().(*jaeger.SpanContext)
+	sc := span.Context().(jaeger.SpanContext)
 	observedSpan := tracetest.NewObservedSpan()
 	observedSpan.TraceId = fmt.Sprintf("%x", sc.TraceID())
 	observedSpan.Sampled = sc.IsSampled()
-	observedSpan.Baggage = sc.BaggageItem(BaggageKey)
+	observedSpan.Baggage = span.BaggageItem(BaggageKey)
 	return observedSpan, nil
 }

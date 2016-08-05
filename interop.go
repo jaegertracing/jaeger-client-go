@@ -38,7 +38,7 @@ type jaegerTraceContextPropagator struct {
 }
 
 func (p *jaegerTraceContextPropagator) Inject(
-	ctx *SpanContext,
+	ctx SpanContext,
 	abstractCarrier interface{},
 ) error {
 	carrier, ok := abstractCarrier.(*SpanContext)
@@ -46,16 +46,16 @@ func (p *jaegerTraceContextPropagator) Inject(
 		return opentracing.ErrInvalidCarrier
 	}
 
-	carrier.CopyFrom(ctx)
+	carrier.CopyFrom(&ctx)
 	return nil
 }
 
-func (p *jaegerTraceContextPropagator) Extract(abstractCarrier interface{}) (*SpanContext, error) {
+func (p *jaegerTraceContextPropagator) Extract(abstractCarrier interface{}) (SpanContext, error) {
 	carrier, ok := abstractCarrier.(*SpanContext)
 	if !ok {
-		return nil, opentracing.ErrInvalidCarrier
+		return emptyContext, opentracing.ErrInvalidCarrier
 	}
 	ctx := new(SpanContext)
 	ctx.CopyFrom(carrier)
-	return ctx, nil
+	return *ctx, nil
 }

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/opentracing/opentracing-go"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 
@@ -45,4 +47,26 @@ func TestServerJSON(t *testing.T) {
 
 	require.NoError(t, err)
 	fmt.Printf("response=%+v\n", &result)
+}
+
+func TestObserveSpan(t *testing.T) {
+	tracer, tCloser := jaeger.NewTracer(
+		"crossdock",
+		jaeger.NewConstSampler(true),
+		jaeger.NewNullReporter())
+	defer tCloser.Close()
+
+	_, err := observeSpan(context.Background(), tracer)
+	assert.Error(t, err)
+
+	span := tracer.StartSpan("hi")
+	span.SetBaggageItem(BaggageKey, "xyz")
+	ctx := opentracing.ContextWithSpan(context.Background(), span)
+
+	s, err := observeSpan(ctx, tracer)
+	assert.NoError(t, err)
+	assert.True(t, s.Sampled)
+	traceID := fmt.Sprintf("%x", span.Context().(jaeger.SpanContext).TraceID())
+	assert.Equal(t, traceID, s.TraceId)
+	assert.Equal(t, "xyz", s.Baggage)
 }

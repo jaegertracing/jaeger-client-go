@@ -30,16 +30,13 @@ type zipkinPropagator struct {
 }
 
 func (p *zipkinPropagator) Inject(
-	ctx *SpanContext,
+	ctx SpanContext,
 	abstractCarrier interface{},
 ) error {
 	carrier, ok := abstractCarrier.(InjectableZipkinSpan)
 	if !ok {
 		return opentracing.ErrInvalidCarrier
 	}
-
-	ctx.RLock()
-	defer ctx.RUnlock()
 
 	carrier.SetTraceID(ctx.TraceID())
 	carrier.SetSpanID(ctx.SpanID())
@@ -48,15 +45,15 @@ func (p *zipkinPropagator) Inject(
 	return nil
 }
 
-func (p *zipkinPropagator) Extract(abstractCarrier interface{}) (*SpanContext, error) {
+func (p *zipkinPropagator) Extract(abstractCarrier interface{}) (SpanContext, error) {
 	carrier, ok := abstractCarrier.(ExtractableZipkinSpan)
 	if !ok {
-		return nil, opentracing.ErrInvalidCarrier
+		return emptyContext, opentracing.ErrInvalidCarrier
 	}
 	if carrier.TraceID() == 0 {
-		return nil, opentracing.ErrSpanContextNotFound
+		return emptyContext, opentracing.ErrSpanContextNotFound
 	}
-	ctx := new(SpanContext)
+	var ctx SpanContext
 	ctx.traceID = carrier.TraceID()
 	ctx.spanID = carrier.SpanID()
 	ctx.parentID = carrier.ParentID()

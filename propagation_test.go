@@ -32,7 +32,7 @@ func TestSpanPropagator(t *testing.T) {
 
 	sp := tracer.StartSpan(op)
 	sp.SetTag("x", "y") // to avoid later comparing nil vs. []
-	sp.Context().SetBaggageItem("foo", "bar")
+	sp.SetBaggageItem("foo", "bar")
 	for _, test := range tests {
 		// starting normal child to extract its serialized context
 		child := tracer.StartSpan(op, opentracing.ChildOf(sp.Context()))
@@ -129,17 +129,18 @@ func TestBaggagePropagationHTTP(t *testing.T) {
 	tracer, closer := NewTracer("DOOP", NewConstSampler(true), NewNullReporter())
 	defer closer.Close()
 
-	sp1 := tracer.StartSpan("s1").(*span)
-	sp1.Context().SetBaggageItem("Some_Key", "12345")
-	assert.Equal(t, "12345", sp1.Context().BaggageItem("some-KEY"))
-	sp1.Context().SetBaggageItem("Some_Key", "98765")
-	assert.Equal(t, "98765", sp1.Context().BaggageItem("some-KEY"))
+	sp1 := tracer.StartSpan("s1")
+	sp1.SetBaggageItem("Some_Key", "12345")
+	assert.Equal(t, "12345", sp1.BaggageItem("some-KEY"), "baggage: %+v", sp1.(*span).context.baggage)
+	sp1.SetBaggageItem("Some_Key", "98765")
+	assert.Equal(t, "98765", sp1.BaggageItem("some-KEY"), "baggage: %+v", sp1.(*span).context.baggage)
 
 	h := http.Header{}
-	err := tracer.Inject(sp1.context, opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(h))
+	err := tracer.Inject(sp1.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(h))
 	require.NoError(t, err)
 
 	sp2, err := tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(h))
 	require.NoError(t, err)
-	assert.Equal(t, "98765", sp2.BaggageItem("some-KEY"))
+	assert.Empty(t, sp2.(SpanContext).baggage["some-KEY"])
+	assert.Equal(t, "98765", sp2.(SpanContext).baggage["some-key"])
 }

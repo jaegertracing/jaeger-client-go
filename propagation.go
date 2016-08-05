@@ -41,7 +41,7 @@ type Injector interface {
 	//
 	// Implementations may return opentracing.ErrInvalidCarrier or any other
 	// implementation-specific error if injection fails.
-	Inject(ctx *SpanContext, carrier interface{}) error
+	Inject(ctx SpanContext, carrier interface{}) error
 }
 
 // Extractor is responsible for extracting SpanContext instances from a
@@ -52,7 +52,7 @@ type Extractor interface {
 	// Extract decodes a SpanContext instance from the given `carrier`,
 	// or (nil, opentracing.ErrSpanContextNotFound) if no context could
 	// be found in the `carrier`.
-	Extract(carrier interface{}) (*SpanContext, error)
+	Extract(carrier interface{}) (SpanContext, error)
 }
 
 type textMapPropagator struct {
@@ -84,16 +84,13 @@ func newBinaryPropagator(tracer *tracer) *binaryPropagator {
 }
 
 func (p *textMapPropagator) Inject(
-	sc *SpanContext,
+	sc SpanContext,
 	abstractCarrier interface{},
 ) error {
 	textMapWriter, ok := abstractCarrier.(opentracing.TextMapWriter)
 	if !ok {
 		return opentracing.ErrInvalidCarrier
 	}
-
-	sc.RLock()
-	defer sc.RUnlock()
 
 	textMapWriter.Set(TracerStateHeaderName, sc.String())
 	for k, v := range sc.baggage {
@@ -102,12 +99,12 @@ func (p *textMapPropagator) Inject(
 	return nil
 }
 
-func (p *textMapPropagator) Extract(abstractCarrier interface{}) (*SpanContext, error) {
+func (p *textMapPropagator) Extract(abstractCarrier interface{}) (SpanContext, error) {
 	textMapReader, ok := abstractCarrier.(opentracing.TextMapReader)
 	if !ok {
-		return nil, opentracing.ErrInvalidCarrier
+		return emptyContext, opentracing.ErrInvalidCarrier
 	}
-	var ctx *SpanContext
+	var ctx SpanContext
 	var baggage map[string]string
 	err := textMapReader.ForeachKey(func(key, value string) error {
 		if key == TracerStateHeaderName {
@@ -126,26 +123,23 @@ func (p *textMapPropagator) Extract(abstractCarrier interface{}) (*SpanContext, 
 	})
 	if err != nil {
 		p.tracer.metrics.DecodingErrors.Inc(1)
-		return nil, err
+		return emptyContext, err
 	}
-	if ctx == nil || ctx.traceID == 0 {
-		return nil, opentracing.ErrSpanContextNotFound
+	if ctx.traceID == 0 {
+		return emptyContext, opentracing.ErrSpanContextNotFound
 	}
 	ctx.baggage = baggage
 	return ctx, nil
 }
 
 func (p *httpHeaderPropagator) Inject(
-	sc *SpanContext,
+	sc SpanContext,
 	abstractCarrier interface{},
 ) error {
 	textMapWriter, ok := abstractCarrier.(opentracing.TextMapWriter)
 	if !ok {
 		return opentracing.ErrInvalidCarrier
 	}
-
-	sc.RLock()
-	defer sc.RUnlock()
 
 	textMapWriter.Set(TracerStateHeaderName, sc.String())
 	for k, v := range sc.baggage {
@@ -155,12 +149,12 @@ func (p *httpHeaderPropagator) Inject(
 	return nil
 }
 
-func (p *httpHeaderPropagator) Extract(abstractCarrier interface{}) (*SpanContext, error) {
+func (p *httpHeaderPropagator) Extract(abstractCarrier interface{}) (SpanContext, error) {
 	textMapReader, ok := abstractCarrier.(opentracing.TextMapReader)
 	if !ok {
-		return nil, opentracing.ErrInvalidCarrier
+		return emptyContext, opentracing.ErrInvalidCarrier
 	}
-	var ctx *SpanContext
+	var ctx SpanContext
 	var baggage map[string]string
 	err := textMapReader.ForeachKey(func(key, value string) error {
 		lowerCaseKey := strings.ToLower(key)
@@ -180,27 +174,23 @@ func (p *httpHeaderPropagator) Extract(abstractCarrier interface{}) (*SpanContex
 	})
 	if err != nil {
 		p.tracer.metrics.DecodingErrors.Inc(1)
-		return nil, err
+		return emptyContext, err
 	}
-	if ctx == nil || ctx.traceID == 0 {
-		return nil, opentracing.ErrSpanContextNotFound
+	if ctx.traceID == 0 {
+		return emptyContext, opentracing.ErrSpanContextNotFound
 	}
 	ctx.baggage = baggage
 	return ctx, nil
 }
 
 func (p *binaryPropagator) Inject(
-	sc *SpanContext,
+	sc SpanContext,
 	abstractCarrier interface{},
 ) error {
 	carrier, ok := abstractCarrier.(io.Writer)
 	if !ok {
 		return opentracing.ErrInvalidCarrier
 	}
-	var err error
-
-	sc.RLock()
-	defer sc.RUnlock()
 
 	// Handle the tracer context
 	if err := binary.Write(carrier, binary.BigEndian, sc.traceID); err != nil {
@@ -221,11 +211,11 @@ func (p *binaryPropagator) Inject(
 		return err
 	}
 	for k, v := range sc.baggage {
-		if err = binary.Write(carrier, binary.BigEndian, int32(len(k))); err != nil {
+		if err := binary.Write(carrier, binary.BigEndian, int32(len(k))); err != nil {
 			return err
 		}
 		io.WriteString(carrier, k)
-		if err = binary.Write(carrier, binary.BigEndian, int32(len(v))); err != nil {
+		if err := binary.Write(carrier, binary.BigEndian, int32(len(v))); err != nil {
 			return err
 		}
 		io.WriteString(carrier, v)
@@ -234,62 +224,60 @@ func (p *binaryPropagator) Inject(
 	return nil
 }
 
-func (p *binaryPropagator) Extract(abstractCarrier interface{}) (*SpanContext, error) {
+func (p *binaryPropagator) Extract(abstractCarrier interface{}) (SpanContext, error) {
 	carrier, ok := abstractCarrier.(io.Reader)
 	if !ok {
-		return nil, opentracing.ErrInvalidCarrier
+		return emptyContext, opentracing.ErrInvalidCarrier
 	}
-	ctx := new(SpanContext)
+	var ctx SpanContext
 
 	if err := binary.Read(carrier, binary.BigEndian, &ctx.traceID); err != nil {
-		return nil, opentracing.ErrSpanContextCorrupted
+		return emptyContext, opentracing.ErrSpanContextCorrupted
 	}
 	if err := binary.Read(carrier, binary.BigEndian, &ctx.spanID); err != nil {
-		return nil, opentracing.ErrSpanContextCorrupted
+		return emptyContext, opentracing.ErrSpanContextCorrupted
 	}
 	if err := binary.Read(carrier, binary.BigEndian, &ctx.parentID); err != nil {
-		return nil, opentracing.ErrSpanContextCorrupted
+		return emptyContext, opentracing.ErrSpanContextCorrupted
 	}
 	if err := binary.Read(carrier, binary.BigEndian, &ctx.flags); err != nil {
-		return nil, opentracing.ErrSpanContextCorrupted
+		return emptyContext, opentracing.ErrSpanContextCorrupted
 	}
 
 	// Handle the baggage items
 	var numBaggage int32
 	if err := binary.Read(carrier, binary.BigEndian, &numBaggage); err != nil {
-		return nil, opentracing.ErrSpanContextCorrupted
+		return emptyContext, opentracing.ErrSpanContextCorrupted
 	}
-	var baggage map[string]string
 	if iNumBaggage := int(numBaggage); iNumBaggage > 0 {
-		baggage = make(map[string]string, iNumBaggage)
+		ctx.baggage = make(map[string]string, iNumBaggage)
 		buf := p.buffers.Get().(*bytes.Buffer)
 		defer p.buffers.Put(buf)
 
 		var keyLen, valLen int32
 		for i := 0; i < iNumBaggage; i++ {
 			if err := binary.Read(carrier, binary.BigEndian, &keyLen); err != nil {
-				return nil, opentracing.ErrSpanContextCorrupted
+				return emptyContext, opentracing.ErrSpanContextCorrupted
 			}
 			buf.Reset()
 			buf.Grow(int(keyLen))
 			if n, err := io.CopyN(buf, carrier, int64(keyLen)); err != nil || int32(n) != keyLen {
-				return nil, opentracing.ErrSpanContextCorrupted
+				return emptyContext, opentracing.ErrSpanContextCorrupted
 			}
 			key := buf.String()
 
 			if err := binary.Read(carrier, binary.BigEndian, &valLen); err != nil {
-				return nil, opentracing.ErrSpanContextCorrupted
+				return emptyContext, opentracing.ErrSpanContextCorrupted
 			}
 			buf.Reset()
 			buf.Grow(int(valLen))
 			if n, err := io.CopyN(buf, carrier, int64(valLen)); err != nil || int32(n) != valLen {
-				return nil, opentracing.ErrSpanContextCorrupted
+				return emptyContext, opentracing.ErrSpanContextCorrupted
 			}
-			baggage[key] = buf.String()
+			ctx.baggage[key] = buf.String()
 		}
 	}
 
-	ctx.baggage = baggage
 	return ctx, nil
 }
 
