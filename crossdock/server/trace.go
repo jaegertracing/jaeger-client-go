@@ -102,12 +102,6 @@ func observeSpan(ctx context.Context, tracer opentracing.Tracer) (*tracetest.Obs
 	observedSpan := tracetest.NewObservedSpan()
 	observedSpan.TraceId = fmt.Sprintf("%x", sc.TraceID())
 	observedSpan.Sampled = sc.IsSampled()
-	sc.ForeachBaggageItem(func(k, v string) bool {
-		if k == BaggageKey {
-			observedSpan.Baggage = v
-			return false
-		}
-		return true
-	})
+	observedSpan.Baggage = span.BaggageItem(BaggageKey)
 	return observedSpan, nil
 }
