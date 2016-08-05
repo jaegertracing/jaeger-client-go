@@ -98,7 +98,7 @@ func observeSpan(ctx context.Context, tracer opentracing.Tracer) (*tracetest.Obs
 	if span == nil {
 		return nil, errNoSpanObserved
 	}
-	sc := span.Context().(*jaeger.SpanContext)
+	sc := span.Context().(jaeger.SpanContext)
 	observedSpan := tracetest.NewObservedSpan()
 	observedSpan.TraceId = fmt.Sprintf("%x", sc.TraceID())
 	observedSpan.Sampled = sc.IsSampled()
