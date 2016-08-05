@@ -6,7 +6,7 @@ imports:
   subpackages:
   - lib/go/thrift
 - name: github.com/crossdock/crossdock-go
-  version: 9a20d202853d1322cb1d440821ff60dcebfb9323
+  version: 228792ab861c86f8900b2db0439577feef9ec9d8
 - name: github.com/davecgh/go-spew
   version: 5215b55f46b2b919f50a1df0eaa5886afe4e3b3d
   subpackages:
@@ -35,7 +35,7 @@ imports:
   - trace/thrift/gen-go/tcollector
   - typed
 - name: golang.org/x/net
-  version: 6a513affb38dc9788b449d59ffed099b8de18fa0
+  version: 075e191f18186a8ff2becaf64478e30f4545cdad
   subpackages:
   - context
   - context/ctxhttp
