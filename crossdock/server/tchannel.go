@@ -66,7 +66,7 @@ func (s *Server) StartTrace(ctx thrift.Context, request *tracetest.StartTraceReq
 
 // JoinTrace implements JoinTrace() of TChanTracedService
 func (s *Server) JoinTrace(ctx thrift.Context, request *tracetest.JoinTraceRequest) (*tracetest.TraceResponse, error) {
-	log.Printf("tchannel server handling JoinTrace")
+	log.Printf("tchannel server handling JoinTrace request %+v", request)
 	ctx2 := setupOpenTracingContext(s.Tracer, ctx, "tchannel", ctx.Headers())
 	return s.prepareResponse(ctx2, request.ServerRole, request.Downstream)
 }
@@ -113,18 +113,22 @@ func WrapContext(ctx context.Context, timeout time.Duration) (thrift.Context, co
 // Once TChannel supports OpenTracing API directly, this bridging will not be required.
 func convertOpenTracingSpan(ctx context.Context, builder *tchannel.ContextBuilder) {
 	span := opentracing.SpanFromContext(ctx)
+	log.Printf("convertOpenTracingSpan converting span %+v", span)
 	if span == nil {
 		return
 	}
 	sc := new(jaeger.SpanContext)
 	if err := span.Tracer().Inject(span.Context(), jaeger.SpanContextFormat, sc); err != nil {
+		log.Printf("convertOpenTracingSpan ran into error converting span: %+v", err)
 		return
 	}
 	builder.SetExternalSpan(sc.TraceID(), sc.SpanID(), sc.ParentID(), sc.IsSampled())
 	sc.ForeachBaggageItem(func(k, v string) bool {
+		log.Printf("convertOpenTracingSpan is adding header %s=%s", k, v)
 		builder.AddHeader(k, v)
 		return true
 	})
+	log.Printf("convertOpenTracingSpan is returning tBuilder: %+v", builder)
 }
 
 // setupOpenTracingContext extracts a TChannel tracing Span from the context, converts
@@ -142,6 +146,7 @@ func convertOpenTracingSpan(ctx context.Context, builder *tchannel.ContextBuilde
 //
 func setupOpenTracingContext(tracer opentracing.Tracer, ctx context.Context, method string, headers map[string]string) thrift.Context {
 	tSpan := tchannel.CurrentSpan(ctx)
+	log.Printf("setupOpenTracingContext, tSpan=%+v, headers=%+v", tSpan, headers)
 	if tSpan != nil {
 		// populate a fake carrier and try to create OpenTracing Span
 		sc := jaeger.NewSpanContext(
@@ -150,6 +155,7 @@ func setupOpenTracingContext(tracer opentracing.Tracer, ctx context.Context, met
 			tracer = opentracing.GlobalTracer()
 		}
 		span := tracer.StartSpan(method, ext.RPCServerOption(sc))
+		log.Printf("setupOpenTracingContext started new span %+v", span)
 		ctx = opentracing.ContextWithSpan(ctx, span)
 	}
 	return thrift.WithHeaders(ctx, headers)

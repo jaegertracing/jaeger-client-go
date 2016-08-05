@@ -87,6 +87,11 @@ func NewTracer(
 	t.injectors[opentracing.Binary] = binaryPropagator
 	t.extractors[opentracing.Binary] = binaryPropagator
 
+	// TODO remove after TChannel supports OpenTracing
+	interopPropagator := &jaegerTraceContextPropagator{tracer: t}
+	t.injectors[SpanContextFormat] = interopPropagator
+	t.extractors[SpanContextFormat] = interopPropagator
+
 	zipkinPropagator := &zipkinPropagator{tracer: t}
 	t.injectors[ZipkinSpanFormat] = zipkinPropagator
 	t.extractors[ZipkinSpanFormat] = zipkinPropagator
