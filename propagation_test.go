@@ -24,6 +24,7 @@ func TestSpanPropagator(t *testing.T) {
 	tests := []struct {
 		format, carrier, formatName interface{}
 	}{
+		{SpanContextFormat, new(SpanContext), "TraceContextFormat"},
 		{opentracing.Binary, new(bytes.Buffer), "Binary"},
 		{opentracing.TextMap, mapc, "TextMap"},
 		{opentracing.HTTPHeaders, httpc, "HTTPHeaders"},
