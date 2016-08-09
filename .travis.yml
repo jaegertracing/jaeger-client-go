@@ -11,8 +11,7 @@ services:
 
 env:
   global:
-    - DOCKER_VERSION=1.10.1-0~trusty
-    - DOCKER_COMPOSE_VERSION=1.6.0
+    - DOCKER_COMPOSE_VERSION=1.8.0
     - GO15VENDOREXPERIMENT=1
     - COMMIT=${TRAVIS_COMMIT::8}
     - secure: cnVh5hOEa/UIBP1dJlZGpY7yyQlV+X3dXDuC7atePUVUTRNiRXtG96BGkz3l1mOb6R2s1We1e4SDoADP8NQfsn0TABXrAUu2ZuDW7NwMT5xoJ53aehpmXfRqO55Wau2m8X/kHl3V7eECsdekCXWua8ijmMfqYySUXwIZvuyT1tObqEpv4aItDIUFuv8app30dIZF1cE9hM91gl+0gu5N+FuwO7AAVt+Q0a3B1Ntv8mTb/rmz/lYkBBSaClgrBMQ2sjAuDDPOWfZla0SVMrymCI/F4JtR2eo82Enn6Z+JBwHRFZgMyc05EDoNh9m7hvQCqDVsvMExuf/qSVXTAlL1Tqzk6uOCyLoB1XM6SydEUIMukiNFN3h+v0WVczK9MyRaFuhN3CS6BAn1jwW9BAQKAXC4DZ8bQTCKzWT1Jd8+9x32HJrhB8ylBXA/ER8xghiIMv/Wk8bFW6tfnTYU/uiCtoFfSk5PI9cLLVhuSUxgyX/9KWBPGnA1/PhC2W3H4vs+uVHTisE5+LPBTWoSII7Z82u+UZTLH/wmAgOroNEHCULdSd82Efn8El9e4ebl6zR5MWOtgsK1zKd4wdq00oc19x0vLgAUeznTc+XwhLfSN7WwpR0mYEiZnOubvscc/rTo01FnPlIbn1vKdwUKw2GfXafqq2Vsa0p/q1Eo4pZfOzE=
@@ -21,8 +20,6 @@ env:
     - secure: aR7jrdGh3cXncHlIJ6FgVf5jqMiUHSWiGON3tocCUIAB3GyRoT4lFsHg4y86c4qDkpiTrFZT2mY7Iyqs/Y+Hi64V2pGP2FouN9cZK8b5IuBDboa//9nebAvTVuzsuUBLmRwtaQ2qvpS+Jg7ApXyLjF+Cdvfh4WRm4IcwxbvmMr/+zVxkPbEBNnnALx7h1kNiAtQVrCjiHJ1Q+p2RzER+OSTtdvJRqMzkwI741ttj7pvxElbexdPwiU+9lLC9IoW/lSOSwx29Ph8WAK2aF2VrxxrUbNiTd8o2U11Zc2ic44FhOadTrGk6bJBLHOerFnDt9ieoGpbocinviZJ2OGvSoXWaI9XNPaxCNSuA3woRRX4+j9SK/AFunSxUtC2gyUhCvMKLcz1WbVtto9kAXZKq+N1zBrA5zeFCArbKCLOidTdrv1iY5eC/mV6RPhvy2knpDRzFtk6UP/7oiTiUu1yI1CGDRrWRQaaguRcLdhSKFKfgjfRNksfO1QQ6rokZWZdc5kUchLEcb2QtCRWOAShfuvyr+j38l8Rgx5DwBAnd7zov0H4cXUZ1oBOzbHmejHQF7KMs6cnGgCvDT2mQYEwvMc9cueD8S3qWrkaLIm78pQesKLuKarYHeAF8pWivQPr9hwSSPnY944E9YT0odMbNmNrWruwF2YuyFKTMdIVhy3Q=
 
 before_install:
-  - apt-cache madison docker-engine
-  - sudo apt-get -o Dpkg::Options::="--force-confnew" install -y docker-engine=${DOCKER_VERSION}
   - docker version
   - sudo rm /usr/local/bin/docker-compose
   - curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > docker-compose
