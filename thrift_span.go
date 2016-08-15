@@ -57,6 +57,7 @@ func buildThriftSpan(span *span) *z.Span {
 		Name:              span.operationName,
 		Timestamp:         &timestamp,
 		Duration:          &duration,
+		Debug:             span.context.IsDebug(),
 		Annotations:       buildAnnotations(span, endpoint),
 		BinaryAnnotations: buildBinaryAnnotations(span, endpoint)}
 	return thriftSpan

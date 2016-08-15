@@ -4,10 +4,11 @@ import (
 	"testing"
 
 	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestFirstInProcessSpan(t *testing.T) {
+func TestThriftFirstInProcessSpan(t *testing.T) {
 	tracer, closer := NewTracer("DOOP",
 		NewConstSampler(true),
 		NewNullReporter())
@@ -34,4 +35,18 @@ func TestFirstInProcessSpan(t *testing.T) {
 		}
 		assert.Equal(t, test.versionTag, jaegerClientTagFound)
 	}
+}
+
+func TestThriftForceSampled(t *testing.T) {
+	tracer, closer := NewTracer("DOOP",
+		NewConstSampler(false), // sample nothing
+		NewNullReporter())
+	defer closer.Close()
+
+	sp := tracer.StartSpan("s1").(*span)
+	ext.SamplingPriority.Set(sp, 1)
+	assert.True(t, sp.context.IsSampled())
+	assert.True(t, sp.context.IsDebug())
+	thriftSpan := buildThriftSpan(sp)
+	assert.True(t, thriftSpan.Debug)
 }

@@ -75,6 +75,11 @@ func (c SpanContext) IsSampled() bool {
 	return (c.flags & flagSampled) == flagSampled
 }
 
+// IsDebug indicates whether sampling was explicitly requested by the service.
+func (c SpanContext) IsDebug() bool {
+	return (c.flags & flagDebug) == flagDebug
+}
+
 func (c SpanContext) String() string {
 	return fmt.Sprintf("%x:%x:%x:%x", c.traceID, c.spanID, c.parentID, c.flags)
 }
