@@ -1,9 +1,10 @@
 package jaeger
 
 import (
-	"code.uber.internal/infra/statsdex/Godeps/_workspace/src/github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestContextFromString(t *testing.T) {
