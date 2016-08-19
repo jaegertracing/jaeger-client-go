@@ -135,39 +135,46 @@ func buildBinaryAnnotations(span *span, endpoint *z.Endpoint) []*z.BinaryAnnotat
 			Host:           endpoint}
 		annotations = append(annotations, local)
 	}
-	for i := range span.tags {
-		if anno := buildBinaryAnnotation(&span.tags[i], nil); anno != nil {
+	for _, tag := range span.tags {
+		if anno := buildBinaryAnnotation(tag.key, tag.value, nil); anno != nil {
 			annotations = append(annotations, anno)
+		}
+	}
+	for _, log := range span.logs {
+		if log.Payload != nil {
+			if anno := buildBinaryAnnotation("log_payload", log.Payload, nil); anno != nil {
+				annotations = append(annotations, anno)
+			}
 		}
 	}
 	return annotations
 }
 
-func buildBinaryAnnotation(tag *tag, endpoint *z.Endpoint) *z.BinaryAnnotation {
-	bann := &z.BinaryAnnotation{Key: tag.key, Host: endpoint}
-	if value, ok := tag.value.(string); ok {
+func buildBinaryAnnotation(key string, val interface{}, endpoint *z.Endpoint) *z.BinaryAnnotation {
+	bann := &z.BinaryAnnotation{Key: key, Host: endpoint}
+	if value, ok := val.(string); ok {
 		bann.Value = []byte(truncateString(value))
 		bann.AnnotationType = z.AnnotationType_STRING
-	} else if value, ok := tag.value.([]byte); ok {
+	} else if value, ok := val.([]byte); ok {
 		if len(value) > maxAnnotationLength {
 			value = value[:maxAnnotationLength]
 		}
 		bann.Value = value
 		bann.AnnotationType = z.AnnotationType_BYTES
-	} else if value, ok := tag.value.(int32); ok && allowPackedNumbers {
+	} else if value, ok := val.(int32); ok && allowPackedNumbers {
 		bann.Value = int32ToBytes(value)
 		bann.AnnotationType = z.AnnotationType_I32
-	} else if value, ok := tag.value.(int64); ok && allowPackedNumbers {
+	} else if value, ok := val.(int64); ok && allowPackedNumbers {
 		bann.Value = int64ToBytes(value)
 		bann.AnnotationType = z.AnnotationType_I64
-	} else if value, ok := tag.value.(int); ok && allowPackedNumbers {
+	} else if value, ok := val.(int); ok && allowPackedNumbers {
 		bann.Value = int64ToBytes(int64(value))
 		bann.AnnotationType = z.AnnotationType_I64
-	} else if value, ok := tag.value.(bool); ok {
+	} else if value, ok := val.(bool); ok {
 		bann.Value = []byte{boolToByte(value)}
 		bann.AnnotationType = z.AnnotationType_BOOL
 	} else {
-		value := fmt.Sprintf("%+v", tag.value)
+		value := fmt.Sprintf("%+v", val)
 		bann.Value = []byte(truncateString(value))
 		bann.AnnotationType = z.AnnotationType_STRING
 	}
