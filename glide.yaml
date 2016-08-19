@@ -12,7 +12,7 @@ import:
   subpackages:
   - context
 - package: github.com/uber/tchannel-go
-  version: f3d41bc853ca7cd7e1007db5495cd9cd5e32a673
+  version: dev
   subpackages:
   - atomic
   - thrift

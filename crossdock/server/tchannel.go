@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/ext"
 	"github.com/uber/tchannel-go"
 	"github.com/uber/tchannel-go/thrift"
 	"golang.org/x/net/context"
@@ -91,74 +90,5 @@ func (s *Server) callDownstreamTChannel(ctx context.Context, target *tracetest.D
 	client := tracetest.NewTChanTracedServiceClient(thriftClient)
 	ctx, cx := context.WithTimeout(ctx, time.Second)
 	defer cx()
-<<<<<<< ee3f52fb3a3193863fefd17d66f83a2b2316498b
-
-	return client.JoinTrace(tCtx, req)
-}
-
-// WrapContext takes a regular `net.Context` and converts it into `thrift.Context` suitable
-// for outbound calls to TChannel servers.  If the input context contains a OpoenTracing span,
-// that span is converted to TChannel-compatible Span.
-func WrapContext(ctx context.Context, timeout time.Duration) (thrift.Context, context.CancelFunc) {
-	builder := tchannel.NewContextBuilder(timeout)
-	convertOpenTracingSpan(ctx, builder)
-	return builder.Build()
-}
-
-// convertOpenTracingSpan extracts an OpenTracing Span from the context and converts it
-// into TChannel Span representation, so that it is used by the outbound TChannel call
-// to create a child span.
-//
-// Once TChannel supports OpenTracing API directly, this bridging will not be required.
-func convertOpenTracingSpan(ctx context.Context, builder *tchannel.ContextBuilder) {
-	span := opentracing.SpanFromContext(ctx)
-	log.Printf("convertOpenTracingSpan converting span %+v", span)
-	if span == nil {
-		return
-	}
-	sc := new(jaeger.SpanContext)
-	if err := span.Tracer().Inject(span.Context(), jaeger.SpanContextFormat, sc); err != nil {
-		log.Printf("convertOpenTracingSpan ran into error converting span: %+v", err)
-		return
-	}
-	builder.SetExternalSpan(sc.TraceID(), sc.SpanID(), sc.ParentID(), sc.IsSampled())
-	sc.ForeachBaggageItem(func(k, v string) bool {
-		log.Printf("convertOpenTracingSpan is adding header %s=%s", k, v)
-		builder.AddHeader(k, v)
-		return true
-	})
-	log.Printf("convertOpenTracingSpan is returning tBuilder: %+v", builder)
-}
-
-// setupOpenTracingContext extracts a TChannel tracing Span from the context, converts
-// it into OpenTracing Span, and returns a thrift.Context containing both spans.
-// This allows the returned thrift.Context to be used for both TChannel and HTTP
-// outbound calls and still maintain uninterrupted trace.
-//
-// If `tracer` is nil, `opentracing.GlobalTracer()` is used.
-//
-// Note that we never call finish() on the OpenTracing span, because it is actually a double
-// of the real inbound TChannel Span, which will be reported to Jaeger. The new OpenTracing
-// span is used merely to allow creating children spans from it.
-//
-// Once TChannel supports OpenTracing API directly, this bridging will not be required.
-//
-func setupOpenTracingContext(tracer opentracing.Tracer, ctx context.Context, method string, headers map[string]string) thrift.Context {
-	tSpan := tchannel.CurrentSpan(ctx)
-	log.Printf("setupOpenTracingContext, tSpan=%+v, headers=%+v", tSpan, headers)
-	if tSpan != nil {
-		// populate a fake carrier and try to create OpenTracing Span
-		sc := jaeger.NewSpanContext(
-			tSpan.TraceID(), tSpan.SpanID(), tSpan.ParentID(), tSpan.TracingEnabled(), headers)
-		if tracer == nil {
-			tracer = opentracing.GlobalTracer()
-		}
-		span := tracer.StartSpan(method, ext.RPCServerOption(sc))
-		log.Printf("setupOpenTracingContext started new span %+v", span)
-		ctx = opentracing.ContextWithSpan(ctx, span)
-	}
-	return thrift.WithHeaders(ctx, headers)
-=======
 	return client.JoinTrace(thrift.Wrap(ctx), req)
->>>>>>> Upgrade TChannel to OpenTracing compatible version
 }
