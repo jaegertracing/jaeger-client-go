@@ -38,6 +38,18 @@ const (
 	allowPackedNumbers = false
 )
 
+var (
+	logPayloadLabels = makeLogPayloadLabels(100)
+)
+
+func makeLogPayloadLabels(size int) []string {
+	labels := make([]string, size)
+	for i := 0; i < size; i++ {
+		labels[i] = fmt.Sprintf("log_payload_%d", i)
+	}
+	return labels
+}
+
 // buildThriftSpan builds thrift span based on internal span.
 func buildThriftSpan(span *span) *z.Span {
 	parentID := int64(span.context.parentID)
@@ -125,9 +137,13 @@ func buildBinaryAnnotations(span *span, endpoint *z.Endpoint) []*z.BinaryAnnotat
 		annotations = append(annotations, anno)
 	}
 	if !span.isRPC() {
-		// TODO(yurishkuro) deal with local component name
-		// https://github.com/opentracing/opentracing.github.io/issues/75
 		componentName := endpoint.ServiceName
+		for _, tag := range span.tags {
+			if tag.key == string(ext.Component) {
+				componentName = stringify(tag.value)
+				break
+			}
+		}
 		local := &z.BinaryAnnotation{
 			Key:            z.LOCAL_COMPONENT,
 			Value:          []byte(componentName),
@@ -135,43 +151,61 @@ func buildBinaryAnnotations(span *span, endpoint *z.Endpoint) []*z.BinaryAnnotat
 			Host:           endpoint}
 		annotations = append(annotations, local)
 	}
-	for i := range span.tags {
-		if anno := buildBinaryAnnotation(&span.tags[i], nil); anno != nil {
+	for _, tag := range span.tags {
+		if anno := buildBinaryAnnotation(tag.key, tag.value, nil); anno != nil {
 			annotations = append(annotations, anno)
+		}
+	}
+	for i, log := range span.logs {
+		if log.Payload != nil {
+			label := "log_payload"
+			if i < len(logPayloadLabels) {
+				label = logPayloadLabels[i]
+			}
+			if anno := buildBinaryAnnotation(label, log.Payload, nil); anno != nil {
+				annotations = append(annotations, anno)
+			}
 		}
 	}
 	return annotations
 }
 
-func buildBinaryAnnotation(tag *tag, endpoint *z.Endpoint) *z.BinaryAnnotation {
-	bann := &z.BinaryAnnotation{Key: tag.key, Host: endpoint}
-	if value, ok := tag.value.(string); ok {
+func buildBinaryAnnotation(key string, val interface{}, endpoint *z.Endpoint) *z.BinaryAnnotation {
+	bann := &z.BinaryAnnotation{Key: key, Host: endpoint}
+	if value, ok := val.(string); ok {
 		bann.Value = []byte(truncateString(value))
 		bann.AnnotationType = z.AnnotationType_STRING
-	} else if value, ok := tag.value.([]byte); ok {
+	} else if value, ok := val.([]byte); ok {
 		if len(value) > maxAnnotationLength {
 			value = value[:maxAnnotationLength]
 		}
 		bann.Value = value
 		bann.AnnotationType = z.AnnotationType_BYTES
-	} else if value, ok := tag.value.(int32); ok && allowPackedNumbers {
+	} else if value, ok := val.(int32); ok && allowPackedNumbers {
 		bann.Value = int32ToBytes(value)
 		bann.AnnotationType = z.AnnotationType_I32
-	} else if value, ok := tag.value.(int64); ok && allowPackedNumbers {
+	} else if value, ok := val.(int64); ok && allowPackedNumbers {
 		bann.Value = int64ToBytes(value)
 		bann.AnnotationType = z.AnnotationType_I64
-	} else if value, ok := tag.value.(int); ok && allowPackedNumbers {
+	} else if value, ok := val.(int); ok && allowPackedNumbers {
 		bann.Value = int64ToBytes(int64(value))
 		bann.AnnotationType = z.AnnotationType_I64
-	} else if value, ok := tag.value.(bool); ok {
+	} else if value, ok := val.(bool); ok {
 		bann.Value = []byte{boolToByte(value)}
 		bann.AnnotationType = z.AnnotationType_BOOL
 	} else {
-		value := fmt.Sprintf("%+v", tag.value)
+		value := stringify(val)
 		bann.Value = []byte(truncateString(value))
 		bann.AnnotationType = z.AnnotationType_STRING
 	}
 	return bann
+}
+
+func stringify(value interface{}) string {
+	if s, ok := value.(string); ok {
+		return s
+	}
+	return fmt.Sprintf("%+v", value)
 }
 
 func truncateString(value string) string {
