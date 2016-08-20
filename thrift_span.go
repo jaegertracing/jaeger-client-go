@@ -38,6 +38,18 @@ const (
 	allowPackedNumbers = false
 )
 
+var (
+	logPayloadLabels = makeLogPayloadLabels(100)
+)
+
+func makeLogPayloadLabels(size int) []string {
+	labels := make([]string, size)
+	for i := 0; i < size; i++ {
+		labels[i] = fmt.Sprintf("log_payload_%d", i)
+	}
+	return labels
+}
+
 // buildThriftSpan builds thrift span based on internal span.
 func buildThriftSpan(span *span) *z.Span {
 	parentID := int64(span.context.parentID)
@@ -125,9 +137,13 @@ func buildBinaryAnnotations(span *span, endpoint *z.Endpoint) []*z.BinaryAnnotat
 		annotations = append(annotations, anno)
 	}
 	if !span.isRPC() {
-		// TODO(yurishkuro) deal with local component name
-		// https://github.com/opentracing/opentracing.github.io/issues/75
 		componentName := endpoint.ServiceName
+		for _, tag := range span.tags {
+			if tag.key == string(ext.Component) {
+				componentName = stringify(tag.value)
+				break
+			}
+		}
 		local := &z.BinaryAnnotation{
 			Key:            z.LOCAL_COMPONENT,
 			Value:          []byte(componentName),
@@ -140,9 +156,13 @@ func buildBinaryAnnotations(span *span, endpoint *z.Endpoint) []*z.BinaryAnnotat
 			annotations = append(annotations, anno)
 		}
 	}
-	for _, log := range span.logs {
+	for i, log := range span.logs {
 		if log.Payload != nil {
-			if anno := buildBinaryAnnotation("log_payload", log.Payload, nil); anno != nil {
+			label := "log_payload"
+			if i < len(logPayloadLabels) {
+				label = logPayloadLabels[i]
+			}
+			if anno := buildBinaryAnnotation(label, log.Payload, nil); anno != nil {
 				annotations = append(annotations, anno)
 			}
 		}
@@ -174,11 +194,18 @@ func buildBinaryAnnotation(key string, val interface{}, endpoint *z.Endpoint) *z
 		bann.Value = []byte{boolToByte(value)}
 		bann.AnnotationType = z.AnnotationType_BOOL
 	} else {
-		value := fmt.Sprintf("%+v", val)
+		value := stringify(val)
 		bann.Value = []byte(truncateString(value))
 		bann.AnnotationType = z.AnnotationType_STRING
 	}
 	return bann
+}
+
+func stringify(value interface{}) string {
+	if s, ok := value.(string); ok {
+		return s
+	}
+	return fmt.Sprintf("%+v", value)
 }
 
 func truncateString(value string) string {
