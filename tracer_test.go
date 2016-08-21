@@ -170,6 +170,36 @@ func (s *tracerSuite) TestRandomIDNotZero() {
 	rng.Seed(1) // for test coverage
 }
 
+func TestTracerOptions(t *testing.T) {
+	t1, e := time.Parse(time.RFC3339, "2012-11-01T22:08:41+00:00")
+	assert.NoError(t, e)
+
+	timeNow := func() time.Time {
+		return t1
+	}
+	rnd := func() uint64 {
+		return 1
+	}
+
+	openTracer, closer := NewTracer("DOOP", // respect the classics, man!
+		NewConstSampler(true),
+		NewNullReporter(),
+		TracerOptions.Logger(StdLogger),
+		TracerOptions.TimeNow(timeNow),
+		TracerOptions.RandomNumber(rnd),
+		TracerOptions.PoolSpans(true),
+	)
+	defer closer.Close()
+
+	tracer := openTracer.(*tracer)
+	assert.Equal(t, StdLogger, tracer.logger)
+	assert.Equal(t, t1, tracer.timeNow())
+	assert.Equal(t, uint64(1), tracer.randomNumber())
+	assert.Equal(t, uint64(1), tracer.randomNumber())
+	assert.Equal(t, uint64(1), tracer.randomNumber()) // always 1
+	assert.Equal(t, true, tracer.poolSpans)
+}
+
 func TestInjectorExtractorOptions(t *testing.T) {
 	tracer, tc := NewTracer("x", NewConstSampler(true), NewNullReporter(),
 		TracerOptions.Injector("dummy", &dummyPropagator{}),

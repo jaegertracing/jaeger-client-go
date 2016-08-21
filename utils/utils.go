@@ -21,6 +21,7 @@
 package utils
 
 import (
+	"encoding/binary"
 	"errors"
 	"net"
 	"strconv"
@@ -38,27 +39,8 @@ var (
 	ErrNotFourOctets = errors.New("Wrong number of octets")
 )
 
-// GetLocalIP returns the IP of the host, preferring public over loopback.
-func GetLocalIP() net.IP {
-	addrs, err := net.InterfaceAddrs()
-	if err != nil {
-		return net.IPv4(127, 0, 0, 1)
-	}
-
-	for _, address := range addrs {
-		// check the address type and if it is not a loopback the display it
-		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-			if ipnet.IP.To4() != nil {
-				return ipnet.IP
-			}
-		}
-	}
-
-	return net.IPv4(127, 0, 0, 1)
-}
-
-// IPToUint32 converts a string ip to an uint32
-func IPToUint32(ip string) (uint32, error) {
+// ParseIPToUint32 converts a string ip (e.g. "x.y.z.w") to an uint32
+func ParseIPToUint32(ip string) (uint32, error) {
 	if ip == "" {
 		return 0, ErrEmptyIP
 	}
@@ -88,4 +70,12 @@ func IPToUint32(ip string) (uint32, error) {
 func ParsePort(portString string) (uint16, error) {
 	port, err := strconv.ParseUint(portString, 10, 16)
 	return uint16(port), err
+}
+
+// PackIPAsUint32 packs an IPv4 as uint32
+func PackIPAsUint32(ip net.IP) uint32 {
+	if ipv4 := ip.To4(); ipv4 != nil {
+		return binary.BigEndian.Uint32(ipv4)
+	}
+	return 0
 }
