@@ -107,15 +107,16 @@ func NewTracer(
 	if t.timeNow == nil {
 		t.timeNow = time.Now
 	}
-	if t.hostIPv4 == 0 {
-		var localIPInt32 uint32
-		if localIP := utils.GetLocalIP(); localIP != nil {
-			localIPInt32, _ = utils.IPToUint32(localIP.String())
-		}
-		t.hostIPv4 = localIPInt32
-	}
 	if t.logger == nil {
 		t.logger = NullLogger
+	}
+	// TODO once on the new data model, support both v4 and v6 IPs
+	if t.hostIPv4 == 0 {
+		if ip, err := utils.HostIP(); err == nil {
+			t.hostIPv4 = utils.PackIPAsUint32(ip)
+		} else {
+			t.logger.Error("Unable to determine this host's IP address: " + err.Error())
+		}
 	}
 
 	return t, t
