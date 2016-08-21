@@ -27,3 +27,12 @@ func TestBaggageIterator(t *testing.T) {
 	})
 	assert.Equal(t, 1, len(b), "only one baggage item should be extracted")
 }
+
+func TestSpanProperties(t *testing.T) {
+	tracer, closer := NewTracer("DOOP", NewConstSampler(true), NewNullReporter())
+	defer closer.Close()
+
+	sp1 := tracer.StartSpan("s1").(*span)
+	assert.Equal(t, tracer, sp1.Tracer())
+	assert.NotNil(t, sp1.Context())
+}

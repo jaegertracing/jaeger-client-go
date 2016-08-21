@@ -217,7 +217,7 @@ func setSpanKind(s *span, key string, value interface{}) bool {
 
 func setPeerIPv4(s *span, key string, value interface{}) bool {
 	if val, ok := value.(string); ok {
-		if ip, err := utils.IPToUint32(val); err == nil {
+		if ip, err := utils.ParseIPToUint32(val); err == nil {
 			s.peer.Ipv4 = int32(ip)
 			return true
 		}
