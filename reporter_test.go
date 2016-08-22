@@ -131,7 +131,7 @@ func (s *reporterSuite) TestTagsAndEvents() {
 	sp.LogEvent("hello")
 	sp.LogEvent(strings.Repeat("long event", 30))
 	expected := []string{"long", "ping", "awake", "awake", "one", "two", "three", "bite me",
-		"jaegerClient", "lc", "does not compute"}
+		JaegerClientTag, TracerHostnameKey, "lc", "does not compute"}
 	sp.SetTag("long", strings.Repeat("x", 300))
 	sp.SetTag("ping", "pong")
 	sp.SetTag("awake", true)
@@ -237,24 +237,6 @@ func (s *reporterSuite) TestMemoryReporterReport() {
 	reporter.Report(sp.(*span))
 	s.Equal(1, reporter.SpansSubmitted(), "expected number of spans submitted")
 	reporter.Close()
-}
-
-func findAnnotation(span *z.Span, name string) *z.Annotation {
-	for _, a := range span.Annotations {
-		if a.Value == name {
-			return a
-		}
-	}
-	return nil
-}
-
-func findBinaryAnnotation(span *z.Span, name string) *z.BinaryAnnotation {
-	for _, a := range span.BinaryAnnotations {
-		if a.Key == name {
-			return a
-		}
-	}
-	return nil
 }
 
 type fakeSender struct {
