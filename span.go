@@ -111,6 +111,14 @@ func (s *span) setTagNoLocking(key string, value interface{}) {
 	}
 }
 
+func (s *span) setTracerTags(tags map[string]string) {
+	s.Lock()
+	for k, v := range tags {
+		s.tags = append(s.tags, tag{key: k, value: v})
+	}
+	s.Unlock()
+}
+
 func (s *span) LogEvent(event string) {
 	s.Log(opentracing.LogData{Event: event})
 }

@@ -23,6 +23,7 @@ package jaeger
 import (
 	"fmt"
 	"io"
+	"os"
 	"reflect"
 	"sync"
 	"time"
@@ -51,6 +52,8 @@ type tracer struct {
 
 	injectors  map[interface{}]Injector
 	extractors map[interface{}]Extractor
+
+	tags map[string]string
 }
 
 // NewTracer creates Tracer implementation that reports tracing to Jaeger.
@@ -69,6 +72,7 @@ func NewTracer(
 		injectors:   make(map[interface{}]Injector),
 		extractors:  make(map[interface{}]Extractor),
 		metrics:     *NewMetrics(NullStatsReporter, nil),
+		tags:        make(map[string]string),
 		spanPool: sync.Pool{New: func() interface{} {
 			return &span{}
 		}},
@@ -117,6 +121,11 @@ func NewTracer(
 		} else {
 			t.logger.Error("Unable to determine this host's IP address: " + err.Error())
 		}
+	}
+	// Set tracer-level tags
+	t.tags[JaegerClientTag] = JaegerGoVersion
+	if hostname, err := os.Hostname(); err == nil {
+		t.tags[TracerHostnameKey] = hostname
 	}
 
 	return t, t
@@ -294,6 +303,10 @@ func (t *tracer) startSpanInternal(
 func (t *tracer) reportSpan(sp *span) {
 	t.metrics.SpansFinished.Inc(1)
 	if sp.context.IsSampled() {
+		if sp.firstInProcess {
+			// TODO when migrating to new data model, this can be optimized
+			sp.setTracerTags(t.tags)
+		}
 		t.reporter.Report(sp)
 	}
 	if t.poolSpans {

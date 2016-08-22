@@ -113,13 +113,6 @@ func buildBinaryAnnotations(span *span, endpoint *z.Endpoint) []*z.BinaryAnnotat
 	// automatically adding local component or server/client address tag, and client version
 	annotations := make([]*z.BinaryAnnotation, 0, 2+len(span.tags))
 
-	if span.firstInProcess {
-		annotations = append(annotations, &z.BinaryAnnotation{
-			Key:            JaegerClientTag,
-			Value:          JaegerGoVersion,
-			AnnotationType: z.AnnotationType_STRING})
-	}
-
 	if span.peerDefined() && span.isRPC() {
 		peer := z.Endpoint{
 			Ipv4:        span.peer.Ipv4,

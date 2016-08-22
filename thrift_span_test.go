@@ -7,6 +7,8 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/uber/jaeger-client-go/thrift-gen/zipkincore"
 )
 
 func TestThriftFirstInProcessSpan(t *testing.T) {
@@ -21,20 +23,25 @@ func TestThriftFirstInProcessSpan(t *testing.T) {
 	sp1.Finish()
 
 	tests := []struct {
-		span       *span
-		versionTag bool
+		span     *span
+		wantTags bool
 	}{
 		{sp1, true},
 		{sp2, false},
 	}
 
 	for _, test := range tests {
-		thriftSpan := buildThriftSpan(test.span)
-		jaegerClientTagFound := false
-		for _, anno := range thriftSpan.BinaryAnnotations {
-			jaegerClientTagFound = jaegerClientTagFound || (anno.Key == JaegerClientTag)
+		var check func(assert.TestingT, interface{}, ...interface{}) bool
+		if test.wantTags {
+			check = assert.NotNil
+		} else {
+			check = assert.Nil
 		}
-		assert.Equal(t, test.versionTag, jaegerClientTagFound)
+		thriftSpan := buildThriftSpan(test.span)
+		version := findBinaryAnnotation(thriftSpan, JaegerClientTag)
+		hostname := findBinaryAnnotation(thriftSpan, TracerHostnameKey)
+		check(t, version)
+		check(t, hostname)
 	}
 }
 
@@ -99,20 +106,42 @@ func TestThriftLocalComponentSpan(t *testing.T) {
 		NewNullReporter())
 	defer closer.Close()
 
-	sp := tracer.StartSpan("s1").(*span)
-	sp.Finish()
-	thriftSpan := buildThriftSpan(sp)
+	tests := []struct {
+		addComponentTag bool
+		wantAnnotation  string
+	}{
+		{false, "DOOP"}, // Without COMPONENT tag the value is the service name
+		{true, "c1"},
+	}
 
-	anno := thriftSpan.BinaryAnnotations[len(thriftSpan.BinaryAnnotations)-1]
-	assert.Equal(t, "lc", anno.Key)
-	assert.EqualValues(t, "DOOP", anno.Value, "Without COMPONENT tag the value is service name")
+	for _, test := range tests {
+		sp := tracer.StartSpan("s1").(*span)
+		if test.addComponentTag {
+			ext.Component.Set(sp, "c1")
+		}
+		sp.Finish()
+		thriftSpan := buildThriftSpan(sp)
 
-	sp = tracer.StartSpan("s1").(*span)
-	ext.Component.Set(sp, "c1")
-	sp.Finish()
-	thriftSpan = buildThriftSpan(sp)
+		anno := findBinaryAnnotation(thriftSpan, "lc")
+		assert.NotNil(t, anno)
+		assert.EqualValues(t, test.wantAnnotation, anno.Value)
+	}
+}
 
-	anno = thriftSpan.BinaryAnnotations[len(thriftSpan.BinaryAnnotations)-2]
-	assert.Equal(t, "lc", anno.Key)
-	assert.EqualValues(t, "c1", anno.Value, "Value of COMPONENT tag")
+func findAnnotation(span *zipkincore.Span, name string) *zipkincore.Annotation {
+	for _, a := range span.Annotations {
+		if a.Value == name {
+			return a
+		}
+	}
+	return nil
+}
+
+func findBinaryAnnotation(span *zipkincore.Span, name string) *zipkincore.BinaryAnnotation {
+	for _, a := range span.BinaryAnnotations {
+		if a.Key == name {
+			return a
+		}
+	}
+	return nil
 }
