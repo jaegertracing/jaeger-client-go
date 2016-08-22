@@ -53,7 +53,7 @@ type tracer struct {
 	injectors  map[interface{}]Injector
 	extractors map[interface{}]Extractor
 
-	tags map[string]string
+	tags []tag
 }
 
 // NewTracer creates Tracer implementation that reports tracing to Jaeger.
@@ -72,7 +72,6 @@ func NewTracer(
 		injectors:   make(map[interface{}]Injector),
 		extractors:  make(map[interface{}]Extractor),
 		metrics:     *NewMetrics(NullStatsReporter, nil),
-		tags:        make(map[string]string),
 		spanPool: sync.Pool{New: func() interface{} {
 			return &span{}
 		}},
@@ -123,9 +122,9 @@ func NewTracer(
 		}
 	}
 	// Set tracer-level tags
-	t.tags[JaegerClientTag] = JaegerGoVersion
+	t.tags = append(t.tags, tag{key: JaegerClientTag, value: JaegerGoVersion})
 	if hostname, err := os.Hostname(); err == nil {
-		t.tags[TracerHostnameKey] = hostname
+		t.tags = append(t.tags, tag{key: TracerHostnameKey, value: hostname})
 	}
 
 	return t, t

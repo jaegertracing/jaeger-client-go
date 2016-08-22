@@ -111,10 +111,10 @@ func (s *span) setTagNoLocking(key string, value interface{}) {
 	}
 }
 
-func (s *span) setTracerTags(tags map[string]string) {
+func (s *span) setTracerTags(tags []tag) {
 	s.Lock()
-	for k, v := range tags {
-		s.tags = append(s.tags, tag{key: k, value: v})
+	for _, tag := range tags {
+		s.tags = append(s.tags, tag)
 	}
 	s.Unlock()
 }
