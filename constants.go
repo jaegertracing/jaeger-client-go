@@ -24,6 +24,12 @@ const (
 	// JaegerClientTag is the name of the tag used to report client version
 	JaegerClientTag = "jaegerClient"
 
+	// JaegerGoVersion is the version reported as Span tag
+	JaegerGoVersion = "Golang-1.0"
+
+	// TracerHostnameKey used to report host name of the process
+	TracerHostnameKey = "jaeger.hostname"
+
 	// TracerStateHeaderName is the http header name used to propagate tracing context.
 	// This must be in lower-case to avoid mismatches when decoding incoming headers.
 	TracerStateHeaderName = "uber-trace-id"
@@ -33,9 +39,4 @@ const (
 	TraceBaggageHeaderPrefix = "uberctx-"
 
 	defaultSamplingServerHostPort = "localhost:5778"
-)
-
-var (
-	// JaegerGoVersion is the version reported as Span tag
-	JaegerGoVersion = []byte("Golang-1.0")
 )
