@@ -136,11 +136,11 @@ func TestBaggagePropagationHTTP(t *testing.T) {
 	assert.Equal(t, "98765", sp1.BaggageItem("some-KEY"), "baggage: %+v", sp1.(*span).context.baggage)
 
 	h := http.Header{}
+	h.Add("header1", "value1") // make sure this does not get unmarshalled as baggage
 	err := tracer.Inject(sp1.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(h))
 	require.NoError(t, err)
 
 	sp2, err := tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(h))
 	require.NoError(t, err)
-	assert.Empty(t, sp2.(SpanContext).baggage["some-KEY"])
-	assert.Equal(t, "98765", sp2.(SpanContext).baggage["some-key"])
+	assert.Equal(t, map[string]string {"some-key": "98765"}, sp2.(SpanContext).baggage)
 }
