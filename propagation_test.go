@@ -142,5 +142,5 @@ func TestBaggagePropagationHTTP(t *testing.T) {
 
 	sp2, err := tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(h))
 	require.NoError(t, err)
-	assert.Equal(t, map[string]string {"some-key": "98765"}, sp2.(SpanContext).baggage)
+	assert.Equal(t, map[string]string{"some-key": "98765"}, sp2.(SpanContext).baggage)
 }
