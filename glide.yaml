@@ -12,7 +12,7 @@ import:
   subpackages:
   - context
 - package: github.com/uber/tchannel-go
-  version: 3e3e53962cc103863e644ac84dcda5169ead0467
+  version: ^1.1.0
   subpackages:
   - atomic
   - thrift
@@ -21,6 +21,7 @@ import:
   - trace/thrift/gen-go/tcollector
   - typed
 - package: github.com/stretchr/testify
+  version: ^1.1.3
   subpackages:
   - assert
   - require
