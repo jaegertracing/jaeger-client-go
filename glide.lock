@@ -1,12 +1,12 @@
-hash: 028fae947ac94974be04ad1a7a85cc9d5697f3bfdd60cef93e449ae8ba922dac
-updated: 2016-08-19T18:48:24.74315526-04:00
+hash: 16590df92bceb9ad5e5993c284fbb0adfb73a05fd77b9b617bfdb4376060cef1
+updated: 2016-08-26T12:10:42.628380789-04:00
 imports:
 - name: github.com/apache/thrift
   version: 23d6746079d7b5fdb38214387c63f987e68a6d8f
   subpackages:
   - lib/go/thrift
 - name: github.com/crossdock/crossdock-go
-  version: 049aabb0122b03bc9bd30cab8f3f91fb60166361
+  version: 228792ab861c86f8900b2db0439577feef9ec9d8
   subpackages:
   - assert
   - require
@@ -31,7 +31,7 @@ imports:
 - name: github.com/uber-go/atomic
   version: 0c9e689d64f004564b79d9a663634756df322902
 - name: github.com/uber/tchannel-go
-  version: 20b2aa539d94937cc652544ebe6c6ae6bc95b88d
+  version: 1a0e35378f6f721bc07f6c4466bc9701ed70b506
   subpackages:
   - atomic
   - thrift
@@ -42,7 +42,7 @@ imports:
   - relay
   - trand
 - name: golang.org/x/net
-  version: 07b51741c1d6423d4a6abab1c49940ec09cb1aaf
+  version: 075e191f18186a8ff2becaf64478e30f4545cdad
   subpackages:
   - context
   - context/ctxhttp
