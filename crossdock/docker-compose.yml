@@ -12,11 +12,11 @@ services:
             - WAIT_FOR=go,java,python
 
             - AXIS_CLIENT=go
-            - AXIS_S1NAME=go,java
+            - AXIS_S1NAME=go,java,python
             - AXIS_SAMPLED=true,false
-            - AXIS_S2NAME=go,java
+            - AXIS_S2NAME=go,java,python
             - AXIS_S2TRANSPORT=http,tchannel
-            - AXIS_S3NAME=go,java
+            - AXIS_S3NAME=go,java,python
             - AXIS_S3TRANSPORT=http,tchannel
 
             - BEHAVIOR_TRACE=client,s1name,sampled,s2name,s2transport,s3name,s3transport
