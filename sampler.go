@@ -67,7 +67,6 @@ func NewConstSampler(sample bool) Sampler {
 	return &ConstSampler{Decision: sample, tags: tags}
 }
 
-// IsSampled implements IsSampled() of Sampler.
 func (s *ConstSampler) IsSampled(id uint64) bool {
 	return s.Decision
 }
