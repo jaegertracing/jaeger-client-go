@@ -42,6 +42,12 @@ type Sampler interface {
 	// Equal checks if the `other` sampler is functionally equivalent
 	// to this sampler.
 	Equal(other Sampler) bool
+
+	// Tags return a set of tags that can be used to identify the type of
+	// sampling that was applied to the root span. Most simple samplers
+	// would return two tags, sampler.type and sampler.param, similar to
+	// those use in the Configuration
+	Tags() []tag
 }
 
 // -----------------------
@@ -53,6 +59,9 @@ type ConstSampler struct {
 
 // NewConstSampler creates a ConstSampler.
 func NewConstSampler(sample bool) Sampler {
+	tags := []tag{
+		tag{key: SamplerTypeTagKey, value: "const"},
+	}
 	return &ConstSampler{Decision: sample}
 }
 
@@ -73,6 +82,12 @@ func (s *ConstSampler) Equal(other Sampler) bool {
 	}
 	return false
 }
+
+// Tags implements Tags of Sampler
+func (s *ConstSampler) Tags() {
+	// nothing to do
+}
+
 
 // -----------------------
 

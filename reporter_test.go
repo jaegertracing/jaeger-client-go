@@ -101,7 +101,7 @@ func (s *reporterSuite) TestRootSpanAnnotations() {
 	s.NotNil(findAnnotation(zSpan, "sr"), "expecting sr annotation")
 	s.NotNil(findAnnotation(zSpan, "ss"), "expecting ss annotation")
 	s.NotNil(findBinaryAnnotation(zSpan, "ca"), "expecting ca annotation")
-	s.NotNil(findBinaryAnnotation(zSpan, JaegerClientTag), "expecting client version tag")
+	s.NotNil(findBinaryAnnotation(zSpan, JaegerClientVersionTagKey), "expecting client version tag")
 	s.EqualValues(1, s.stats.GetCounterValues()["jaeger.reporter-spans|state=success"])
 }
 
@@ -131,7 +131,7 @@ func (s *reporterSuite) TestTagsAndEvents() {
 	sp.LogEvent("hello")
 	sp.LogEvent(strings.Repeat("long event", 30))
 	expected := []string{"long", "ping", "awake", "awake", "one", "two", "three", "bite me",
-		JaegerClientTag, TracerHostnameKey, "lc", "does not compute"}
+		JaegerClientVersionTagKey, TracerHostnameTagKey, "lc", "does not compute"}
 	sp.SetTag("long", strings.Repeat("x", 300))
 	sp.SetTag("ping", "pong")
 	sp.SetTag("awake", true)

@@ -122,9 +122,9 @@ func NewTracer(
 		}
 	}
 	// Set tracer-level tags
-	t.tags = append(t.tags, tag{key: JaegerClientTag, value: JaegerGoVersion})
+	t.tags = append(t.tags, tag{key: JaegerClientVersionTagKey, value: JaegerGoVersion})
 	if hostname, err := os.Hostname(); err == nil {
-		t.tags = append(t.tags, tag{key: TracerHostnameKey, value: hostname})
+		t.tags = append(t.tags, tag{key: TracerHostnameTagKey, value: hostname})
 	}
 
 	return t, t
