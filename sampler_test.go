@@ -13,6 +13,42 @@ import (
 	"github.com/uber/jaeger-client-go/utils"
 )
 
+func TestSamplerTags(t *testing.T) {
+	prob, err := NewProbabilisticSampler(0.1)
+	require.NoError(t, err)
+	rate, err := NewRateLimitingSampler(0.1)
+	require.NoError(t, err)
+	remote := &RemotelyControlledSampler{
+		sampler: NewConstSampler(true),
+	}
+	tests := []struct {
+		sampler  Sampler
+		typeTag  string
+		paramTag interface{}
+	}{
+		{NewConstSampler(true), "const", true},
+		{NewConstSampler(false), "const", false},
+		{prob, "probabilistic", 0.1},
+		{rate, "ratelimiting", 0.1},
+		{remote, "const", true},
+	}
+	for _, test := range tests {
+		tags := test.sampler.getTags()
+		count := 0
+		for _, tag := range tags {
+			if tag.key == SamplerTypeTagKey {
+				assert.Equal(t, test.typeTag, tag.value)
+				count++
+			}
+			if tag.key == SamplerParamTagKey {
+				assert.Equal(t, test.paramTag, tag.value)
+				count++
+			}
+		}
+		assert.Equal(t, 2, count)
+	}
+}
+
 func TestProbabilisticSamplerErrors(t *testing.T) {
 	_, err := NewProbabilisticSampler(-0.1)
 	assert.Error(t, err)
@@ -102,9 +138,9 @@ func TestRemotelyControlledSampler(t *testing.T) {
 
 	sampler.sampler = initSampler
 	c := make(chan time.Time)
-	sampler.lock.Lock()
+	sampler.Lock()
 	sampler.timer = &time.Ticker{C: c}
-	sampler.lock.Unlock()
+	sampler.Unlock()
 	go sampler.pollController()
 
 	c <- time.Now() // force update based on timer

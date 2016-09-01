@@ -1,7 +1,6 @@
 package client
 
 import (
-	"log"
 	"net/url"
 	"testing"
 
@@ -11,16 +10,25 @@ import (
 
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/crossdock/common"
+	"github.com/uber/jaeger-client-go/crossdock/log"
 	"github.com/uber/jaeger-client-go/crossdock/server"
 )
 
 func TestCrossdock(t *testing.T) {
-	log.Println("Starting crossdock test")
+	log.Enabled = false // enable when debugging tests
+	log.Printf("Starting crossdock test")
+
+	var reporter jaeger.Reporter
+	if log.Enabled {
+		reporter = jaeger.NewLoggingReporter(jaeger.StdLogger)
+	} else {
+		reporter = jaeger.NewNullReporter()
+	}
 
 	tracer, tCloser := jaeger.NewTracer(
 		"crossdock",
 		jaeger.NewConstSampler(false),
-		jaeger.NewLoggingReporter(jaeger.StdLogger))
+		reporter)
 	defer tCloser.Close()
 
 	s := &server.Server{

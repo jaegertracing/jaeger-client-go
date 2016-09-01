@@ -38,8 +38,8 @@ func TestThriftFirstInProcessSpan(t *testing.T) {
 			check = assert.Nil
 		}
 		thriftSpan := buildThriftSpan(test.span)
-		version := findBinaryAnnotation(thriftSpan, JaegerClientTag)
-		hostname := findBinaryAnnotation(thriftSpan, TracerHostnameKey)
+		version := findBinaryAnnotation(thriftSpan, JaegerClientVersionTagKey)
+		hostname := findBinaryAnnotation(thriftSpan, TracerHostnameTagKey)
 		check(t, version)
 		check(t, hostname)
 	}

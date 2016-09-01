@@ -65,6 +65,7 @@ func TestSpanPropagator(t *testing.T) {
 		t.Fatalf("Root span's ParentID %d is not 0", exp.context.ParentID())
 	}
 
+	expTags := exp.tags[2:] // skip two sampler.xxx tags
 	for i, sp := range spans {
 		formatName := sp.operationName
 		if a, e := sp.context.ParentID(), exp.context.SpanID(); a != e {
@@ -75,7 +76,7 @@ func TestSpanPropagator(t *testing.T) {
 			sp.duration, sp.startTime = exp.duration, exp.startTime
 		}
 		assert.Equal(t, exp.context, sp.context, formatName)
-		assert.Equal(t, exp.tags, sp.tags, formatName)
+		assert.Equal(t, expTags, sp.tags, formatName)
 		assert.Equal(t, exp.logs, sp.logs, formatName)
 		assert.EqualValues(t, "server", sp.spanKind, formatName)
 		// Override collections to avoid tripping comparison on different pointers
