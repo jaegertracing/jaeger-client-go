@@ -22,7 +22,6 @@ package server
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
@@ -30,6 +29,7 @@ import (
 	"github.com/uber/tchannel-go/thrift"
 	"golang.org/x/net/context"
 
+	"github.com/uber/jaeger-client-go/crossdock/log"
 	"github.com/uber/jaeger-client-go/crossdock/thrift/tracetest"
 )
 

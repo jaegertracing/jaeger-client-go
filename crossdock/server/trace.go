@@ -22,7 +22,6 @@ package server
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
@@ -30,6 +29,7 @@ import (
 
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/crossdock/common"
+	"github.com/uber/jaeger-client-go/crossdock/log"
 	"github.com/uber/jaeger-client-go/crossdock/thrift/tracetest"
 )
 
