@@ -27,6 +27,11 @@ PASS=$(shell printf "\033[32mPASS\033[0m")
 FAIL=$(shell printf "\033[31mFAIL\033[0m")
 COLORIZE=sed ''/PASS/s//$(PASS)/'' | sed ''/FAIL/s//$(FAIL)/''
 
+.DEFAULT_GOAL := test-and-lint
+
+.PHONY: test-and-lint
+test-and-lint: test fmt lint
+
 .PHONY: test
 test:
 	$(GOTEST) $(PACKAGES) | $(COLORIZE)

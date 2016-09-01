@@ -173,6 +173,7 @@ func (t *tracer) startSpanWithOptions(
 		rpcServer = (v == ext.SpanKindRPCServerEnum || v == string(ext.SpanKindRPCServerEnum))
 	}
 
+	var samplerTags []tag
 	var ctx SpanContext
 	if !hasParent {
 		ctx.traceID = t.randomID()
@@ -181,6 +182,8 @@ func (t *tracer) startSpanWithOptions(
 		ctx.flags = byte(0)
 		if t.sampler.IsSampled(ctx.traceID) {
 			ctx.flags |= flagSampled
+			// this currently assumes that sampler tags are stable
+			samplerTags = t.sampler.getTags()
 		}
 	} else {
 		ctx.traceID = parent.traceID
@@ -208,6 +211,7 @@ func (t *tracer) startSpanWithOptions(
 		sp,
 		operationName,
 		startTime,
+		samplerTags,
 		options.Tags,
 		rpcServer, /* joining with external trace if rpcServer */
 	)
@@ -261,6 +265,7 @@ func (t *tracer) startSpanInternal(
 	sp *span,
 	operationName string,
 	startTime time.Time,
+	internalTags []tag,
 	tags opentracing.Tags,
 	join bool, // are we joining an external trace?
 ) opentracing.Span {
@@ -269,8 +274,9 @@ func (t *tracer) startSpanInternal(
 	sp.startTime = startTime
 	sp.duration = 0
 	sp.firstInProcess = join || sp.context.parentID == 0
-	if tags != nil && len(tags) > 0 {
-		sp.tags = make([]tag, 0, len(tags))
+	if len(tags) > 0 || len(internalTags) > 0 {
+		sp.tags = make([]tag, len(internalTags), len(tags)+len(internalTags))
+		copy(sp.tags, internalTags)
 		for k, v := range tags {
 			if k == string(ext.SamplingPriority) && setSamplingPriority(sp, k, v) {
 				continue

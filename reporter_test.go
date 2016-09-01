@@ -131,7 +131,9 @@ func (s *reporterSuite) TestTagsAndEvents() {
 	sp.LogEvent("hello")
 	sp.LogEvent(strings.Repeat("long event", 30))
 	expected := []string{"long", "ping", "awake", "awake", "one", "two", "three", "bite me",
-		JaegerClientVersionTagKey, TracerHostnameTagKey, "lc", "does not compute"}
+		JaegerClientVersionTagKey, TracerHostnameTagKey,
+		SamplerParamTagKey, SamplerTypeTagKey,
+		"lc", "does not compute"}
 	sp.SetTag("long", strings.Repeat("x", 300))
 	sp.SetTag("ping", "pong")
 	sp.SetTag("awake", true)

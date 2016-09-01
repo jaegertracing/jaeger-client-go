@@ -24,7 +24,7 @@ const (
 	// JaegerClientVersionTagKey is the name of the tag used to report client version.
 	JaegerClientVersionTagKey = "jaeger.version"
 
-	// TracerHostnameKey used to report host name of the process.
+	// TracerHostnameTagKey used to report host name of the process.
 	TracerHostnameTagKey = "jaeger.hostname"
 
 	// SamplerTypeTagKey reports which sampler was used on the root span.
@@ -47,10 +47,10 @@ const (
 	defaultSamplingServerHostPort = "localhost:5778"
 
 	// SamplerTypeConst is the type of sampler that always makes the same decision.
-	SamplerTypeConst         = "const"
+	SamplerTypeConst = "const"
 
 	// SamplerTypeRemote is the type of sampler that polls Jaeger agent for sampling strategy.
-	SamplerTypeRemote        = "remote"
+	SamplerTypeRemote = "remote"
 
 	// SamplerTypeProbabilistic is the type of sampler that samples traces
 	// with a certain fixed probability.
@@ -58,6 +58,5 @@ const (
 
 	// SamplerTypeRateLimiting is the type of sampler that samples
 	// only up to a fixed number of traces per second.
-	SamplerTypeRateLimiting  = "ratelimiting"
-
+	SamplerTypeRateLimiting = "ratelimiting"
 )
