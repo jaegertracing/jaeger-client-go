@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
@@ -151,10 +152,11 @@ func (sc *SamplerConfig) NewSampler(
 	serviceName string,
 	metrics *jaeger.Metrics,
 ) (jaeger.Sampler, error) {
-	if sc.Type == jaeger.SamplerTypeConst {
+	samplerType := strings.ToLower(sc.Type)
+	if samplerType == jaeger.SamplerTypeConst {
 		return jaeger.NewConstSampler(sc.Param != 0), nil
 	}
-	if sc.Type == jaeger.SamplerTypeProbabilistic {
+	if samplerType == jaeger.SamplerTypeProbabilistic {
 		if sc.Param >= 0 && sc.Param <= 1.0 {
 			return jaeger.NewProbabilisticSampler(sc.Param)
 		}
@@ -163,10 +165,10 @@ func (sc *SamplerConfig) NewSampler(
 			sc.Param,
 		)
 	}
-	if sc.Type == jaeger.SamplerTypeRateLimiting {
+	if samplerType == jaeger.SamplerTypeRateLimiting {
 		return jaeger.NewRateLimitingSampler(sc.Param)
 	}
-	if sc.Type == jaeger.SamplerTypeRemote || sc.Type == "" {
+	if samplerType == jaeger.SamplerTypeRemote || sc.Type == "" {
 		sc2 := *sc
 		sc2.Type = jaeger.SamplerTypeProbabilistic
 		initSampler, err := sc2.NewSampler(serviceName, nil)
