@@ -32,7 +32,6 @@ import (
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/transport"
 	"github.com/uber/jaeger-client-go/transport/udp"
-	"strings"
 )
 
 const defaultSamplingProbability = 0.001
