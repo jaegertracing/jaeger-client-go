@@ -18,41 +18,18 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package main
+package log
 
 import (
-	"io"
-
-	"github.com/uber/jaeger-client-go"
-	"github.com/uber/jaeger-client-go/crossdock/client"
-	"github.com/uber/jaeger-client-go/crossdock/log"
-	"github.com/uber/jaeger-client-go/crossdock/server"
-
-	"github.com/opentracing/opentracing-go"
+	real_log "log"
 )
 
-func main() {
-	log.Enabled = true
+// Enabled controls logging from crossdock tests. It is enabled in main.go, but off in unit tests.
+var Enabled bool
 
-	tracer, tCloser := initTracer()
-	defer tCloser.Close()
-
-	s := &server.Server{Tracer: tracer}
-	if err := s.Start(); err != nil {
-		panic(err.Error())
-	} else {
-		defer s.Close()
+// Printf delegates to log.Printf if Enabled == true
+func Printf(msg string, args ...interface{}) {
+	if Enabled {
+		real_log.Printf(msg, args)
 	}
-	client := &client.Client{}
-	if err := client.Start(); err != nil {
-		panic(err.Error())
-	}
-}
-
-func initTracer() (opentracing.Tracer, io.Closer) {
-	t, c := jaeger.NewTracer(
-		"crossdock-go",
-		jaeger.NewConstSampler(false),
-		jaeger.NewLoggingReporter(jaeger.StdLogger))
-	return t, c
 }
