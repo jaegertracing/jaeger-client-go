@@ -21,14 +21,20 @@
 package jaeger
 
 const (
-	// JaegerClientTag is the name of the tag used to report client version
-	JaegerClientTag = "jaegerClient"
+	// JaegerClientVersionTagKey is the name of the tag used to report client version.
+	JaegerClientVersionTagKey = "jaeger.version"
 
-	// JaegerGoVersion is the version reported as Span tag
-	JaegerGoVersion = "Golang-1.0"
+	// TracerHostnameTagKey used to report host name of the process.
+	TracerHostnameTagKey = "jaeger.hostname"
 
-	// TracerHostnameKey used to report host name of the process
-	TracerHostnameKey = "jaeger.hostname"
+	// SamplerTypeTagKey reports which sampler was used on the root span.
+	SamplerTypeTagKey = "sampler.type"
+
+	// SamplerParamTagKey reports the parameter of the sampler, like sampling probability.
+	SamplerParamTagKey = "sampler.param"
+
+	// JaegerGoVersion is the version of the client library reported as Span tag.
+	JaegerGoVersion = "Golang-1.1"
 
 	// TracerStateHeaderName is the http header name used to propagate tracing context.
 	// This must be in lower-case to avoid mismatches when decoding incoming headers.
@@ -39,4 +45,18 @@ const (
 	TraceBaggageHeaderPrefix = "uberctx-"
 
 	defaultSamplingServerHostPort = "localhost:5778"
+
+	// SamplerTypeConst is the type of sampler that always makes the same decision.
+	SamplerTypeConst = "const"
+
+	// SamplerTypeRemote is the type of sampler that polls Jaeger agent for sampling strategy.
+	SamplerTypeRemote = "remote"
+
+	// SamplerTypeProbabilistic is the type of sampler that samples traces
+	// with a certain fixed probability.
+	SamplerTypeProbabilistic = "probabilistic"
+
+	// SamplerTypeRateLimiting is the type of sampler that samples
+	// only up to a fixed number of traces per second.
+	SamplerTypeRateLimiting = "ratelimiting"
 )

@@ -42,6 +42,12 @@ type Sampler interface {
 	// Equal checks if the `other` sampler is functionally equivalent
 	// to this sampler.
 	Equal(other Sampler) bool
+
+	// getTags return a set of tags that can be used to identify the type of
+	// sampling that was applied to the root span. Most simple samplers
+	// would return two tags, sampler.type and sampler.param, similar to
+	// those use in the Configuration
+	getTags() []tag
 }
 
 // -----------------------
@@ -49,11 +55,16 @@ type Sampler interface {
 // ConstSampler is a sampler that always makes the same decision.
 type ConstSampler struct {
 	Decision bool
+	tags     []tag
 }
 
 // NewConstSampler creates a ConstSampler.
 func NewConstSampler(sample bool) Sampler {
-	return &ConstSampler{Decision: sample}
+	tags := []tag{
+		{key: SamplerTypeTagKey, value: SamplerTypeConst},
+		{key: SamplerParamTagKey, value: sample},
+	}
+	return &ConstSampler{Decision: sample, tags: tags}
 }
 
 // IsSampled implements IsSampled() of Sampler.
@@ -74,12 +85,18 @@ func (s *ConstSampler) Equal(other Sampler) bool {
 	return false
 }
 
+// Tags implements Tags of Sampler
+func (s *ConstSampler) getTags() []tag {
+	return s.tags
+}
+
 // -----------------------
 
 // ProbabilisticSampler is a sampler that randomly samples a certain percentage
 // of traces.
 type ProbabilisticSampler struct {
 	SamplingBoundary uint64
+	tags             []tag
 }
 
 const maxRandomNumber = ^(uint64(1) << 63) // i.e. 0x7fffffffffffffff
@@ -93,7 +110,13 @@ func NewProbabilisticSampler(samplingRate float64) (Sampler, error) {
 	if samplingRate < 0.0 || samplingRate > 1.0 {
 		return nil, fmt.Errorf("Sampling Rate must be between 0.0 and 1.0, received %f", samplingRate)
 	}
-	return &ProbabilisticSampler{uint64(float64(maxRandomNumber) * samplingRate)}, nil
+	tags := []tag{
+		{key: SamplerTypeTagKey, value: SamplerTypeProbabilistic},
+		{key: SamplerParamTagKey, value: samplingRate},
+	}
+	return &ProbabilisticSampler{
+		SamplingBoundary: uint64(float64(maxRandomNumber) * samplingRate),
+		tags:             tags}, nil
 }
 
 // IsSampled implements IsSampled() of Sampler.
@@ -114,11 +137,17 @@ func (s *ProbabilisticSampler) Equal(other Sampler) bool {
 	return false
 }
 
+// Tags implements Tags of Sampler
+func (s *ProbabilisticSampler) getTags() []tag {
+	return s.tags
+}
+
 // -----------------------
 
 type rateLimitingSampler struct {
 	maxTracesPerSecond float64
 	rateLimiter        utils.RateLimiter
+	tags               []tag
 }
 
 // NewRateLimitingSampler creates a sampler that samples at most maxTracesPerSecond. The distribution of sampled
@@ -126,9 +155,14 @@ type rateLimitingSampler struct {
 // requests sampled uniformly as well, but if requests are bursty, especially sub-second, then a number of
 // sequential requests can be sampled each second.
 func NewRateLimitingSampler(maxTracesPerSecond float64) (Sampler, error) {
+	tags := []tag{
+		{key: SamplerTypeTagKey, value: SamplerTypeRateLimiting},
+		{key: SamplerParamTagKey, value: maxTracesPerSecond},
+	}
 	return &rateLimitingSampler{
 		maxTracesPerSecond: maxTracesPerSecond,
 		rateLimiter:        utils.NewRateLimiter(maxTracesPerSecond),
+		tags:               tags,
 	}, nil
 }
 
@@ -148,17 +182,23 @@ func (s *rateLimitingSampler) Equal(other Sampler) bool {
 	return false
 }
 
+// Tags implements Tags of Sampler
+func (s *rateLimitingSampler) getTags() []tag {
+	return s.tags
+}
+
 // -----------------------
 
 // RemotelyControlledSampler is a delegating sampler that polls a remote server
 // for the appropriate sampling strategy, constructs a corresponding sampler and
 // delegates to it for sampling decisions.
 type RemotelyControlledSampler struct {
+	sync.RWMutex
+
 	serviceName string
 	manager     sampling.SamplingManager
 	logger      Logger
 	timer       *time.Ticker
-	lock        sync.RWMutex
 	sampler     Sampler
 	pollStopped sync.WaitGroup
 	metrics     Metrics
@@ -212,27 +252,34 @@ func NewRemotelyControlledSampler(
 
 // IsSampled implements IsSampled() of Sampler.
 func (s *RemotelyControlledSampler) IsSampled(id uint64) bool {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
+	s.RLock()
+	defer s.RUnlock()
 	return s.sampler.IsSampled(id)
 }
 
 // Close implements Close() of Sampler.
 func (s *RemotelyControlledSampler) Close() {
-	s.lock.RLock()
+	s.RLock()
 	s.timer.Stop()
-	s.lock.RUnlock()
+	s.RUnlock()
 
 	s.pollStopped.Wait()
+}
+
+// Tags implements Tags of Sampler
+func (s *RemotelyControlledSampler) getTags() []tag {
+	s.RLock()
+	defer s.RUnlock()
+	return s.sampler.getTags()
 }
 
 // Equal implements Equal() of Sampler.
 func (s *RemotelyControlledSampler) Equal(other Sampler) bool {
 	if o, ok := other.(*RemotelyControlledSampler); ok {
-		s.lock.RLock()
-		o.lock.RLock()
-		defer s.lock.RUnlock()
-		defer o.lock.RUnlock()
+		s.RLock()
+		o.RLock()
+		defer s.RUnlock()
+		defer o.RUnlock()
 		return s.sampler.Equal(o.sampler)
 	}
 	return false
@@ -240,9 +287,9 @@ func (s *RemotelyControlledSampler) Equal(other Sampler) bool {
 
 func (s *RemotelyControlledSampler) pollController() {
 	// in unit tests we re-assign the timer Ticker, so need to lock to avoid data races
-	s.lock.Lock()
+	s.Lock()
 	timer := s.timer
-	s.lock.Unlock()
+	s.Unlock()
 
 	for range timer.C {
 		s.updateSampler()
@@ -255,9 +302,9 @@ func (s *RemotelyControlledSampler) updateSampler() {
 		if sampler, err := s.extractSampler(res); err == nil {
 			s.metrics.SamplerRetrieved.Inc(1)
 			if !s.sampler.Equal(sampler) {
-				s.lock.Lock()
+				s.Lock()
 				s.sampler = sampler
-				s.lock.Unlock()
+				s.Unlock()
 				s.metrics.SamplerUpdated.Inc(1)
 			}
 		} else {

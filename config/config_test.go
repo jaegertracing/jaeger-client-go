@@ -14,7 +14,7 @@ func TestNewSamplerConst(t *testing.T) {
 		decision bool
 	}{{1, true}, {0, false}}
 	for _, tst := range constTests {
-		cfg := &SamplerConfig{Type: samplerTypeConst, Param: tst.param}
+		cfg := &SamplerConfig{Type: jaeger.SamplerTypeConst, Param: tst.param}
 		s, err := cfg.NewSampler("x", nil)
 		require.NoError(t, err)
 		s1, ok := s.(*jaeger.ConstSampler)
@@ -29,7 +29,7 @@ func TestNewSamplerProbabilistic(t *testing.T) {
 		error bool
 	}{{1.5, true}, {0.5, false}}
 	for _, tst := range constTests {
-		cfg := &SamplerConfig{Type: samplerTypeProbabilistic, Param: tst.param}
+		cfg := &SamplerConfig{Type: jaeger.SamplerTypeProbabilistic, Param: tst.param}
 		s, err := cfg.NewSampler("x", nil)
 		if tst.error {
 			require.Error(t, err)

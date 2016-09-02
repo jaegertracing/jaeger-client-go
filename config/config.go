@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
@@ -32,6 +33,8 @@ import (
 	"github.com/uber/jaeger-client-go/transport"
 	"github.com/uber/jaeger-client-go/transport/udp"
 )
+
+const defaultSamplingProbability = 0.001
 
 // Configuration configures and creates Jaeger Tracer
 type Configuration struct {
@@ -101,7 +104,10 @@ func (c Configuration) New(
 		return nil, nil, errors.New("no service name provided")
 	}
 	if c.Sampler == nil {
-		c.Sampler = &SamplerConfig{Type: samplerTypeProbabilistic, Param: 0.01}
+		c.Sampler = &SamplerConfig{
+			Type:  jaeger.SamplerTypeProbabilistic,
+			Param: defaultSamplingProbability,
+		}
 	}
 	if c.Reporter == nil {
 		c.Reporter = &ReporterConfig{}
@@ -146,22 +152,16 @@ func (c Configuration) InitGlobalTracer(
 	return closer, nil
 }
 
-const (
-	samplerTypeConst         = "const"
-	samplerTypeRemote        = "remote"
-	samplerTypeProbabilistic = "probabilistic"
-	samplerTypeRateLimiting  = "rateLimiting"
-)
-
 // NewSampler creates a new sampler based on the configuration
 func (sc *SamplerConfig) NewSampler(
 	serviceName string,
 	metrics *jaeger.Metrics,
 ) (jaeger.Sampler, error) {
-	if sc.Type == samplerTypeConst {
+	samplerType := strings.ToLower(sc.Type)
+	if samplerType == jaeger.SamplerTypeConst {
 		return jaeger.NewConstSampler(sc.Param != 0), nil
 	}
-	if sc.Type == samplerTypeProbabilistic {
+	if samplerType == jaeger.SamplerTypeProbabilistic {
 		if sc.Param >= 0 && sc.Param <= 1.0 {
 			return jaeger.NewProbabilisticSampler(sc.Param)
 		}
@@ -170,12 +170,12 @@ func (sc *SamplerConfig) NewSampler(
 			sc.Param,
 		)
 	}
-	if sc.Type == samplerTypeRateLimiting {
+	if samplerType == jaeger.SamplerTypeRateLimiting {
 		return jaeger.NewRateLimitingSampler(sc.Param)
 	}
-	if sc.Type == samplerTypeRemote || sc.Type == "" {
+	if samplerType == jaeger.SamplerTypeRemote || sc.Type == "" {
 		sc2 := *sc
-		sc2.Type = samplerTypeProbabilistic
+		sc2.Type = jaeger.SamplerTypeProbabilistic
 		initSampler, err := sc2.NewSampler(serviceName, nil)
 		if err != nil {
 			return nil, err
