@@ -34,6 +34,8 @@ import (
 	"github.com/uber/jaeger-client-go/transport/udp"
 )
 
+const defaultSamplingProbability = 0.001
+
 // Configuration configures and creates Jaeger Tracer
 type Configuration struct {
 	Disabled bool            `yaml:"disabled"`
@@ -102,7 +104,10 @@ func (c Configuration) New(
 		return nil, nil, errors.New("no service name provided")
 	}
 	if c.Sampler == nil {
-		c.Sampler = &SamplerConfig{Type: jaeger.SamplerTypeProbabilistic, Param: 0.001}
+		c.Sampler = &SamplerConfig{
+			Type:  jaeger.SamplerTypeProbabilistic,
+			Param: defaultSamplingProbability,
+		}
 	}
 	if c.Reporter == nil {
 		c.Reporter = &ReporterConfig{}
