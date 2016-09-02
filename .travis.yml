@@ -3,8 +3,8 @@ sudo: required
 language: go
 
 go:
-  - 1.5
   - 1.6
+  - 1.7
 
 services:
   - docker
@@ -34,7 +34,9 @@ script:
   - make test_ci
   - travis_retry goveralls -coverprofile=cover.out -service=travis-ci || true
   - make crossdock
-  - timeout 5 docker-compose -f crossdock/docker-compose.yml logs || true
+
+after_failure:
+  - timeout 5 docker-compose -f crossdock/docker-compose.yml logs
 
 after_success:
   - export REPO=jaegertracing/xdock-go

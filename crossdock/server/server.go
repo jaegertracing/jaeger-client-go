@@ -24,7 +24,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net"
 	"net/http"
 	"strings"
@@ -36,6 +35,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/uber/jaeger-client-go/crossdock/common"
+	"github.com/uber/jaeger-client-go/crossdock/log"
 	"github.com/uber/jaeger-client-go/crossdock/thrift/tracetest"
 )
 
