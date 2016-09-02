@@ -22,13 +22,13 @@ package client
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/crossdock/crossdock-go"
 	"golang.org/x/net/context"
 
 	"github.com/uber/jaeger-client-go/crossdock/common"
+	"github.com/uber/jaeger-client-go/crossdock/log"
 	"github.com/uber/jaeger-client-go/crossdock/thrift/tracetest"
 	"github.com/uber/jaeger-client-go/utils"
 )
@@ -84,7 +84,7 @@ func (c *Client) trace(t crossdock.T) {
 	success := validateTrace(t, level1.Downstream, resp, server1, 1, traceID, sampled, baggage)
 	if success {
 		t.Successf("trace checks out")
-		log.Println("PASS")
+		log.Printf("PASS")
 	}
 }
 

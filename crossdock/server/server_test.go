@@ -11,6 +11,7 @@ import (
 
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/crossdock/common"
+	"github.com/uber/jaeger-client-go/crossdock/log"
 	"github.com/uber/jaeger-client-go/crossdock/thrift/tracetest"
 )
 
@@ -46,7 +47,7 @@ func TestServerJSON(t *testing.T) {
 	result, err := common.PostJSON(context.Background(), url, req)
 
 	require.NoError(t, err)
-	fmt.Printf("response=%+v\n", &result)
+	log.Printf("response=%+v", &result)
 }
 
 func TestObserveSpan(t *testing.T) {
