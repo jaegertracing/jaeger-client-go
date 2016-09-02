@@ -25,7 +25,7 @@ func main() {
 
     tracer, closer, err := cfg.Tracing.New("your-service-name", nil)
     // check err
-    defer closer()
+    defer closer.Close()
 
     opentracing.InitGlobalTracer(tracer)
     ...
