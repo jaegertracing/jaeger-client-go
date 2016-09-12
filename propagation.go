@@ -25,6 +25,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"net/url"
 	"strings"
 	"sync"
 
@@ -56,19 +57,37 @@ type Extractor interface {
 }
 
 type textMapPropagator struct {
-	tracer *tracer
+	tracer      *tracer
+	encodeValue func(string) string
+	decodeValue func(string) string
 }
 
 func newTextMapPropagator(tracer *tracer) *textMapPropagator {
-	return &textMapPropagator{tracer: tracer}
+	return &textMapPropagator{
+		tracer: tracer,
+		encodeValue: func(val string) string {
+			return val
+		},
+		decodeValue: func(val string) string {
+			return val
+		},
+	}
 }
 
-type httpHeaderPropagator struct {
-	tracer *tracer
-}
-
-func newHTTPHeaderPropagator(tracer *tracer) *httpHeaderPropagator {
-	return &httpHeaderPropagator{tracer: tracer}
+func newHTTPHeaderPropagator(tracer *tracer) *textMapPropagator {
+	return &textMapPropagator{
+		tracer: tracer,
+		encodeValue: func(val string) string {
+			return url.QueryEscape(val)
+		},
+		decodeValue: func(val string) string {
+			// ignore decoding errors, cannot do anything about them
+			if v, err := url.QueryUnescape(val); err == nil {
+				return v
+			}
+			return val
+		},
+	}
 }
 
 type binaryPropagator struct {
@@ -92,9 +111,14 @@ func (p *textMapPropagator) Inject(
 		return opentracing.ErrInvalidCarrier
 	}
 
+	// Do not encode the string with trace context to avoid accidental double-encoding
+	// if people are using opentracing < 0.10.0. Our colon-separated representation
+	// of the trace context is already safe for HTTP headers.
 	textMapWriter.Set(TracerStateHeaderName, sc.String())
 	for k, v := range sc.baggage {
-		textMapWriter.Set(encodeBaggageKeyAsHeader(k), v)
+		safeKey := addBaggageKeyPrefix(k)
+		safeVal := p.encodeValue(v)
+		textMapWriter.Set(safeKey, safeVal)
 	}
 	return nil
 }
@@ -106,69 +130,21 @@ func (p *textMapPropagator) Extract(abstractCarrier interface{}) (SpanContext, e
 	}
 	var ctx SpanContext
 	var baggage map[string]string
-	err := textMapReader.ForeachKey(func(key, value string) error {
+	err := textMapReader.ForeachKey(func(rawKey, value string) error {
+		key := strings.ToLower(rawKey) // TODO not necessary for plain TextMap
 		if key == TracerStateHeaderName {
 			var err error
-			if ctx, err = ContextFromString(value); err != nil {
+			safeVal := p.decodeValue(value)
+			if ctx, err = ContextFromString(safeVal); err != nil {
 				return err
 			}
 		} else if strings.HasPrefix(key, TraceBaggageHeaderPrefix) {
 			if baggage == nil {
 				baggage = make(map[string]string)
 			}
-			dk := decodeBaggageHeaderKey(key)
-			baggage[dk] = value
-		}
-		return nil
-	})
-	if err != nil {
-		p.tracer.metrics.DecodingErrors.Inc(1)
-		return emptyContext, err
-	}
-	if ctx.traceID == 0 {
-		return emptyContext, opentracing.ErrSpanContextNotFound
-	}
-	ctx.baggage = baggage
-	return ctx, nil
-}
-
-func (p *httpHeaderPropagator) Inject(
-	sc SpanContext,
-	abstractCarrier interface{},
-) error {
-	textMapWriter, ok := abstractCarrier.(opentracing.TextMapWriter)
-	if !ok {
-		return opentracing.ErrInvalidCarrier
-	}
-
-	textMapWriter.Set(TracerStateHeaderName, sc.String())
-	for k, v := range sc.baggage {
-		safeKey := encodeBaggageKeyAsHeader(k)
-		textMapWriter.Set(safeKey, v)
-	}
-	return nil
-}
-
-func (p *httpHeaderPropagator) Extract(abstractCarrier interface{}) (SpanContext, error) {
-	textMapReader, ok := abstractCarrier.(opentracing.TextMapReader)
-	if !ok {
-		return emptyContext, opentracing.ErrInvalidCarrier
-	}
-	var ctx SpanContext
-	var baggage map[string]string
-	err := textMapReader.ForeachKey(func(key, value string) error {
-		lowerCaseKey := strings.ToLower(key)
-		if lowerCaseKey == TracerStateHeaderName {
-			var err error
-			if ctx, err = ContextFromString(value); err != nil {
-				return err
-			}
-		} else if strings.HasPrefix(lowerCaseKey, TraceBaggageHeaderPrefix) {
-			if baggage == nil {
-				baggage = make(map[string]string)
-			}
-			dk := decodeBaggageHeaderKey(lowerCaseKey)
-			baggage[dk] = value
+			safeKey := removeBaggageKeyPrefix(key)
+			safeVal := p.decodeValue(value)
+			baggage[safeKey] = safeVal
 		}
 		return nil
 	})
@@ -283,12 +259,12 @@ func (p *binaryPropagator) Extract(abstractCarrier interface{}) (SpanContext, er
 
 // Converts a baggage item key into an http header format,
 // by prepending TraceBaggageHeaderPrefix and encoding the key string
-func encodeBaggageKeyAsHeader(key string) string {
+func addBaggageKeyPrefix(key string) string {
 	// TODO encodeBaggageKeyAsHeader add caching and escaping
 	return fmt.Sprintf("%v%v", TraceBaggageHeaderPrefix, key)
 }
 
-func decodeBaggageHeaderKey(key string) string {
+func removeBaggageKeyPrefix(key string) string {
 	// TODO decodeBaggageHeaderKey add caching and escaping
 	return key[len(TraceBaggageHeaderPrefix):]
 }
