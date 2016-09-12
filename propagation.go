@@ -113,7 +113,7 @@ func (p *textMapPropagator) Inject(
 
 	textMapWriter.Set(TracerStateHeaderName, sc.String())
 	for k, v := range sc.baggage {
-		safeKey := encodeBaggageKeyAsHeader(k)
+		safeKey := addBaggageKeyPrefix(k)
 		safeVal := p.encodeValue(v)
 		textMapWriter.Set(safeKey, safeVal)
 	}
@@ -139,7 +139,7 @@ func (p *textMapPropagator) Extract(abstractCarrier interface{}) (SpanContext, e
 			if baggage == nil {
 				baggage = make(map[string]string)
 			}
-			safeKey := decodeBaggageHeaderKey(key)
+			safeKey := removeBaggageKeyPrefix(key)
 			safeVal := p.decodeValue(value)
 			baggage[safeKey] = safeVal
 		}
@@ -256,12 +256,12 @@ func (p *binaryPropagator) Extract(abstractCarrier interface{}) (SpanContext, er
 
 // Converts a baggage item key into an http header format,
 // by prepending TraceBaggageHeaderPrefix and encoding the key string
-func encodeBaggageKeyAsHeader(key string) string {
+func addBaggageKeyPrefix(key string) string {
 	// TODO encodeBaggageKeyAsHeader add caching and escaping
 	return fmt.Sprintf("%v%v", TraceBaggageHeaderPrefix, key)
 }
 
-func decodeBaggageHeaderKey(key string) string {
+func removeBaggageKeyPrefix(key string) string {
 	// TODO decodeBaggageHeaderKey add caching and escaping
 	return key[len(TraceBaggageHeaderPrefix):]
 }
