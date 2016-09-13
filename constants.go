@@ -34,7 +34,7 @@ const (
 	SamplerParamTagKey = "sampler.param"
 
 	// JaegerGoVersion is the version of the client library reported as Span tag.
-	JaegerGoVersion = "Golang-1.2"
+	JaegerGoVersion = "Golang-1.3"
 
 	// TracerStateHeaderName is the http header name used to propagate tracing context.
 	// This must be in lower-case to avoid mismatches when decoding incoming headers.
