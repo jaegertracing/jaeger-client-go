@@ -122,7 +122,7 @@ func NewTracer(
 		}
 	}
 	// Set tracer-level tags
-	t.tags = append(t.tags, tag{key: JaegerClientVersionTagKey, value: JaegerGoVersion})
+	t.tags = append(t.tags, tag{key: JaegerClientVersionTagKey, value: JaegerClientVersion})
 	if hostname, err := os.Hostname(); err == nil {
 		t.tags = append(t.tags, tag{key: TracerHostnameTagKey, value: hostname})
 	}
@@ -151,7 +151,7 @@ func (t *tracer) startSpanWithOptions(
 	}
 
 	var parent SpanContext
-	var hasParent bool
+	var hasParent bool // need this because `parent` is a value, not reference
 	for _, ref := range options.References {
 		if ref.Type == opentracing.ChildOfRef {
 			if p, ok := ref.ReferencedContext.(SpanContext); ok {
@@ -175,12 +175,16 @@ func (t *tracer) startSpanWithOptions(
 
 	var samplerTags []tag
 	var ctx SpanContext
-	if !hasParent {
+	debugRequest := (hasParent && parent.traceID == 0 && parent.debugID != "")
+	if !hasParent || debugRequest {
 		ctx.traceID = t.randomID()
 		ctx.spanID = ctx.traceID
 		ctx.parentID = 0
 		ctx.flags = byte(0)
-		if t.sampler.IsSampled(ctx.traceID) {
+		if debugRequest {
+			ctx.flags |= (flagSampled | flagDebug)
+			samplerTags = []tag{{key: JaegerDebugHeader, value: parent.debugID}}
+		} else if t.sampler.IsSampled(ctx.traceID) {
 			ctx.flags |= flagSampled
 			// this currently assumes that sampler tags are stable
 			samplerTags = t.sampler.getTags()

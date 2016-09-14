@@ -58,6 +58,12 @@ type SpanContext struct {
 
 	// Distributed Context baggage. The is a snapshot in time.
 	baggage map[string]string
+
+	// debugID can be set to some correlation ID when the context is being
+	// extracted from a TextMap carrier.
+	//
+	// See JaegerDebugHeader in constants.go
+	debugID string
 }
 
 // ForeachBaggageItem implements ForeachBaggageItem() of opentracing.SpanContext
@@ -171,5 +177,5 @@ func (c SpanContext) WithBaggageItem(key, value string) SpanContext {
 		newBaggage[key] = value
 	}
 	// Use positional parameters so the compiler will help catch new fields.
-	return SpanContext{c.traceID, c.spanID, c.parentID, c.flags, newBaggage}
+	return SpanContext{c.traceID, c.spanID, c.parentID, c.flags, newBaggage, ""}
 }
