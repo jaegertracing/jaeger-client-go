@@ -147,3 +147,28 @@ func TestBaggagePropagationHTTP(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, map[string]string{"some-key": "98:765"}, sp2.(SpanContext).baggage)
 }
+
+func TestDebugCorrelationID(t *testing.T) {
+	tracer, closer := NewTracer("DOOP", NewConstSampler(true), NewNullReporter())
+	defer closer.Close()
+
+	h := http.Header{}
+	h.Add(JaegerDebugHeader, "value1")
+	ctx, err := tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(h))
+	require.NoError(t, err)
+	assert.EqualValues(t, 0, ctx.(SpanContext).parentID)
+	assert.EqualValues(t, "value1", ctx.(SpanContext).debugID)
+	sp := tracer.StartSpan("root", opentracing.ChildOf(ctx)).(*span)
+	assert.EqualValues(t, 0, sp.context.parentID)
+	assert.True(t, sp.context.traceID != 0)
+	assert.True(t, sp.context.IsSampled())
+	assert.True(t, sp.context.IsDebug())
+	tagFound := false
+	for _, tag := range sp.tags {
+		if tag.key == JaegerDebugHeader {
+			assert.Equal(t, "value1", tag.value)
+			tagFound = true
+		}
+	}
+	assert.True(t, tagFound)
+}

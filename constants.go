@@ -21,8 +21,17 @@
 package jaeger
 
 const (
+	// JaegerClientVersion is the version of the client library reported as Span tag.
+	JaegerClientVersion = "Go-1.4"
+
 	// JaegerClientVersionTagKey is the name of the tag used to report client version.
 	JaegerClientVersionTagKey = "jaeger.version"
+
+	// JaegerDebugHeader is the name of HTTP header or a TextMap carrier key which,
+	// if found in the carrier, forces the trace to be sampled as "debug" trace.
+	// The value of the header is recorded as the tag on the root span, so that the
+	// trace can be found in the UI using this value as a correlation ID.
+	JaegerDebugHeader = "jaeger-debug-id"
 
 	// TracerHostnameTagKey used to report host name of the process.
 	TracerHostnameTagKey = "jaeger.hostname"
@@ -33,9 +42,6 @@ const (
 	// SamplerParamTagKey reports the parameter of the sampler, like sampling probability.
 	SamplerParamTagKey = "sampler.param"
 
-	// JaegerGoVersion is the version of the client library reported as Span tag.
-	JaegerGoVersion = "Golang-1.3"
-
 	// TracerStateHeaderName is the http header name used to propagate tracing context.
 	// This must be in lower-case to avoid mismatches when decoding incoming headers.
 	TracerStateHeaderName = "uber-trace-id"
@@ -43,8 +49,6 @@ const (
 	// TraceBaggageHeaderPrefix is the prefix for http headers used to propagate baggage.
 	// This must be in lower-case to avoid mismatches when decoding incoming headers.
 	TraceBaggageHeaderPrefix = "uberctx-"
-
-	defaultSamplingServerHostPort = "localhost:5778"
 
 	// SamplerTypeConst is the type of sampler that always makes the same decision.
 	SamplerTypeConst = "const"

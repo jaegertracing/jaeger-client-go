@@ -30,6 +30,8 @@ import (
 	"github.com/uber/jaeger-client-go/utils"
 )
 
+const defaultSamplingServerHostPort = "localhost:5778"
+
 // Sampler decides whether a new trace should be sampled or not.
 type Sampler interface {
 	// IsSampled decides whether a trace with given `id` should be sampled.

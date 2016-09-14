@@ -138,6 +138,8 @@ func (p *textMapPropagator) Extract(abstractCarrier interface{}) (SpanContext, e
 			if ctx, err = ContextFromString(safeVal); err != nil {
 				return err
 			}
+		} else if key == JaegerDebugHeader {
+			ctx.debugID = p.decodeValue(value)
 		} else if strings.HasPrefix(key, TraceBaggageHeaderPrefix) {
 			if baggage == nil {
 				baggage = make(map[string]string)
@@ -152,7 +154,7 @@ func (p *textMapPropagator) Extract(abstractCarrier interface{}) (SpanContext, e
 		p.tracer.metrics.DecodingErrors.Inc(1)
 		return emptyContext, err
 	}
-	if ctx.traceID == 0 {
+	if ctx.traceID == 0 && ctx.debugID == "" {
 		return emptyContext, opentracing.ErrSpanContextNotFound
 	}
 	ctx.baggage = baggage

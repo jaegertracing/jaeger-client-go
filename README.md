@@ -115,6 +115,45 @@ are available:
      number of traces to be sampled per second.
 
 
+### Debug Traces (Forced Sampling)
+
+#### Programmatically
+
+The OpenTracing API defines a `sampling.priority` standard tag that
+can be used to affect the sampling of a span and its children:
+
+```go
+import (
+    "github.com/opentracing/opentracing-go"
+    "github.com/opentracing/opentracing-go/ext"
+)
+       
+span := opentracing.SpanFromContext(ctx)
+ext.SamplingPriority.Set(span, 1)    
+```
+
+#### Via HTTP Headers
+
+Jaeger Tracer also understands a special HTTP Header `jaeger-debug-id`,
+which can be set in the incoming request, e.g.
+
+```sh
+curl -H "jaeger-debug-id: some-correlation-id" http://myhost.com
+```
+
+When Jaeger sees this header in the request that otherwise has no
+tracing context, it ensures that the new trace started for this
+request will be sampled in the "debug" mode (meaning it should survive
+all downsampling that might happen in the collection pipeline), and the 
+root span will have a tag as if this statement was executed:
+
+```go
+span.SetTag("jaeger-debug-id", "some-correlation-id")
+```
+
+This allows using Jaeger UI to find the trace by this tag.
+
+
 [doc-img]: https://godoc.org/github.com/uber/jaeger-client-go?status.svg
 [doc]: https://godoc.org/github.com/uber/jaeger-client-go
 [ci-img]: https://travis-ci.org/uber/jaeger-client-go.svg?branch=master
