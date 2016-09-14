@@ -175,7 +175,7 @@ func (t *tracer) startSpanWithOptions(
 
 	var samplerTags []tag
 	var ctx SpanContext
-	debugRequest := (hasParent && parent.traceID == 0 && parent.debugID != "")
+	debugRequest := (hasParent && parent.IsDebugIDContainerOnly())
 	if !hasParent || debugRequest {
 		ctx.traceID = t.randomID()
 		ctx.spanID = ctx.traceID

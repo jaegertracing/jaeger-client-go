@@ -179,3 +179,16 @@ func (c SpanContext) WithBaggageItem(key, value string) SpanContext {
 	// Use positional parameters so the compiler will help catch new fields.
 	return SpanContext{c.traceID, c.spanID, c.parentID, c.flags, newBaggage, ""}
 }
+
+// IsDebugIDContainerOnly returns true when the instance of the context is only
+// used to return the debug/correlation ID from extract() method. This happens
+// in the situation when "jaeger-debug-id" header is passed in the carrier to
+// the extract() method, but the request otherwise has no span context in it.
+// Previously this would've returned opentracing.ErrSpanContextNotFound from the
+// extract method, but now it returns a dummy context with only debugID filled in.
+//
+// See JaegerDebugHeader in constants.go
+// See textMapPropagator#Extract
+func (c SpanContext) IsDebugIDContainerOnly() bool {
+	return c.traceID == 0 && c.debugID != ""
+}
