@@ -26,6 +26,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var (
@@ -78,4 +79,15 @@ func PackIPAsUint32(ip net.IP) uint32 {
 		return binary.BigEndian.Uint32(ipv4)
 	}
 	return 0
+}
+
+// TimeToMicrosecondsSinceEpochInt64 converts Go time.Time to a long
+// representing time since epoch in microseconds, which is used expected
+// in the Jaeger spans encoded as Thrift.
+func TimeToMicrosecondsSinceEpochInt64(t time.Time) int64 {
+	// ^^^ Passing time.Time by value is faster than passing a pointer!
+	// BenchmarkTimeByValue-8	2000000000	         1.37 ns/op
+	// BenchmarkTimeByPtr-8  	2000000000	         1.98 ns/op
+
+	return t.UnixNano() / 1000
 }

@@ -27,6 +27,7 @@ import (
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
+	"github.com/opentracing/opentracing-go/log"
 
 	"github.com/uber/jaeger-client-go/utils"
 )
@@ -70,7 +71,7 @@ type span struct {
 	tags []tag
 
 	// The span's "micro-log"
-	logs []opentracing.LogData
+	logs []opentracing.LogRecord
 }
 
 type tag struct {
@@ -119,6 +120,34 @@ func (s *span) setTracerTags(tags []tag) {
 	s.Unlock()
 }
 
+func (s *span) LogFields(fields ...log.Field) {
+	s.Lock()
+	defer s.Unlock()
+	if !s.context.IsSampled() {
+		return
+	}
+	lr := opentracing.LogRecord{Fields: fields}
+	if lr.Timestamp.IsZero() {
+		lr.Timestamp = time.Now()
+	}
+	s.logs = append(s.logs, lr)
+}
+
+func (s *span) LogKV(alternatingKeyValues ...interface{}) {
+	s.Lock()
+	sampled := s.context.IsSampled()
+	s.Unlock()
+	if !sampled {
+		return
+	}
+	fields, err := log.InterleavedKVToFields(alternatingKeyValues...)
+	if err != nil {
+		s.LogFields(log.Error(err), log.String("function", "LogKV"))
+		return
+	}
+	s.LogFields(fields...)
+}
+
 func (s *span) LogEvent(event string) {
 	s.Log(opentracing.LogData{Event: event})
 }
@@ -134,7 +163,21 @@ func (s *span) Log(ld opentracing.LogData) {
 		if ld.Timestamp.IsZero() {
 			ld.Timestamp = s.tracer.timeNow()
 		}
-		s.logs = append(s.logs, ld)
+		// TODO replace lr with ld.ToLogRecord() once nil payload is handled there
+		lr := opentracing.LogRecord{
+			Timestamp: ld.Timestamp,
+		}
+		if ld.Payload == nil {
+			lr.Fields = []log.Field{
+				log.String("event", ld.Event),
+			}
+		} else {
+			lr.Fields = []log.Field{
+				log.String("event", ld.Event),
+				log.Object("payload", ld.Payload),
+			}
+		}
+		s.logs = append(s.logs, lr)
 	}
 }
 
@@ -167,8 +210,11 @@ func (s *span) FinishWithOptions(options opentracing.FinishOptions) {
 			finishTime = s.tracer.timeNow()
 		}
 		s.duration = finishTime.Sub(s.startTime)
-		if options.BulkLogData != nil {
-			s.logs = append(s.logs, options.BulkLogData...)
+		if options.LogRecords != nil {
+			s.logs = append(s.logs, options.LogRecords...)
+		}
+		for _, ld := range options.BulkLogData {
+			s.logs = append(s.logs, ld.ToLogRecord())
 		}
 	}
 	s.Unlock()

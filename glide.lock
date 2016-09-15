@@ -1,5 +1,5 @@
-hash: 8a19424b98ca02a54b68a116e0759a9c982576f7a02fd50935c2c41673fe7895
-updated: 2016-09-11T20:47:02.017923936-04:00
+hash: 1d6712252b01a535c3267f51a69455d7eee38f6fb9e1c6706c65bd2fc8432264
+updated: 2016-09-15T12:16:44.965333731-04:00
 imports:
 - name: github.com/apache/thrift
   version: 23d6746079d7b5fdb38214387c63f987e68a6d8f
@@ -15,9 +15,10 @@ imports:
   subpackages:
   - spew
 - name: github.com/opentracing/opentracing-go
-  version: ca4c9c0010bd9155b6d067b33865d849fe533628
+  version: db796414a6d60b7bd02a4e4bbe1544d95179551d
   subpackages:
   - ext
+  - log
 - name: github.com/pmezard/go-difflib
   version: 792786c7400a136282c1664665ae0a8db921c6c2
   subpackages:

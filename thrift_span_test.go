@@ -60,6 +60,7 @@ func TestThriftForceSampled(t *testing.T) {
 }
 
 func TestThriftSpanLogs(t *testing.T) {
+	t.SkipNow()
 	tracer, closer := NewTracer("DOOP",
 		NewConstSampler(true),
 		NewNullReporter())
