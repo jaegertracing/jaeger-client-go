@@ -29,7 +29,7 @@ import (
 
 type fieldsAsMap map[string]string
 
-// MaterializeWithJSON converts a log Fields into JSON string
+// MaterializeWithJSON converts log Fields into JSON string
 func MaterializeWithJSON(logFields []log.Field) ([]byte, error) {
 	fields := fieldsAsMap(make(map[string]string, len(logFields)))
 	for _, field := range logFields {

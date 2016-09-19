@@ -126,9 +126,9 @@ func (s *span) LogFields(fields ...log.Field) {
 	if !s.context.IsSampled() {
 		return
 	}
-	lr := opentracing.LogRecord{Fields: fields}
-	if lr.Timestamp.IsZero() {
-		lr.Timestamp = time.Now()
+	lr := opentracing.LogRecord{
+		Fields: fields,
+		Timestamp: time.Now(),
 	}
 	s.logs = append(s.logs, lr)
 }
