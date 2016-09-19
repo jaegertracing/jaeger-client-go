@@ -127,7 +127,7 @@ func (s *span) LogFields(fields ...log.Field) {
 		return
 	}
 	lr := opentracing.LogRecord{
-		Fields: fields,
+		Fields:    fields,
 		Timestamp: time.Now(),
 	}
 	s.logs = append(s.logs, lr)
