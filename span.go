@@ -163,21 +163,7 @@ func (s *span) Log(ld opentracing.LogData) {
 		if ld.Timestamp.IsZero() {
 			ld.Timestamp = s.tracer.timeNow()
 		}
-		// TODO replace lr with ld.ToLogRecord() once nil payload is handled there
-		lr := opentracing.LogRecord{
-			Timestamp: ld.Timestamp,
-		}
-		if ld.Payload == nil {
-			lr.Fields = []log.Field{
-				log.String("event", ld.Event),
-			}
-		} else {
-			lr.Fields = []log.Field{
-				log.String("event", ld.Event),
-				log.Object("payload", ld.Payload),
-			}
-		}
-		s.logs = append(s.logs, lr)
+		s.logs = append(s.logs, ld.ToLogRecord())
 	}
 }
 
