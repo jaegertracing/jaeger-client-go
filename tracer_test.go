@@ -225,6 +225,15 @@ func TestInjectorExtractorOptions(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestEmptySpanContextAsParent(t *testing.T) {
+	tracer, tc := NewTracer("x", NewConstSampler(true), NewNullReporter())
+	defer tc.Close()
+
+	ctx := emptyContext
+	span := tracer.StartSpan("test", opentracing.ChildOf(ctx))
+	assert.NotEqual(t, uint64(0), uint64(span.Context().(SpanContext).traceID))
+}
+
 type dummyPropagator struct{}
 type dummyCarrier struct {
 	ok bool
