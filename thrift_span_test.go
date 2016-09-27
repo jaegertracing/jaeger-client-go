@@ -8,6 +8,8 @@ import (
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/stretchr/testify/assert"
 
+	"errors"
+	"github.com/opentracing/opentracing-go/log"
 	"github.com/uber/jaeger-client-go/thrift-gen/zipkincore"
 )
 
@@ -60,45 +62,83 @@ func TestThriftForceSampled(t *testing.T) {
 }
 
 func TestThriftSpanLogs(t *testing.T) {
-	t.SkipNow()
 	tracer, closer := NewTracer("DOOP",
 		NewConstSampler(true),
 		NewNullReporter())
 	defer closer.Close()
+	root := tracer.StartSpan("s1")
 
-	sp := tracer.StartSpan("s1").(*span)
-	payload := "luggage"
-	n := len(logPayloadLabels)
-	m := n + 5
-	for i := 0; i < m; i++ {
-		sp.LogEventWithPayload(fmt.Sprintf("event%d", i), payload)
+	fields := func(fields ...log.Field) []log.Field {
+		return fields
 	}
-	thriftSpan := buildThriftSpan(sp)
-	var (
-		logs             int
-		numberedPayloads int
-		plainPayloads    int
-	)
-	for i := 0; i < m; i++ {
-		for _, anno := range thriftSpan.Annotations {
-			if anno.Value == fmt.Sprintf("event%d", i) {
-				logs++
-			}
-		}
-		for _, anno := range thriftSpan.BinaryAnnotations {
-			if anno.Key == fmt.Sprintf("log_payload_%d", i) {
-				numberedPayloads++
-			}
-		}
+	tests := []struct {
+		fields   []log.Field
+		logFunc  func(sp opentracing.Span)
+		expected string
+	}{
+		{fields: fields(log.String("event", "happened")), expected: "happened"},
+		{fields: fields(log.String("something", "happened")), expected: `{"something":"happened"}`},
+		{fields: fields(log.Bool("something", true)), expected: `{"something":"true"}`},
+		{fields: fields(log.Int("something", 123)), expected: `{"something":"123"}`},
+		{fields: fields(log.Int32("something", 123)), expected: `{"something":"123"}`},
+		{fields: fields(log.Int64("something", 123)), expected: `{"something":"123"}`},
+		{fields: fields(log.Uint32("something", 123)), expected: `{"something":"123"}`},
+		{fields: fields(log.Uint64("something", 123)), expected: `{"something":"123"}`},
+		{fields: fields(log.Float32("something", 123)), expected: `{"something":"123.000000"}`},
+		{fields: fields(log.Float64("something", 123)), expected: `{"something":"123.000000"}`},
+		{fields: fields(log.Error(errors.New("drugs are baaad, m-k"))),
+			expected: `{"error":"drugs are baaad, m-k"}`},
+		{fields: fields(log.Object("something", 123)), expected: `{"something":"123"}`},
+		{
+			fields: fields(log.Lazy(func(fv log.Encoder) {
+				fv.EmitBool("something", true)
+			})),
+			expected: `{"something":"true"}`,
+		},
+		{
+			logFunc: func(sp opentracing.Span) {
+				sp.LogKV("event", "something")
+			},
+			expected: "something",
+		},
+		{
+			logFunc: func(sp opentracing.Span) {
+				sp.LogEvent("something")
+			},
+			expected: "something",
+		},
+		{
+			logFunc: func(sp opentracing.Span) {
+				sp.LogEventWithPayload("something", "payload")
+			},
+			expected: `{"event":"something","payload":"payload"}`,
+		},
+		{
+			logFunc: func(sp opentracing.Span) {
+				sp.Log(opentracing.LogData{Event: "something"})
+			},
+			expected: "something",
+		},
+		{
+			logFunc: func(sp opentracing.Span) {
+				sp.Log(opentracing.LogData{Event: "something", Payload: "payload"})
+			},
+			expected: `{"event":"something","payload":"payload"}`,
+		},
 	}
-	for _, anno := range thriftSpan.BinaryAnnotations {
-		if anno.Key == "log_payload" {
-			plainPayloads++
+
+	for i, test := range tests {
+		testName := fmt.Sprintf("test-%02d", i)
+		sp := tracer.StartSpan(testName, opentracing.ChildOf(root.Context()))
+		if test.logFunc != nil {
+			test.logFunc(sp)
+		} else if len(test.fields) > 0 {
+			sp.LogFields(test.fields...)
 		}
+		thriftSpan := buildThriftSpan(sp.(*span))
+		assert.Equal(t, 1, len(thriftSpan.Annotations), testName)
+		assert.Equal(t, test.expected, thriftSpan.Annotations[0].Value, testName)
 	}
-	assert.Equal(t, m, logs, "Each log must create Annotation")
-	assert.Equal(t, n, numberedPayloads, "Each log must create numbered BinaryAnnotation")
-	assert.Equal(t, m-n, plainPayloads, "Each log over %d must create unnumbered BinaryAnnotation", n)
 }
 
 func TestThriftLocalComponentSpan(t *testing.T) {

@@ -39,18 +39,6 @@ const (
 	allowPackedNumbers = false
 )
 
-var (
-	logPayloadLabels = makeLogPayloadLabels(100)
-)
-
-func makeLogPayloadLabels(size int) []string {
-	labels := make([]string, size)
-	for i := 0; i < size; i++ {
-		labels[i] = fmt.Sprintf("log_payload_%d", i)
-	}
-	return labels
-}
-
 // buildThriftSpan builds thrift span based on internal span.
 func buildThriftSpan(span *span) *z.Span {
 	parentID := int64(span.context.parentID)

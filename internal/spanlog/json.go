@@ -30,6 +30,7 @@ import (
 type fieldsAsMap map[string]string
 
 // MaterializeWithJSON converts log Fields into JSON string
+// TODO refactor into pluggable materializer
 func MaterializeWithJSON(logFields []log.Field) ([]byte, error) {
 	fields := fieldsAsMap(make(map[string]string, len(logFields)))
 	for _, field := range logFields {
