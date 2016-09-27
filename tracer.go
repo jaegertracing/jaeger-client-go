@@ -46,9 +46,12 @@ type tracer struct {
 	timeNow      func() time.Time
 	randomNumber func() uint64
 
+	options struct {
+		poolSpans      bool
+		// more options to come
+	}
 	// pool for Span objects
-	poolSpans bool
-	spanPool  sync.Pool
+	spanPool sync.Pool
 
 	injectors  map[interface{}]Injector
 	extractors map[interface{}]Extractor
@@ -105,7 +108,9 @@ func NewTracer(
 
 	if t.randomNumber == nil {
 		rng := utils.NewRand(time.Now().UnixNano())
-		t.randomNumber = func() uint64 { return uint64(rng.Int63()) }
+		t.randomNumber = func() uint64 {
+			return uint64(rng.Int63())
+		}
 	}
 	if t.timeNow == nil {
 		t.timeNow = time.Now
@@ -256,7 +261,7 @@ func (t *tracer) Close() error {
 // getSpan retrieves an instance of a clean Span object.
 // If options.PoolSpans is true, the spans are retrieved from an object pool.
 func (t *tracer) newSpan() *span {
-	if !t.poolSpans {
+	if !t.options.poolSpans {
 		return &span{}
 	}
 	sp := t.spanPool.Get().(*span)
@@ -320,7 +325,7 @@ func (t *tracer) reportSpan(sp *span) {
 		}
 		t.reporter.Report(sp)
 	}
-	if t.poolSpans {
+	if t.options.poolSpans {
 		t.spanPool.Put(sp)
 	}
 }

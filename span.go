@@ -167,6 +167,10 @@ func (s *span) Log(ld opentracing.LogData) {
 	}
 }
 
+func (s *span) appendLog(lr opentracing.LogRecord) {
+
+}
+
 // SetBaggageItem implements SetBaggageItem() of opentracing.SpanContext
 func (s *span) SetBaggageItem(key, value string) opentracing.Span {
 	key = normalizeBaggageKey(key)
