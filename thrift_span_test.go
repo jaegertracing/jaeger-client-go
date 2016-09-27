@@ -11,6 +11,8 @@ import (
 	"errors"
 	"github.com/opentracing/opentracing-go/log"
 	"github.com/uber/jaeger-client-go/thrift-gen/zipkincore"
+	"github.com/uber/jaeger-client-go/utils"
+	"time"
 )
 
 func TestThriftFirstInProcessSpan(t *testing.T) {
@@ -68,13 +70,18 @@ func TestThriftSpanLogs(t *testing.T) {
 	defer closer.Close()
 	root := tracer.StartSpan("s1")
 
+	someTime := time.Now().Add(-time.Minute)
+	someTimeInt64 := utils.TimeToMicrosecondsSinceEpochInt64(someTime)
+
 	fields := func(fields ...log.Field) []log.Field {
 		return fields
 	}
 	tests := []struct {
-		fields   []log.Field
-		logFunc  func(sp opentracing.Span)
-		expected string
+		fields            []log.Field
+		logFunc           func(sp opentracing.Span)
+		expected          string
+		expectedTimestamp int64
+		disableSampling   bool
 	}{
 		{fields: fields(log.String("event", "happened")), expected: "happened"},
 		{fields: fields(log.String("something", "happened")), expected: `{"something":"happened"}`},
@@ -103,6 +110,13 @@ func TestThriftSpanLogs(t *testing.T) {
 		},
 		{
 			logFunc: func(sp opentracing.Span) {
+				sp.LogKV("non-even number of arguments")
+			},
+			// this is a bit fragile, but ¯\_(ツ)_/¯
+			expected: `{"error":"non-even keyValues len: 1","function":"LogKV"}`,
+		},
+		{
+			logFunc: func(sp opentracing.Span) {
 				sp.LogEvent("something")
 			},
 			expected: "something",
@@ -125,19 +139,84 @@ func TestThriftSpanLogs(t *testing.T) {
 			},
 			expected: `{"event":"something","payload":"payload"}`,
 		},
+		{
+			logFunc: func(sp opentracing.Span) {
+				sp.FinishWithOptions(opentracing.FinishOptions{
+					LogRecords: []opentracing.LogRecord{
+						{
+							Timestamp: someTime,
+							Fields:    fields(log.String("event", "happened")),
+						},
+					},
+				})
+			},
+			expected:          "happened",
+			expectedTimestamp: someTimeInt64,
+		},
+		{
+			logFunc: func(sp opentracing.Span) {
+				sp.FinishWithOptions(opentracing.FinishOptions{
+					BulkLogData: []opentracing.LogData{
+						{
+							Timestamp: someTime,
+							Event:     "happened",
+						},
+					},
+				})
+			},
+			expected:          "happened",
+			expectedTimestamp: someTimeInt64,
+		},
+		{
+			logFunc: func(sp opentracing.Span) {
+				sp.FinishWithOptions(opentracing.FinishOptions{
+					BulkLogData: []opentracing.LogData{
+						{
+							Timestamp: someTime,
+							Event:     "happened",
+							Payload:   "payload",
+						},
+					},
+				})
+			},
+			expected:          `{"event":"happened","payload":"payload"}`,
+			expectedTimestamp: someTimeInt64,
+		},
+		{
+			disableSampling: true,
+			fields:          fields(log.String("event", "happened")),
+			expected:        "",
+		},
+		{
+			disableSampling: true,
+			logFunc: func(sp opentracing.Span) {
+				sp.LogKV("event", "something")
+			},
+			expected: "",
+		},
 	}
 
 	for i, test := range tests {
 		testName := fmt.Sprintf("test-%02d", i)
 		sp := tracer.StartSpan(testName, opentracing.ChildOf(root.Context()))
+		if test.disableSampling {
+			ext.SamplingPriority.Set(sp, 0)
+		}
 		if test.logFunc != nil {
 			test.logFunc(sp)
 		} else if len(test.fields) > 0 {
 			sp.LogFields(test.fields...)
 		}
 		thriftSpan := buildThriftSpan(sp.(*span))
+		if test.disableSampling {
+			assert.Equal(t, 0, len(thriftSpan.Annotations), testName)
+			continue
+		}
 		assert.Equal(t, 1, len(thriftSpan.Annotations), testName)
 		assert.Equal(t, test.expected, thriftSpan.Annotations[0].Value, testName)
+		if test.expectedTimestamp != 0 {
+			assert.Equal(t, test.expectedTimestamp, thriftSpan.Annotations[0].Timestamp, testName)
+		}
 	}
 }
 
