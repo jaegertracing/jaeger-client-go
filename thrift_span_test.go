@@ -1,9 +1,9 @@
 package jaeger
 
 import (
+	"errors"
 	"fmt"
 	"testing"
-	"errors"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
