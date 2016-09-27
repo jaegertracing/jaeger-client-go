@@ -67,7 +67,7 @@ func (tracerOptions) RandomNumber(randomNumber func() uint64) TracerOption {
 // that can access parent spans after those spans have been finished.
 func (tracerOptions) PoolSpans(poolSpans bool) TracerOption {
 	return func(tracer *tracer) {
-		tracer.poolSpans = poolSpans
+		tracer.options.poolSpans = poolSpans
 	}
 }
 

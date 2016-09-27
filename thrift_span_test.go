@@ -1,14 +1,18 @@
 package jaeger
 
 import (
+	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
+	"github.com/opentracing/opentracing-go/log"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/uber/jaeger-client-go/thrift-gen/zipkincore"
+	"github.com/uber/jaeger-client-go/utils"
 )
 
 func TestThriftFirstInProcessSpan(t *testing.T) {
@@ -64,40 +68,156 @@ func TestThriftSpanLogs(t *testing.T) {
 		NewConstSampler(true),
 		NewNullReporter())
 	defer closer.Close()
+	root := tracer.StartSpan("s1")
 
-	sp := tracer.StartSpan("s1").(*span)
-	payload := "luggage"
-	n := len(logPayloadLabels)
-	m := n + 5
-	for i := 0; i < m; i++ {
-		sp.LogEventWithPayload(fmt.Sprintf("event%d", i), payload)
+	someTime := time.Now().Add(-time.Minute)
+	someTimeInt64 := utils.TimeToMicrosecondsSinceEpochInt64(someTime)
+
+	fields := func(fields ...log.Field) []log.Field {
+		return fields
 	}
-	thriftSpan := buildThriftSpan(sp)
-	var (
-		logs             int
-		numberedPayloads int
-		plainPayloads    int
-	)
-	for i := 0; i < m; i++ {
-		for _, anno := range thriftSpan.Annotations {
-			if anno.Value == fmt.Sprintf("event%d", i) {
-				logs++
-			}
+	tests := []struct {
+		fields            []log.Field
+		logFunc           func(sp opentracing.Span)
+		expected          string
+		expectedTimestamp int64
+		disableSampling   bool
+	}{
+		{fields: fields(log.String("event", "happened")), expected: "happened"},
+		{fields: fields(log.String("something", "happened")), expected: `{"something":"happened"}`},
+		{fields: fields(log.Bool("something", true)), expected: `{"something":"true"}`},
+		{fields: fields(log.Int("something", 123)), expected: `{"something":"123"}`},
+		{fields: fields(log.Int32("something", 123)), expected: `{"something":"123"}`},
+		{fields: fields(log.Int64("something", 123)), expected: `{"something":"123"}`},
+		{fields: fields(log.Uint32("something", 123)), expected: `{"something":"123"}`},
+		{fields: fields(log.Uint64("something", 123)), expected: `{"something":"123"}`},
+		{fields: fields(log.Float32("something", 123)), expected: `{"something":"123.000000"}`},
+		{fields: fields(log.Float64("something", 123)), expected: `{"something":"123.000000"}`},
+		{fields: fields(log.Error(errors.New("drugs are baaad, m-k"))),
+			expected: `{"error":"drugs are baaad, m-k"}`},
+		{fields: fields(log.Object("something", 123)), expected: `{"something":"123"}`},
+		{
+			fields: fields(log.Lazy(func(fv log.Encoder) {
+				fv.EmitBool("something", true)
+			})),
+			expected: `{"something":"true"}`,
+		},
+		{
+			logFunc: func(sp opentracing.Span) {
+				sp.LogKV("event", "something")
+			},
+			expected: "something",
+		},
+		{
+			logFunc: func(sp opentracing.Span) {
+				sp.LogKV("non-even number of arguments")
+			},
+			// this is a bit fragile, but ¯\_(ツ)_/¯
+			expected: `{"error":"non-even keyValues len: 1","function":"LogKV"}`,
+		},
+		{
+			logFunc: func(sp opentracing.Span) {
+				sp.LogEvent("something")
+			},
+			expected: "something",
+		},
+		{
+			logFunc: func(sp opentracing.Span) {
+				sp.LogEventWithPayload("something", "payload")
+			},
+			expected: `{"event":"something","payload":"payload"}`,
+		},
+		{
+			logFunc: func(sp opentracing.Span) {
+				sp.Log(opentracing.LogData{Event: "something"})
+			},
+			expected: "something",
+		},
+		{
+			logFunc: func(sp opentracing.Span) {
+				sp.Log(opentracing.LogData{Event: "something", Payload: "payload"})
+			},
+			expected: `{"event":"something","payload":"payload"}`,
+		},
+		{
+			logFunc: func(sp opentracing.Span) {
+				sp.FinishWithOptions(opentracing.FinishOptions{
+					LogRecords: []opentracing.LogRecord{
+						{
+							Timestamp: someTime,
+							Fields:    fields(log.String("event", "happened")),
+						},
+					},
+				})
+			},
+			expected:          "happened",
+			expectedTimestamp: someTimeInt64,
+		},
+		{
+			logFunc: func(sp opentracing.Span) {
+				sp.FinishWithOptions(opentracing.FinishOptions{
+					BulkLogData: []opentracing.LogData{
+						{
+							Timestamp: someTime,
+							Event:     "happened",
+						},
+					},
+				})
+			},
+			expected:          "happened",
+			expectedTimestamp: someTimeInt64,
+		},
+		{
+			logFunc: func(sp opentracing.Span) {
+				sp.FinishWithOptions(opentracing.FinishOptions{
+					BulkLogData: []opentracing.LogData{
+						{
+							Timestamp: someTime,
+							Event:     "happened",
+							Payload:   "payload",
+						},
+					},
+				})
+			},
+			expected:          `{"event":"happened","payload":"payload"}`,
+			expectedTimestamp: someTimeInt64,
+		},
+		{
+			disableSampling: true,
+			fields:          fields(log.String("event", "happened")),
+			expected:        "",
+		},
+		{
+			disableSampling: true,
+			logFunc: func(sp opentracing.Span) {
+				sp.LogKV("event", "something")
+			},
+			expected: "",
+		},
+	}
+
+	for i, test := range tests {
+		testName := fmt.Sprintf("test-%02d", i)
+		sp := tracer.StartSpan(testName, opentracing.ChildOf(root.Context()))
+		if test.disableSampling {
+			ext.SamplingPriority.Set(sp, 0)
 		}
-		for _, anno := range thriftSpan.BinaryAnnotations {
-			if anno.Key == fmt.Sprintf("log_payload_%d", i) {
-				numberedPayloads++
-			}
+		if test.logFunc != nil {
+			test.logFunc(sp)
+		} else if len(test.fields) > 0 {
+			sp.LogFields(test.fields...)
+		}
+		thriftSpan := buildThriftSpan(sp.(*span))
+		if test.disableSampling {
+			assert.Equal(t, 0, len(thriftSpan.Annotations), testName)
+			continue
+		}
+		assert.Equal(t, 1, len(thriftSpan.Annotations), testName)
+		assert.Equal(t, test.expected, thriftSpan.Annotations[0].Value, testName)
+		if test.expectedTimestamp != 0 {
+			assert.Equal(t, test.expectedTimestamp, thriftSpan.Annotations[0].Timestamp, testName)
 		}
 	}
-	for _, anno := range thriftSpan.BinaryAnnotations {
-		if anno.Key == "log_payload" {
-			plainPayloads++
-		}
-	}
-	assert.Equal(t, m, logs, "Each log must create Annotation")
-	assert.Equal(t, n, numberedPayloads, "Each log must create numbered BinaryAnnotation")
-	assert.Equal(t, m-n, plainPayloads, "Each log over %d must create unnumbered BinaryAnnotation", n)
 }
 
 func TestThriftLocalComponentSpan(t *testing.T) {

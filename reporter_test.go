@@ -129,7 +129,7 @@ func (s *reporterSuite) TestClientSpanAnnotations() {
 func (s *reporterSuite) TestTagsAndEvents() {
 	sp := s.tracer.StartSpan("get_name")
 	sp.LogEvent("hello")
-	sp.LogEvent(strings.Repeat("long event", 30))
+	sp.LogEvent(strings.Repeat("long event ", 30))
 	expected := []string{"long", "ping", "awake", "awake", "one", "two", "three", "bite me",
 		JaegerClientVersionTagKey, TracerHostnameTagKey,
 		SamplerParamTagKey, SamplerTypeTagKey,
@@ -158,7 +158,7 @@ func (s *reporterSuite) TestTagsAndEvents() {
 	sort.Strings(binAnnos)
 	s.Equal(expected, binAnnos, "expecting %d binary annotations", len(expected))
 
-	s.NotNil(findAnnotation(zSpan, "hello"), "expecting 'hello' annotation")
+	s.NotNil(findAnnotation(zSpan, "hello"), "expecting 'hello' annotation: %+v", zSpan.Annotations)
 
 	longEvent := false
 	for _, a := range zSpan.Annotations {

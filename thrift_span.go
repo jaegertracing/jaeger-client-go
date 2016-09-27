@@ -26,8 +26,9 @@ import (
 	"time"
 
 	"github.com/opentracing/opentracing-go/ext"
-
+	"github.com/uber/jaeger-client-go/internal/spanlog"
 	z "github.com/uber/jaeger-client-go/thrift-gen/zipkincore"
+	"github.com/uber/jaeger-client-go/utils"
 )
 
 const (
@@ -38,18 +39,6 @@ const (
 	allowPackedNumbers = false
 )
 
-var (
-	logPayloadLabels = makeLogPayloadLabels(100)
-)
-
-func makeLogPayloadLabels(size int) []string {
-	labels := make([]string, size)
-	for i := 0; i < size; i++ {
-		labels[i] = fmt.Sprintf("log_payload_%d", i)
-	}
-	return labels
-}
-
 // buildThriftSpan builds thrift span based on internal span.
 func buildThriftSpan(span *span) *z.Span {
 	parentID := int64(span.context.parentID)
@@ -57,7 +46,7 @@ func buildThriftSpan(span *span) *z.Span {
 	if parentID != 0 {
 		ptrParentID = &parentID
 	}
-	timestamp := timeToMicrosecondsSinceEpochInt64(span.startTime)
+	timestamp := utils.TimeToMicrosecondsSinceEpochInt64(span.startTime)
 	duration := span.duration.Nanoseconds() / int64(time.Microsecond)
 	endpoint := &z.Endpoint{
 		ServiceName: span.tracer.serviceName,
@@ -86,14 +75,14 @@ func buildAnnotations(span *span, endpoint *z.Endpoint) []*z.Annotation {
 	}
 	if !span.startTime.IsZero() && startLabel != "" {
 		start := &z.Annotation{
-			Timestamp: timeToMicrosecondsSinceEpochInt64(span.startTime),
+			Timestamp: utils.TimeToMicrosecondsSinceEpochInt64(span.startTime),
 			Value:     startLabel,
 			Host:      endpoint}
 		annotations = append(annotations, start)
 		if span.duration != 0 {
 			endTs := span.startTime.Add(span.duration)
 			end := &z.Annotation{
-				Timestamp: timeToMicrosecondsSinceEpochInt64(endTs),
+				Timestamp: utils.TimeToMicrosecondsSinceEpochInt64(endTs),
 				Value:     endLabel,
 				Host:      endpoint}
 			annotations = append(annotations, end)
@@ -101,9 +90,13 @@ func buildAnnotations(span *span, endpoint *z.Endpoint) []*z.Annotation {
 	}
 	for _, log := range span.logs {
 		anno := &z.Annotation{
-			Timestamp: timeToMicrosecondsSinceEpochInt64(log.Timestamp),
-			Value:     truncateString(log.Event),
+			Timestamp: utils.TimeToMicrosecondsSinceEpochInt64(log.Timestamp),
 			Host:      endpoint}
+		if content, err := spanlog.MaterializeWithJSON(log.Fields); err == nil {
+			anno.Value = truncateString(string(content))
+		} else {
+			anno.Value = err.Error()
+		}
 		annotations = append(annotations, anno)
 	}
 	return annotations
@@ -147,17 +140,6 @@ func buildBinaryAnnotations(span *span, endpoint *z.Endpoint) []*z.BinaryAnnotat
 	for _, tag := range span.tags {
 		if anno := buildBinaryAnnotation(tag.key, tag.value, nil); anno != nil {
 			annotations = append(annotations, anno)
-		}
-	}
-	for i, log := range span.logs {
-		if log.Payload != nil {
-			label := "log_payload"
-			if i < len(logPayloadLabels) {
-				label = logPayloadLabels[i]
-			}
-			if anno := buildBinaryAnnotation(label, log.Payload, nil); anno != nil {
-				annotations = append(annotations, anno)
-			}
 		}
 	}
 	return annotations
@@ -216,13 +198,6 @@ func boolToByte(b bool) byte {
 		return 1
 	}
 	return 0
-}
-
-// Passing time by value is faster than passing a pointer!
-// BenchmarkTimeByValue-8	2000000000	         1.37 ns/op
-// BenchmarkTimeByPtr-8  	2000000000	         1.98 ns/op
-func timeToMicrosecondsSinceEpochInt64(t time.Time) int64 {
-	return t.UnixNano() / 1000
 }
 
 // int32ToBytes converts int32 to bytes.

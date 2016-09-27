@@ -197,7 +197,7 @@ func TestTracerOptions(t *testing.T) {
 	assert.Equal(t, uint64(1), tracer.randomNumber())
 	assert.Equal(t, uint64(1), tracer.randomNumber())
 	assert.Equal(t, uint64(1), tracer.randomNumber()) // always 1
-	assert.Equal(t, true, tracer.poolSpans)
+	assert.Equal(t, true, tracer.options.poolSpans)
 }
 
 func TestInjectorExtractorOptions(t *testing.T) {
