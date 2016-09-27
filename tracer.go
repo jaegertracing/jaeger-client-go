@@ -47,7 +47,7 @@ type tracer struct {
 	randomNumber func() uint64
 
 	options struct {
-		poolSpans      bool
+		poolSpans bool
 		// more options to come
 	}
 	// pool for Span objects

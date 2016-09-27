@@ -130,7 +130,7 @@ func (s *span) LogFields(fields ...log.Field) {
 		Fields:    fields,
 		Timestamp: time.Now(),
 	}
-	s.logs = append(s.logs, lr)
+	s.appendLog(lr)
 }
 
 func (s *span) LogKV(alternatingKeyValues ...interface{}) {
@@ -163,12 +163,14 @@ func (s *span) Log(ld opentracing.LogData) {
 		if ld.Timestamp.IsZero() {
 			ld.Timestamp = s.tracer.timeNow()
 		}
-		s.logs = append(s.logs, ld.ToLogRecord())
+		s.appendLog(ld.ToLogRecord())
 	}
 }
 
+// this function should only be called while holding a Write lock
 func (s *span) appendLog(lr opentracing.LogRecord) {
-
+	// TODO add logic to limit number of logs per span (issue #46)
+	s.logs = append(s.logs, lr)
 }
 
 // SetBaggageItem implements SetBaggageItem() of opentracing.SpanContext
@@ -200,6 +202,7 @@ func (s *span) FinishWithOptions(options opentracing.FinishOptions) {
 			finishTime = s.tracer.timeNow()
 		}
 		s.duration = finishTime.Sub(s.startTime)
+		// Note: bulk logs are not subject to maxLogsPerSpan limit
 		if options.LogRecords != nil {
 			s.logs = append(s.logs, options.LogRecords...)
 		}
