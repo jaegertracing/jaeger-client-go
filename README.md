@@ -153,7 +153,11 @@ span.SetTag("jaeger-debug-id", "some-correlation-id")
 
 This allows using Jaeger UI to find the trace by this tag.
 
+## License
+  
+  [The MIT License](LICENSE).
 
+  
 [doc-img]: https://godoc.org/github.com/uber/jaeger-client-go?status.svg
 [doc]: https://godoc.org/github.com/uber/jaeger-client-go
 [ci-img]: https://travis-ci.org/uber/jaeger-client-go.svg?branch=master

@@ -5,7 +5,7 @@ import:
   subpackages:
   - lib/go/thrift
 - package: github.com/opentracing/opentracing-go
-  version: bhs/spanlog
+  version: ~1.0
   subpackages:
   - ext
 - package: golang.org/x/net

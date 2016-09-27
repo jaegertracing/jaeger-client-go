@@ -1,5 +1,5 @@
-hash: 1d6712252b01a535c3267f51a69455d7eee38f6fb9e1c6706c65bd2fc8432264
-updated: 2016-09-19T12:09:51.004680083-04:00
+hash: b065de05e5575b34a294793e44015224d4fdfe1c98d2e69270b8f156ecd8d94c
+updated: 2016-09-27T10:25:26.753240697-04:00
 imports:
 - name: github.com/apache/thrift
   version: 23d6746079d7b5fdb38214387c63f987e68a6d8f
@@ -15,7 +15,7 @@ imports:
   subpackages:
   - spew
 - name: github.com/opentracing/opentracing-go
-  version: 508626b3a4533bff8b8bc95c6aadcb73796ca5e5
+  version: 0c3154a3c2ce79d3271985848659870599dfb77c
   subpackages:
   - ext
   - log
@@ -24,7 +24,7 @@ imports:
   subpackages:
   - difflib
 - name: github.com/stretchr/testify
-  version: f390dcf405f7b83c997eac1b06768bb9f44dec18
+  version: 69483b4bd14f5845b5a1e55bca19e954e827f1d0
   subpackages:
   - assert
   - require

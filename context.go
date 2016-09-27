@@ -86,6 +86,11 @@ func (c SpanContext) IsDebug() bool {
 	return (c.flags & flagDebug) == flagDebug
 }
 
+// IsValid indicates whether this context actually represents a valid trace.
+func (c SpanContext) IsValid() bool {
+	return c.traceID != 0 && c.spanID != 0
+}
+
 func (c SpanContext) String() string {
 	return fmt.Sprintf("%x:%x:%x:%x", c.traceID, c.spanID, c.parentID, c.flags)
 }

@@ -155,9 +155,11 @@ func (t *tracer) startSpanWithOptions(
 	for _, ref := range options.References {
 		if ref.Type == opentracing.ChildOfRef {
 			if p, ok := ref.ReferencedContext.(SpanContext); ok {
-				parent = p
-				hasParent = true
-				break
+				if p.IsValid() || p.isDebugIDContainerOnly() {
+					parent = p
+					hasParent = true
+					break
+				}
 			} else {
 				t.logger.Error(fmt.Sprintf(
 					"ChildOf reference contains invalid type of SpanReference: %s",
