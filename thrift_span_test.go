@@ -3,16 +3,16 @@ package jaeger
 import (
 	"fmt"
 	"testing"
+	"errors"
+	"time"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
+	"github.com/opentracing/opentracing-go/log"
 	"github.com/stretchr/testify/assert"
 
-	"errors"
-	"github.com/opentracing/opentracing-go/log"
 	"github.com/uber/jaeger-client-go/thrift-gen/zipkincore"
 	"github.com/uber/jaeger-client-go/utils"
-	"time"
 )
 
 func TestThriftFirstInProcessSpan(t *testing.T) {

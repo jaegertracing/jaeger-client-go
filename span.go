@@ -134,9 +134,9 @@ func (s *span) LogFields(fields ...log.Field) {
 }
 
 func (s *span) LogKV(alternatingKeyValues ...interface{}) {
-	s.Lock()
+	s.RLock()
 	sampled := s.context.IsSampled()
-	s.Unlock()
+	s.RUnlock()
 	if !sampled {
 		return
 	}
