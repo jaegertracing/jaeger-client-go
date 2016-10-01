@@ -8,6 +8,7 @@ import:
   version: ^1
   subpackages:
   - ext
+  - log
 - package: golang.org/x/net
   subpackages:
   - context

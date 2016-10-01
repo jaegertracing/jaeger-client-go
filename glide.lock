@@ -1,5 +1,5 @@
-hash: bb37c90fc144cb58e4435381ddfc68b79c81ed1ce99e56c30543dbcc56cacf6b
-updated: 2016-09-27T17:50:36.675201402-04:00
+hash: 11b9a2a4db72bd649c7eb8a40f2270087efe5dcaa51807988990720747e1b7f5
+updated: 2016-10-01T00:15:32.179958848-07:00
 imports:
 - name: github.com/apache/thrift
   version: 23d6746079d7b5fdb38214387c63f987e68a6d8f
@@ -32,7 +32,7 @@ imports:
 - name: github.com/uber-go/atomic
   version: 0c9e689d64f004564b79d9a663634756df322902
 - name: github.com/uber/tchannel-go
-  version: f57e644626dbf4d87ee2b36571600c21f8255f1f
+  version: 4a23f3aae76694b21107f118ece763a61b98ea07
   subpackages:
   - atomic
   - relay
