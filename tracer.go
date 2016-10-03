@@ -160,7 +160,7 @@ func (t *tracer) startSpanWithOptions(
 	for _, ref := range options.References {
 		if ref.Type == opentracing.ChildOfRef {
 			if p, ok := ref.ReferencedContext.(SpanContext); ok {
-				if p.IsValid() || p.isDebugIDContainerOnly() {
+				if p.IsValid() || p.isDebugIDContainerOnly() || len(p.baggage) != 0 {
 					parent = p
 					hasParent = true
 					break

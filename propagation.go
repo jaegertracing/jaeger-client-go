@@ -25,6 +25,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"log"
 	"net/url"
 	"strings"
 	"sync"
@@ -140,6 +141,13 @@ func (p *textMapPropagator) Extract(abstractCarrier interface{}) (SpanContext, e
 			}
 		} else if key == JaegerDebugHeader {
 			ctx.debugID = p.decodeValue(value)
+		} else if key == JaegerBaggageHeader {
+			if baggage == nil {
+				baggage = make(map[string]string)
+			}
+			for k, v := range parseCommaSeparatedMap(value) {
+				baggage[k] = v
+			}
 		} else if strings.HasPrefix(key, TraceBaggageHeaderPrefix) {
 			if baggage == nil {
 				baggage = make(map[string]string)
@@ -154,7 +162,7 @@ func (p *textMapPropagator) Extract(abstractCarrier interface{}) (SpanContext, e
 		p.tracer.metrics.DecodingErrors.Inc(1)
 		return emptyContext, err
 	}
-	if ctx.traceID == 0 && ctx.debugID == "" {
+	if ctx.traceID == 0 && ctx.debugID == "" && len(baggage) == 0 {
 		return emptyContext, opentracing.ErrSpanContextNotFound
 	}
 	ctx.baggage = baggage
@@ -257,6 +265,29 @@ func (p *binaryPropagator) Extract(abstractCarrier interface{}) (SpanContext, er
 	}
 
 	return ctx, nil
+}
+
+// Converts a comma separated key value pair list into a map
+// e.g. key1=value1, key2=value2, key3 = value3
+// is converted to map[string]string { "key1" : "value1",
+//                                     "key2" : "value2",
+//                                     "key3" : "value3" }
+func parseCommaSeparatedMap(value string) map[string]string {
+	baggage := make(map[string]string)
+	value, err := url.QueryUnescape(value)
+	if err != nil {
+		log.Printf("Unable to unescape %s, %v", value, err)
+		return baggage
+	}
+	for _, kvpair := range strings.Split(value, ",") {
+		kv := strings.Split(strings.TrimSpace(kvpair), "=")
+		if len(kv) == 2 {
+			baggage[kv[0]] = kv[1]
+		} else {
+			log.Printf("Malformed value passed in for %s", JaegerBaggageHeader)
+		}
+	}
+	return baggage
 }
 
 // Converts a baggage item key into an http header format,

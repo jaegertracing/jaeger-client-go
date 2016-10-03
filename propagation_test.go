@@ -148,6 +148,44 @@ func TestBaggagePropagationHTTP(t *testing.T) {
 	assert.Equal(t, map[string]string{"some-key": "98:765"}, sp2.(SpanContext).baggage)
 }
 
+func TestJaegerBaggageHeader(t *testing.T) {
+	tracer, closer := NewTracer("hobbits", NewConstSampler(true), NewNullReporter())
+	defer closer.Close()
+
+	h := http.Header{}
+	h.Add(JaegerBaggageHeader, "key1=value1, key 2=value two")
+
+	ctx, err := tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(h))
+	require.NoError(t, err)
+
+	sp := tracer.StartSpan("root", opentracing.ChildOf(ctx)).(*span)
+
+	assert.Equal(t, "value1", sp.BaggageItem("key1"))
+	assert.Equal(t, "value two", sp.BaggageItem("key 2"))
+}
+
+func TestParseCommaSeperatedMap(t *testing.T) {
+	var testcases = []struct {
+		in  string
+		out map[string]string
+	}{
+		{"hobbit=Bilbo Baggins", map[string]string{"hobbit": "Bilbo Baggins"}},
+		{"hobbit=Bilbo Baggins, dwarf= Thrain", map[string]string{"hobbit": "Bilbo Baggins", "dwarf": " Thrain"}},
+		{"kevin spacey=actor", map[string]string{"kevin spacey": "actor"}},
+		{"kevin%20spacey=se7en%3Aactor", map[string]string{"kevin spacey": "se7en:actor"}},
+		{"key1=, key2=", map[string]string{"key1": "", "key2": ""}},
+		{"malformed", map[string]string{}},
+		{"malformed, string", map[string]string{}},
+		{"another malformed string", map[string]string{}},
+	}
+
+	for _, testcase := range testcases {
+		m := parseCommaSeparatedMap(testcase.in)
+		assert.Equal(t, testcase.out, m)
+	}
+
+}
+
 func TestDebugCorrelationID(t *testing.T) {
 	tracer, closer := NewTracer("DOOP", NewConstSampler(true), NewNullReporter())
 	defer closer.Close()

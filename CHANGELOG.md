@@ -1,6 +1,11 @@
 Changes by Version
 ==================
 
+1.5.2 (unreleased)
+-------------------
+
+- Add the jaeger-debug header
+
 1.5.1 (2016-09-27)
 -------------------
 
