@@ -1,0 +1,6 @@
+// Package transport defines various transports that can be used with
+// RemoteReporter to send spans out of process. Transport is responsible
+// for serializing the spans into a specific format suitable for sending
+// to the tracing backend. Examples may include Thrift over UDP, Thrift
+// or JSON over HTTP, Thrift over Kafka, etc.
+package transport
