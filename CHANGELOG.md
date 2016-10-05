@@ -1,6 +1,12 @@
 Changes by Version
 ==================
 
+1.6.0 (unreleased)
+-------------------
+
+- Add Zipkin HTTP transport
+
+
 1.5.1 (2016-09-27)
 -------------------
 

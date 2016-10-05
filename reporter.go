@@ -229,6 +229,7 @@ func (r *remoteReporter) Close() {
 	r.queueDrained.Add(1)
 	close(r.queue)
 	r.queueDrained.Wait()
+	r.sender.Close()
 }
 
 // processQueue reads spans from the queue, converts them to Thrift, and stores them in an internal buffer.
