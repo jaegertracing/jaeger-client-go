@@ -113,14 +113,16 @@ func newHTTPServer(t *testing.T) *httpServer {
 	http.HandleFunc("/api/v1/spans", func(w http.ResponseWriter, r *http.Request) {
 		contextType := r.Header.Get("Content-Type")
 		if contextType != "application/x-thrift" {
-			t.Fatalf(
+			t.Errorf(
 				"except Content-Type should be application/x-thrift, but is %s",
 				contextType)
+			return
 		}
 
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			t.Fatal(err)
+			t.Error(err)
+			return
 		}
 		buffer := thrift.NewTMemoryBuffer()
 		if _, err = buffer.Write(body); err != nil {
@@ -142,8 +144,7 @@ func newHTTPServer(t *testing.T) *httpServer {
 			}
 			spans = append(spans, zs)
 		}
-		err = transport.ReadListEnd()
-		if err != nil {
+		if err := transport.ReadListEnd(); err != nil {
 			t.Error(err)
 			return
 		}
