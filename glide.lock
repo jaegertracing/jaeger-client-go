@@ -1,8 +1,8 @@
-hash: bb37c90fc144cb58e4435381ddfc68b79c81ed1ce99e56c30543dbcc56cacf6b
-updated: 2016-10-04T16:48:38.551868879-04:00
+hash: 2f4a81772d4d619868713bd5d983039a1b3d3fa7fae74fdadbdf484b91a84262
+updated: 2016-10-12T15:36:08.038784937-07:00
 imports:
 - name: github.com/apache/thrift
-  version: 23d6746079d7b5fdb38214387c63f987e68a6d8f
+  version: d1c0d331992014f36b221ea707943cbaa3bfb3a3
   subpackages:
   - lib/go/thrift
 - name: github.com/crossdock/crossdock-go
@@ -43,7 +43,7 @@ imports:
   - trand
   - typed
 - name: golang.org/x/net
-  version: 3b993948b6f0e651ffb58ba135d8538a68b1cddf
+  version: 6dba816f1056709e29a1c442883cab1336d3c083
   subpackages:
   - context
   - context/ctxhttp
