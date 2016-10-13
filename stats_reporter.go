@@ -53,8 +53,8 @@ func (nullStatsReporter) RecordTimer(name string, tags map[string]string, d time
 //
 // This is only meant for testing, not optimized for production use.
 type InMemoryStatsCollector struct {
+	sync.Mutex
 	counters map[string]*inMemoryCounter
-	cMutex   sync.Mutex
 }
 
 // NewInMemoryStatsCollector creates new in-memory stats reporter (aggregator)
@@ -87,8 +87,8 @@ func (r *InMemoryStatsCollector) getKey(name string, tags map[string]string) str
 // IncCounter implements IncCounter of StatsReporter
 func (r *InMemoryStatsCollector) IncCounter(name string, tags map[string]string, value int64) {
 	key := r.getKey(name, tags)
-	r.cMutex.Lock()
-	defer r.cMutex.Unlock()
+	r.Lock()
+	defer r.Unlock()
 	if entry, ok := r.counters[key]; ok {
 		entry.Value += value
 	} else {
@@ -103,8 +103,8 @@ func (r *InMemoryStatsCollector) IncCounter(name string, tags map[string]string,
 // The keys in the map are in the form "name|tag1=value1|...|tagN=valueN", where
 // tag names are sorted alphabetically.
 func (r *InMemoryStatsCollector) GetCounterValues() map[string]int64 {
-	r.cMutex.Lock()
-	defer r.cMutex.Unlock()
+	r.Lock()
+	defer r.Unlock()
 	res := make(map[string]int64, len(r.counters))
 	for k, v := range r.counters {
 		res[k] = v.Value
@@ -117,3 +117,10 @@ func (r *InMemoryStatsCollector) UpdateGauge(name string, tags map[string]string
 
 // RecordTimer is a no-op implementation of RecordTimer of StatsReporter
 func (r *InMemoryStatsCollector) RecordTimer(name string, tags map[string]string, d time.Duration) {}
+
+// Clear discards accumulated stats
+func (r *InMemoryStatsCollector) Clear() {
+	r.Lock()
+	defer r.Unlock()
+	r.counters = make(map[string]*inMemoryCounter)
+}

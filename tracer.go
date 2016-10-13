@@ -224,7 +224,8 @@ func (t *tracer) startSpanWithOptions(
 		startTime,
 		samplerTags,
 		options.Tags,
-		rpcServer, /* joining with external trace if rpcServer */
+		hasParent,
+		rpcServer,
 	)
 }
 
@@ -278,13 +279,14 @@ func (t *tracer) startSpanInternal(
 	startTime time.Time,
 	internalTags []tag,
 	tags opentracing.Tags,
-	join bool, // are we joining an external trace?
+	hadParent bool,
+	rpcServer bool,
 ) opentracing.Span {
 	sp.tracer = t
 	sp.operationName = operationName
 	sp.startTime = startTime
 	sp.duration = 0
-	sp.firstInProcess = join || sp.context.parentID == 0
+	sp.firstInProcess = rpcServer || sp.context.parentID == 0
 	if len(tags) > 0 || len(internalTags) > 0 {
 		sp.tags = make([]tag, len(internalTags), len(tags)+len(internalTags))
 		copy(sp.tags, internalTags)
@@ -299,19 +301,18 @@ func (t *tracer) startSpanInternal(
 	t.metrics.SpansStarted.Inc(1)
 	if sp.context.IsSampled() {
 		t.metrics.SpansSampled.Inc(1)
-		if join {
-			t.metrics.TracesJoinedSampled.Inc(1)
-		} else if sp.context.parentID == 0 {
+		if !hadParent {
 			t.metrics.TracesStartedSampled.Inc(1)
+		} else if rpcServer {
+			t.metrics.TracesJoinedSampled.Inc(1)
 		}
 	} else {
 		t.metrics.SpansNotSampled.Inc(1)
-		if join {
-			t.metrics.TracesJoinedNotSampled.Inc(1)
-		} else if sp.context.parentID == 0 {
+		if !hadParent {
 			t.metrics.TracesStartedNotSampled.Inc(1)
+		} else if rpcServer {
+			t.metrics.TracesJoinedNotSampled.Inc(1)
 		}
-
 	}
 	return sp
 }
