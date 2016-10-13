@@ -1,7 +1,7 @@
 package: github.com/uber/jaeger-client-go
 import:
 - package: github.com/apache/thrift
-  version: 23d6746079d7b5fdb38214387c63f987e68a6d8f
+  version: master
   subpackages:
   - lib/go/thrift
 - package: github.com/opentracing/opentracing-go
