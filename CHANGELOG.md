@@ -5,7 +5,7 @@ Changes by Version
 -------------------
 
 - Add Zipkin HTTP transport
-
+- Add the jaeger-debug header
 
 1.5.1 (2016-09-27)
 -------------------

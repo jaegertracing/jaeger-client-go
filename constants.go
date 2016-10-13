@@ -33,6 +33,11 @@ const (
 	// trace can be found in the UI using this value as a correlation ID.
 	JaegerDebugHeader = "jaeger-debug-id"
 
+	// JaegerBaggageHeader is the name of the HTTP header that is used to submit baggage.
+	// It differs from TraceBaggageHeaderPrefix in that it can be used only in cases where
+	// a root span does not exist.
+	JaegerBaggageHeader = "jaeger-baggage"
+
 	// TracerHostnameTagKey used to report host name of the process.
 	TracerHostnameTagKey = "jaeger.hostname"
 

@@ -113,7 +113,25 @@ are available:
      sampling rate.
   1. `RateLimitingSampler` can be used to allow only a certain fixed
      number of traces to be sampled per second.
+     
+### Baggage Injection
 
+The OpenTracing spec allows for [baggage](http://opentracing.io/spec/#baggage),
+which are key value pairs that are added to the span context and propagated
+throughout the trace.
+An external process can inject baggage by setting the special 
+HTTP Header `jaeger-baggage` on a request
+
+```sh
+curl -H "jaeger-baggage: key1=value1, key2=value2" http://myhost.com
+```
+
+Baggage can also be programatically set inside your service by doing
+the following
+
+```go
+span.SetBaggageItem("key", "value")
+```
 
 ### Debug Traces (Forced Sampling)
 
