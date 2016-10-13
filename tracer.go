@@ -279,7 +279,7 @@ func (t *tracer) startSpanInternal(
 	startTime time.Time,
 	internalTags []tag,
 	tags opentracing.Tags,
-	hadParent bool,
+	hadParent bool, // was this span created as a childOf some non-empty context?
 	rpcServer bool,
 ) opentracing.Span {
 	sp.tracer = t
@@ -302,6 +302,11 @@ func (t *tracer) startSpanInternal(
 	if sp.context.IsSampled() {
 		t.metrics.SpansSampled.Inc(1)
 		if !hadParent {
+			// Use use hadParent flag passed by the caller to determine if this span
+			// was created as a childOf some non-empty context. We cannot simply check
+			// for parentID==0 because in Zipkin model the server-side RPC span has
+			// the exact same trace/span/parent IDs as the calling client-side span,
+			// but obviously the server side span is no longer a root span of the trace.
 			t.metrics.TracesStartedSampled.Inc(1)
 		} else if rpcServer {
 			t.metrics.TracesJoinedSampled.Inc(1)
