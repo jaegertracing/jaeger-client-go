@@ -1,12 +1,19 @@
 Changes by Version
 ==================
 
+1.6.1 (unreleased)
+-------------------
+
+- No changes yet
+
+
 1.6.0 (2016-10-14)
 -------------------
 
 - Add Zipkin HTTP transport
 - Support external baggage via jaeger-baggage header
 - Unpin Thrift version, keep to master
+
 
 1.5.1 (2016-09-27)
 -------------------
