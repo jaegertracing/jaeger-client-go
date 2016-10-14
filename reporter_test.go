@@ -102,7 +102,7 @@ func (s *reporterSuite) TestRootSpanAnnotations() {
 	s.NotNil(findAnnotation(zSpan, "ss"), "expecting ss annotation")
 	s.NotNil(findBinaryAnnotation(zSpan, "ca"), "expecting ca annotation")
 	s.NotNil(findBinaryAnnotation(zSpan, JaegerClientVersionTagKey), "expecting client version tag")
-	s.EqualValues(1, s.stats.GetCounterValues()["jaeger.reporter-spans|state=success"])
+	s.EqualValues(1, s.stats.GetCounterValue("jaeger.reporter-spans", "state", "success"))
 }
 
 func (s *reporterSuite) TestClientSpanAnnotations() {
@@ -123,7 +123,7 @@ func (s *reporterSuite) TestClientSpanAnnotations() {
 	s.NotNil(findAnnotation(zSpan, "cs"), "expecting cs annotation")
 	s.NotNil(findAnnotation(zSpan, "cr"), "expecting cr annotation")
 	s.NotNil(findBinaryAnnotation(zSpan, "sa"), "expecting sa annotation")
-	s.EqualValues(2, s.stats.GetCounterValues()["jaeger.reporter-spans|state=success"])
+	s.EqualValues(2, s.stats.GetCounterValue("jaeger.reporter-spans", "state", "success"))
 }
 
 func (s *reporterSuite) TestTagsAndEvents() {
@@ -228,8 +228,8 @@ func testRemoteReporter(
 	require.NotNil(t, sa)
 	assert.Equal(t, "downstream", sa.Host.ServiceName)
 
-	assert.EqualValues(t, 1, stats.GetCounterValues()["jaeger.reporter-spans|state=success"], "success metric")
-	assert.EqualValues(t, 0, stats.GetCounterValues()["jaeger.reporter-spans|state=failure"], "failure metric")
+	assert.EqualValues(t, 1, stats.GetCounterValue("jaeger.reporter-spans", "state", "success"), "success metric")
+	assert.EqualValues(t, 0, stats.GetCounterValue("jaeger.reporter-spans", "state", "failure"), "failure metric")
 }
 
 func (s *reporterSuite) TestMemoryReporterReport() {

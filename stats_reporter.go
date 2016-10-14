@@ -53,8 +53,8 @@ func (nullStatsReporter) RecordTimer(name string, tags map[string]string, d time
 //
 // This is only meant for testing, not optimized for production use.
 type InMemoryStatsCollector struct {
+	sync.Mutex
 	counters map[string]*inMemoryCounter
-	cMutex   sync.Mutex
 }
 
 // NewInMemoryStatsCollector creates new in-memory stats reporter (aggregator)
@@ -69,26 +69,66 @@ type inMemoryCounter struct {
 	Tags  map[string]string
 }
 
-// getKey converts name+tags into a single string of the form
-// "name|tag1=value1|...|tagN=valueN", where tag names are sorted alphabetically.
-func (r *InMemoryStatsCollector) getKey(name string, tags map[string]string) string {
+// MetricDescr describes a metric with tags
+type MetricDescr struct {
+	Name string
+	Tags map[string]string
+}
+
+// NewMetricDescr creates a new metric descriptor from the name and an even number
+// of keyValues strings treates as alternating key, value pairs.
+func NewMetricDescr(name string, keyValues ...string) MetricDescr {
+	m := MetricDescr{Name: name}
+	if len(keyValues)%2 != 0 {
+		return m.WithTag("error", "uneven_keyValues_count")
+	}
+	for i := 0; i < len(keyValues); i += 2 {
+		m = m.WithTag(keyValues[i], keyValues[i+1])
+	}
+	return m
+}
+
+// WithTag returns a new metric descriptor with additional tag
+func (m MetricDescr) WithTag(key, value string) MetricDescr {
+	tags := m.Tags
+	if tags == nil {
+		tags = make(map[string]string)
+	}
+	tags[key] = value
+	return MetricDescr{
+		Name: m.Name,
+		Tags: tags,
+	}
+}
+
+// Key converts name+tags into a single string of the form
+// "name|tag1=value1|...|tagN=valueN", where tag names are
+// sorted alphabetically.
+func (m MetricDescr) Key() string {
 	var keys []string
-	for k := range tags {
+	for k := range m.Tags {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
-	key := name
+	key := m.Name
 	for _, k := range keys {
-		key = key + "|" + k + "=" + tags[k]
+		key = key + "|" + k + "=" + m.Tags[k]
 	}
 	return key
+}
+
+func (r *InMemoryStatsCollector) getKey(name string, tags map[string]string) string {
+	return MetricDescr{
+		Name: name,
+		Tags: tags,
+	}.Key()
 }
 
 // IncCounter implements IncCounter of StatsReporter
 func (r *InMemoryStatsCollector) IncCounter(name string, tags map[string]string, value int64) {
 	key := r.getKey(name, tags)
-	r.cMutex.Lock()
-	defer r.cMutex.Unlock()
+	r.Lock()
+	defer r.Unlock()
 	if entry, ok := r.counters[key]; ok {
 		entry.Value += value
 	} else {
@@ -103,8 +143,8 @@ func (r *InMemoryStatsCollector) IncCounter(name string, tags map[string]string,
 // The keys in the map are in the form "name|tag1=value1|...|tagN=valueN", where
 // tag names are sorted alphabetically.
 func (r *InMemoryStatsCollector) GetCounterValues() map[string]int64 {
-	r.cMutex.Lock()
-	defer r.cMutex.Unlock()
+	r.Lock()
+	defer r.Unlock()
 	res := make(map[string]int64, len(r.counters))
 	for k, v := range r.counters {
 		res[k] = v.Value
@@ -117,3 +157,24 @@ func (r *InMemoryStatsCollector) UpdateGauge(name string, tags map[string]string
 
 // RecordTimer is a no-op implementation of RecordTimer of StatsReporter
 func (r *InMemoryStatsCollector) RecordTimer(name string, tags map[string]string, d time.Duration) {}
+
+// Clear discards accumulated stats
+func (r *InMemoryStatsCollector) Clear() {
+	r.Lock()
+	defer r.Unlock()
+	r.counters = make(map[string]*inMemoryCounter)
+}
+
+// GetCounterValue retrieves the value of a counter with the given name and tags.
+// Tags are read from an even number of key-values strings treates as alternating
+// key, value pairs.
+func (r *InMemoryStatsCollector) GetCounterValue(name string, tags ...string) int64 {
+	r.Lock()
+	defer r.Unlock()
+	descr := NewMetricDescr(name, tags...)
+	counter := r.counters[descr.Key()]
+	if counter == nil {
+		return 0
+	}
+	return counter.Value
+}

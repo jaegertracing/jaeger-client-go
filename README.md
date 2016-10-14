@@ -1,4 +1,4 @@
-[![GoDoc][doc-img]][doc] [![Build Status][ci-img]][ci] [![Coverage Status][cov-img]][cov]
+[![GoDoc][doc-img]][doc] [![Build Status][ci-img]][ci] [![Coverage Status][cov-img]][cov] [![OpenTracing Compatible][ot-img]][ot-url]
 
 # Jaeger Bindings for Go OpenTracing API
 
@@ -182,3 +182,6 @@ This allows using Jaeger UI to find the trace by this tag.
 [ci]: https://travis-ci.org/uber/jaeger-client-go
 [cov-img]: https://coveralls.io/repos/uber/jaeger-client-go/badge.svg?branch=master&service=github
 [cov]: https://coveralls.io/github/uber/jaeger-client-go?branch=master
+[ot-img]: https://github.com/opentracing/contrib/blob/master/badge/OpenTracing-enabled-blue.png
+[ot-url]: http://opentracing.io
+
