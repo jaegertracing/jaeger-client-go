@@ -21,7 +21,6 @@
 package jaeger
 
 import (
-	"fmt"
 	"io"
 	"testing"
 	"time"
@@ -90,12 +89,12 @@ func (s *tracerSuite) TestBeginRootSpan() {
 	sp.Finish()
 	s.NotNil(ss.duration)
 
-	s.EqualValues(map[string]int64{
-		"jaeger.spans|group=lifecycle|state=started":  1,
-		"jaeger.spans|group=lifecycle|state=finished": 1,
-		"jaeger.spans|group=sampling|sampled=y":       1,
-		"jaeger.traces|sampled=y|state=started":       1,
-	}, s.stats.GetCounterValues())
+	assertMetrics(s.T(), s.stats, []expectedMetric{
+		{[]string{"jaeger.spans", "group", "lifecycle", "state", "started"}, 1},
+		{[]string{"jaeger.spans", "group", "lifecycle", "state", "finished"}, 1},
+		{[]string{"jaeger.spans", "group", "sampling", "sampled", "y"}, 1},
+		{[]string{"jaeger.traces", "sampled", "y", "state", "started"}, 1},
+	})
 }
 
 func (s *tracerSuite) TestStartRootSpanWithOptions() {
@@ -114,12 +113,12 @@ func (s *tracerSuite) TestStartChildSpan() {
 	sp2.Finish()
 	s.NotNil(sp2.(*span).duration)
 	sp1.Finish()
-	s.EqualValues(map[string]int64{
-		"jaeger.spans|group=sampling|sampled=y":       2,
-		"jaeger.traces|sampled=y|state=started":       1,
-		"jaeger.spans|group=lifecycle|state=started":  2,
-		"jaeger.spans|group=lifecycle|state=finished": 2,
-	}, s.stats.GetCounterValues())
+	assertMetrics(s.T(), s.stats, []expectedMetric{
+		{[]string{"jaeger.spans", "group", "sampling", "sampled", "y"}, 2},
+		{[]string{"jaeger.traces", "sampled", "y", "state", "started"}, 1},
+		{[]string{"jaeger.spans", "group", "lifecycle", "state", "started"}, 2},
+		{[]string{"jaeger.spans", "group", "lifecycle", "state", "finished"}, 2},
+	})
 }
 
 func (s *tracerSuite) TestTraceStartedOrJoinedMetrics() {
@@ -133,9 +132,9 @@ func (s *tracerSuite) TestTraceStartedOrJoinedMetrics() {
 	for _, test := range tests {
 		s.stats.Clear()
 		s.tracer.(*tracer).sampler = NewConstSampler(test.sampled)
-		sp1 := s.tracer.StartSpan("get_street", ext.RPCServerOption(nil))
-		sp2 := s.tracer.StartSpan("child", opentracing.ChildOf(sp1.Context()))
-		sp3 := s.tracer.StartSpan("child", ext.RPCServerOption(sp2.Context()))
+		sp1 := s.tracer.StartSpan("parent", ext.RPCServerOption(nil))
+		sp2 := s.tracer.StartSpan("child1", opentracing.ChildOf(sp1.Context()))
+		sp3 := s.tracer.StartSpan("child2", ext.RPCServerOption(sp2.Context()))
 		s.Equal(sp2.(*span).context.spanID, sp3.(*span).context.spanID)
 		s.Equal(sp2.(*span).context.parentID, sp3.(*span).context.parentID)
 		sp3.Finish()
@@ -143,16 +142,14 @@ func (s *tracerSuite) TestTraceStartedOrJoinedMetrics() {
 		sp1.Finish()
 		s.Equal(test.sampled, sp1.Context().(SpanContext).IsSampled())
 		s.Equal(test.sampled, sp2.Context().(SpanContext).IsSampled())
-		n := func(msg string) string {
-			return fmt.Sprintf(msg, test.label)
-		}
-		s.EqualValues(map[string]int64{
-			n("jaeger.spans|group=sampling|sampled=%s"):   3,
-			n("jaeger.traces|sampled=%s|state=started"):   1,
-			n("jaeger.traces|sampled=%s|state=joined"):    1,
-			"jaeger.spans|group=lifecycle|state=started":  3,
-			"jaeger.spans|group=lifecycle|state=finished": 3,
-		}, s.stats.GetCounterValues())
+
+		assertMetrics(s.T(), s.stats, []expectedMetric{
+			{[]string{"jaeger.spans", "group", "sampling", "sampled", test.label}, 3},
+			{[]string{"jaeger.spans", "group", "lifecycle", "state", "started"}, 3},
+			{[]string{"jaeger.spans", "group", "lifecycle", "state", "finished"}, 3},
+			{[]string{"jaeger.traces", "state", "started", "sampled", test.label}, 1},
+			{[]string{"jaeger.traces", "state", "joined", "sampled", test.label}, 1},
+		})
 	}
 }
 

@@ -182,13 +182,14 @@ func (t *tracer) startSpanWithOptions(
 
 	var samplerTags []tag
 	var ctx SpanContext
-	debugRequest := (hasParent && parent.isDebugIDContainerOnly())
-	if !hasParent || debugRequest {
+	newTrace := false
+	if !hasParent || !parent.IsValid() {
+		newTrace = true
 		ctx.traceID = t.randomID()
 		ctx.spanID = ctx.traceID
 		ctx.parentID = 0
 		ctx.flags = byte(0)
-		if debugRequest {
+		if hasParent && parent.isDebugIDContainerOnly() {
 			ctx.flags |= (flagSampled | flagDebug)
 			samplerTags = []tag{{key: JaegerDebugHeader, value: parent.debugID}}
 		} else if t.sampler.IsSampled(ctx.traceID) {
@@ -207,6 +208,8 @@ func (t *tracer) startSpanWithOptions(
 			ctx.parentID = parent.spanID
 		}
 		ctx.flags = parent.flags
+	}
+	if hasParent {
 		// copy baggage items
 		if l := len(parent.baggage); l > 0 {
 			ctx.baggage = make(map[string]string, len(parent.baggage))
@@ -224,7 +227,7 @@ func (t *tracer) startSpanWithOptions(
 		startTime,
 		samplerTags,
 		options.Tags,
-		hasParent,
+		newTrace,
 		rpcServer,
 	)
 }
@@ -279,7 +282,7 @@ func (t *tracer) startSpanInternal(
 	startTime time.Time,
 	internalTags []tag,
 	tags opentracing.Tags,
-	hadParent bool, // was this span created as a childOf some non-empty context?
+	newTrace bool,
 	rpcServer bool,
 ) opentracing.Span {
 	sp.tracer = t
@@ -301,21 +304,20 @@ func (t *tracer) startSpanInternal(
 	t.metrics.SpansStarted.Inc(1)
 	if sp.context.IsSampled() {
 		t.metrics.SpansSampled.Inc(1)
-		if !hadParent {
-			// Use use hadParent flag passed by the caller to determine if this span
-			// was created as a childOf some non-empty context. We cannot simply check
-			// for parentID==0 because in Zipkin model the server-side RPC span has
-			// the exact same trace/span/parent IDs as the calling client-side span,
-			// but obviously the server side span is no longer a root span of the trace.
+		if newTrace {
+			// We cannot simply check for parentID==0 because in Zipkin model the
+			// server-side RPC span has the exact same trace/span/parent IDs as the
+			// calling client-side span, but obviously the server side span is
+			// no longer a root span of the trace.
 			t.metrics.TracesStartedSampled.Inc(1)
-		} else if rpcServer {
+		} else if sp.firstInProcess {
 			t.metrics.TracesJoinedSampled.Inc(1)
 		}
 	} else {
 		t.metrics.SpansNotSampled.Inc(1)
-		if !hadParent {
+		if newTrace {
 			t.metrics.TracesStartedNotSampled.Inc(1)
-		} else if rpcServer {
+		} else if sp.firstInProcess {
 			t.metrics.TracesJoinedNotSampled.Inc(1)
 		}
 	}

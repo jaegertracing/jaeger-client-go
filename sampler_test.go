@@ -112,7 +112,7 @@ func TestRemotelyControlledSampler(t *testing.T) {
 			SamplingRate: 1.5, // bad value
 		}})
 	sampler.updateSampler()
-	assert.Equal(t, map[string]int64{"jaeger.sampler|phase=parsing|state=failure": 1}, stats.GetCounterValues())
+	assert.EqualValues(t, 1, stats.GetCounterValue("jaeger.sampler", "phase", "parsing", "state", "failure"))
 	_, ok = sampler.sampler.(*ProbabilisticSampler)
 	assert.True(t, ok)
 	assert.Equal(t, initSampler, sampler.sampler, "Sampler should not have been updated")
@@ -123,11 +123,12 @@ func TestRemotelyControlledSampler(t *testing.T) {
 			SamplingRate: 0.5, // good value
 		}})
 	sampler.updateSampler()
-	assert.Equal(t, map[string]int64{
-		"jaeger.sampler|phase=parsing|state=failure": 1,
-		"jaeger.sampler|state=retrieved":             1,
-		"jaeger.sampler|state=updated":               1,
-	}, stats.GetCounterValues())
+	assertMetrics(t, stats, []expectedMetric{
+		{[]string{"jaeger.sampler", "phase", "parsing", "state", "failure"}, 1},
+		{[]string{"jaeger.sampler", "state", "retrieved"}, 1},
+		{[]string{"jaeger.sampler", "state", "updated"}, 1},
+	})
+
 	_, ok = sampler.sampler.(*ProbabilisticSampler)
 	assert.True(t, ok)
 	assert.NotEqual(t, initSampler, sampler.sampler, "Sampler should have been updated")
@@ -179,7 +180,7 @@ func TestSamplerQueryError(t *testing.T) {
 
 	sampler.updateSampler()
 	assert.Equal(t, initSampler, sampler.sampler, "Sampler should not have been updated due to query error")
-	assert.Equal(t, map[string]int64{"jaeger.sampler|phase=query|state=failure": 1}, stats.GetCounterValues())
+	assert.EqualValues(t, 1, stats.GetCounterValue("jaeger.sampler", "phase", "query", "state", "failure"))
 }
 
 type fakeSamplingManager struct{}

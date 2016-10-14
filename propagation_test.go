@@ -89,13 +89,13 @@ func TestSpanPropagator(t *testing.T) {
 		assert.Equal(t, exp, sp, formatName)
 	}
 
-	assert.EqualValues(t, map[string]int64{
-		"jaeger.spans|group=sampling|sampled=y":       int64(1 + 2*len(tests)),
-		"jaeger.spans|group=lifecycle|state=started":  int64(1 + 2*len(tests)),
-		"jaeger.spans|group=lifecycle|state=finished": int64(1 + len(tests)),
-		"jaeger.traces|sampled=y|state=started":       1,
-		"jaeger.traces|sampled=y|state=joined":        int64(len(tests)),
-	}, stats.GetCounterValues())
+	assertMetrics(t, stats, []expectedMetric{
+		{[]string{"jaeger.spans", "group", "sampling", "sampled", "y"}, 1 + 2*len(tests)},
+		{[]string{"jaeger.spans", "group", "lifecycle", "state", "started"}, 1 + 2*len(tests)},
+		{[]string{"jaeger.spans", "group", "lifecycle", "state", "finished"}, 1 + len(tests)},
+		{[]string{"jaeger.traces", "sampled", "y", "state", "started"}, 1},
+		{[]string{"jaeger.traces", "sampled", "y", "state", "joined"}, len(tests)},
+	})
 }
 
 func TestSpanIntegrityAfterSerialize(t *testing.T) {
@@ -123,7 +123,7 @@ func TestDecodingError(t *testing.T) {
 	tmc := opentracing.HTTPHeadersCarrier(httpHeader)
 	_, err := tracer.Extract(opentracing.HTTPHeaders, tmc)
 	assert.Error(t, err)
-	assert.Equal(t, map[string]int64{"jaeger.decoding-errors": 1}, stats.GetCounterValues())
+	assert.EqualValues(t, 1, stats.GetCounterValue("jaeger.decoding-errors"))
 }
 
 func TestBaggagePropagationHTTP(t *testing.T) {
@@ -149,7 +149,13 @@ func TestBaggagePropagationHTTP(t *testing.T) {
 }
 
 func TestJaegerBaggageHeader(t *testing.T) {
-	tracer, closer := NewTracer("hobbits", NewConstSampler(true), NewNullReporter())
+	stats := NewInMemoryStatsCollector()
+	metrics := NewMetrics(stats, nil)
+	tracer, closer := NewTracer("DOOP",
+		NewConstSampler(true),
+		NewNullReporter(),
+		TracerOptions.Metrics(metrics),
+	)
 	defer closer.Close()
 
 	h := http.Header{}
@@ -162,6 +168,10 @@ func TestJaegerBaggageHeader(t *testing.T) {
 
 	assert.Equal(t, "value1", sp.BaggageItem("key1"))
 	assert.Equal(t, "value two", sp.BaggageItem("key 2"))
+
+	// ensure that traces.started counter is incremented, not traces.joined
+	assert.EqualValues(t, 1,
+		stats.GetCounterValue("jaeger.traces", "sampled", "y", "state", "started"))
 }
 
 func TestParseCommaSeperatedMap(t *testing.T) {
@@ -183,11 +193,16 @@ func TestParseCommaSeperatedMap(t *testing.T) {
 		m := parseCommaSeparatedMap(testcase.in)
 		assert.Equal(t, testcase.out, m)
 	}
-
 }
 
 func TestDebugCorrelationID(t *testing.T) {
-	tracer, closer := NewTracer("DOOP", NewConstSampler(true), NewNullReporter())
+	stats := NewInMemoryStatsCollector()
+	metrics := NewMetrics(stats, nil)
+	tracer, closer := NewTracer("DOOP",
+		NewConstSampler(true),
+		NewNullReporter(),
+		TracerOptions.Metrics(metrics),
+	)
 	defer closer.Close()
 
 	h := http.Header{}
@@ -209,4 +224,8 @@ func TestDebugCorrelationID(t *testing.T) {
 		}
 	}
 	assert.True(t, tagFound)
+
+	// ensure that traces.started counter is incremented, not traces.joined
+	assert.EqualValues(t, 1,
+		stats.GetCounterValue("jaeger.traces", "sampled", "y", "state", "started"))
 }
