@@ -111,33 +111,39 @@ func TestAdaptiveSamplerErrors(t *testing.T) {
 }
 
 func TestAdaptiveSamplerEqual(t *testing.T) {
-	samplingRate := 0.5
-	maxTracesPerSecond := 2.0
+	samplingRateA := 0.5
+	samplingRateB := 0.6
+	maxTracesPerSecondA := 2.0
+	maxTracesPerSecondB := 3.0
+
 	samplingRates := map[string]*adaptiveSamplingRates{
-		testOperationName: {&samplingRate, &maxTracesPerSecond},
-	}
-	samplingRates2 := map[string]*adaptiveSamplingRates{
-		testFirstTimeOperationName: {&samplingRate, &maxTracesPerSecond},
-	}
-	samplingRates3 := map[string]*adaptiveSamplingRates{
-		testOperationName: {&samplingRate, nil},
-	}
-	samplingRates4 := map[string]*adaptiveSamplingRates{
-		testOperationName: {nil, &maxTracesPerSecond},
+		testOperationName: {&samplingRateA, &maxTracesPerSecondA},
 	}
 	sampler, _ := NewAdaptiveSampler(samplingRates)
-	sampler2, _ := NewAdaptiveSampler(samplingRates)
-	sampler3, _ := NewAdaptiveSampler(samplingRates2)
-	sampler4, _ := NewAdaptiveSampler(samplingRates3)
-	sampler5, _ := NewAdaptiveSampler(samplingRates4)
 
-	assert.True(t, sampler.Equal(sampler2))
-	assert.False(t, sampler.Equal(sampler3))
-	assert.False(t, sampler.Equal(sampler4))
-	assert.False(t, sampler.Equal(sampler5))
+	tests := []struct {
+		operation          string
+		samplingRate       *float64
+		maxTracesPerSecond *float64
+		equal              bool
+	}{
+		{testOperationName, &samplingRateA, &maxTracesPerSecondA, true},
+		{testFirstTimeOperationName, &samplingRateA, &maxTracesPerSecondA, false},
+		{testOperationName, &samplingRateA, nil, false},
+		{testOperationName, nil, &maxTracesPerSecondA, false},
+		{testOperationName, &samplingRateA, &maxTracesPerSecondB, false},
+		{testOperationName, &samplingRateB, &maxTracesPerSecondA, false},
+	}
 
-	sampler6, _ := NewRateLimitingSampler(2)
-	assert.False(t, sampler.Equal(sampler6))
+	for _, test := range tests {
+		testSampler, _ := NewAdaptiveSampler(map[string]*adaptiveSamplingRates{
+			test.operation: {test.samplingRate, test.maxTracesPerSecond},
+		})
+		assert.Equal(t, test.equal, sampler.Equal(testSampler))
+	}
+
+	rateLimitingSampler, _ := NewRateLimitingSampler(2)
+	assert.False(t, sampler.Equal(rateLimitingSampler))
 }
 
 func TestRemotelyControlledSampler(t *testing.T) {

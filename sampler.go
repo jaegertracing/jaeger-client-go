@@ -245,7 +245,8 @@ func (s *adaptiveSampler) Close() {
 
 func (s *adaptiveSampler) Equal(other Sampler) bool {
 	if o, ok := other.(*adaptiveSampler); ok {
-		if !mapKeysEqual(s.probabilisticSamplers, o.probabilisticSamplers) {
+		if !mapKeysEqual(s.probabilisticSamplers, o.probabilisticSamplers) ||
+			!mapKeysEqual(s.rateLimitingSamplers, o.rateLimitingSamplers) {
 			return false
 		}
 		for operation, sampler := range s.probabilisticSamplers {
