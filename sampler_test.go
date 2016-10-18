@@ -14,44 +14,17 @@ import (
 )
 
 var (
-	testOperationName = "op"
+	testOperationName             = "op"
+	testFirstTimeOperationName    = "firstTimeOp"
+	testProbabilisticExpectedTags = []Tag{
+		{"sampler.type", "probabilistic"},
+		{"sampler.param", 0.5},
+	}
+	testRateLimitingExpectedTags = []Tag{
+		{"sampler.type", "ratelimiting"},
+		{"sampler.param", 2.0},
+	}
 )
-
-func TestSamplerTags(t *testing.T) {
-	prob, err := NewProbabilisticSampler(0.1)
-	require.NoError(t, err)
-	rate, err := NewRateLimitingSampler(0.1)
-	require.NoError(t, err)
-	remote := &RemotelyControlledSampler{
-		sampler: NewConstSampler(true),
-	}
-	tests := []struct {
-		sampler  Sampler
-		typeTag  string
-		paramTag interface{}
-	}{
-		{NewConstSampler(true), "const", true},
-		{NewConstSampler(false), "const", false},
-		{prob, "probabilistic", 0.1},
-		{rate, "ratelimiting", 0.1},
-		{remote, "const", true},
-	}
-	for _, test := range tests {
-		tags := test.sampler.getTags(testOperationName)
-		count := 0
-		for _, tag := range tags {
-			if tag.key == SamplerTypeTagKey {
-				assert.Equal(t, test.typeTag, tag.value)
-				count++
-			}
-			if tag.key == SamplerParamTagKey {
-				assert.Equal(t, test.paramTag, tag.value)
-				count++
-			}
-		}
-		assert.Equal(t, 2, count)
-	}
-}
 
 func TestProbabilisticSamplerErrors(t *testing.T) {
 	_, err := NewProbabilisticSampler(-0.1)
@@ -63,8 +36,12 @@ func TestProbabilisticSamplerErrors(t *testing.T) {
 func TestProbabilisticSampler(t *testing.T) {
 	sampler, _ := NewProbabilisticSampler(0.5)
 	id1 := uint64(1) << 62
-	assert.False(t, sampler.IsSampled(id1+10, testOperationName))
-	assert.True(t, sampler.IsSampled(id1-20, testOperationName))
+	sampled, tags := sampler.IsSampled(id1+10, testOperationName)
+	assert.False(t, sampled)
+	assert.Equal(t, testProbabilisticExpectedTags, tags)
+	sampled, tags = sampler.IsSampled(id1-20, testOperationName)
+	assert.True(t, sampled)
+	assert.Equal(t, testProbabilisticExpectedTags, tags)
 	sampler2, _ := NewProbabilisticSampler(0.5)
 	assert.True(t, sampler.Equal(sampler2))
 	assert.False(t, sampler.Equal(NewConstSampler(true)))
@@ -77,7 +54,8 @@ func TestProbabilisticSamplerPerformance(t *testing.T) {
 	var count uint64
 	for i := 0; i < 100000000; i++ {
 		id := uint64(rand.Int63())
-		if sampler.IsSampled(id, testOperationName) {
+		sampled, _ := sampler.IsSampled(id, testOperationName)
+		if sampled {
 			count++
 		}
 	}
@@ -92,6 +70,74 @@ func TestRateLimitingSampler(t *testing.T) {
 	assert.True(t, sampler.Equal(sampler2))
 	assert.False(t, sampler.Equal(sampler3))
 	assert.False(t, sampler.Equal(NewConstSampler(false)))
+}
+
+func TestAdaptiveSampler(t *testing.T) {
+	samplingRate := 0.5
+	maxTracesPerSecond := 2.0
+	samplingRates := map[string]*adaptiveSamplingRates{
+		testOperationName: {&samplingRate, &maxTracesPerSecond},
+	}
+	sampler, err := NewAdaptiveSampler(samplingRates)
+	defer sampler.Close()
+	require.NoError(t, err)
+
+	id1 := uint64(1) << 62
+	sampled, tags := sampler.IsSampled(id1-20, testOperationName)
+	assert.True(t, sampled)
+	assert.Equal(t, testProbabilisticExpectedTags, tags)
+
+	sampled, tags = sampler.IsSampled(id1+10, testOperationName)
+	assert.True(t, sampled)
+	assert.Equal(t, testRateLimitingExpectedTags, tags)
+
+	// This operation is the seen for the first time by the sampler
+	sampled, tags = sampler.IsSampled(id1, testFirstTimeOperationName)
+	assert.False(t, sampled)
+	assert.Nil(t, tags)
+}
+
+func TestAdaptiveSamplerErrors(t *testing.T) {
+	samplingRate := -0.1
+	samplingRates := map[string]*adaptiveSamplingRates{
+		testOperationName: {&samplingRate, nil},
+	}
+	_, err := NewAdaptiveSampler(samplingRates)
+	assert.Error(t, err)
+
+	samplingRate = 1.1
+	_, err = NewAdaptiveSampler(samplingRates)
+	assert.Error(t, err)
+}
+
+func TestAdaptiveSamplerEqual(t *testing.T) {
+	samplingRate := 0.5
+	maxTracesPerSecond := 2.0
+	samplingRates := map[string]*adaptiveSamplingRates{
+		testOperationName: {&samplingRate, &maxTracesPerSecond},
+	}
+	samplingRates2 := map[string]*adaptiveSamplingRates{
+		testFirstTimeOperationName: {&samplingRate, &maxTracesPerSecond},
+	}
+	samplingRates3 := map[string]*adaptiveSamplingRates{
+		testOperationName: {&samplingRate, nil},
+	}
+	samplingRates4 := map[string]*adaptiveSamplingRates{
+		testOperationName: {nil, &maxTracesPerSecond},
+	}
+	sampler, _ := NewAdaptiveSampler(samplingRates)
+	sampler2, _ := NewAdaptiveSampler(samplingRates)
+	sampler3, _ := NewAdaptiveSampler(samplingRates2)
+	sampler4, _ := NewAdaptiveSampler(samplingRates3)
+	sampler5, _ := NewAdaptiveSampler(samplingRates4)
+
+	assert.True(t, sampler.Equal(sampler2))
+	assert.False(t, sampler.Equal(sampler3))
+	assert.False(t, sampler.Equal(sampler4))
+	assert.False(t, sampler.Equal(sampler5))
+
+	sampler6, _ := NewRateLimitingSampler(2)
+	assert.False(t, sampler.Equal(sampler6))
 }
 
 func TestRemotelyControlledSampler(t *testing.T) {
@@ -138,8 +184,12 @@ func TestRemotelyControlledSampler(t *testing.T) {
 	assert.NotEqual(t, initSampler, sampler.sampler, "Sampler should have been updated")
 
 	id := uint64(1) << 62
-	assert.True(t, sampler.IsSampled(id-10, testOperationName))
-	assert.False(t, sampler.IsSampled(id+10, testOperationName))
+	sampled, tags := sampler.IsSampled(id-10, testOperationName)
+	assert.True(t, sampled)
+	assert.Equal(t, testProbabilisticExpectedTags, tags)
+	sampled, tags = sampler.IsSampled(id+10, testOperationName)
+	assert.False(t, sampled)
+	assert.Equal(t, testProbabilisticExpectedTags, tags)
 
 	sampler.sampler = initSampler
 	c := make(chan time.Time)

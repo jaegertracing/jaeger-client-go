@@ -56,7 +56,7 @@ type tracer struct {
 	injectors  map[interface{}]Injector
 	extractors map[interface{}]Extractor
 
-	tags []tag
+	tags []Tag
 }
 
 // NewTracer creates Tracer implementation that reports tracing to Jaeger.
@@ -127,9 +127,9 @@ func NewTracer(
 		}
 	}
 	// Set tracer-level tags
-	t.tags = append(t.tags, tag{key: JaegerClientVersionTagKey, value: JaegerClientVersion})
+	t.tags = append(t.tags, Tag{key: JaegerClientVersionTagKey, value: JaegerClientVersion})
 	if hostname, err := os.Hostname(); err == nil {
-		t.tags = append(t.tags, tag{key: TracerHostnameTagKey, value: hostname})
+		t.tags = append(t.tags, Tag{key: TracerHostnameTagKey, value: hostname})
 	}
 
 	return t, t
@@ -180,7 +180,7 @@ func (t *tracer) startSpanWithOptions(
 		rpcServer = (v == ext.SpanKindRPCServerEnum || v == string(ext.SpanKindRPCServerEnum))
 	}
 
-	var samplerTags []tag
+	var samplerTags []Tag
 	var ctx SpanContext
 	newTrace := false
 	if !hasParent || !parent.IsValid() {
@@ -191,11 +191,10 @@ func (t *tracer) startSpanWithOptions(
 		ctx.flags = byte(0)
 		if hasParent && parent.isDebugIDContainerOnly() {
 			ctx.flags |= (flagSampled | flagDebug)
-			samplerTags = []tag{{key: JaegerDebugHeader, value: parent.debugID}}
-		} else if t.sampler.IsSampled(ctx.traceID, operationName) {
+			samplerTags = []Tag{{key: JaegerDebugHeader, value: parent.debugID}}
+		} else if sampled, tags := t.sampler.IsSampled(ctx.traceID, operationName); sampled {
 			ctx.flags |= flagSampled
-			// this currently assumes that sampler tags are stable
-			samplerTags = t.sampler.getTags(operationName)
+			samplerTags = tags
 		}
 	} else {
 		ctx.traceID = parent.traceID
@@ -280,7 +279,7 @@ func (t *tracer) startSpanInternal(
 	sp *span,
 	operationName string,
 	startTime time.Time,
-	internalTags []tag,
+	internalTags []Tag,
 	tags opentracing.Tags,
 	newTrace bool,
 	rpcServer bool,
@@ -291,7 +290,7 @@ func (t *tracer) startSpanInternal(
 	sp.duration = 0
 	sp.firstInProcess = rpcServer || sp.context.parentID == 0
 	if len(tags) > 0 || len(internalTags) > 0 {
-		sp.tags = make([]tag, len(internalTags), len(tags)+len(internalTags))
+		sp.tags = make([]Tag, len(internalTags), len(tags)+len(internalTags))
 		copy(sp.tags, internalTags)
 		for k, v := range tags {
 			if k == string(ext.SamplingPriority) && setSamplingPriority(sp, k, v) {
