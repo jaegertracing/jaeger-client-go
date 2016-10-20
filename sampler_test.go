@@ -13,41 +13,14 @@ import (
 	"github.com/uber/jaeger-client-go/utils"
 )
 
-func TestSamplerTags(t *testing.T) {
-	prob, err := NewProbabilisticSampler(0.1)
-	require.NoError(t, err)
-	rate, err := NewRateLimitingSampler(0.1)
-	require.NoError(t, err)
-	remote := &RemotelyControlledSampler{
-		sampler: NewConstSampler(true),
+var (
+	testOperationName = "op"
+
+	testProbabilisticExpectedTags = []Tag{
+		{"sampler.type", "probabilistic"},
+		{"sampler.param", 0.5},
 	}
-	tests := []struct {
-		sampler  Sampler
-		typeTag  string
-		paramTag interface{}
-	}{
-		{NewConstSampler(true), "const", true},
-		{NewConstSampler(false), "const", false},
-		{prob, "probabilistic", 0.1},
-		{rate, "ratelimiting", 0.1},
-		{remote, "const", true},
-	}
-	for _, test := range tests {
-		tags := test.sampler.getTags()
-		count := 0
-		for _, tag := range tags {
-			if tag.key == SamplerTypeTagKey {
-				assert.Equal(t, test.typeTag, tag.value)
-				count++
-			}
-			if tag.key == SamplerParamTagKey {
-				assert.Equal(t, test.paramTag, tag.value)
-				count++
-			}
-		}
-		assert.Equal(t, 2, count)
-	}
-}
+)
 
 func TestProbabilisticSamplerErrors(t *testing.T) {
 	_, err := NewProbabilisticSampler(-0.1)
@@ -59,8 +32,12 @@ func TestProbabilisticSamplerErrors(t *testing.T) {
 func TestProbabilisticSampler(t *testing.T) {
 	sampler, _ := NewProbabilisticSampler(0.5)
 	id1 := uint64(1) << 62
-	assert.False(t, sampler.IsSampled(id1+10))
-	assert.True(t, sampler.IsSampled(id1-20))
+	sampled, tags := sampler.IsSampled(id1+10, testOperationName)
+	assert.False(t, sampled)
+	assert.Equal(t, testProbabilisticExpectedTags, tags)
+	sampled, tags = sampler.IsSampled(id1-20, testOperationName)
+	assert.True(t, sampled)
+	assert.Equal(t, testProbabilisticExpectedTags, tags)
 	sampler2, _ := NewProbabilisticSampler(0.5)
 	assert.True(t, sampler.Equal(sampler2))
 	assert.False(t, sampler.Equal(NewConstSampler(true)))
@@ -73,7 +50,7 @@ func TestProbabilisticSamplerPerformance(t *testing.T) {
 	var count uint64
 	for i := 0; i < 100000000; i++ {
 		id := uint64(rand.Int63())
-		if sampler.IsSampled(id) {
+		if sampled, _ := sampler.IsSampled(id, testOperationName); sampled {
 			count++
 		}
 	}
@@ -134,8 +111,12 @@ func TestRemotelyControlledSampler(t *testing.T) {
 	assert.NotEqual(t, initSampler, sampler.sampler, "Sampler should have been updated")
 
 	id := uint64(1) << 62
-	assert.True(t, sampler.IsSampled(id-10))
-	assert.False(t, sampler.IsSampled(id+10))
+	sampled, tags := sampler.IsSampled(id+10, testOperationName)
+	assert.False(t, sampled)
+	assert.Equal(t, testProbabilisticExpectedTags, tags)
+	sampled, tags = sampler.IsSampled(id-10, testOperationName)
+	assert.True(t, sampled)
+	assert.Equal(t, testProbabilisticExpectedTags, tags)
 
 	sampler.sampler = initSampler
 	c := make(chan time.Time)
