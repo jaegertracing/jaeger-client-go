@@ -32,10 +32,21 @@ import (
 
 const defaultSamplingServerHostPort = "localhost:5778"
 
+var (
+	defaultSamplingProbability = 0.001
+
+	// The default lower bound rate limit is 1 per 10 minutes
+	defaultMaxTracesPerSecond = 1.0 / (60 * 10)
+)
+
 // Sampler decides whether a new trace should be sampled or not.
 type Sampler interface {
-	// IsSampled decides whether a trace with given `id` should be sampled.
-	IsSampled(id uint64) bool
+	// IsSampled decides whether a trace with given `id` and `operation`
+	// should be sampled. This function will also return the tags that
+	// can be used to identify the type of sampling that was applied to
+	// the root span. Most simple samplers would return two tags,
+	// sampler.type and sampler.param, similar to those used in the Configuration
+	IsSampled(id uint64, operation string) (sampled bool, tags []Tag)
 
 	// Close does a clean shutdown of the sampler, stopping any background
 	// go-routines it may have started.
@@ -44,12 +55,6 @@ type Sampler interface {
 	// Equal checks if the `other` sampler is functionally equivalent
 	// to this sampler.
 	Equal(other Sampler) bool
-
-	// getTags return a set of tags that can be used to identify the type of
-	// sampling that was applied to the root span. Most simple samplers
-	// would return two tags, sampler.type and sampler.param, similar to
-	// those use in the Configuration
-	getTags() []tag
 }
 
 // -----------------------
@@ -57,12 +62,12 @@ type Sampler interface {
 // ConstSampler is a sampler that always makes the same decision.
 type ConstSampler struct {
 	Decision bool
-	tags     []tag
+	tags     []Tag
 }
 
 // NewConstSampler creates a ConstSampler.
 func NewConstSampler(sample bool) Sampler {
-	tags := []tag{
+	tags := []Tag{
 		{key: SamplerTypeTagKey, value: SamplerTypeConst},
 		{key: SamplerParamTagKey, value: sample},
 	}
@@ -70,8 +75,8 @@ func NewConstSampler(sample bool) Sampler {
 }
 
 // IsSampled implements IsSampled() of Sampler.
-func (s *ConstSampler) IsSampled(id uint64) bool {
-	return s.Decision
+func (s *ConstSampler) IsSampled(id uint64, operation string) (bool, []Tag) {
+	return s.Decision, s.tags
 }
 
 // Close implements Close() of Sampler.
@@ -87,18 +92,13 @@ func (s *ConstSampler) Equal(other Sampler) bool {
 	return false
 }
 
-// Tags implements Tags of Sampler
-func (s *ConstSampler) getTags() []tag {
-	return s.tags
-}
-
 // -----------------------
 
 // ProbabilisticSampler is a sampler that randomly samples a certain percentage
 // of traces.
 type ProbabilisticSampler struct {
 	SamplingBoundary uint64
-	tags             []tag
+	tags             []Tag
 }
 
 const maxRandomNumber = ^(uint64(1) << 63) // i.e. 0x7fffffffffffffff
@@ -112,7 +112,7 @@ func NewProbabilisticSampler(samplingRate float64) (Sampler, error) {
 	if samplingRate < 0.0 || samplingRate > 1.0 {
 		return nil, fmt.Errorf("Sampling Rate must be between 0.0 and 1.0, received %f", samplingRate)
 	}
-	tags := []tag{
+	tags := []Tag{
 		{key: SamplerTypeTagKey, value: SamplerTypeProbabilistic},
 		{key: SamplerParamTagKey, value: samplingRate},
 	}
@@ -122,8 +122,8 @@ func NewProbabilisticSampler(samplingRate float64) (Sampler, error) {
 }
 
 // IsSampled implements IsSampled() of Sampler.
-func (s *ProbabilisticSampler) IsSampled(id uint64) bool {
-	return s.SamplingBoundary >= id
+func (s *ProbabilisticSampler) IsSampled(id uint64, operation string) (bool, []Tag) {
+	return s.SamplingBoundary >= id, s.tags
 }
 
 // Close implements Close() of Sampler.
@@ -139,17 +139,12 @@ func (s *ProbabilisticSampler) Equal(other Sampler) bool {
 	return false
 }
 
-// Tags implements Tags of Sampler
-func (s *ProbabilisticSampler) getTags() []tag {
-	return s.tags
-}
-
 // -----------------------
 
 type rateLimitingSampler struct {
 	maxTracesPerSecond float64
 	rateLimiter        utils.RateLimiter
-	tags               []tag
+	tags               []Tag
 }
 
 // NewRateLimitingSampler creates a sampler that samples at most maxTracesPerSecond. The distribution of sampled
@@ -157,7 +152,7 @@ type rateLimitingSampler struct {
 // requests sampled uniformly as well, but if requests are bursty, especially sub-second, then a number of
 // sequential requests can be sampled each second.
 func NewRateLimitingSampler(maxTracesPerSecond float64) (Sampler, error) {
-	tags := []tag{
+	tags := []Tag{
 		{key: SamplerTypeTagKey, value: SamplerTypeRateLimiting},
 		{key: SamplerParamTagKey, value: maxTracesPerSecond},
 	}
@@ -169,8 +164,8 @@ func NewRateLimitingSampler(maxTracesPerSecond float64) (Sampler, error) {
 }
 
 // IsSampled implements IsSampled() of Sampler.
-func (s *rateLimitingSampler) IsSampled(id uint64) bool {
-	return s.rateLimiter.CheckCredit(1.0)
+func (s *rateLimitingSampler) IsSampled(id uint64, operation string) (bool, []Tag) {
+	return s.rateLimiter.CheckCredit(1.0), s.tags
 }
 
 func (s *rateLimitingSampler) Close() {
@@ -184,9 +179,152 @@ func (s *rateLimitingSampler) Equal(other Sampler) bool {
 	return false
 }
 
-// Tags implements Tags of Sampler
-func (s *rateLimitingSampler) getTags() []tag {
-	return s.tags
+// -----------------------
+
+type lowerBoundSampler struct {
+	rateLimitingSampler Sampler
+	samplingRate        float64
+	tags                []Tag
+}
+
+// NewLowerBoundSampler creates a sampler that samples at most maxTracesPerSecond. It is a wrapper around
+// a rateLimitingSampler with different tags since it's intended to be used by the adaptiveSampler.
+// The sampler.param tag is sampling rate rather than maxTracesPerSecond. This is used to tell the collector
+// that the trace sampled by this sampler used the samplingRate to determine the throughput for the operation.
+func NewLowerBoundSampler(maxTracesPerSecond, samplingRate float64) (Sampler, error) {
+	tags := []Tag{
+		{key: SamplerTypeTagKey, value: SamplerTypeLowerBound},
+		{key: SamplerParamTagKey, value: samplingRate},
+	}
+	rateLimitingSampler, err := NewRateLimitingSampler(maxTracesPerSecond)
+	if err != nil {
+		return nil, err
+	}
+	return &lowerBoundSampler{
+		rateLimitingSampler: rateLimitingSampler,
+		samplingRate:        samplingRate,
+		tags:                tags,
+	}, nil
+}
+
+// IsSampled implements IsSampled() of Sampler.
+func (s *lowerBoundSampler) IsSampled(id uint64, operation string) (bool, []Tag) {
+	sampled, _ := s.rateLimitingSampler.IsSampled(id, operation)
+	return sampled, s.tags
+}
+
+func (s *lowerBoundSampler) Close() {
+	s.rateLimitingSampler.Close()
+}
+
+func (s *lowerBoundSampler) Equal(other Sampler) bool {
+	if o, ok := other.(*lowerBoundSampler); ok {
+		return s.samplingRate == o.samplingRate &&
+			s.rateLimitingSampler.Equal(o.rateLimitingSampler)
+	}
+	return false
+}
+
+// -----------------------
+
+type multiSampler struct {
+	probabilisticSampler Sampler
+	lowerBoundSampler    Sampler
+}
+
+type adaptiveSampler struct {
+	samplers map[string]*multiSampler
+
+	// TODO expand to keep track of newly seen operations
+	// TODO add a cap on the number of operations
+	// TODO need default rate limit and probabilistic rates for first time operations
+}
+
+// NewAdaptiveSampler adaptiveSampler is a delegating sampler that applies both probabilisticSampler and
+// rateLimitingSampler per operation. The probabilisticSampler is given higher priority when tags are emitted,
+// ie. if IsSampled() for both samplers return true, the tags for probabilisticSampler will be used.
+//
+// This sampler assumes that it will be used by RemotelyControlledSampler hence it is up to the user to
+// ensure this is thread-safe if not used by RemotelyControlledSampler.
+func NewAdaptiveSampler(maxTracesPerSecond float64, samplingRates map[string]*float64) (Sampler, error) {
+	samplers := make(map[string]*multiSampler)
+	for operation, samplingRate := range samplingRates {
+		if samplingRate == nil {
+			samplingRate = &defaultSamplingProbability
+		}
+		probabilisticSampler, err := NewProbabilisticSampler(*samplingRate)
+		if err != nil {
+			return nil, err
+		}
+		lowerBoundSampler, err := NewLowerBoundSampler(maxTracesPerSecond, *samplingRate)
+		if err != nil {
+			return nil, err
+		}
+		samplers[operation] = &multiSampler{
+			probabilisticSampler: probabilisticSampler,
+			lowerBoundSampler:    lowerBoundSampler,
+		}
+	}
+	return &adaptiveSampler{
+		samplers: samplers,
+	}, nil
+}
+
+func (s *adaptiveSampler) IsSampled(id uint64, operation string) (bool, []Tag) {
+	sampler, ok := s.samplers[operation]
+	if !ok {
+		// TODO handle first time operation
+		return false, nil
+	}
+	if sampler.probabilisticSampler != nil {
+		if sampled, tags := sampler.probabilisticSampler.IsSampled(id, operation); sampled {
+			return true, tags
+		}
+	}
+	if sampler.lowerBoundSampler != nil {
+		return sampler.lowerBoundSampler.IsSampled(id, operation)
+	}
+	// It should not get here, ideally every adaptiveSampler for an operation should have at least one sampler
+	return false, nil
+}
+
+func (s *adaptiveSampler) Close() {
+	for _, sampler := range s.samplers {
+		if sampler.probabilisticSampler != nil {
+			sampler.probabilisticSampler.Close()
+		}
+		if sampler.lowerBoundSampler != nil {
+			sampler.lowerBoundSampler.Close()
+		}
+	}
+}
+
+func (s *adaptiveSampler) Equal(other Sampler) bool {
+	if o, ok := other.(*adaptiveSampler); ok {
+		if !mapKeysEqual(s.samplers, o.samplers) {
+			return false
+		}
+		for operation, sampler := range s.samplers {
+			if !sampler.probabilisticSampler.Equal(o.samplers[operation].probabilisticSampler) ||
+				!sampler.lowerBoundSampler.Equal(o.samplers[operation].lowerBoundSampler) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
+func mapKeysEqual(m1, m2 map[string]*multiSampler) bool {
+	if len(m1) != len(m2) {
+		return false
+	}
+	for k := range m1 {
+		if _, ok := m2[k]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 // -----------------------
@@ -253,10 +391,10 @@ func NewRemotelyControlledSampler(
 }
 
 // IsSampled implements IsSampled() of Sampler.
-func (s *RemotelyControlledSampler) IsSampled(id uint64) bool {
+func (s *RemotelyControlledSampler) IsSampled(id uint64, operation string) (bool, []Tag) {
 	s.RLock()
 	defer s.RUnlock()
-	return s.sampler.IsSampled(id)
+	return s.sampler.IsSampled(id, operation)
 }
 
 // Close implements Close() of Sampler.
@@ -266,13 +404,6 @@ func (s *RemotelyControlledSampler) Close() {
 	s.RUnlock()
 
 	s.pollStopped.Wait()
-}
-
-// Tags implements Tags of Sampler
-func (s *RemotelyControlledSampler) getTags() []tag {
-	s.RLock()
-	defer s.RUnlock()
-	return s.sampler.getTags()
 }
 
 // Equal implements Equal() of Sampler.
@@ -319,6 +450,7 @@ func (s *RemotelyControlledSampler) updateSampler() {
 }
 
 func (s *RemotelyControlledSampler) extractSampler(res *sampling.SamplingStrategyResponse) (Sampler, error) {
+	// TODO create adaptive sampler
 	if probabilistic := res.GetProbabilisticSampling(); probabilistic != nil {
 		sampler, err := NewProbabilisticSampler(probabilistic.SamplingRate)
 		if err != nil {

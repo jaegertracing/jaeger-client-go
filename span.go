@@ -68,13 +68,14 @@ type span struct {
 	}
 
 	// tags attached to this span
-	tags []tag
+	tags []Tag
 
 	// The span's "micro-log"
 	logs []opentracing.LogRecord
 }
 
-type tag struct {
+// Tag a simple key value wrapper
+type Tag struct {
 	key   string
 	value interface{}
 }
@@ -108,11 +109,11 @@ func (s *span) setTagNoLocking(key string, value interface{}) {
 		handled = handler(s, key, value)
 	}
 	if !handled {
-		s.tags = append(s.tags, tag{key: key, value: value})
+		s.tags = append(s.tags, Tag{key: key, value: value})
 	}
 }
 
-func (s *span) setTracerTags(tags []tag) {
+func (s *span) setTracerTags(tags []Tag) {
 	s.Lock()
 	for _, tag := range tags {
 		s.tags = append(s.tags, tag)
