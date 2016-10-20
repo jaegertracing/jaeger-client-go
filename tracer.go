@@ -194,7 +194,6 @@ func (t *tracer) startSpanWithOptions(
 			samplerTags = []Tag{{key: JaegerDebugHeader, value: parent.debugID}}
 		} else if sampled, tags := t.sampler.IsSampled(ctx.traceID, operationName); sampled {
 			ctx.flags |= flagSampled
-			// this currently assumes that sampler tags are stable
 			samplerTags = tags
 		}
 	} else {
