@@ -22,6 +22,42 @@ var (
 	}
 )
 
+func TestSamplerTags(t *testing.T) {
+	prob, err := NewProbabilisticSampler(0.1)
+	require.NoError(t, err)
+	rate, err := NewRateLimitingSampler(0.1)
+	require.NoError(t, err)
+	remote := &RemotelyControlledSampler{
+		sampler: NewConstSampler(true),
+	}
+	tests := []struct {
+		sampler  Sampler
+		typeTag  string
+		paramTag interface{}
+	}{
+		{NewConstSampler(true), "const", true},
+		{NewConstSampler(false), "const", false},
+		{prob, "probabilistic", 0.1},
+		{rate, "ratelimiting", 0.1},
+		{remote, "const", true},
+	}
+	for _, test := range tests {
+		_, tags := test.sampler.IsSampled(0, testOperationName)
+		count := 0
+		for _, tag := range tags {
+			if tag.key == SamplerTypeTagKey {
+				assert.Equal(t, test.typeTag, tag.value)
+				count++
+			}
+			if tag.key == SamplerParamTagKey {
+				assert.Equal(t, test.paramTag, tag.value)
+				count++
+			}
+		}
+		assert.Equal(t, 2, count)
+	}
+}
+
 func TestProbabilisticSamplerErrors(t *testing.T) {
 	_, err := NewProbabilisticSampler(-0.1)
 	assert.Error(t, err)
