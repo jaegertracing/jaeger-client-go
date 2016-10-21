@@ -129,6 +129,10 @@ func TestAdaptiveSampler(t *testing.T) {
 	assert.True(t, sampled)
 	assert.Equal(t, testLowerBoundExpectedTags, tags)
 
+	sampled, tags = sampler.IsSampled(id1+10, testOperationName)
+	assert.False(t, sampled)
+	assert.Equal(t, testLowerBoundExpectedTags, tags)
+
 	// This operation is the seen for the first time by the sampler
 	sampled, tags = sampler.IsSampled(id1, testFirstTimeOperationName)
 	assert.True(t, sampled)

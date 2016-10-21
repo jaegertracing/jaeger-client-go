@@ -108,7 +108,7 @@ const maxRandomNumber = ^(uint64(1) << 63) // i.e. 0x7fffffffffffffff
 //
 // It relies on the fact that new trace IDs are 63bit random numbers themselves, thus making the sampling decision
 // without generating a new random number, but simply calculating if traceID < (samplingRate * 2^63).
-func NewProbabilisticSampler(samplingRate float64) (Sampler, error) {
+func NewProbabilisticSampler(samplingRate float64) (*ProbabilisticSampler, error) {
 	if samplingRate < 0.0 || samplingRate > 1.0 {
 		return nil, fmt.Errorf("Sampling Rate must be between 0.0 and 1.0, received %f", samplingRate)
 	}
@@ -118,7 +118,8 @@ func NewProbabilisticSampler(samplingRate float64) (Sampler, error) {
 	}
 	return &ProbabilisticSampler{
 		SamplingBoundary: uint64(float64(maxRandomNumber) * samplingRate),
-		tags:             tags}, nil
+		tags:             tags,
+	}, nil
 }
 
 // IsSampled implements IsSampled() of Sampler.
@@ -151,7 +152,7 @@ type rateLimitingSampler struct {
 // traces follows burstiness of the service, i.e. a service with uniformly distributed requests will have those
 // requests sampled uniformly as well, but if requests are bursty, especially sub-second, then a number of
 // sequential requests can be sampled each second.
-func NewRateLimitingSampler(maxTracesPerSecond float64) (Sampler, error) {
+func NewRateLimitingSampler(maxTracesPerSecond float64) (*rateLimitingSampler, error) {
 	tags := []Tag{
 		{key: SamplerTypeTagKey, value: SamplerTypeRateLimiting},
 		{key: SamplerParamTagKey, value: maxTracesPerSecond},
@@ -182,8 +183,8 @@ func (s *rateLimitingSampler) Equal(other Sampler) bool {
 // -----------------------
 
 type guaranteedThroughputProbabilisticSampler struct {
-	probabilisticSampler Sampler
-	lowerBoundSampler    Sampler
+	probabilisticSampler *ProbabilisticSampler
+	lowerBoundSampler    *rateLimitingSampler
 	operation            string
 	tags                 []Tag
 }
