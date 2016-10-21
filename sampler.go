@@ -32,6 +32,13 @@ import (
 
 const defaultSamplingServerHostPort = "localhost:5778"
 
+var (
+	defaultSamplingProbability = 0.001
+
+	// The default lower bound rate limit is 1 per 10 minutes
+	defaultMaxTracesPerSecond = 1.0 / (60 * 10)
+)
+
 // Sampler decides whether a new trace should be sampled or not.
 type Sampler interface {
 	// IsSampled decides whether a trace with given `id` and `operation`
@@ -111,7 +118,8 @@ func NewProbabilisticSampler(samplingRate float64) (Sampler, error) {
 	}
 	return &ProbabilisticSampler{
 		SamplingBoundary: uint64(float64(maxRandomNumber) * samplingRate),
-		tags:             tags}, nil
+		tags:             tags,
+	}, nil
 }
 
 // IsSampled implements IsSampled() of Sampler.
@@ -170,6 +178,141 @@ func (s *rateLimitingSampler) Equal(other Sampler) bool {
 		return s.maxTracesPerSecond == o.maxTracesPerSecond
 	}
 	return false
+}
+
+// -----------------------
+
+type guaranteedThroughputProbabilisticSampler struct {
+	probabilisticSampler Sampler
+	lowerBoundSampler    Sampler
+	operation            string
+	tags                 []Tag
+}
+
+// NewGuaranteedThroughputProbabilisticSampler guaranteedThroughputProbabilisticSampler is a delegating sampler
+// that applies both probabilisticSampler and rateLimitingSampler. The probabilisticSampler is given higher priority when
+// tags are emitted, ie. if IsSampled() for both samplers return true, the tags for probabilisticSampler will be used.
+func NewGuaranteedThroughputProbabilisticSampler(operation string, lowerBound, samplingRate float64) (Sampler, error) {
+	tags := []Tag{
+		{key: SamplerTypeTagKey, value: SamplerTypeLowerBound},
+		{key: SamplerParamTagKey, value: samplingRate},
+	}
+	probabilisticSampler, err := NewProbabilisticSampler(samplingRate)
+	if err != nil {
+		return nil, err
+	}
+	lowerBoundSampler, err := NewRateLimitingSampler(lowerBound)
+	if err != nil {
+		return nil, err
+	}
+	return &guaranteedThroughputProbabilisticSampler{
+		probabilisticSampler: probabilisticSampler,
+		lowerBoundSampler:    lowerBoundSampler,
+		operation:            operation,
+		tags:                 tags,
+	}, nil
+}
+
+func (s *guaranteedThroughputProbabilisticSampler) IsSampled(id uint64, operation string) (bool, []Tag) {
+	if sampled, tags := s.probabilisticSampler.IsSampled(id, operation); sampled {
+		s.lowerBoundSampler.IsSampled(id, operation)
+		return true, tags
+	}
+	sampled, _ := s.lowerBoundSampler.IsSampled(id, operation)
+	return sampled, s.tags
+}
+
+func (s *guaranteedThroughputProbabilisticSampler) Close() {
+	s.probabilisticSampler.Close()
+	s.lowerBoundSampler.Close()
+}
+
+func (s *guaranteedThroughputProbabilisticSampler) Equal(other Sampler) bool {
+	if o, ok := other.(*guaranteedThroughputProbabilisticSampler); ok {
+		return s.operation == o.operation && s.probabilisticSampler.Equal(o.probabilisticSampler) &&
+			s.lowerBoundSampler.Equal(o.lowerBoundSampler)
+	}
+	return false
+}
+
+// -----------------------
+
+type adaptiveSampler struct {
+	samplers                   map[string]Sampler
+	defaultSamplingProbability float64
+	lowerBound                 float64
+
+	// TODO expand to keep track of newly seen operations
+	// TODO add a cap on the number of operations
+	// TODO need default rate limit and probabilistic rates for first time operations
+}
+
+// NewAdaptiveSampler adaptiveSampler is a delegating sampler that applies both probabilisticSampler and
+// rateLimitingSampler via the guaranteedThroughputProbabilisticSampler. This sampler keeps track of all
+// operations and delegates calls to the respective guaranteedThroughputProbabilisticSampler.
+func NewAdaptiveSampler(lowerBound, defaultSamplingProbability float64, samplingRates map[string]float64) (Sampler, error) {
+	samplers := make(map[string]Sampler)
+	for operation, samplingRate := range samplingRates {
+		sampler, err := NewGuaranteedThroughputProbabilisticSampler(operation, lowerBound, samplingRate)
+		if err != nil {
+			return nil, err
+		}
+		samplers[operation] = sampler
+	}
+	return &adaptiveSampler{
+		samplers:                   samplers,
+		defaultSamplingProbability: defaultSamplingProbability,
+		lowerBound:                 lowerBound,
+	}, nil
+}
+
+func (s *adaptiveSampler) IsSampled(id uint64, operation string) (bool, []Tag) {
+	sampler, ok := s.samplers[operation]
+	if !ok {
+		sampler, err := NewGuaranteedThroughputProbabilisticSampler(operation, s.lowerBound, s.defaultSamplingProbability)
+		if err != nil {
+			return false, nil
+		}
+		s.samplers[operation] = sampler
+		return sampler.IsSampled(id, operation)
+	}
+	return sampler.IsSampled(id, operation)
+}
+
+func (s *adaptiveSampler) Close() {
+	for _, sampler := range s.samplers {
+		sampler.Close()
+	}
+}
+
+func (s *adaptiveSampler) Equal(other Sampler) bool {
+	if o, ok := other.(*adaptiveSampler); ok {
+		if !mapKeysEqual(s.samplers, o.samplers) {
+			return false
+		}
+		if s.lowerBound != o.lowerBound || s.defaultSamplingProbability != o.defaultSamplingProbability {
+			return false
+		}
+		for operation, sampler := range s.samplers {
+			if !sampler.Equal(o.samplers[operation]) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
+func mapKeysEqual(m1, m2 map[string]Sampler) bool {
+	if len(m1) != len(m2) {
+		return false
+	}
+	for k := range m1 {
+		if _, ok := m2[k]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 // -----------------------
@@ -295,6 +438,7 @@ func (s *RemotelyControlledSampler) updateSampler() {
 }
 
 func (s *RemotelyControlledSampler) extractSampler(res *sampling.SamplingStrategyResponse) (Sampler, error) {
+	// TODO create adaptive sampler
 	if probabilistic := res.GetProbabilisticSampling(); probabilistic != nil {
 		sampler, err := NewProbabilisticSampler(probabilistic.SamplingRate)
 		if err != nil {
