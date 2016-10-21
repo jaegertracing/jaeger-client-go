@@ -112,11 +112,11 @@ func TestRateLimitingSampler(t *testing.T) {
 
 func TestAdaptiveSampler(t *testing.T) {
 	samplingRate := 0.5
-	maxTracesPerSecond := 2.0
+	lowerBound := 2.0
 	samplingRates := map[string]float64{
 		testOperationName: samplingRate,
 	}
-	sampler, err := NewAdaptiveSampler(maxTracesPerSecond, testDefaultSamplingProbability, samplingRates)
+	sampler, err := NewAdaptiveSampler(lowerBound, testDefaultSamplingProbability, samplingRates)
 	defer sampler.Close()
 	require.NoError(t, err)
 
@@ -137,28 +137,28 @@ func TestAdaptiveSampler(t *testing.T) {
 
 func TestAdaptiveSamplerErrors(t *testing.T) {
 	samplingRate := -0.1
-	maxTracesPerSecond := 2.0
+	lowerBound := 2.0
 	samplingRates := map[string]float64{
 		testOperationName: samplingRate,
 	}
-	_, err := NewAdaptiveSampler(maxTracesPerSecond, testDefaultSamplingProbability, samplingRates)
+	_, err := NewAdaptiveSampler(lowerBound, testDefaultSamplingProbability, samplingRates)
 	assert.Error(t, err)
 
 	samplingRate = 1.1
-	_, err = NewAdaptiveSampler(maxTracesPerSecond, testDefaultSamplingProbability, samplingRates)
+	_, err = NewAdaptiveSampler(lowerBound, testDefaultSamplingProbability, samplingRates)
 	assert.Error(t, err)
 }
 
 func TestAdaptiveSamplerEqual(t *testing.T) {
 	samplingRateA := 0.5
 	samplingRateB := 0.6
-	maxTracesPerSecondA := 2.0
-	maxTracesPerSecondB := 3.0
+	lowerBoundA := 2.0
+	lowerBoundB := 3.0
 
 	samplingRates := map[string]float64{
 		testOperationName: samplingRateA,
 	}
-	sampler, _ := NewAdaptiveSampler(maxTracesPerSecondA, testDefaultSamplingProbability, samplingRates)
+	sampler, _ := NewAdaptiveSampler(lowerBoundA, testDefaultSamplingProbability, samplingRates)
 
 	tests := []struct {
 		operation          string
@@ -166,10 +166,10 @@ func TestAdaptiveSamplerEqual(t *testing.T) {
 		maxTracesPerSecond float64
 		equal              bool
 	}{
-		{testOperationName, samplingRateA, maxTracesPerSecondA, true},
-		{testFirstTimeOperationName, samplingRateA, maxTracesPerSecondA, false},
-		{testOperationName, samplingRateA, maxTracesPerSecondB, false},
-		{testOperationName, samplingRateB, maxTracesPerSecondA, false},
+		{testOperationName, samplingRateA, lowerBoundA, true},
+		{testFirstTimeOperationName, samplingRateA, lowerBoundA, false},
+		{testOperationName, samplingRateA, lowerBoundB, false},
+		{testOperationName, samplingRateB, lowerBoundA, false},
 	}
 
 	for _, test := range tests {

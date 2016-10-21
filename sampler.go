@@ -188,9 +188,9 @@ type guaranteedThroughputProbabilisticSampler struct {
 	tags                 []Tag
 }
 
-// NewOperationSampler operationSampler is a delegating sampler that applies both probabilisticSampler and
-// rateLimitingSampler. The probabilisticSampler is given higher priority when tags are emitted,
-// ie. if IsSampled() for both samplers return true, the tags for probabilisticSampler will be used.
+// NewGuaranteedThroughputProbabilisticSampler guaranteedThroughputProbabilisticSampler is a delegating sampler
+// that applies both probabilisticSampler and rateLimitingSampler. The probabilisticSampler is given higher priority when
+// tags are emitted, ie. if IsSampled() for both samplers return true, the tags for probabilisticSampler will be used.
 func NewGuaranteedThroughputProbabilisticSampler(operation string, lowerBound, samplingRate float64) (Sampler, error) {
 	tags := []Tag{
 		{key: SamplerTypeTagKey, value: SamplerTypeLowerBound},
