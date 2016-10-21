@@ -25,6 +25,8 @@ var (
 		{"sampler.type", "lowerbound"},
 		{"sampler.param", 0.5},
 	}
+
+	testDefaultSamplingProbability = 0.5
 )
 
 func TestSamplerTags(t *testing.T) {
@@ -114,7 +116,7 @@ func TestAdaptiveSampler(t *testing.T) {
 	samplingRates := map[string]float64{
 		testOperationName: samplingRate,
 	}
-	sampler, err := NewAdaptiveSampler(maxTracesPerSecond, samplingRates)
+	sampler, err := NewAdaptiveSampler(maxTracesPerSecond, testDefaultSamplingProbability, samplingRates)
 	defer sampler.Close()
 	require.NoError(t, err)
 
@@ -129,8 +131,8 @@ func TestAdaptiveSampler(t *testing.T) {
 
 	// This operation is the seen for the first time by the sampler
 	sampled, tags = sampler.IsSampled(id1, testFirstTimeOperationName)
-	assert.False(t, sampled)
-	assert.Nil(t, tags)
+	assert.True(t, sampled)
+	assert.Equal(t, testProbabilisticExpectedTags, tags)
 }
 
 func TestAdaptiveSamplerErrors(t *testing.T) {
@@ -139,11 +141,11 @@ func TestAdaptiveSamplerErrors(t *testing.T) {
 	samplingRates := map[string]float64{
 		testOperationName: samplingRate,
 	}
-	_, err := NewAdaptiveSampler(maxTracesPerSecond, samplingRates)
+	_, err := NewAdaptiveSampler(maxTracesPerSecond, testDefaultSamplingProbability, samplingRates)
 	assert.Error(t, err)
 
 	samplingRate = 1.1
-	_, err = NewAdaptiveSampler(maxTracesPerSecond, samplingRates)
+	_, err = NewAdaptiveSampler(maxTracesPerSecond, testDefaultSamplingProbability, samplingRates)
 	assert.Error(t, err)
 }
 
@@ -156,7 +158,7 @@ func TestAdaptiveSamplerEqual(t *testing.T) {
 	samplingRates := map[string]float64{
 		testOperationName: samplingRateA,
 	}
-	sampler, _ := NewAdaptiveSampler(maxTracesPerSecondA, samplingRates)
+	sampler, _ := NewAdaptiveSampler(maxTracesPerSecondA, testDefaultSamplingProbability, samplingRates)
 
 	tests := []struct {
 		operation          string
@@ -171,9 +173,8 @@ func TestAdaptiveSamplerEqual(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		testSampler, _ := NewAdaptiveSampler(test.maxTracesPerSecond, map[string]float64{
-			test.operation: test.samplingRate,
-		})
+		testSampler, _ := NewAdaptiveSampler(test.maxTracesPerSecond, testDefaultSamplingProbability,
+			map[string]float64{test.operation: test.samplingRate})
 		assert.Equal(t, test.equal, sampler.Equal(testSampler))
 	}
 
