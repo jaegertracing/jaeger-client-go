@@ -14,10 +14,15 @@ import (
 )
 
 var (
-	testOperationName = "op"
+	testOperationName          = "op"
+	testFirstTimeOperationName = "firstTimeOp"
 
 	testProbabilisticExpectedTags = []Tag{
 		{"sampler.type", "probabilistic"},
+		{"sampler.param", 0.5},
+	}
+	testLowerBoundExpectedTags = []Tag{
+		{"sampler.type", "lowerbound"},
 		{"sampler.param", 0.5},
 	}
 )
@@ -101,6 +106,80 @@ func TestRateLimitingSampler(t *testing.T) {
 	assert.True(t, sampler.Equal(sampler2))
 	assert.False(t, sampler.Equal(sampler3))
 	assert.False(t, sampler.Equal(NewConstSampler(false)))
+}
+
+func TestAdaptiveSampler(t *testing.T) {
+	samplingRate := 0.5
+	maxTracesPerSecond := 2.0
+	samplingRates := map[string]float64{
+		testOperationName: samplingRate,
+	}
+	sampler, err := NewAdaptiveSampler(maxTracesPerSecond, samplingRates)
+	defer sampler.Close()
+	require.NoError(t, err)
+
+	id1 := uint64(1) << 62
+	sampled, tags := sampler.IsSampled(id1-20, testOperationName)
+	assert.True(t, sampled)
+	assert.Equal(t, testProbabilisticExpectedTags, tags)
+
+	sampled, tags = sampler.IsSampled(id1+10, testOperationName)
+	assert.True(t, sampled)
+	assert.Equal(t, testLowerBoundExpectedTags, tags)
+
+	// This operation is the seen for the first time by the sampler
+	sampled, tags = sampler.IsSampled(id1, testFirstTimeOperationName)
+	assert.False(t, sampled)
+	assert.Nil(t, tags)
+}
+
+func TestAdaptiveSamplerErrors(t *testing.T) {
+	samplingRate := -0.1
+	maxTracesPerSecond := 2.0
+	samplingRates := map[string]float64{
+		testOperationName: samplingRate,
+	}
+	_, err := NewAdaptiveSampler(maxTracesPerSecond, samplingRates)
+	assert.Error(t, err)
+
+	samplingRate = 1.1
+	_, err = NewAdaptiveSampler(maxTracesPerSecond, samplingRates)
+	assert.Error(t, err)
+}
+
+func TestAdaptiveSamplerEqual(t *testing.T) {
+	samplingRateA := 0.5
+	samplingRateB := 0.6
+	maxTracesPerSecondA := 2.0
+	maxTracesPerSecondB := 3.0
+
+	samplingRates := map[string]float64{
+		testOperationName: samplingRateA,
+	}
+	sampler, _ := NewAdaptiveSampler(maxTracesPerSecondA, samplingRates)
+
+	tests := []struct {
+		operation          string
+		samplingRate       float64
+		maxTracesPerSecond float64
+		equal              bool
+	}{
+		{testOperationName, samplingRateA, maxTracesPerSecondA, true},
+		{testFirstTimeOperationName, samplingRateA, maxTracesPerSecondA, false},
+		{testOperationName, samplingRateA, maxTracesPerSecondB, false},
+		{testOperationName, samplingRateB, maxTracesPerSecondA, false},
+	}
+
+	for _, test := range tests {
+		testSampler, _ := NewAdaptiveSampler(test.maxTracesPerSecond, map[string]float64{
+			test.operation: test.samplingRate,
+		})
+		assert.Equal(t, test.equal, sampler.Equal(testSampler))
+	}
+
+	// Test incompatible sampler types
+	rateLimitingSampler, _ := NewRateLimitingSampler(2)
+	assert.False(t, sampler.Equal(rateLimitingSampler))
 }
 
 func TestRemotelyControlledSampler(t *testing.T) {
