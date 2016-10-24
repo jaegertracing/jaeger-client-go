@@ -96,16 +96,16 @@ func (p *SamplingManagerClient) recvGetSamplingStrategy() (value *SamplingStrate
 		return
 	}
 	if mTypeId == thrift.EXCEPTION {
-		error0 := thrift.NewTApplicationException(thrift.UNKNOWN_APPLICATION_EXCEPTION, "Unknown Exception")
-		var error1 error
-		error1, err = error0.Read(iprot)
+		error1 := thrift.NewTApplicationException(thrift.UNKNOWN_APPLICATION_EXCEPTION, "Unknown Exception")
+		var error2 error
+		error2, err = error1.Read(iprot)
 		if err != nil {
 			return
 		}
 		if err = iprot.ReadMessageEnd(); err != nil {
 			return
 		}
-		err = error1
+		err = error2
 		return
 	}
 	if mTypeId != thrift.REPLY {
@@ -143,9 +143,9 @@ func (p *SamplingManagerProcessor) ProcessorMap() map[string]thrift.TProcessorFu
 
 func NewSamplingManagerProcessor(handler SamplingManager) *SamplingManagerProcessor {
 
-	self2 := &SamplingManagerProcessor{handler: handler, processorMap: make(map[string]thrift.TProcessorFunction)}
-	self2.processorMap["getSamplingStrategy"] = &samplingManagerProcessorGetSamplingStrategy{handler: handler}
-	return self2
+	self3 := &SamplingManagerProcessor{handler: handler, processorMap: make(map[string]thrift.TProcessorFunction)}
+	self3.processorMap["getSamplingStrategy"] = &samplingManagerProcessorGetSamplingStrategy{handler: handler}
+	return self3
 }
 
 func (p *SamplingManagerProcessor) Process(iprot, oprot thrift.TProtocol) (success bool, err thrift.TException) {
@@ -158,12 +158,12 @@ func (p *SamplingManagerProcessor) Process(iprot, oprot thrift.TProtocol) (succe
 	}
 	iprot.Skip(thrift.STRUCT)
 	iprot.ReadMessageEnd()
-	x3 := thrift.NewTApplicationException(thrift.UNKNOWN_METHOD, "Unknown function "+name)
+	x4 := thrift.NewTApplicationException(thrift.UNKNOWN_METHOD, "Unknown function "+name)
 	oprot.WriteMessageBegin(name, thrift.EXCEPTION, seqId)
-	x3.Write(oprot)
+	x4.Write(oprot)
 	oprot.WriteMessageEnd()
 	oprot.Flush()
-	return false, x3
+	return false, x4
 
 }
 
