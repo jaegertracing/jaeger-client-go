@@ -27,6 +27,8 @@ var (
 	}
 
 	testDefaultSamplingProbability = 0.5
+
+	testMaxID = uint64(1) << 62
 )
 
 func TestSamplerTags(t *testing.T) {
@@ -74,11 +76,10 @@ func TestProbabilisticSamplerErrors(t *testing.T) {
 
 func TestProbabilisticSampler(t *testing.T) {
 	sampler, _ := NewProbabilisticSampler(0.5)
-	id1 := uint64(1) << 62
-	sampled, tags := sampler.IsSampled(id1+10, testOperationName)
+	sampled, tags := sampler.IsSampled(testMaxID+10, testOperationName)
 	assert.False(t, sampled)
 	assert.Equal(t, testProbabilisticExpectedTags, tags)
-	sampled, tags = sampler.IsSampled(id1-20, testOperationName)
+	sampled, tags = sampler.IsSampled(testMaxID-20, testOperationName)
 	assert.True(t, sampled)
 	assert.Equal(t, testProbabilisticExpectedTags, tags)
 	sampler2, _ := NewProbabilisticSampler(0.5)
@@ -110,6 +111,24 @@ func TestRateLimitingSampler(t *testing.T) {
 	assert.False(t, sampler.Equal(NewConstSampler(false)))
 }
 
+func TestGuaranteedThroughputProbabilisticSamplerUpdate(t *testing.T) {
+	samplingRate := 0.5
+	lowerBound := 2.0
+	sampler, err := NewGuaranteedThroughputProbabilisticSampler(testOperationName, lowerBound, samplingRate)
+	assert.NoError(t, err)
+
+	assert.Equal(t, lowerBound, sampler.lowerBound)
+	assert.Equal(t, samplingRate, sampler.samplingRate)
+
+	newSamplingRate := 0.6
+	newLowerBound := 1.0
+	err = sampler.update(newLowerBound, newSamplingRate)
+	assert.NoError(t, err)
+
+	assert.Equal(t, newLowerBound, sampler.lowerBound)
+	assert.Equal(t, newSamplingRate, sampler.samplingRate)
+}
+
 func TestAdaptiveSampler(t *testing.T) {
 	samplingRate := 0.5
 	lowerBound := 2.0
@@ -120,20 +139,19 @@ func TestAdaptiveSampler(t *testing.T) {
 	defer sampler.Close()
 	require.NoError(t, err)
 
-	id1 := uint64(1) << 62
-	sampled, tags := sampler.IsSampled(id1-20, testOperationName)
+	sampled, tags := sampler.IsSampled(testMaxID-20, testOperationName)
 	assert.True(t, sampled)
 	assert.Equal(t, testProbabilisticExpectedTags, tags)
 
-	sampled, tags = sampler.IsSampled(id1+10, testOperationName)
+	sampled, tags = sampler.IsSampled(testMaxID+10, testOperationName)
 	assert.True(t, sampled)
 	assert.Equal(t, testLowerBoundExpectedTags, tags)
 
-	sampled, tags = sampler.IsSampled(id1+10, testOperationName)
+	sampled, tags = sampler.IsSampled(testMaxID+10, testOperationName)
 	assert.False(t, sampled)
 
 	// This operation is the seen for the first time by the sampler
-	sampled, tags = sampler.IsSampled(id1, testFirstTimeOperationName)
+	sampled, tags = sampler.IsSampled(testMaxID, testFirstTimeOperationName)
 	assert.True(t, sampled)
 	assert.Equal(t, testProbabilisticExpectedTags, tags)
 }
@@ -152,10 +170,42 @@ func TestAdaptiveSamplerErrors(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestRemotelyControlledSampler(t *testing.T) {
+func TestAdaptiveSamplerUpdate(t *testing.T) {
+	samplingRate := 0.1
+	lowerBound := 2.0
+	samplingRates := map[string]float64{
+		testOperationName: samplingRate,
+	}
+	s, err := NewAdaptiveSampler(lowerBound, testDefaultSamplingProbability, samplingRates)
+	assert.NoError(t, err)
+
+	sampler, ok := s.(*adaptiveSampler)
+	assert.True(t, ok)
+	assert.Equal(t, lowerBound, sampler.lowerBound)
+	assert.Equal(t, testDefaultSamplingProbability, sampler.defaultSamplingProbability)
+	assert.Len(t, sampler.samplers, 1)
+
+	// Update the sampler with new sampling rates
+	newSamplingRate := 0.2
+	newLowerBound := 3.0
+	newDefaultSamplingProbability := 0.1
+	newSamplingRates := map[string]float64{
+		testOperationName:          newSamplingRate,
+		testFirstTimeOperationName: newSamplingRate,
+	}
+	s, err = NewAdaptiveSampler(newLowerBound, newDefaultSamplingProbability, newSamplingRates)
+	assert.NoError(t, err)
+
+	sampler, ok = s.(*adaptiveSampler)
+	assert.True(t, ok)
+	assert.Equal(t, newLowerBound, sampler.lowerBound)
+	assert.Equal(t, newDefaultSamplingProbability, sampler.defaultSamplingProbability)
+	assert.Len(t, sampler.samplers, 2)
+}
+
+func initAgent(t *testing.T) (*testutils.MockAgent, *RemotelyControlledSampler, *InMemoryStatsCollector) {
 	agent, err := testutils.StartMockAgent()
 	require.NoError(t, err)
-	defer agent.Close()
 
 	stats := NewInMemoryStatsCollector()
 	metrics := NewMetrics(stats, nil)
@@ -163,10 +213,17 @@ func TestRemotelyControlledSampler(t *testing.T) {
 	sampler := NewRemotelyControlledSampler("client app", nil, /* init sampler */
 		agent.SamplingServerAddr(), metrics, NullLogger)
 
+	sampler.Close() // stop timer-based updates, we want to call them manually
+
+	return agent, sampler, stats
+}
+
+func TestRemotelyControlledSampler(t *testing.T) {
+	agent, sampler, stats := initAgent(t)
+	defer agent.Close()
+
 	initSampler, ok := sampler.sampler.(*ProbabilisticSampler)
 	assert.True(t, ok)
-
-	sampler.Close() // stop timer-based updates, we want to call them manually
 
 	agent.AddSamplingStrategy("client app", &sampling.SamplingStrategyResponse{
 		StrategyType: sampling.SamplingStrategyType_PROBABILISTIC,
@@ -182,7 +239,7 @@ func TestRemotelyControlledSampler(t *testing.T) {
 	agent.AddSamplingStrategy("client app", &sampling.SamplingStrategyResponse{
 		StrategyType: sampling.SamplingStrategyType_PROBABILISTIC,
 		ProbabilisticSampling: &sampling.ProbabilisticSamplingStrategy{
-			SamplingRate: 0.5, // good value
+			SamplingRate: testDefaultSamplingProbability, // good value
 		}})
 	sampler.updateSampler()
 	assertMetrics(t, stats, []expectedMetric{
@@ -195,11 +252,10 @@ func TestRemotelyControlledSampler(t *testing.T) {
 	assert.True(t, ok)
 	assert.NotEqual(t, initSampler, sampler.sampler, "Sampler should have been updated")
 
-	id := uint64(1) << 62
-	sampled, tags := sampler.IsSampled(id+10, testOperationName)
+	sampled, tags := sampler.IsSampled(testMaxID+10, testOperationName)
 	assert.False(t, sampled)
 	assert.Equal(t, testProbabilisticExpectedTags, tags)
-	sampled, tags = sampler.IsSampled(id-10, testOperationName)
+	sampled, tags = sampler.IsSampled(testMaxID-10, testOperationName)
 	assert.True(t, sampled)
 	assert.Equal(t, testProbabilisticExpectedTags, tags)
 
@@ -218,23 +274,59 @@ func TestRemotelyControlledSampler(t *testing.T) {
 	assert.True(t, ok)
 	assert.NotEqual(t, initSampler, sampler.sampler, "Sampler should have been updated from timer")
 
-	_, err = sampler.extractSampler(&sampling.SamplingStrategyResponse{})
+	_, err := sampler.extractSampler(&sampling.SamplingStrategyResponse{})
 	assert.Error(t, err)
 	_, err = sampler.extractSampler(&sampling.SamplingStrategyResponse{
 		ProbabilisticSampling: &sampling.ProbabilisticSamplingStrategy{SamplingRate: 1.1}})
 	assert.Error(t, err)
 }
 
-func TestSamplerQueryError(t *testing.T) {
-	agent, err := testutils.StartMockAgent()
-	require.NoError(t, err)
+func TestX(t *testing.T) {
+	agent, sampler, _ := initAgent(t)
 	defer agent.Close()
 
-	stats := NewInMemoryStatsCollector()
-	metrics := NewMetrics(stats, nil)
+	initSampler, ok := sampler.sampler.(*ProbabilisticSampler)
+	assert.True(t, ok)
 
-	sampler := NewRemotelyControlledSampler("client app", nil, /* init sampler */
-		agent.SamplingServerAddr(), metrics, NullLogger)
+	tests := []struct {
+		opName      []string
+		probability []float64
+	}{
+		{[]string{testOperationName}, []float64{testDefaultSamplingProbability}},
+		{[]string{testOperationName, testFirstTimeOperationName},
+			[]float64{testDefaultSamplingProbability, testDefaultSamplingProbability}},
+	}
+
+	for _, test := range tests {
+		strategies := &sampling.SamplingStrategyResponse{
+			StrategyType: sampling.SamplingStrategyType_PROBABILISTIC,
+		}
+		for i := 0; i < len(test.opName); i++ {
+			strategies.OperationSamplingStrategies = append(strategies.OperationSamplingStrategies,
+				&sampling.OperationSamplingStrategy{
+					test.opName[i],
+					&sampling.ProbabilisticSamplingStrategy{test.probability[i]},
+				},
+			)
+		}
+		agent.AddSamplingStrategy("client app", strategies)
+		sampler.updateSampler()
+
+		_, ok = sampler.sampler.(*adaptiveSampler)
+		assert.True(t, ok)
+		assert.NotEqual(t, initSampler, sampler.sampler, "Sampler should have been updated")
+
+		sampled, tags := sampler.IsSampled(testMaxID+10, testOperationName)
+		assert.False(t, sampled)
+		sampled, tags = sampler.IsSampled(testMaxID-10, testOperationName)
+		assert.True(t, sampled)
+		assert.Equal(t, testProbabilisticExpectedTags, tags)
+	}
+}
+
+func TestSamplerQueryError(t *testing.T) {
+	agent, sampler, stats := initAgent(t)
+	defer agent.Close()
 
 	// override the actual handler
 	sampler.manager = &fakeSamplingManager{}
