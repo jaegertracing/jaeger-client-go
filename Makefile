@@ -10,6 +10,7 @@ ALL_SRC := $(shell find . -name "*.go" | grep -v -e vendor -e thrift-gen \
 
 export GO15VENDOREXPERIMENT=1
 
+RACE=-race
 GOTEST=go test -v $(RACE)
 GOLINT=golint
 GOVET=go vet
