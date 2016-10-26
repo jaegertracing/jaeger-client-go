@@ -152,40 +152,6 @@ func TestAdaptiveSamplerErrors(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestAdaptiveSamplerEqual(t *testing.T) {
-	samplingRateA := 0.5
-	samplingRateB := 0.6
-	lowerBoundA := 2.0
-	lowerBoundB := 3.0
-
-	samplingRates := map[string]float64{
-		testOperationName: samplingRateA,
-	}
-	sampler, _ := NewAdaptiveSampler(lowerBoundA, testDefaultSamplingProbability, samplingRates)
-
-	tests := []struct {
-		operation          string
-		samplingRate       float64
-		maxTracesPerSecond float64
-		equal              bool
-	}{
-		{testOperationName, samplingRateA, lowerBoundA, true},
-		{testFirstTimeOperationName, samplingRateA, lowerBoundA, false},
-		{testOperationName, samplingRateA, lowerBoundB, false},
-		{testOperationName, samplingRateB, lowerBoundA, false},
-	}
-
-	for _, test := range tests {
-		testSampler, _ := NewAdaptiveSampler(test.maxTracesPerSecond, testDefaultSamplingProbability,
-			map[string]float64{test.operation: test.samplingRate})
-		assert.Equal(t, test.equal, sampler.Equal(testSampler))
-	}
-
-	// Test incompatible sampler types
-	rateLimitingSampler, _ := NewRateLimitingSampler(2)
-	assert.False(t, sampler.Equal(rateLimitingSampler))
-}
-
 func TestRemotelyControlledSampler(t *testing.T) {
 	agent, err := testutils.StartMockAgent()
 	require.NoError(t, err)
