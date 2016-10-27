@@ -131,13 +131,12 @@ func TestGuaranteedThroughputProbabilisticSamplerUpdate(t *testing.T) {
 }
 
 func TestAdaptiveSampler(t *testing.T) {
-	samplingRate := 0.5
-	lowerBound := 2.0
 	samplingRates := []*sampling.OperationSamplingStrategy{
-		{testOperationName, &sampling.ProbabilisticSamplingStrategy{samplingRate}},
+		{testOperationName, &sampling.ProbabilisticSamplingStrategy{testDefaultSamplingProbability}},
 	}
+	strategies := &sampling.PerOperationSamplingStrategies{testDefaultSamplingProbability, 2.0, samplingRates}
 
-	sampler, err := NewAdaptiveSampler(NewAdaptiveSamplerOptions(testDefaultSamplingProbability, lowerBound, samplingRates))
+	sampler, err := NewAdaptiveSampler(strategies)
 	defer sampler.Close()
 	require.NoError(t, err)
 
@@ -164,11 +163,13 @@ func TestAdaptiveSamplerErrors(t *testing.T) {
 	samplingRates := []*sampling.OperationSamplingStrategy{
 		{testOperationName, &sampling.ProbabilisticSamplingStrategy{samplingRate}},
 	}
-	_, err := NewAdaptiveSampler(NewAdaptiveSamplerOptions(testDefaultSamplingProbability, lowerBound, samplingRates))
+	strategies := &sampling.PerOperationSamplingStrategies{testDefaultSamplingProbability, lowerBound, samplingRates}
+
+	_, err := NewAdaptiveSampler(strategies)
 	assert.Error(t, err)
 
-	samplingRate = 1.1
-	_, err = NewAdaptiveSampler(NewAdaptiveSamplerOptions(testDefaultSamplingProbability, lowerBound, samplingRates))
+	samplingRates[0].ProbabilisticSampling.SamplingRate = 1.1
+	_, err = NewAdaptiveSampler(strategies)
 	assert.Error(t, err)
 }
 
@@ -178,7 +179,9 @@ func TestAdaptiveSamplerUpdate(t *testing.T) {
 	samplingRates := []*sampling.OperationSamplingStrategy{
 		{testOperationName, &sampling.ProbabilisticSamplingStrategy{samplingRate}},
 	}
-	s, err := NewAdaptiveSampler(NewAdaptiveSamplerOptions(testDefaultSamplingProbability, lowerBound, samplingRates))
+	strategies := &sampling.PerOperationSamplingStrategies{testDefaultSamplingProbability, lowerBound, samplingRates}
+
+	s, err := NewAdaptiveSampler(strategies)
 	assert.NoError(t, err)
 
 	sampler, ok := s.(*adaptiveSampler)
@@ -195,7 +198,9 @@ func TestAdaptiveSamplerUpdate(t *testing.T) {
 		{testOperationName, &sampling.ProbabilisticSamplingStrategy{newSamplingRate}},
 		{testFirstTimeOperationName, &sampling.ProbabilisticSamplingStrategy{newSamplingRate}},
 	}
-	s, err = NewAdaptiveSampler(NewAdaptiveSamplerOptions(newDefaultSamplingProbability, newLowerBound, newSamplingRates))
+	strategies = &sampling.PerOperationSamplingStrategies{newDefaultSamplingProbability, newLowerBound, newSamplingRates}
+
+	s, err = NewAdaptiveSampler(strategies)
 	assert.NoError(t, err)
 
 	sampler, ok = s.(*adaptiveSampler)
@@ -283,7 +288,7 @@ func TestRemotelyControlledSampler(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestX(t *testing.T) {
+func TestUpdateSampler(t *testing.T) {
 	agent, sampler, _ := initAgent(t)
 	defer agent.Close()
 
@@ -300,18 +305,22 @@ func TestX(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		strategies := &sampling.SamplingStrategyResponse{
+		res := &sampling.SamplingStrategyResponse{
 			StrategyType: sampling.SamplingStrategyType_PROBABILISTIC,
+			OperationSampling: &sampling.PerOperationSamplingStrategies{
+				DefaultSamplingProbability:       testDefaultSamplingProbability,
+				DefaultLowerBoundTracesPerSecond: 0.001,
+			},
 		}
 		for i := 0; i < len(test.opName); i++ {
-			strategies.OperationSamplingStrategies = append(strategies.OperationSamplingStrategies,
+			res.OperationSampling.PerOperationStrategies = append(res.OperationSampling.PerOperationStrategies,
 				&sampling.OperationSamplingStrategy{
 					test.opName[i],
 					&sampling.ProbabilisticSamplingStrategy{test.probability[i]},
 				},
 			)
 		}
-		agent.AddSamplingStrategy("client app", strategies)
+		agent.AddSamplingStrategy("client app", res)
 		sampler.updateSampler()
 
 		_, ok = sampler.sampler.(*adaptiveSampler)

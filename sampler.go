@@ -30,14 +30,7 @@ import (
 	"github.com/uber/jaeger-client-go/utils"
 )
 
-const (
-	defaultSamplingServerHostPort = "localhost:5778"
-
-	defaultSamplingProbability = 0.001
-
-	// The default lower bound is 1 per 10 minutes.
-	defaultLowerBound = 1.0 / (60 * 10)
-)
+const defaultSamplingServerHostPort = "localhost:5778"
 
 // Sampler decides whether a new trace should be sampled or not.
 type Sampler interface {
@@ -287,19 +280,20 @@ type adaptiveSampler struct {
 	defaultSamplingProbability float64
 	lowerBound                 float64
 
-	// TODO expand to keep track of newly seen operations
 	// TODO add a cap on the number of operations
-	// TODO need default rate limit and probabilistic rates for first time operations
 }
 
 // NewAdaptiveSampler adaptiveSampler is a delegating sampler that applies both probabilisticSampler and
 // rateLimitingSampler via the guaranteedThroughputProbabilisticSampler. This sampler keeps track of all
 // operations and delegates calls to the respective guaranteedThroughputProbabilisticSampler.
-func NewAdaptiveSampler(opts *adaptiveSamplerOptions) (Sampler, error) {
+func NewAdaptiveSampler(strategies *sampling.PerOperationSamplingStrategies) (Sampler, error) {
 	samplers := make(map[string]*GuaranteedThroughputProbabilisticSampler)
-	for _, strategy := range opts.strategies {
+	for _, strategy := range strategies.PerOperationStrategies {
 		sampler, err := NewGuaranteedThroughputProbabilisticSampler(
-			strategy.Operation, opts.defaultLowerBound, strategy.ProbabilisticSampling.SamplingRate)
+			strategy.Operation,
+			strategies.DefaultLowerBoundTracesPerSecond,
+			strategy.ProbabilisticSampling.SamplingRate,
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -307,8 +301,8 @@ func NewAdaptiveSampler(opts *adaptiveSamplerOptions) (Sampler, error) {
 	}
 	return &adaptiveSampler{
 		samplers:                   samplers,
-		defaultSamplingProbability: opts.defaultSamplingProbability,
-		lowerBound:                 opts.defaultLowerBound,
+		defaultSamplingProbability: strategies.DefaultSamplingProbability,
+		lowerBound:                 strategies.DefaultLowerBoundTracesPerSecond,
 	}, nil
 }
 
@@ -338,25 +332,28 @@ func (s *adaptiveSampler) Equal(other Sampler) bool {
 }
 
 // this function should only be called while holding a Write lock
-func (s *adaptiveSampler) update(opts *adaptiveSamplerOptions) error {
-	for _, strategy := range opts.strategies {
+func (s *adaptiveSampler) update(strategies *sampling.PerOperationSamplingStrategies) error {
+	for _, strategy := range strategies.PerOperationStrategies {
 		operation := strategy.Operation
 		samplingRate := strategy.ProbabilisticSampling.SamplingRate
 		if sampler, ok := s.samplers[operation]; ok {
-			if err := sampler.update(opts.defaultLowerBound, samplingRate); err != nil {
+			if err := sampler.update(strategies.DefaultLowerBoundTracesPerSecond, samplingRate); err != nil {
 				return err
 			}
 		} else {
-			sampler, err := NewGuaranteedThroughputProbabilisticSampler(operation, opts.defaultLowerBound,
-				samplingRate)
+			sampler, err := NewGuaranteedThroughputProbabilisticSampler(
+				operation,
+				strategies.DefaultLowerBoundTracesPerSecond,
+				samplingRate,
+			)
 			if err != nil {
 				return err
 			}
 			s.samplers[operation] = sampler
 		}
 	}
-	s.lowerBound = opts.defaultLowerBound
-	s.defaultSamplingProbability = opts.defaultSamplingProbability
+	s.lowerBound = strategies.DefaultLowerBoundTracesPerSecond
+	s.defaultSamplingProbability = strategies.DefaultSamplingProbability
 	return nil
 }
 
@@ -465,15 +462,14 @@ func (s *RemotelyControlledSampler) pollController() {
 
 func (s *RemotelyControlledSampler) updateSampler() {
 	if res, err := s.manager.GetSamplingStrategy(s.serviceName); err == nil {
-		if sampler, opts, err := s.extractSampler(res); err == nil {
+		if sampler, strategies, err := s.extractSampler(res); err == nil {
 			s.metrics.SamplerRetrieved.Inc(1)
 			if !s.sampler.Equal(sampler) {
 				s.Lock()
-				if sampler, ok := s.sampler.(*adaptiveSampler); ok {
-					sampler.update(opts)
-				} else {
-					s.sampler = sampler
+				if adaptiveSampler, ok := s.sampler.(*adaptiveSampler); ok {
+					adaptiveSampler.update(strategies)
 				}
+				s.sampler = sampler
 				s.Unlock()
 				s.metrics.SamplerUpdated.Inc(1)
 			}
@@ -486,40 +482,18 @@ func (s *RemotelyControlledSampler) updateSampler() {
 	}
 }
 
-// NewAdaptiveSamplerOptions TODO this will be deleted when the idl changes
-func NewAdaptiveSamplerOptions(
-	defaultSamplingProbability, defaultLowerBound float64,
-	strategies []*sampling.OperationSamplingStrategy) *adaptiveSamplerOptions {
-
-	return &adaptiveSamplerOptions{
-		defaultSamplingProbability: defaultSamplingProbability,
-		defaultLowerBound:          defaultLowerBound,
-		strategies:                 strategies,
-	}
-}
-
-type adaptiveSamplerOptions struct {
-	defaultSamplingProbability float64
-	defaultLowerBound          float64
-	strategies                 []*sampling.OperationSamplingStrategy
-}
-
-func (s *RemotelyControlledSampler) extractSampler(res *sampling.SamplingStrategyResponse) (Sampler, *adaptiveSamplerOptions, error) {
-	if strategies := res.GetOperationSamplingStrategies(); strategies != nil {
-		// TODO read defaultSamplingProbability and defaultLowerBound from the response
-		opts := &adaptiveSamplerOptions{
-			defaultSamplingProbability: defaultSamplingProbability,
-			defaultLowerBound:          defaultLowerBound,
-			strategies:                 strategies,
-		}
+func (s *RemotelyControlledSampler) extractSampler(
+	res *sampling.SamplingStrategyResponse,
+) (Sampler, *sampling.PerOperationSamplingStrategies, error) {
+	if strategies := res.GetOperationSampling(); strategies != nil {
 		if sampler, ok := s.sampler.(*adaptiveSampler); ok {
-			return sampler, opts, nil
+			return sampler, strategies, nil
 		}
-		sampler, err := NewAdaptiveSampler(opts)
+		sampler, err := NewAdaptiveSampler(strategies)
 		if err != nil {
 			return nil, nil, err
 		}
-		return sampler, opts, nil
+		return sampler, strategies, nil
 	}
 	if probabilistic := res.GetProbabilisticSampling(); probabilistic != nil {
 		sampler, err := NewProbabilisticSampler(probabilistic.SamplingRate)
