@@ -13,10 +13,15 @@ import (
 	"github.com/uber/jaeger-client-go/utils"
 )
 
-var (
+const (
 	testOperationName          = "op"
 	testFirstTimeOperationName = "firstTimeOp"
 
+	testDefaultSamplingProbability = 0.5
+	testMaxID                      = uint64(1) << 62
+)
+
+var (
 	testProbabilisticExpectedTags = []Tag{
 		{"sampler.type", "probabilistic"},
 		{"sampler.param", 0.5},
@@ -25,10 +30,6 @@ var (
 		{"sampler.type", "lowerbound"},
 		{"sampler.param", 0.5},
 	}
-
-	testDefaultSamplingProbability = 0.5
-
-	testMaxID = uint64(1) << 62
 )
 
 func TestSamplerTags(t *testing.T) {
@@ -132,10 +133,11 @@ func TestGuaranteedThroughputProbabilisticSamplerUpdate(t *testing.T) {
 func TestAdaptiveSampler(t *testing.T) {
 	samplingRate := 0.5
 	lowerBound := 2.0
-	samplingRates := map[string]float64{
-		testOperationName: samplingRate,
+	samplingRates := []*sampling.OperationSamplingStrategy{
+		{testOperationName, &sampling.ProbabilisticSamplingStrategy{samplingRate}},
 	}
-	sampler, err := NewAdaptiveSampler(lowerBound, testDefaultSamplingProbability, samplingRates)
+
+	sampler, err := NewAdaptiveSampler(NewAdaptiveSamplerOptions(testDefaultSamplingProbability, lowerBound, samplingRates))
 	defer sampler.Close()
 	require.NoError(t, err)
 
@@ -159,24 +161,24 @@ func TestAdaptiveSampler(t *testing.T) {
 func TestAdaptiveSamplerErrors(t *testing.T) {
 	samplingRate := -0.1
 	lowerBound := 2.0
-	samplingRates := map[string]float64{
-		testOperationName: samplingRate,
+	samplingRates := []*sampling.OperationSamplingStrategy{
+		{testOperationName, &sampling.ProbabilisticSamplingStrategy{samplingRate}},
 	}
-	_, err := NewAdaptiveSampler(lowerBound, testDefaultSamplingProbability, samplingRates)
+	_, err := NewAdaptiveSampler(NewAdaptiveSamplerOptions(testDefaultSamplingProbability, lowerBound, samplingRates))
 	assert.Error(t, err)
 
 	samplingRate = 1.1
-	_, err = NewAdaptiveSampler(lowerBound, testDefaultSamplingProbability, samplingRates)
+	_, err = NewAdaptiveSampler(NewAdaptiveSamplerOptions(testDefaultSamplingProbability, lowerBound, samplingRates))
 	assert.Error(t, err)
 }
 
 func TestAdaptiveSamplerUpdate(t *testing.T) {
 	samplingRate := 0.1
 	lowerBound := 2.0
-	samplingRates := map[string]float64{
-		testOperationName: samplingRate,
+	samplingRates := []*sampling.OperationSamplingStrategy{
+		{testOperationName, &sampling.ProbabilisticSamplingStrategy{samplingRate}},
 	}
-	s, err := NewAdaptiveSampler(lowerBound, testDefaultSamplingProbability, samplingRates)
+	s, err := NewAdaptiveSampler(NewAdaptiveSamplerOptions(testDefaultSamplingProbability, lowerBound, samplingRates))
 	assert.NoError(t, err)
 
 	sampler, ok := s.(*adaptiveSampler)
@@ -189,11 +191,11 @@ func TestAdaptiveSamplerUpdate(t *testing.T) {
 	newSamplingRate := 0.2
 	newLowerBound := 3.0
 	newDefaultSamplingProbability := 0.1
-	newSamplingRates := map[string]float64{
-		testOperationName:          newSamplingRate,
-		testFirstTimeOperationName: newSamplingRate,
+	newSamplingRates := []*sampling.OperationSamplingStrategy{
+		{testOperationName, &sampling.ProbabilisticSamplingStrategy{newSamplingRate}},
+		{testFirstTimeOperationName, &sampling.ProbabilisticSamplingStrategy{newSamplingRate}},
 	}
-	s, err = NewAdaptiveSampler(newLowerBound, newDefaultSamplingProbability, newSamplingRates)
+	s, err = NewAdaptiveSampler(NewAdaptiveSamplerOptions(newDefaultSamplingProbability, newLowerBound, newSamplingRates))
 	assert.NoError(t, err)
 
 	sampler, ok = s.(*adaptiveSampler)
@@ -274,9 +276,9 @@ func TestRemotelyControlledSampler(t *testing.T) {
 	assert.True(t, ok)
 	assert.NotEqual(t, initSampler, sampler.sampler, "Sampler should have been updated from timer")
 
-	_, err := sampler.extractSampler(&sampling.SamplingStrategyResponse{})
+	_, _, err := sampler.extractSampler(&sampling.SamplingStrategyResponse{})
 	assert.Error(t, err)
-	_, err = sampler.extractSampler(&sampling.SamplingStrategyResponse{
+	_, _, err = sampler.extractSampler(&sampling.SamplingStrategyResponse{
 		ProbabilisticSampling: &sampling.ProbabilisticSamplingStrategy{SamplingRate: 1.1}})
 	assert.Error(t, err)
 }
