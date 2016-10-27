@@ -132,7 +132,10 @@ func TestGuaranteedThroughputProbabilisticSamplerUpdate(t *testing.T) {
 
 func TestAdaptiveSampler(t *testing.T) {
 	samplingRates := []*sampling.OperationSamplingStrategy{
-		{testOperationName, &sampling.ProbabilisticSamplingStrategy{testDefaultSamplingProbability}},
+		{
+			Operation:             testOperationName,
+			ProbabilisticSampling: &sampling.ProbabilisticSamplingStrategy{SamplingRate: testDefaultSamplingProbability},
+		},
 	}
 	strategies := &sampling.PerOperationSamplingStrategies{testDefaultSamplingProbability, 2.0, samplingRates}
 
@@ -161,7 +164,10 @@ func TestAdaptiveSamplerErrors(t *testing.T) {
 	samplingRate := -0.1
 	lowerBound := 2.0
 	samplingRates := []*sampling.OperationSamplingStrategy{
-		{testOperationName, &sampling.ProbabilisticSamplingStrategy{samplingRate}},
+		{
+			Operation:             testOperationName,
+			ProbabilisticSampling: &sampling.ProbabilisticSamplingStrategy{SamplingRate: samplingRate},
+		},
 	}
 	strategies := &sampling.PerOperationSamplingStrategies{testDefaultSamplingProbability, lowerBound, samplingRates}
 
@@ -177,7 +183,10 @@ func TestAdaptiveSamplerUpdate(t *testing.T) {
 	samplingRate := 0.1
 	lowerBound := 2.0
 	samplingRates := []*sampling.OperationSamplingStrategy{
-		{testOperationName, &sampling.ProbabilisticSamplingStrategy{samplingRate}},
+		{
+			Operation:             testOperationName,
+			ProbabilisticSampling: &sampling.ProbabilisticSamplingStrategy{SamplingRate: samplingRate},
+		},
 	}
 	strategies := &sampling.PerOperationSamplingStrategies{testDefaultSamplingProbability, lowerBound, samplingRates}
 
@@ -195,8 +204,14 @@ func TestAdaptiveSamplerUpdate(t *testing.T) {
 	newLowerBound := 3.0
 	newDefaultSamplingProbability := 0.1
 	newSamplingRates := []*sampling.OperationSamplingStrategy{
-		{testOperationName, &sampling.ProbabilisticSamplingStrategy{newSamplingRate}},
-		{testFirstTimeOperationName, &sampling.ProbabilisticSamplingStrategy{newSamplingRate}},
+		{
+			Operation:             testOperationName,
+			ProbabilisticSampling: &sampling.ProbabilisticSamplingStrategy{SamplingRate: newSamplingRate},
+		},
+		{
+			Operation:             testFirstTimeOperationName,
+			ProbabilisticSampling: &sampling.ProbabilisticSamplingStrategy{SamplingRate: newSamplingRate},
+		},
 	}
 	strategies = &sampling.PerOperationSamplingStrategies{newDefaultSamplingProbability, newLowerBound, newSamplingRates}
 
@@ -315,8 +330,10 @@ func TestUpdateSampler(t *testing.T) {
 		for i := 0; i < len(test.opName); i++ {
 			res.OperationSampling.PerOperationStrategies = append(res.OperationSampling.PerOperationStrategies,
 				&sampling.OperationSamplingStrategy{
-					test.opName[i],
-					&sampling.ProbabilisticSamplingStrategy{test.probability[i]},
+					Operation: test.opName[i],
+					ProbabilisticSampling: &sampling.ProbabilisticSamplingStrategy{
+						SamplingRate: test.probability[i],
+					},
 				},
 			)
 		}
