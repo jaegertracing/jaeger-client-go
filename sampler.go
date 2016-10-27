@@ -328,6 +328,11 @@ func (s *adaptiveSampler) Close() {
 }
 
 func (s *adaptiveSampler) Equal(other Sampler) bool {
+	// NB The Equal() function is overly expensive for adaptiveSampler since it's composed of multiple
+	// samplers which all need to be initialized before this function can be called for a comparison.
+	// Therefore, adaptiveSampler uses the update() function to only alter the samplers that need
+	// changing. Hence this function always returns false so that the update function can be called.
+	// Once the Equal() function is removed from the Sampler API, this will no longer be needed.
 	return false
 }
 
@@ -336,14 +341,15 @@ func (s *adaptiveSampler) update(strategies *sampling.PerOperationSamplingStrate
 	for _, strategy := range strategies.PerOperationStrategies {
 		operation := strategy.Operation
 		samplingRate := strategy.ProbabilisticSampling.SamplingRate
+		lowerBound := strategies.DefaultLowerBoundTracesPerSecond
 		if sampler, ok := s.samplers[operation]; ok {
-			if err := sampler.update(strategies.DefaultLowerBoundTracesPerSecond, samplingRate); err != nil {
+			if err := sampler.update(lowerBound, samplingRate); err != nil {
 				return err
 			}
 		} else {
 			sampler, err := NewGuaranteedThroughputProbabilisticSampler(
 				operation,
-				strategies.DefaultLowerBoundTracesPerSecond,
+				lowerBound,
 				samplingRate,
 			)
 			if err != nil {
