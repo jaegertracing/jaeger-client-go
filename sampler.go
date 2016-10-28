@@ -30,7 +30,11 @@ import (
 	"github.com/uber/jaeger-client-go/utils"
 )
 
-const defaultSamplingServerHostPort = "localhost:5778"
+const (
+	defaultSamplingServerHostPort = "localhost:5778"
+
+	defaultMaxOperations = 2000
+)
 
 // Sampler decides whether a new trace should be sampled or not.
 type Sampler interface {
@@ -267,16 +271,16 @@ func (s *GuaranteedThroughputProbabilisticSampler) update(lowerBound, samplingRa
 
 type adaptiveSampler struct {
 	samplers                   map[string]*GuaranteedThroughputProbabilisticSampler
+	defaultSampler             Sampler
 	defaultSamplingProbability float64
 	lowerBound                 float64
-
-	// TODO add a cap on the number of operations
+	maxOperations              int
 }
 
 // NewAdaptiveSampler adaptiveSampler is a delegating sampler that applies both probabilisticSampler and
 // rateLimitingSampler via the guaranteedThroughputProbabilisticSampler. This sampler keeps track of all
 // operations and delegates calls to the respective guaranteedThroughputProbabilisticSampler.
-func NewAdaptiveSampler(strategies *sampling.PerOperationSamplingStrategies) (Sampler, error) {
+func NewAdaptiveSampler(strategies *sampling.PerOperationSamplingStrategies, maxOperations int) (Sampler, error) {
 	samplers := make(map[string]*GuaranteedThroughputProbabilisticSampler)
 	for _, strategy := range strategies.PerOperationStrategies {
 		sampler, err := NewGuaranteedThroughputProbabilisticSampler(
@@ -289,22 +293,30 @@ func NewAdaptiveSampler(strategies *sampling.PerOperationSamplingStrategies) (Sa
 		}
 		samplers[strategy.Operation] = sampler
 	}
+	defaultSampler, err := NewProbabilisticSampler(strategies.DefaultSamplingProbability)
+	if err != nil {
+		return nil, err
+	}
 	return &adaptiveSampler{
 		samplers:                   samplers,
+		defaultSampler:             defaultSampler,
 		defaultSamplingProbability: strategies.DefaultSamplingProbability,
 		lowerBound:                 strategies.DefaultLowerBoundTracesPerSecond,
+		maxOperations:              maxOperations,
 	}, nil
 }
 
 func (s *adaptiveSampler) IsSampled(id uint64, operation string) (bool, []Tag) {
 	sampler, ok := s.samplers[operation]
 	if !ok {
+		if len(s.samplers) >= s.maxOperations {
+			// Store only up to maxOperations of unique ops.
+			return s.defaultSampler.IsSampled(id, operation)
+		}
 		sampler, err := NewGuaranteedThroughputProbabilisticSampler(operation, s.lowerBound, s.defaultSamplingProbability)
 		if err != nil {
 			return false, nil
 		}
-		// TODO only add new samplers up to a certain number of unique ops. After that we should use
-		// some default sampler.
 		s.samplers[operation] = sampler
 		return sampler.IsSampled(id, operation)
 	}
@@ -337,6 +349,10 @@ func (s *adaptiveSampler) update(strategies *sampling.PerOperationSamplingStrate
 				return err
 			}
 		} else {
+			if len(s.samplers) >= s.maxOperations {
+				// Store only up to maxOperations of unique ops.
+				continue
+			}
 			sampler, err := NewGuaranteedThroughputProbabilisticSampler(
 				operation,
 				lowerBound,
@@ -497,7 +513,7 @@ func (s *RemotelyControlledSampler) extractSampler(
 		if sampler, ok := s.sampler.(*adaptiveSampler); ok {
 			return sampler, strategies, nil
 		}
-		sampler, err := NewAdaptiveSampler(strategies)
+		sampler, err := NewAdaptiveSampler(strategies, defaultMaxOperations)
 		if err != nil {
 			return nil, nil, err
 		}

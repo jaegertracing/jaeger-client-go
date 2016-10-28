@@ -19,6 +19,7 @@ const (
 
 	testDefaultSamplingProbability = 0.5
 	testMaxID                      = uint64(1) << 62
+	testDefaultMaxOperations       = 10
 )
 
 var (
@@ -142,7 +143,7 @@ func TestAdaptiveSampler(t *testing.T) {
 	}
 	strategies := &sampling.PerOperationSamplingStrategies{testDefaultSamplingProbability, 2.0, samplingRates}
 
-	sampler, err := NewAdaptiveSampler(strategies)
+	sampler, err := NewAdaptiveSampler(strategies, testDefaultMaxOperations)
 	require.NoError(t, err)
 	defer sampler.Close()
 
@@ -174,11 +175,11 @@ func TestAdaptiveSamplerErrors(t *testing.T) {
 	}
 	strategies := &sampling.PerOperationSamplingStrategies{testDefaultSamplingProbability, lowerBound, samplingRates}
 
-	_, err := NewAdaptiveSampler(strategies)
+	_, err := NewAdaptiveSampler(strategies, testDefaultMaxOperations)
 	assert.Error(t, err)
 
 	samplingRates[0].ProbabilisticSampling.SamplingRate = 1.1
-	_, err = NewAdaptiveSampler(strategies)
+	_, err = NewAdaptiveSampler(strategies, testDefaultMaxOperations)
 	assert.Error(t, err)
 }
 
@@ -193,7 +194,7 @@ func TestAdaptiveSamplerUpdate(t *testing.T) {
 	}
 	strategies := &sampling.PerOperationSamplingStrategies{testDefaultSamplingProbability, lowerBound, samplingRates}
 
-	s, err := NewAdaptiveSampler(strategies)
+	s, err := NewAdaptiveSampler(strategies, testDefaultMaxOperations)
 	assert.NoError(t, err)
 
 	sampler, ok := s.(*adaptiveSampler)
@@ -218,7 +219,7 @@ func TestAdaptiveSamplerUpdate(t *testing.T) {
 	}
 	strategies = &sampling.PerOperationSamplingStrategies{newDefaultSamplingProbability, newLowerBound, newSamplingRates}
 
-	s, err = NewAdaptiveSampler(strategies)
+	s, err = NewAdaptiveSampler(strategies, testDefaultMaxOperations)
 	assert.NoError(t, err)
 
 	sampler, ok = s.(*adaptiveSampler)
@@ -391,6 +392,39 @@ func TestUpdateSampler(t *testing.T) {
 		assert.True(t, sampled)
 		assert.Equal(t, testProbabilisticExpectedTags, tags)
 	}
+}
+
+func TestMaxOperations(t *testing.T) {
+	samplingRates := []*sampling.OperationSamplingStrategy{
+		{
+			Operation:             testOperationName,
+			ProbabilisticSampling: &sampling.ProbabilisticSamplingStrategy{SamplingRate: 0.1},
+		},
+	}
+	strategies := &sampling.PerOperationSamplingStrategies{testDefaultSamplingProbability, 2.0, samplingRates}
+
+	sampler, err := NewAdaptiveSampler(strategies, 1)
+	assert.NoError(t, err)
+
+	sampled, tags := sampler.IsSampled(testMaxID-10, testFirstTimeOperationName)
+	assert.True(t, sampled)
+	assert.Equal(t, testProbabilisticExpectedTags, tags)
+
+	adaptiveSampler, ok := sampler.(*adaptiveSampler)
+	assert.True(t, ok)
+
+	samplingRates = append(samplingRates,
+		&sampling.OperationSamplingStrategy{
+			Operation:             testFirstTimeOperationName,
+			ProbabilisticSampling: &sampling.ProbabilisticSamplingStrategy{SamplingRate: 0.1},
+		},
+	)
+	// The sampling strategy for the new operation will not be added and hence the default probability sampler
+	// will be used
+	adaptiveSampler.update(strategies)
+	sampled, tags = sampler.IsSampled(testMaxID-10, testFirstTimeOperationName)
+	assert.True(t, sampled)
+	assert.Equal(t, testProbabilisticExpectedTags, tags)
 }
 
 func TestSamplerQueryError(t *testing.T) {
