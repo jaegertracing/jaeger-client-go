@@ -143,8 +143,8 @@ func TestAdaptiveSampler(t *testing.T) {
 	strategies := &sampling.PerOperationSamplingStrategies{testDefaultSamplingProbability, 2.0, samplingRates}
 
 	sampler, err := NewAdaptiveSampler(strategies)
-	defer sampler.Close()
 	require.NoError(t, err)
+	defer sampler.Close()
 
 	sampled, tags := sampler.IsSampled(testMaxID-20, testOperationName)
 	assert.True(t, sampled)
@@ -157,7 +157,7 @@ func TestAdaptiveSampler(t *testing.T) {
 	sampled, tags = sampler.IsSampled(testMaxID+10, testOperationName)
 	assert.False(t, sampled)
 
-	// This operation is the seen for the first time by the sampler
+	// This operation is seen for the first time by the sampler
 	sampled, tags = sampler.IsSampled(testMaxID, testFirstTimeOperationName)
 	assert.True(t, sampled)
 	assert.Equal(t, testProbabilisticExpectedTags, tags)
@@ -314,43 +314,40 @@ func TestUpdateSampler(t *testing.T) {
 	assert.True(t, ok)
 
 	tests := []struct {
-		opName      []string
-		probability []float64
-		tags        []string
-		statCount   int64
-		isErr       bool
+		probabilities map[string]float64
+		statTags      []string
+		statCount     int64
+		isErr         bool
 	}{
 		{
-			[]string{testOperationName},
-			[]float64{1.1},
+			map[string]float64{testOperationName: 1.1},
 			[]string{"phase", "parsing", "state", "failure"},
 			1,
 			true,
 		},
 		{
-			[]string{testOperationName},
-			[]float64{testDefaultSamplingProbability},
+			map[string]float64{testOperationName: testDefaultSamplingProbability},
 			[]string{"state", "updated"},
 			1,
 			false,
 		},
 		{
-			[]string{testOperationName, testFirstTimeOperationName},
-			[]float64{testDefaultSamplingProbability, testDefaultSamplingProbability},
+			map[string]float64{
+				testOperationName:          testDefaultSamplingProbability,
+				testFirstTimeOperationName: testDefaultSamplingProbability,
+			},
 			[]string{"state", "updated"},
 			2,
 			false,
 		},
 		{
-			[]string{testOperationName},
-			[]float64{1.1},
+			map[string]float64{testOperationName: 1.1},
 			[]string{"phase", "updating", "state", "failure"},
 			1,
 			true,
 		},
 		{
-			[]string{"new op"},
-			[]float64{1.1},
+			map[string]float64{"new op": 1.1},
 			[]string{"phase", "updating", "state", "failure"},
 			2,
 			true,
@@ -365,12 +362,12 @@ func TestUpdateSampler(t *testing.T) {
 				DefaultLowerBoundTracesPerSecond: 0.001,
 			},
 		}
-		for i := 0; i < len(test.opName); i++ {
+		for opName, prob := range test.probabilities {
 			res.OperationSampling.PerOperationStrategies = append(res.OperationSampling.PerOperationStrategies,
 				&sampling.OperationSamplingStrategy{
-					Operation: test.opName[i],
+					Operation: opName,
 					ProbabilisticSampling: &sampling.ProbabilisticSamplingStrategy{
-						SamplingRate: test.probability[i],
+						SamplingRate: prob,
 					},
 				},
 			)
@@ -379,7 +376,7 @@ func TestUpdateSampler(t *testing.T) {
 		agent.AddSamplingStrategy("client app", res)
 		sampler.updateSampler()
 
-		assert.EqualValues(t, test.statCount, stats.GetCounterValue("jaeger.sampler", test.tags...))
+		assert.EqualValues(t, test.statCount, stats.GetCounterValue("jaeger.sampler", test.statTags...))
 		if test.isErr {
 			continue
 		}
