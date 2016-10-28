@@ -322,6 +322,13 @@ func TestUpdateSampler(t *testing.T) {
 	}{
 		{
 			[]string{testOperationName},
+			[]float64{1.1},
+			[]string{"phase", "parsing", "state", "failure"},
+			1,
+			true,
+		},
+		{
+			[]string{testOperationName},
 			[]float64{testDefaultSamplingProbability},
 			[]string{"state", "updated"},
 			1,
