@@ -534,7 +534,7 @@ func (s *RemotelyControlledSampler) extractSampler(
 		if sampler, ok := s.sampler.(*adaptiveSampler); ok {
 			return sampler, strategies, nil
 		}
-		sampler, err := NewAdaptiveSampler(strategies, defaultMaxOperations)
+		sampler, err := NewAdaptiveSampler(strategies, s.maxOperations)
 		if err != nil {
 			return nil, nil, err
 		}
