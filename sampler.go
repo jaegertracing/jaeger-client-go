@@ -373,13 +373,14 @@ func (s *adaptiveSampler) update(strategies *sampling.PerOperationSamplingStrate
 type RemotelyControlledSampler struct {
 	sync.RWMutex
 
-	serviceName   string
+	serviceName string
+	timer       *time.Ticker
+	manager     sampling.SamplingManager
+	pollStopped sync.WaitGroup
+
 	hostPort      string
-	manager       sampling.SamplingManager
 	logger        Logger
-	timer         *time.Ticker
 	sampler       Sampler
-	pollStopped   sync.WaitGroup
 	metrics       Metrics
 	maxOperations int
 }
@@ -398,47 +399,17 @@ func (s *httpSamplingManager) GetSamplingStrategy(serviceName string) (*sampling
 	return &out, nil
 }
 
-// SetMaxOperations sets the maximum number of operations the sampler will keep track of.
-func SetMaxOperations(maxOperations int) func(*RemotelyControlledSampler) {
-	return func(s *RemotelyControlledSampler) {
-		s.maxOperations = maxOperations
-	}
-}
-
-// SetInitialSampler sets the initial sampler to use before a remote sampler is
-// created and used.
-func SetInitialSampler(sampler Sampler) func(*RemotelyControlledSampler) {
-	return func(s *RemotelyControlledSampler) {
-		s.sampler = sampler
-	}
-}
-
-// SetLogger sets the logger used by the sampler.
-func SetLogger(logger Logger) func(*RemotelyControlledSampler) {
-	return func(s *RemotelyControlledSampler) {
-		s.logger = logger
-	}
-}
-
-// SetHostPort sets the host:port of the local agent that contains the sampling strategies.
-func SetHostPort(hostPort string) func(*RemotelyControlledSampler) {
-	return func(s *RemotelyControlledSampler) {
-		s.hostPort = hostPort
-	}
-}
-
 // NewRemotelyControlledSampler creates a sampler that periodically pulls
 // the sampling strategy from an HTTP sampling server (e.g. jaeger-agent).
 func NewRemotelyControlledSampler(
 	serviceName string,
-	metrics *Metrics,
-	options ...func(*RemotelyControlledSampler),
+	options ...RemotelyControlledSamplerOption,
 ) *RemotelyControlledSampler {
 	initialSampler, _ := NewProbabilisticSampler(0.001)
 	sampler := &RemotelyControlledSampler{
 		serviceName:   serviceName,
 		logger:        NullLogger,
-		metrics:       *metrics,
+		metrics:       *NewMetrics(NullStatsReporter, nil),
 		timer:         time.NewTicker(1 * time.Minute),
 		hostPort:      defaultSamplingServerHostPort,
 		sampler:       initialSampler,

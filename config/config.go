@@ -185,14 +185,15 @@ func (sc *SamplerConfig) NewSampler(
 		if err != nil {
 			return nil, err
 		}
-		options := []func(*jaeger.RemotelyControlledSampler){
-			jaeger.SetInitialSampler(initSampler),
-			jaeger.SetHostPort(sc.LocalAgentHostPort),
+		options := []jaeger.RemotelyControlledSamplerOption{
+			jaeger.RemotelyControlledSamplerOptions.Metrics(metrics),
+			jaeger.RemotelyControlledSamplerOptions.InitialSampler(initSampler),
+			jaeger.RemotelyControlledSamplerOptions.HostPort(sc.LocalAgentHostPort),
 		}
 		if sc.MaxOperations != 0 {
-			options = append(options, jaeger.SetMaxOperations(sc.MaxOperations))
+			options = append(options, jaeger.RemotelyControlledSamplerOptions.MaxOperations(sc.MaxOperations))
 		}
-		return jaeger.NewRemotelyControlledSampler(serviceName, metrics, options...), nil
+		return jaeger.NewRemotelyControlledSampler(serviceName, options...), nil
 	}
 	return nil, fmt.Errorf("Unknown sampler type %v", sc.Type)
 }
