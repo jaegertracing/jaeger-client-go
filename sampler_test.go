@@ -236,9 +236,9 @@ func initAgent(t *testing.T) (*testutils.MockAgent, *RemotelyControlledSampler, 
 	stats := NewInMemoryStatsCollector()
 	metrics := NewMetrics(stats, nil)
 
-	sampler := NewRemotelyControlledSampler("client app", nil, /* init sampler */
-		agent.SamplingServerAddr(), metrics, NullLogger)
-
+	initialSampler, _ := NewProbabilisticSampler(0.001)
+	sampler := NewRemotelyControlledSampler("client app", metrics, SetHostPort(agent.SamplingServerAddr()),
+		SetMaxOperations(testDefaultMaxOperations), SetInitialSampler(initialSampler), SetLogger(NullLogger))
 	sampler.Close() // stop timer-based updates, we want to call them manually
 
 	return agent, sampler, stats
@@ -407,22 +407,6 @@ func TestMaxOperations(t *testing.T) {
 	assert.NoError(t, err)
 
 	sampled, tags := sampler.IsSampled(testMaxID-10, testFirstTimeOperationName)
-	assert.True(t, sampled)
-	assert.Equal(t, testProbabilisticExpectedTags, tags)
-
-	adaptiveSampler, ok := sampler.(*adaptiveSampler)
-	assert.True(t, ok)
-
-	samplingRates = append(samplingRates,
-		&sampling.OperationSamplingStrategy{
-			Operation:             testFirstTimeOperationName,
-			ProbabilisticSampling: &sampling.ProbabilisticSamplingStrategy{SamplingRate: 0.1},
-		},
-	)
-	// The sampling strategy for the new operation will not be added and hence the default probability sampler
-	// will be used
-	adaptiveSampler.update(strategies)
-	sampled, tags = sampler.IsSampled(testMaxID-10, testFirstTimeOperationName)
 	assert.True(t, sampled)
 	assert.Equal(t, testProbabilisticExpectedTags, tags)
 }

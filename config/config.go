@@ -65,6 +65,11 @@ type SamplerConfig struct {
 
 	// LocalAgentHostPort is the address of jaeger-agent's HTTP server
 	LocalAgentHostPort string `yaml:"localAgentHostPort"`
+
+	// MaxOperations is the maximum number of operations that the sampler
+	// will keep track of. If an operation is not tracked, a default probabilistic
+	// sampler will be used rather than the per operation specific sampler.
+	MaxOperations int `yaml:"maxOperations"`
 }
 
 // ReporterConfig configures the reporter. All fields are optional.
@@ -180,8 +185,14 @@ func (sc *SamplerConfig) NewSampler(
 		if err != nil {
 			return nil, err
 		}
-		return jaeger.NewRemotelyControlledSampler(serviceName, initSampler,
-			sc.LocalAgentHostPort, metrics, jaeger.NullLogger), nil
+		options := []func(*jaeger.RemotelyControlledSampler){
+			jaeger.SetInitialSampler(initSampler),
+			jaeger.SetHostPort(sc.LocalAgentHostPort),
+		}
+		if sc.MaxOperations != 0 {
+			options = append(options, jaeger.SetMaxOperations(sc.MaxOperations))
+		}
+		return jaeger.NewRemotelyControlledSampler(serviceName, metrics, options...), nil
 	}
 	return nil, fmt.Errorf("Unknown sampler type %v", sc.Type)
 }
