@@ -171,7 +171,7 @@ func (sc *SamplerConfig) NewSampler(
 		)
 	}
 	if samplerType == jaeger.SamplerTypeRateLimiting {
-		return jaeger.NewRateLimitingSampler(sc.Param)
+		return jaeger.NewRateLimitingSampler(sc.Param), nil
 	}
 	if samplerType == jaeger.SamplerTypeRemote || sc.Type == "" {
 		sc2 := *sc
