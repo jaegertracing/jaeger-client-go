@@ -463,13 +463,7 @@ func (s *RemotelyControlledSampler) updateSampler() {
 		if sampler, strategies, err := s.extractSampler(res); err == nil {
 			s.metrics.SamplerRetrieved.Inc(1)
 			if !s.sampler.Equal(sampler) {
-				s.Lock()
-				if adaptiveSampler, ok := s.sampler.(*adaptiveSampler); ok {
-					adaptiveSampler.update(strategies)
-				}
-				s.sampler = sampler
-				s.Unlock()
-				s.metrics.SamplerUpdated.Inc(1)
+				s.lockAndUpdateSampler(sampler, strategies)
 			}
 		} else {
 			s.metrics.SamplerParsingFailure.Inc(1)
@@ -478,6 +472,22 @@ func (s *RemotelyControlledSampler) updateSampler() {
 	} else {
 		s.metrics.SamplerQueryFailure.Inc(1)
 	}
+}
+
+func (s *RemotelyControlledSampler) lockAndUpdateSampler(
+	updateSampler Sampler,
+	strategies *sampling.PerOperationSamplingStrategies,
+) {
+	s.Lock()
+	defer s.Unlock()
+	if adaptiveSampler, ok := s.sampler.(*adaptiveSampler); ok {
+		if err := adaptiveSampler.update(strategies); err != nil {
+			s.metrics.SamplerUpdateFailure.Inc(1)
+			return
+		}
+	}
+	s.sampler = updateSampler
+	s.metrics.SamplerUpdated.Inc(1)
 }
 
 func (s *RemotelyControlledSampler) extractSampler(

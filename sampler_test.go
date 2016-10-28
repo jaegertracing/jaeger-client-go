@@ -307,38 +307,50 @@ func TestRemotelyControlledSampler(t *testing.T) {
 }
 
 func TestUpdateSampler(t *testing.T) {
+	agent, sampler, stats := initAgent(t)
+	defer agent.Close()
+
+	initSampler, ok := sampler.sampler.(*ProbabilisticSampler)
+	assert.True(t, ok)
+
 	tests := []struct {
 		opName      []string
 		probability []float64
 		tags        []string
+		statCount   int64
 		isErr       bool
 	}{
 		{
 			[]string{testOperationName},
 			[]float64{testDefaultSamplingProbability},
 			[]string{"state", "updated"},
+			1,
 			false,
 		},
 		{
 			[]string{testOperationName, testFirstTimeOperationName},
 			[]float64{testDefaultSamplingProbability, testDefaultSamplingProbability},
 			[]string{"state", "updated"},
+			2,
 			false,
 		},
 		{
 			[]string{testOperationName},
 			[]float64{1.1},
-			[]string{"phase", "parsing", "state", "failure"},
+			[]string{"phase", "updating", "state", "failure"},
+			1,
+			true,
+		},
+		{
+			[]string{"new op"},
+			[]float64{1.1},
+			[]string{"phase", "updating", "state", "failure"},
+			2,
 			true,
 		},
 	}
 
 	for _, test := range tests {
-		agent, sampler, stats := initAgent(t)
-
-		initSampler, ok := sampler.sampler.(*ProbabilisticSampler)
-		assert.True(t, ok)
-
 		res := &sampling.SamplingStrategyResponse{
 			StrategyType: sampling.SamplingStrategyType_PROBABILISTIC,
 			OperationSampling: &sampling.PerOperationSamplingStrategies{
@@ -360,10 +372,8 @@ func TestUpdateSampler(t *testing.T) {
 		agent.AddSamplingStrategy("client app", res)
 		sampler.updateSampler()
 
-		assert.EqualValues(t, 1, stats.GetCounterValue("jaeger.sampler", test.tags...))
-
+		assert.EqualValues(t, test.statCount, stats.GetCounterValue("jaeger.sampler", test.tags...))
 		if test.isErr {
-			agent.Close()
 			continue
 		}
 
@@ -376,7 +386,6 @@ func TestUpdateSampler(t *testing.T) {
 		sampled, tags = sampler.IsSampled(testMaxID-10, testOperationName)
 		assert.True(t, sampled)
 		assert.Equal(t, testProbabilisticExpectedTags, tags)
-		agent.Close()
 	}
 }
 

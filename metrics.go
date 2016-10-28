@@ -74,6 +74,9 @@ type Metrics struct {
 	// Number of times the Sampler succeeded to retrieve and update sampling strategy
 	SamplerUpdated *counter `metric:"sampler" tags:"state=updated"`
 
+	// Number of times the Sampler failed to update sampling strategy
+	SamplerUpdateFailure *counter `metric:"sampler" tags:"state=failure,phase=updating"`
+
 	// Number of times the Sampler failed to retrieve sampling strategy
 	SamplerQueryFailure *counter `metric:"sampler" tags:"state=failure,phase=query"`
 
