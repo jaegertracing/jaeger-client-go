@@ -35,8 +35,7 @@ var (
 func TestSamplerTags(t *testing.T) {
 	prob, err := NewProbabilisticSampler(0.1)
 	require.NoError(t, err)
-	rate, err := NewRateLimitingSampler(0.1)
-	require.NoError(t, err)
+	rate := NewRateLimitingSampler(0.1)
 	remote := &RemotelyControlledSampler{
 		sampler: NewConstSampler(true),
 	}
@@ -104,9 +103,9 @@ func TestProbabilisticSamplerPerformance(t *testing.T) {
 }
 
 func TestRateLimitingSampler(t *testing.T) {
-	sampler, _ := NewRateLimitingSampler(2)
-	sampler2, _ := NewRateLimitingSampler(2)
-	sampler3, _ := NewRateLimitingSampler(3)
+	sampler := NewRateLimitingSampler(2)
+	sampler2 := NewRateLimitingSampler(2)
+	sampler3 := NewRateLimitingSampler(3)
 	assert.True(t, sampler.Equal(sampler2))
 	assert.False(t, sampler.Equal(sampler3))
 	assert.False(t, sampler.Equal(NewConstSampler(false)))
@@ -128,6 +127,10 @@ func TestGuaranteedThroughputProbabilisticSamplerUpdate(t *testing.T) {
 
 	assert.Equal(t, newLowerBound, sampler.lowerBound)
 	assert.Equal(t, newSamplingRate, sampler.samplingRate)
+
+	newSamplingRate = 1.1
+	err = sampler.update(newLowerBound, newSamplingRate)
+	assert.Error(t, err)
 }
 
 func TestAdaptiveSampler(t *testing.T) {
@@ -304,22 +307,38 @@ func TestRemotelyControlledSampler(t *testing.T) {
 }
 
 func TestUpdateSampler(t *testing.T) {
-	agent, sampler, _ := initAgent(t)
-	defer agent.Close()
-
-	initSampler, ok := sampler.sampler.(*ProbabilisticSampler)
-	assert.True(t, ok)
-
 	tests := []struct {
 		opName      []string
 		probability []float64
+		tags        []string
+		isErr       bool
 	}{
-		{[]string{testOperationName}, []float64{testDefaultSamplingProbability}},
-		{[]string{testOperationName, testFirstTimeOperationName},
-			[]float64{testDefaultSamplingProbability, testDefaultSamplingProbability}},
+		{
+			[]string{testOperationName},
+			[]float64{testDefaultSamplingProbability},
+			[]string{"state", "updated"},
+			false,
+		},
+		{
+			[]string{testOperationName, testFirstTimeOperationName},
+			[]float64{testDefaultSamplingProbability, testDefaultSamplingProbability},
+			[]string{"state", "updated"},
+			false,
+		},
+		{
+			[]string{testOperationName},
+			[]float64{1.1},
+			[]string{"phase", "parsing", "state", "failure"},
+			true,
+		},
 	}
 
 	for _, test := range tests {
+		agent, sampler, stats := initAgent(t)
+
+		initSampler, ok := sampler.sampler.(*ProbabilisticSampler)
+		assert.True(t, ok)
+
 		res := &sampling.SamplingStrategyResponse{
 			StrategyType: sampling.SamplingStrategyType_PROBABILISTIC,
 			OperationSampling: &sampling.PerOperationSamplingStrategies{
@@ -337,8 +356,16 @@ func TestUpdateSampler(t *testing.T) {
 				},
 			)
 		}
+
 		agent.AddSamplingStrategy("client app", res)
 		sampler.updateSampler()
+
+		assert.EqualValues(t, 1, stats.GetCounterValue("jaeger.sampler", test.tags...))
+
+		if test.isErr {
+			agent.Close()
+			continue
+		}
 
 		_, ok = sampler.sampler.(*adaptiveSampler)
 		assert.True(t, ok)
@@ -349,6 +376,7 @@ func TestUpdateSampler(t *testing.T) {
 		sampled, tags = sampler.IsSampled(testMaxID-10, testOperationName)
 		assert.True(t, sampled)
 		assert.Equal(t, testProbabilisticExpectedTags, tags)
+		agent.Close()
 	}
 }
 

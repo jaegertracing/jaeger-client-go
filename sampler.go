@@ -148,7 +148,7 @@ type rateLimitingSampler struct {
 // traces follows burstiness of the service, i.e. a service with uniformly distributed requests will have those
 // requests sampled uniformly as well, but if requests are bursty, especially sub-second, then a number of
 // sequential requests can be sampled each second.
-func NewRateLimitingSampler(maxTracesPerSecond float64) (Sampler, error) {
+func NewRateLimitingSampler(maxTracesPerSecond float64) Sampler {
 	tags := []Tag{
 		{key: SamplerTypeTagKey, value: SamplerTypeRateLimiting},
 		{key: SamplerParamTagKey, value: maxTracesPerSecond},
@@ -157,7 +157,7 @@ func NewRateLimitingSampler(maxTracesPerSecond float64) (Sampler, error) {
 		maxTracesPerSecond: maxTracesPerSecond,
 		rateLimiter:        utils.NewRateLimiter(maxTracesPerSecond),
 		tags:               tags,
-	}, nil
+	}
 }
 
 // IsSampled implements IsSampled() of Sampler.
@@ -208,13 +208,9 @@ func NewGuaranteedThroughputProbabilisticSampler(
 	if err != nil {
 		return nil, err
 	}
-	lowerBoundSampler, err := NewRateLimitingSampler(lowerBound)
-	if err != nil {
-		return nil, err
-	}
 	return &GuaranteedThroughputProbabilisticSampler{
 		probabilisticSampler: probabilisticSampler,
-		lowerBoundSampler:    lowerBoundSampler,
+		lowerBoundSampler:    NewRateLimitingSampler(lowerBound),
 		operation:            operation,
 		tags:                 tags,
 		samplingRate:         samplingRate,
@@ -240,10 +236,8 @@ func (s *GuaranteedThroughputProbabilisticSampler) Close() {
 
 // Equal implements Equal() of Sampler.
 func (s *GuaranteedThroughputProbabilisticSampler) Equal(other Sampler) bool {
-	if o, ok := other.(*GuaranteedThroughputProbabilisticSampler); ok {
-		return s.operation == o.operation && s.probabilisticSampler.Equal(o.probabilisticSampler) &&
-			s.lowerBoundSampler.Equal(o.lowerBoundSampler)
-	}
+	// NB The Equal() function is expensive and will be removed. See adaptiveSampler.Equal() for
+	// more information.
 	return false
 }
 
@@ -263,11 +257,7 @@ func (s *GuaranteedThroughputProbabilisticSampler) update(lowerBound, samplingRa
 		s.tags = tags
 	}
 	if s.lowerBound != lowerBound {
-		lowerBoundSampler, err := NewRateLimitingSampler(lowerBound)
-		if err != nil {
-			return err
-		}
-		s.lowerBoundSampler = lowerBoundSampler
+		s.lowerBoundSampler = NewRateLimitingSampler(lowerBound)
 		s.lowerBound = lowerBound
 	}
 	return nil
@@ -444,6 +434,8 @@ func (s *RemotelyControlledSampler) Close() {
 
 // Equal implements Equal() of Sampler.
 func (s *RemotelyControlledSampler) Equal(other Sampler) bool {
+	// NB The Equal() function is expensive and will be removed. See adaptiveSampler.Equal() for
+	// more information.
 	if o, ok := other.(*RemotelyControlledSampler); ok {
 		s.RLock()
 		o.RLock()
@@ -509,11 +501,7 @@ func (s *RemotelyControlledSampler) extractSampler(
 		return sampler, nil, nil
 	}
 	if rateLimiting := res.GetRateLimitingSampling(); rateLimiting != nil {
-		sampler, err := NewRateLimitingSampler(float64(rateLimiting.MaxTracesPerSecond))
-		if err != nil {
-			return nil, nil, err
-		}
-		return sampler, nil, nil
+		return NewRateLimitingSampler(float64(rateLimiting.MaxTracesPerSecond)), nil, nil
 	}
 	return nil, nil, fmt.Errorf("Unsupported sampling strategy type %v", res.GetStrategyType())
 }
