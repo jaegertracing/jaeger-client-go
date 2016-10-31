@@ -185,13 +185,13 @@ func (sc *SamplerConfig) NewSampler(
 		if err != nil {
 			return nil, err
 		}
-		options := []jaeger.RemotelyControlledSamplerOption{
-			jaeger.RemotelyControlledSamplerOptions.Metrics(metrics),
-			jaeger.RemotelyControlledSamplerOptions.InitialSampler(initSampler),
-			jaeger.RemotelyControlledSamplerOptions.HostPort(sc.LocalAgentHostPort),
+		options := []jaeger.SamplerOption{
+			jaeger.SamplerOptions.Metrics(metrics),
+			jaeger.SamplerOptions.InitialSampler(initSampler),
+			jaeger.SamplerOptions.HostPort(sc.LocalAgentHostPort),
 		}
 		if sc.MaxOperations != 0 {
-			options = append(options, jaeger.RemotelyControlledSamplerOptions.MaxOperations(sc.MaxOperations))
+			options = append(options, jaeger.SamplerOptions.MaxOperations(sc.MaxOperations))
 		}
 		return jaeger.NewRemotelyControlledSampler(serviceName, options...), nil
 	}

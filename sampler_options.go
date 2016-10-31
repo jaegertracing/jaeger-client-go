@@ -1,48 +1,54 @@
 package jaeger
 
-// RemotelyControlledSamplerOption is a function that sets some option on the sampler
-type RemotelyControlledSamplerOption func(sampler *RemotelyControlledSampler)
+// SamplerOption is a function that sets some option on the sampler
+type SamplerOption func(options *samplerOptions)
 
-// RemotelyControlledSamplerOptions is a factory for all available RemotelyControlledSamplerOption's
-var RemotelyControlledSamplerOptions remotelyControlledSamplerOptions
+// SamplerOptions is a factory for all available SamplerOption's
+var SamplerOptions samplerOptions
 
-type remotelyControlledSamplerOptions struct{}
+type samplerOptions struct {
+	metrics       *Metrics
+	maxOperations int
+	sampler       Sampler
+	logger        Logger
+	hostPort      string
+}
 
-// Metrics creates a RemotelyControlledSamplerOption that initializes Metrics on the sampler,
+// Metrics creates a SamplerOption that initializes Metrics on the sampler,
 // which is used to emit statistics.
-func (remotelyControlledSamplerOptions) Metrics(m *Metrics) RemotelyControlledSamplerOption {
-	return func(s *RemotelyControlledSampler) {
-		s.metrics = *m
+func (samplerOptions) Metrics(m *Metrics) SamplerOption {
+	return func(o *samplerOptions) {
+		o.metrics = m
 	}
 }
 
-// MaxOperations creates a RemotelyControlledSamplerOption that sets the maximum number of
+// MaxOperations creates a SamplerOption that sets the maximum number of
 // operations the sampler will keep track of.
-func (remotelyControlledSamplerOptions) MaxOperations(maxOperations int) RemotelyControlledSamplerOption {
-	return func(s *RemotelyControlledSampler) {
-		s.maxOperations = maxOperations
+func (samplerOptions) MaxOperations(maxOperations int) SamplerOption {
+	return func(o *samplerOptions) {
+		o.maxOperations = maxOperations
 	}
 }
 
-// InitialSampler creates a RemotelyControlledSamplerOption that sets the initial sampler
+// InitialSampler creates a SamplerOption that sets the initial sampler
 // to use before a remote sampler is created and used.
-func (remotelyControlledSamplerOptions) InitialSampler(sampler Sampler) RemotelyControlledSamplerOption {
-	return func(s *RemotelyControlledSampler) {
-		s.sampler = sampler
+func (samplerOptions) InitialSampler(sampler Sampler) SamplerOption {
+	return func(o *samplerOptions) {
+		o.sampler = sampler
 	}
 }
 
-// Logger creates a RemotelyControlledSamplerOption that sets the logger used by the sampler.
-func (remotelyControlledSamplerOptions) Logger(logger Logger) RemotelyControlledSamplerOption {
-	return func(s *RemotelyControlledSampler) {
-		s.logger = logger
+// Logger creates a SamplerOption that sets the logger used by the sampler.
+func (samplerOptions) Logger(logger Logger) SamplerOption {
+	return func(o *samplerOptions) {
+		o.logger = logger
 	}
 }
 
-// HostPort creates a RemotelyControlledSamplerOption that sets the host:port of the local
+// HostPort creates a SamplerOption that sets the host:port of the local
 // agent that contains the sampling strategies.
-func (remotelyControlledSamplerOptions) HostPort(hostPort string) RemotelyControlledSamplerOption {
-	return func(s *RemotelyControlledSampler) {
-		s.hostPort = hostPort
+func (samplerOptions) HostPort(hostPort string) SamplerOption {
+	return func(o *samplerOptions) {
+		o.hostPort = hostPort
 	}
 }

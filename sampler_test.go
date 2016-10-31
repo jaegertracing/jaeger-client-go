@@ -239,11 +239,11 @@ func initAgent(t *testing.T) (*testutils.MockAgent, *RemotelyControlledSampler, 
 	initialSampler, _ := NewProbabilisticSampler(0.001)
 	sampler := NewRemotelyControlledSampler(
 		"client app",
-		RemotelyControlledSamplerOptions.Metrics(metrics),
-		RemotelyControlledSamplerOptions.HostPort(agent.SamplingServerAddr()),
-		RemotelyControlledSamplerOptions.MaxOperations(testDefaultMaxOperations),
-		RemotelyControlledSamplerOptions.InitialSampler(initialSampler),
-		RemotelyControlledSamplerOptions.Logger(NullLogger),
+		SamplerOptions.Metrics(metrics),
+		SamplerOptions.HostPort(agent.SamplingServerAddr()),
+		SamplerOptions.MaxOperations(testDefaultMaxOperations),
+		SamplerOptions.InitialSampler(initialSampler),
+		SamplerOptions.Logger(NullLogger),
 	)
 	sampler.Close() // stop timer-based updates, we want to call them manually
 

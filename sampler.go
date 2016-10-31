@@ -381,7 +381,7 @@ type RemotelyControlledSampler struct {
 	hostPort      string
 	logger        Logger
 	sampler       Sampler
-	metrics       Metrics
+	metrics       *Metrics
 	maxOperations int
 }
 
@@ -403,25 +403,46 @@ func (s *httpSamplingManager) GetSamplingStrategy(serviceName string) (*sampling
 // the sampling strategy from an HTTP sampling server (e.g. jaeger-agent).
 func NewRemotelyControlledSampler(
 	serviceName string,
-	options ...RemotelyControlledSamplerOption,
+	options ...SamplerOption,
 ) *RemotelyControlledSampler {
 	initialSampler, _ := NewProbabilisticSampler(0.001)
 	sampler := &RemotelyControlledSampler{
 		serviceName:   serviceName,
 		logger:        NullLogger,
-		metrics:       *NewMetrics(NullStatsReporter, nil),
+		metrics:       NewMetrics(NullStatsReporter, nil),
 		timer:         time.NewTicker(1 * time.Minute),
 		hostPort:      defaultSamplingServerHostPort,
 		sampler:       initialSampler,
 		maxOperations: defaultMaxOperations,
 	}
-	for _, option := range options {
-		option(sampler)
-	}
+
+	sampler.applyOptions(options...)
 	sampler.manager = &httpSamplingManager{serverURL: "http://" + sampler.hostPort}
 
 	go sampler.pollController()
 	return sampler
+}
+
+func (s *RemotelyControlledSampler) applyOptions(options ...SamplerOption) {
+	opts := samplerOptions{}
+	for _, option := range options {
+		option(&opts)
+	}
+	if opts.sampler != nil {
+		s.sampler = opts.sampler
+	}
+	if opts.logger != nil {
+		s.logger = opts.logger
+	}
+	if opts.maxOperations > 0 {
+		s.maxOperations = opts.maxOperations
+	}
+	if opts.hostPort != "" {
+		s.hostPort = opts.hostPort
+	}
+	if opts.metrics != nil {
+		s.metrics = opts.metrics
+	}
 }
 
 // IsSampled implements IsSampled() of Sampler.
