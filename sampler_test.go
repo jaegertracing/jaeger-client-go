@@ -19,6 +19,7 @@ const (
 
 	testDefaultSamplingProbability = 0.5
 	testMaxID                      = uint64(1) << 62
+	testDefaultMaxOperations       = 10
 )
 
 var (
@@ -142,7 +143,7 @@ func TestAdaptiveSampler(t *testing.T) {
 	}
 	strategies := &sampling.PerOperationSamplingStrategies{testDefaultSamplingProbability, 2.0, samplingRates}
 
-	sampler, err := NewAdaptiveSampler(strategies)
+	sampler, err := NewAdaptiveSampler(strategies, testDefaultMaxOperations)
 	require.NoError(t, err)
 	defer sampler.Close()
 
@@ -174,11 +175,11 @@ func TestAdaptiveSamplerErrors(t *testing.T) {
 	}
 	strategies := &sampling.PerOperationSamplingStrategies{testDefaultSamplingProbability, lowerBound, samplingRates}
 
-	_, err := NewAdaptiveSampler(strategies)
+	_, err := NewAdaptiveSampler(strategies, testDefaultMaxOperations)
 	assert.Error(t, err)
 
 	samplingRates[0].ProbabilisticSampling.SamplingRate = 1.1
-	_, err = NewAdaptiveSampler(strategies)
+	_, err = NewAdaptiveSampler(strategies, testDefaultMaxOperations)
 	assert.Error(t, err)
 }
 
@@ -193,7 +194,7 @@ func TestAdaptiveSamplerUpdate(t *testing.T) {
 	}
 	strategies := &sampling.PerOperationSamplingStrategies{testDefaultSamplingProbability, lowerBound, samplingRates}
 
-	s, err := NewAdaptiveSampler(strategies)
+	s, err := NewAdaptiveSampler(strategies, testDefaultMaxOperations)
 	assert.NoError(t, err)
 
 	sampler, ok := s.(*adaptiveSampler)
@@ -218,7 +219,7 @@ func TestAdaptiveSamplerUpdate(t *testing.T) {
 	}
 	strategies = &sampling.PerOperationSamplingStrategies{newDefaultSamplingProbability, newLowerBound, newSamplingRates}
 
-	s, err = NewAdaptiveSampler(strategies)
+	s, err = NewAdaptiveSampler(strategies, testDefaultMaxOperations)
 	assert.NoError(t, err)
 
 	sampler, ok = s.(*adaptiveSampler)
@@ -235,9 +236,15 @@ func initAgent(t *testing.T) (*testutils.MockAgent, *RemotelyControlledSampler, 
 	stats := NewInMemoryStatsCollector()
 	metrics := NewMetrics(stats, nil)
 
-	sampler := NewRemotelyControlledSampler("client app", nil, /* init sampler */
-		agent.SamplingServerAddr(), metrics, NullLogger)
-
+	initialSampler, _ := NewProbabilisticSampler(0.001)
+	sampler := NewRemotelyControlledSampler(
+		"client app",
+		SamplerOptions.Metrics(metrics),
+		SamplerOptions.HostPort(agent.SamplingServerAddr()),
+		SamplerOptions.MaxOperations(testDefaultMaxOperations),
+		SamplerOptions.InitialSampler(initialSampler),
+		SamplerOptions.Logger(NullLogger),
+	)
 	sampler.Close() // stop timer-based updates, we want to call them manually
 
 	return agent, sampler, stats
@@ -391,6 +398,23 @@ func TestUpdateSampler(t *testing.T) {
 		assert.True(t, sampled)
 		assert.Equal(t, testProbabilisticExpectedTags, tags)
 	}
+}
+
+func TestMaxOperations(t *testing.T) {
+	samplingRates := []*sampling.OperationSamplingStrategy{
+		{
+			Operation:             testOperationName,
+			ProbabilisticSampling: &sampling.ProbabilisticSamplingStrategy{SamplingRate: 0.1},
+		},
+	}
+	strategies := &sampling.PerOperationSamplingStrategies{testDefaultSamplingProbability, 2.0, samplingRates}
+
+	sampler, err := NewAdaptiveSampler(strategies, 1)
+	assert.NoError(t, err)
+
+	sampled, tags := sampler.IsSampled(testMaxID-10, testFirstTimeOperationName)
+	assert.True(t, sampled)
+	assert.Equal(t, testProbabilisticExpectedTags, tags)
 }
 
 func TestSamplerQueryError(t *testing.T) {

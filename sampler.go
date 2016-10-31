@@ -30,7 +30,11 @@ import (
 	"github.com/uber/jaeger-client-go/utils"
 )
 
-const defaultSamplingServerHostPort = "localhost:5778"
+const (
+	defaultSamplingServerHostPort = "localhost:5778"
+
+	defaultMaxOperations = 2000
+)
 
 // Sampler decides whether a new trace should be sampled or not.
 type Sampler interface {
@@ -267,16 +271,16 @@ func (s *GuaranteedThroughputProbabilisticSampler) update(lowerBound, samplingRa
 
 type adaptiveSampler struct {
 	samplers                   map[string]*GuaranteedThroughputProbabilisticSampler
+	defaultSampler             Sampler
 	defaultSamplingProbability float64
 	lowerBound                 float64
-
-	// TODO add a cap on the number of operations
+	maxOperations              int
 }
 
 // NewAdaptiveSampler adaptiveSampler is a delegating sampler that applies both probabilisticSampler and
 // rateLimitingSampler via the guaranteedThroughputProbabilisticSampler. This sampler keeps track of all
 // operations and delegates calls to the respective guaranteedThroughputProbabilisticSampler.
-func NewAdaptiveSampler(strategies *sampling.PerOperationSamplingStrategies) (Sampler, error) {
+func NewAdaptiveSampler(strategies *sampling.PerOperationSamplingStrategies, maxOperations int) (Sampler, error) {
 	samplers := make(map[string]*GuaranteedThroughputProbabilisticSampler)
 	for _, strategy := range strategies.PerOperationStrategies {
 		sampler, err := NewGuaranteedThroughputProbabilisticSampler(
@@ -289,22 +293,30 @@ func NewAdaptiveSampler(strategies *sampling.PerOperationSamplingStrategies) (Sa
 		}
 		samplers[strategy.Operation] = sampler
 	}
+	defaultSampler, err := NewProbabilisticSampler(strategies.DefaultSamplingProbability)
+	if err != nil {
+		return nil, err
+	}
 	return &adaptiveSampler{
 		samplers:                   samplers,
+		defaultSampler:             defaultSampler,
 		defaultSamplingProbability: strategies.DefaultSamplingProbability,
 		lowerBound:                 strategies.DefaultLowerBoundTracesPerSecond,
+		maxOperations:              maxOperations,
 	}, nil
 }
 
 func (s *adaptiveSampler) IsSampled(id uint64, operation string) (bool, []Tag) {
 	sampler, ok := s.samplers[operation]
 	if !ok {
+		if len(s.samplers) >= s.maxOperations {
+			// Store only up to maxOperations of unique ops.
+			return s.defaultSampler.IsSampled(id, operation)
+		}
 		sampler, err := NewGuaranteedThroughputProbabilisticSampler(operation, s.lowerBound, s.defaultSamplingProbability)
 		if err != nil {
 			return false, nil
 		}
-		// TODO only add new samplers up to a certain number of unique ops. After that we should use
-		// some default sampler.
 		s.samplers[operation] = sampler
 		return sampler.IsSampled(id, operation)
 	}
@@ -362,12 +374,15 @@ type RemotelyControlledSampler struct {
 	sync.RWMutex
 
 	serviceName string
-	manager     sampling.SamplingManager
-	logger      Logger
 	timer       *time.Ticker
-	sampler     Sampler
+	manager     sampling.SamplingManager
 	pollStopped sync.WaitGroup
-	metrics     Metrics
+
+	hostPort      string
+	logger        Logger
+	sampler       Sampler
+	metrics       *Metrics
+	maxOperations int
 }
 
 type httpSamplingManager struct {
@@ -388,32 +403,46 @@ func (s *httpSamplingManager) GetSamplingStrategy(serviceName string) (*sampling
 // the sampling strategy from an HTTP sampling server (e.g. jaeger-agent).
 func NewRemotelyControlledSampler(
 	serviceName string,
-	initial Sampler,
-	hostPort string,
-	metrics *Metrics,
-	logger Logger,
+	options ...SamplerOption,
 ) *RemotelyControlledSampler {
-	if hostPort == "" {
-		hostPort = defaultSamplingServerHostPort
-	}
-	manager := &httpSamplingManager{serverURL: "http://" + hostPort}
-	if logger == nil {
-		logger = NullLogger
-	}
+	initialSampler, _ := NewProbabilisticSampler(0.001)
 	sampler := &RemotelyControlledSampler{
-		serviceName: serviceName,
-		manager:     manager,
-		logger:      logger,
-		metrics:     *metrics,
-		timer:       time.NewTicker(1 * time.Minute),
+		serviceName:   serviceName,
+		logger:        NullLogger,
+		metrics:       NewMetrics(NullStatsReporter, nil),
+		timer:         time.NewTicker(1 * time.Minute),
+		hostPort:      defaultSamplingServerHostPort,
+		sampler:       initialSampler,
+		maxOperations: defaultMaxOperations,
 	}
-	if initial != nil {
-		sampler.sampler = initial
-	} else {
-		sampler.sampler, _ = NewProbabilisticSampler(0.001)
-	}
+
+	sampler.applyOptions(options...)
+	sampler.manager = &httpSamplingManager{serverURL: "http://" + sampler.hostPort}
+
 	go sampler.pollController()
 	return sampler
+}
+
+func (s *RemotelyControlledSampler) applyOptions(options ...SamplerOption) {
+	opts := samplerOptions{}
+	for _, option := range options {
+		option(&opts)
+	}
+	if opts.sampler != nil {
+		s.sampler = opts.sampler
+	}
+	if opts.logger != nil {
+		s.logger = opts.logger
+	}
+	if opts.maxOperations > 0 {
+		s.maxOperations = opts.maxOperations
+	}
+	if opts.hostPort != "" {
+		s.hostPort = opts.hostPort
+	}
+	if opts.metrics != nil {
+		s.metrics = opts.metrics
+	}
 }
 
 // IsSampled implements IsSampled() of Sampler.
@@ -497,7 +526,7 @@ func (s *RemotelyControlledSampler) extractSampler(
 		if sampler, ok := s.sampler.(*adaptiveSampler); ok {
 			return sampler, strategies, nil
 		}
-		sampler, err := NewAdaptiveSampler(strategies)
+		sampler, err := NewAdaptiveSampler(strategies, s.maxOperations)
 		if err != nil {
 			return nil, nil, err
 		}
