@@ -78,7 +78,13 @@ func TestUDPSenderFlush(t *testing.T) {
 	assert.Equal(t, 0, udpSender.byteBufferSize, "buffer size counter should go to 0")
 	assert.Nil(t, buffer[0], "buffer should not keep reference to the span")
 
-	time.Sleep(5 * time.Millisecond)
+	for i := 0; i < 10000; i++ {
+		spans := agent.GetZipkinSpans()
+		if len(spans) > 0 {
+			break
+		}
+		time.Sleep(1 * time.Millisecond)
+	}
 	spans := agent.GetZipkinSpans()
 	require.Equal(t, 1, len(spans), "agent should have received the span")
 	assert.Equal(t, span.Name, spans[0].Name)
