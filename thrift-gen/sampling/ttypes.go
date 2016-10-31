@@ -253,6 +253,151 @@ func (p *RateLimitingSamplingStrategy) String() string {
 }
 
 // Attributes:
+//  - Operation
+//  - ProbabilisticSampling
+type OperationSamplingStrategy struct {
+	Operation             string                         `thrift:"operation,1,required" json:"operation"`
+	ProbabilisticSampling *ProbabilisticSamplingStrategy `thrift:"probabilisticSampling,2,required" json:"probabilisticSampling"`
+}
+
+func NewOperationSamplingStrategy() *OperationSamplingStrategy {
+	return &OperationSamplingStrategy{}
+}
+
+func (p *OperationSamplingStrategy) GetOperation() string {
+	return p.Operation
+}
+
+var OperationSamplingStrategy_ProbabilisticSampling_DEFAULT *ProbabilisticSamplingStrategy
+
+func (p *OperationSamplingStrategy) GetProbabilisticSampling() *ProbabilisticSamplingStrategy {
+	if !p.IsSetProbabilisticSampling() {
+		return OperationSamplingStrategy_ProbabilisticSampling_DEFAULT
+	}
+	return p.ProbabilisticSampling
+}
+func (p *OperationSamplingStrategy) IsSetProbabilisticSampling() bool {
+	return p.ProbabilisticSampling != nil
+}
+
+func (p *OperationSamplingStrategy) Read(iprot thrift.TProtocol) error {
+	if _, err := iprot.ReadStructBegin(); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T read error: ", p), err)
+	}
+
+	var issetOperation bool = false
+	var issetProbabilisticSampling bool = false
+
+	for {
+		_, fieldTypeId, fieldId, err := iprot.ReadFieldBegin()
+		if err != nil {
+			return thrift.PrependError(fmt.Sprintf("%T field %d read error: ", p, fieldId), err)
+		}
+		if fieldTypeId == thrift.STOP {
+			break
+		}
+		switch fieldId {
+		case 1:
+			if err := p.readField1(iprot); err != nil {
+				return err
+			}
+			issetOperation = true
+		case 2:
+			if err := p.readField2(iprot); err != nil {
+				return err
+			}
+			issetProbabilisticSampling = true
+		default:
+			if err := iprot.Skip(fieldTypeId); err != nil {
+				return err
+			}
+		}
+		if err := iprot.ReadFieldEnd(); err != nil {
+			return err
+		}
+	}
+	if err := iprot.ReadStructEnd(); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T read struct end error: ", p), err)
+	}
+	if !issetOperation {
+		return thrift.NewTProtocolExceptionWithType(thrift.INVALID_DATA, fmt.Errorf("Required field Operation is not set"))
+	}
+	if !issetProbabilisticSampling {
+		return thrift.NewTProtocolExceptionWithType(thrift.INVALID_DATA, fmt.Errorf("Required field ProbabilisticSampling is not set"))
+	}
+	return nil
+}
+
+func (p *OperationSamplingStrategy) readField1(iprot thrift.TProtocol) error {
+	if v, err := iprot.ReadString(); err != nil {
+		return thrift.PrependError("error reading field 1: ", err)
+	} else {
+		p.Operation = v
+	}
+	return nil
+}
+
+func (p *OperationSamplingStrategy) readField2(iprot thrift.TProtocol) error {
+	p.ProbabilisticSampling = &ProbabilisticSamplingStrategy{}
+	if err := p.ProbabilisticSampling.Read(iprot); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T error reading struct: ", p.ProbabilisticSampling), err)
+	}
+	return nil
+}
+
+func (p *OperationSamplingStrategy) Write(oprot thrift.TProtocol) error {
+	if err := oprot.WriteStructBegin("OperationSamplingStrategy"); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T write struct begin error: ", p), err)
+	}
+	if err := p.writeField1(oprot); err != nil {
+		return err
+	}
+	if err := p.writeField2(oprot); err != nil {
+		return err
+	}
+	if err := oprot.WriteFieldStop(); err != nil {
+		return thrift.PrependError("write field stop error: ", err)
+	}
+	if err := oprot.WriteStructEnd(); err != nil {
+		return thrift.PrependError("write struct stop error: ", err)
+	}
+	return nil
+}
+
+func (p *OperationSamplingStrategy) writeField1(oprot thrift.TProtocol) (err error) {
+	if err := oprot.WriteFieldBegin("operation", thrift.STRING, 1); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T write field begin error 1:operation: ", p), err)
+	}
+	if err := oprot.WriteString(string(p.Operation)); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T.operation (1) field write error: ", p), err)
+	}
+	if err := oprot.WriteFieldEnd(); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T write field end error 1:operation: ", p), err)
+	}
+	return err
+}
+
+func (p *OperationSamplingStrategy) writeField2(oprot thrift.TProtocol) (err error) {
+	if err := oprot.WriteFieldBegin("probabilisticSampling", thrift.STRUCT, 2); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T write field begin error 2:probabilisticSampling: ", p), err)
+	}
+	if err := p.ProbabilisticSampling.Write(oprot); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T error writing struct: ", p.ProbabilisticSampling), err)
+	}
+	if err := oprot.WriteFieldEnd(); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T write field end error 2:probabilisticSampling: ", p), err)
+	}
+	return err
+}
+
+func (p *OperationSamplingStrategy) String() string {
+	if p == nil {
+		return "<nil>"
+	}
+	return fmt.Sprintf("OperationSamplingStrategy(%+v)", *p)
+}
+
+// Attributes:
 //  - DefaultSamplingProbability
 //  - DefaultLowerBoundTracesPerSecond
 //  - PerOperationStrategies
@@ -446,151 +591,6 @@ func (p *PerOperationSamplingStrategies) String() string {
 		return "<nil>"
 	}
 	return fmt.Sprintf("PerOperationSamplingStrategies(%+v)", *p)
-}
-
-// Attributes:
-//  - Operation
-//  - ProbabilisticSampling
-type OperationSamplingStrategy struct {
-	Operation             string                         `thrift:"operation,1,required" json:"operation"`
-	ProbabilisticSampling *ProbabilisticSamplingStrategy `thrift:"probabilisticSampling,2,required" json:"probabilisticSampling"`
-}
-
-func NewOperationSamplingStrategy() *OperationSamplingStrategy {
-	return &OperationSamplingStrategy{}
-}
-
-func (p *OperationSamplingStrategy) GetOperation() string {
-	return p.Operation
-}
-
-var OperationSamplingStrategy_ProbabilisticSampling_DEFAULT *ProbabilisticSamplingStrategy
-
-func (p *OperationSamplingStrategy) GetProbabilisticSampling() *ProbabilisticSamplingStrategy {
-	if !p.IsSetProbabilisticSampling() {
-		return OperationSamplingStrategy_ProbabilisticSampling_DEFAULT
-	}
-	return p.ProbabilisticSampling
-}
-func (p *OperationSamplingStrategy) IsSetProbabilisticSampling() bool {
-	return p.ProbabilisticSampling != nil
-}
-
-func (p *OperationSamplingStrategy) Read(iprot thrift.TProtocol) error {
-	if _, err := iprot.ReadStructBegin(); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T read error: ", p), err)
-	}
-
-	var issetOperation bool = false
-	var issetProbabilisticSampling bool = false
-
-	for {
-		_, fieldTypeId, fieldId, err := iprot.ReadFieldBegin()
-		if err != nil {
-			return thrift.PrependError(fmt.Sprintf("%T field %d read error: ", p, fieldId), err)
-		}
-		if fieldTypeId == thrift.STOP {
-			break
-		}
-		switch fieldId {
-		case 1:
-			if err := p.readField1(iprot); err != nil {
-				return err
-			}
-			issetOperation = true
-		case 2:
-			if err := p.readField2(iprot); err != nil {
-				return err
-			}
-			issetProbabilisticSampling = true
-		default:
-			if err := iprot.Skip(fieldTypeId); err != nil {
-				return err
-			}
-		}
-		if err := iprot.ReadFieldEnd(); err != nil {
-			return err
-		}
-	}
-	if err := iprot.ReadStructEnd(); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T read struct end error: ", p), err)
-	}
-	if !issetOperation {
-		return thrift.NewTProtocolExceptionWithType(thrift.INVALID_DATA, fmt.Errorf("Required field Operation is not set"))
-	}
-	if !issetProbabilisticSampling {
-		return thrift.NewTProtocolExceptionWithType(thrift.INVALID_DATA, fmt.Errorf("Required field ProbabilisticSampling is not set"))
-	}
-	return nil
-}
-
-func (p *OperationSamplingStrategy) readField1(iprot thrift.TProtocol) error {
-	if v, err := iprot.ReadString(); err != nil {
-		return thrift.PrependError("error reading field 1: ", err)
-	} else {
-		p.Operation = v
-	}
-	return nil
-}
-
-func (p *OperationSamplingStrategy) readField2(iprot thrift.TProtocol) error {
-	p.ProbabilisticSampling = &ProbabilisticSamplingStrategy{}
-	if err := p.ProbabilisticSampling.Read(iprot); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T error reading struct: ", p.ProbabilisticSampling), err)
-	}
-	return nil
-}
-
-func (p *OperationSamplingStrategy) Write(oprot thrift.TProtocol) error {
-	if err := oprot.WriteStructBegin("OperationSamplingStrategy"); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T write struct begin error: ", p), err)
-	}
-	if err := p.writeField1(oprot); err != nil {
-		return err
-	}
-	if err := p.writeField2(oprot); err != nil {
-		return err
-	}
-	if err := oprot.WriteFieldStop(); err != nil {
-		return thrift.PrependError("write field stop error: ", err)
-	}
-	if err := oprot.WriteStructEnd(); err != nil {
-		return thrift.PrependError("write struct stop error: ", err)
-	}
-	return nil
-}
-
-func (p *OperationSamplingStrategy) writeField1(oprot thrift.TProtocol) (err error) {
-	if err := oprot.WriteFieldBegin("operation", thrift.STRING, 1); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T write field begin error 1:operation: ", p), err)
-	}
-	if err := oprot.WriteString(string(p.Operation)); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T.operation (1) field write error: ", p), err)
-	}
-	if err := oprot.WriteFieldEnd(); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T write field end error 1:operation: ", p), err)
-	}
-	return err
-}
-
-func (p *OperationSamplingStrategy) writeField2(oprot thrift.TProtocol) (err error) {
-	if err := oprot.WriteFieldBegin("probabilisticSampling", thrift.STRUCT, 2); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T write field begin error 2:probabilisticSampling: ", p), err)
-	}
-	if err := p.ProbabilisticSampling.Write(oprot); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T error writing struct: ", p.ProbabilisticSampling), err)
-	}
-	if err := oprot.WriteFieldEnd(); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T write field end error 2:probabilisticSampling: ", p), err)
-	}
-	return err
-}
-
-func (p *OperationSamplingStrategy) String() string {
-	if p == nil {
-		return "<nil>"
-	}
-	return fmt.Sprintf("OperationSamplingStrategy(%+v)", *p)
 }
 
 // Attributes:
