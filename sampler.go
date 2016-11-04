@@ -361,7 +361,14 @@ func (s *adaptiveSampler) update(strategies *sampling.PerOperationSamplingStrate
 		}
 	}
 	s.lowerBound = strategies.DefaultLowerBoundTracesPerSecond
-	s.defaultSamplingProbability = strategies.DefaultSamplingProbability
+	if s.defaultSamplingProbability != strategies.DefaultSamplingProbability {
+		defaultSampler, err := NewProbabilisticSampler(strategies.DefaultSamplingProbability)
+		if err != nil {
+			return err
+		}
+		s.defaultSamplingProbability = strategies.DefaultSamplingProbability
+		s.defaultSampler = defaultSampler
+	}
 	return nil
 }
 

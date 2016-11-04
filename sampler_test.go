@@ -321,19 +321,22 @@ func TestUpdateSampler(t *testing.T) {
 	assert.True(t, ok)
 
 	tests := []struct {
-		probabilities map[string]float64
-		statTags      []string
-		statCount     int64
-		isErr         bool
+		probabilities      map[string]float64
+		defaultProbability float64
+		statTags           []string
+		statCount          int64
+		isErr              bool
 	}{
 		{
 			map[string]float64{testOperationName: 1.1},
+			testDefaultSamplingProbability,
 			[]string{"phase", "parsing", "state", "failure"},
 			1,
 			true,
 		},
 		{
 			map[string]float64{testOperationName: testDefaultSamplingProbability},
+			testDefaultSamplingProbability,
 			[]string{"state", "updated"},
 			1,
 			false,
@@ -343,20 +346,37 @@ func TestUpdateSampler(t *testing.T) {
 				testOperationName:          testDefaultSamplingProbability,
 				testFirstTimeOperationName: testDefaultSamplingProbability,
 			},
+			testDefaultSamplingProbability,
 			[]string{"state", "updated"},
 			2,
 			false,
 		},
 		{
 			map[string]float64{testOperationName: 1.1},
+			testDefaultSamplingProbability,
 			[]string{"phase", "updating", "state", "failure"},
 			1,
 			true,
 		},
 		{
 			map[string]float64{"new op": 1.1},
+			testDefaultSamplingProbability,
 			[]string{"phase", "updating", "state", "failure"},
 			2,
+			true,
+		},
+		{
+			map[string]float64{testOperationName: testDefaultSamplingProbability},
+			0.5,
+			[]string{"state", "updated"},
+			3,
+			false,
+		},
+		{
+			map[string]float64{testOperationName: testDefaultSamplingProbability},
+			1.1,
+			[]string{"phase", "updating", "state", "failure"},
+			3,
 			true,
 		},
 	}
@@ -365,7 +385,7 @@ func TestUpdateSampler(t *testing.T) {
 		res := &sampling.SamplingStrategyResponse{
 			StrategyType: sampling.SamplingStrategyType_PROBABILISTIC,
 			OperationSampling: &sampling.PerOperationSamplingStrategies{
-				DefaultSamplingProbability:       testDefaultSamplingProbability,
+				DefaultSamplingProbability:       test.defaultProbability,
 				DefaultLowerBoundTracesPerSecond: 0.001,
 			},
 		}
@@ -388,9 +408,10 @@ func TestUpdateSampler(t *testing.T) {
 			continue
 		}
 
-		_, ok = sampler.sampler.(*adaptiveSampler)
+		s, ok := sampler.sampler.(*adaptiveSampler)
 		assert.True(t, ok)
 		assert.NotEqual(t, initSampler, sampler.sampler, "Sampler should have been updated")
+		assert.Equal(t, test.defaultProbability, s.defaultSamplingProbability)
 
 		sampled, tags := sampler.IsSampled(testMaxID+10, testOperationName)
 		assert.False(t, sampled)
