@@ -199,7 +199,6 @@ func (s *rateLimitingSampler) Equal(other Sampler) bool {
 type GuaranteedThroughputProbabilisticSampler struct {
 	probabilisticSampler Sampler
 	lowerBoundSampler    Sampler
-	operation            string
 	tags                 []Tag
 	samplingRate         float64
 	lowerBound           float64
@@ -208,7 +207,6 @@ type GuaranteedThroughputProbabilisticSampler struct {
 // NewGuaranteedThroughputProbabilisticSampler returns a delegating sampler that applies both
 // probabilisticSampler and rateLimitingSampler.
 func NewGuaranteedThroughputProbabilisticSampler(
-	operation string,
 	lowerBound, samplingRate float64,
 ) (*GuaranteedThroughputProbabilisticSampler, error) {
 	tags := []Tag{
@@ -222,7 +220,6 @@ func NewGuaranteedThroughputProbabilisticSampler(
 	return &GuaranteedThroughputProbabilisticSampler{
 		probabilisticSampler: probabilisticSampler,
 		lowerBoundSampler:    NewRateLimitingSampler(lowerBound),
-		operation:            operation,
 		tags:                 tags,
 		samplingRate:         samplingRate,
 		lowerBound:           lowerBound,
@@ -290,7 +287,6 @@ func NewAdaptiveSampler(strategies *sampling.PerOperationSamplingStrategies, max
 	samplers := make(map[string]*GuaranteedThroughputProbabilisticSampler)
 	for _, strategy := range strategies.PerOperationStrategies {
 		sampler, err := NewGuaranteedThroughputProbabilisticSampler(
-			strategy.Operation,
 			strategies.DefaultLowerBoundTracesPerSecond,
 			strategy.ProbabilisticSampling.SamplingRate,
 		)
@@ -318,7 +314,7 @@ func (s *adaptiveSampler) IsSampled(id uint64, operation string) (bool, []Tag) {
 			// Store only up to maxOperations of unique ops.
 			return s.defaultSampler.IsSampled(id, operation)
 		}
-		sampler, err := NewGuaranteedThroughputProbabilisticSampler(operation, s.lowerBound, s.defaultSampler.SamplingRate())
+		sampler, err := NewGuaranteedThroughputProbabilisticSampler(s.lowerBound, s.defaultSampler.SamplingRate())
 		if err != nil {
 			return false, nil
 		}
@@ -355,7 +351,6 @@ func (s *adaptiveSampler) update(strategies *sampling.PerOperationSamplingStrate
 			}
 		} else {
 			sampler, err := NewGuaranteedThroughputProbabilisticSampler(
-				operation,
 				lowerBound,
 				samplingRate,
 			)

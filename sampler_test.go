@@ -115,7 +115,7 @@ func TestRateLimitingSampler(t *testing.T) {
 func TestGuaranteedThroughputProbabilisticSamplerUpdate(t *testing.T) {
 	samplingRate := 0.5
 	lowerBound := 2.0
-	sampler, err := NewGuaranteedThroughputProbabilisticSampler(testOperationName, lowerBound, samplingRate)
+	sampler, err := NewGuaranteedThroughputProbabilisticSampler(lowerBound, samplingRate)
 	assert.NoError(t, err)
 
 	assert.Equal(t, lowerBound, sampler.lowerBound)
