@@ -141,7 +141,11 @@ func TestAdaptiveSampler(t *testing.T) {
 			ProbabilisticSampling: &sampling.ProbabilisticSamplingStrategy{SamplingRate: testDefaultSamplingProbability},
 		},
 	}
-	strategies := &sampling.PerOperationSamplingStrategies{testDefaultSamplingProbability, 2.0, samplingRates}
+	strategies := &sampling.PerOperationSamplingStrategies{
+		DefaultSamplingProbability:       testDefaultSamplingProbability,
+		DefaultLowerBoundTracesPerSecond: 2.0,
+		PerOperationStrategies:           samplingRates,
+	}
 
 	sampler, err := NewAdaptiveSampler(strategies, testDefaultMaxOperations)
 	require.NoError(t, err)
@@ -173,7 +177,11 @@ func TestAdaptiveSamplerErrors(t *testing.T) {
 			ProbabilisticSampling: &sampling.ProbabilisticSamplingStrategy{SamplingRate: samplingRate},
 		},
 	}
-	strategies := &sampling.PerOperationSamplingStrategies{testDefaultSamplingProbability, lowerBound, samplingRates}
+	strategies := &sampling.PerOperationSamplingStrategies{
+		DefaultSamplingProbability:       testDefaultSamplingProbability,
+		DefaultLowerBoundTracesPerSecond: lowerBound,
+		PerOperationStrategies:           samplingRates,
+	}
 
 	_, err := NewAdaptiveSampler(strategies, testDefaultMaxOperations)
 	assert.Error(t, err)
@@ -192,7 +200,11 @@ func TestAdaptiveSamplerUpdate(t *testing.T) {
 			ProbabilisticSampling: &sampling.ProbabilisticSamplingStrategy{SamplingRate: samplingRate},
 		},
 	}
-	strategies := &sampling.PerOperationSamplingStrategies{testDefaultSamplingProbability, lowerBound, samplingRates}
+	strategies := &sampling.PerOperationSamplingStrategies{
+		DefaultSamplingProbability:       testDefaultSamplingProbability,
+		DefaultLowerBoundTracesPerSecond: lowerBound,
+		PerOperationStrategies:           samplingRates,
+	}
 
 	s, err := NewAdaptiveSampler(strategies, testDefaultMaxOperations)
 	assert.NoError(t, err)
@@ -200,7 +212,7 @@ func TestAdaptiveSamplerUpdate(t *testing.T) {
 	sampler, ok := s.(*adaptiveSampler)
 	assert.True(t, ok)
 	assert.Equal(t, lowerBound, sampler.lowerBound)
-	assert.Equal(t, testDefaultSamplingProbability, sampler.defaultSamplingProbability)
+	assert.Equal(t, testDefaultSamplingProbability, sampler.defaultSampler.SamplingRate())
 	assert.Len(t, sampler.samplers, 1)
 
 	// Update the sampler with new sampling rates
@@ -217,7 +229,11 @@ func TestAdaptiveSamplerUpdate(t *testing.T) {
 			ProbabilisticSampling: &sampling.ProbabilisticSamplingStrategy{SamplingRate: newSamplingRate},
 		},
 	}
-	strategies = &sampling.PerOperationSamplingStrategies{newDefaultSamplingProbability, newLowerBound, newSamplingRates}
+	strategies = &sampling.PerOperationSamplingStrategies{
+		DefaultSamplingProbability:       newDefaultSamplingProbability,
+		DefaultLowerBoundTracesPerSecond: newLowerBound,
+		PerOperationStrategies:           newSamplingRates,
+	}
 
 	s, err = NewAdaptiveSampler(strategies, testDefaultMaxOperations)
 	assert.NoError(t, err)
@@ -225,7 +241,7 @@ func TestAdaptiveSamplerUpdate(t *testing.T) {
 	sampler, ok = s.(*adaptiveSampler)
 	assert.True(t, ok)
 	assert.Equal(t, newLowerBound, sampler.lowerBound)
-	assert.Equal(t, newDefaultSamplingProbability, sampler.defaultSamplingProbability)
+	assert.Equal(t, newDefaultSamplingProbability, sampler.defaultSampler.SamplingRate())
 	assert.Len(t, sampler.samplers, 2)
 }
 
@@ -411,7 +427,7 @@ func TestUpdateSampler(t *testing.T) {
 		s, ok := sampler.sampler.(*adaptiveSampler)
 		assert.True(t, ok)
 		assert.NotEqual(t, initSampler, sampler.sampler, "Sampler should have been updated")
-		assert.Equal(t, test.defaultProbability, s.defaultSamplingProbability)
+		assert.Equal(t, test.defaultProbability, s.defaultSampler.SamplingRate())
 
 		sampled, tags := sampler.IsSampled(testMaxID+10, testOperationName)
 		assert.False(t, sampled)
@@ -428,7 +444,11 @@ func TestMaxOperations(t *testing.T) {
 			ProbabilisticSampling: &sampling.ProbabilisticSamplingStrategy{SamplingRate: 0.1},
 		},
 	}
-	strategies := &sampling.PerOperationSamplingStrategies{testDefaultSamplingProbability, 2.0, samplingRates}
+	strategies := &sampling.PerOperationSamplingStrategies{
+		DefaultSamplingProbability:       testDefaultSamplingProbability,
+		DefaultLowerBoundTracesPerSecond: 2.0,
+		PerOperationStrategies:           samplingRates,
+	}
 
 	sampler, err := NewAdaptiveSampler(strategies, 1)
 	assert.NoError(t, err)

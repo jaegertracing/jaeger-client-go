@@ -97,7 +97,8 @@ func (s *ConstSampler) Equal(other Sampler) bool {
 // ProbabilisticSampler is a sampler that randomly samples a certain percentage
 // of traces.
 type ProbabilisticSampler struct {
-	SamplingBoundary uint64
+	samplingRate     float64
+	samplingBoundary uint64
 	tags             []Tag
 }
 
@@ -108,7 +109,7 @@ const maxRandomNumber = ^(uint64(1) << 63) // i.e. 0x7fffffffffffffff
 //
 // It relies on the fact that new trace IDs are 63bit random numbers themselves, thus making the sampling decision
 // without generating a new random number, but simply calculating if traceID < (samplingRate * 2^63).
-func NewProbabilisticSampler(samplingRate float64) (Sampler, error) {
+func NewProbabilisticSampler(samplingRate float64) (*ProbabilisticSampler, error) {
 	if samplingRate < 0.0 || samplingRate > 1.0 {
 		return nil, fmt.Errorf("Sampling Rate must be between 0.0 and 1.0, received %f", samplingRate)
 	}
@@ -117,14 +118,20 @@ func NewProbabilisticSampler(samplingRate float64) (Sampler, error) {
 		{key: SamplerParamTagKey, value: samplingRate},
 	}
 	return &ProbabilisticSampler{
-		SamplingBoundary: uint64(float64(maxRandomNumber) * samplingRate),
+		samplingRate:     samplingRate,
+		samplingBoundary: uint64(float64(maxRandomNumber) * samplingRate),
 		tags:             tags,
 	}, nil
 }
 
+// SamplingRate returns the sampling probability this sampled was constructed with.
+func (s *ProbabilisticSampler) SamplingRate() float64 {
+	return s.samplingRate
+}
+
 // IsSampled implements IsSampled() of Sampler.
 func (s *ProbabilisticSampler) IsSampled(id uint64, operation string) (bool, []Tag) {
-	return s.SamplingBoundary >= id, s.tags
+	return s.samplingBoundary >= id, s.tags
 }
 
 // Close implements Close() of Sampler.
@@ -135,7 +142,7 @@ func (s *ProbabilisticSampler) Close() {
 // Equal implements Equal() of Sampler.
 func (s *ProbabilisticSampler) Equal(other Sampler) bool {
 	if o, ok := other.(*ProbabilisticSampler); ok {
-		return s.SamplingBoundary == o.SamplingBoundary
+		return s.samplingBoundary == o.samplingBoundary
 	}
 	return false
 }
@@ -270,11 +277,10 @@ func (s *GuaranteedThroughputProbabilisticSampler) update(lowerBound, samplingRa
 // -----------------------
 
 type adaptiveSampler struct {
-	samplers                   map[string]*GuaranteedThroughputProbabilisticSampler
-	defaultSampler             Sampler
-	defaultSamplingProbability float64
-	lowerBound                 float64
-	maxOperations              int
+	samplers       map[string]*GuaranteedThroughputProbabilisticSampler
+	defaultSampler *ProbabilisticSampler
+	lowerBound     float64
+	maxOperations  int
 }
 
 // NewAdaptiveSampler adaptiveSampler is a delegating sampler that applies both probabilisticSampler and
@@ -298,11 +304,10 @@ func NewAdaptiveSampler(strategies *sampling.PerOperationSamplingStrategies, max
 		return nil, err
 	}
 	return &adaptiveSampler{
-		samplers:                   samplers,
-		defaultSampler:             defaultSampler,
-		defaultSamplingProbability: strategies.DefaultSamplingProbability,
-		lowerBound:                 strategies.DefaultLowerBoundTracesPerSecond,
-		maxOperations:              maxOperations,
+		samplers:       samplers,
+		defaultSampler: defaultSampler,
+		lowerBound:     strategies.DefaultLowerBoundTracesPerSecond,
+		maxOperations:  maxOperations,
 	}, nil
 }
 
@@ -313,7 +318,7 @@ func (s *adaptiveSampler) IsSampled(id uint64, operation string) (bool, []Tag) {
 			// Store only up to maxOperations of unique ops.
 			return s.defaultSampler.IsSampled(id, operation)
 		}
-		sampler, err := NewGuaranteedThroughputProbabilisticSampler(operation, s.lowerBound, s.defaultSamplingProbability)
+		sampler, err := NewGuaranteedThroughputProbabilisticSampler(operation, s.lowerBound, s.defaultSampler.SamplingRate())
 		if err != nil {
 			return false, nil
 		}
@@ -361,12 +366,11 @@ func (s *adaptiveSampler) update(strategies *sampling.PerOperationSamplingStrate
 		}
 	}
 	s.lowerBound = strategies.DefaultLowerBoundTracesPerSecond
-	if s.defaultSamplingProbability != strategies.DefaultSamplingProbability {
+	if s.defaultSampler.SamplingRate() != strategies.DefaultSamplingProbability {
 		defaultSampler, err := NewProbabilisticSampler(strategies.DefaultSamplingProbability)
 		if err != nil {
 			return err
 		}
-		s.defaultSamplingProbability = strategies.DefaultSamplingProbability
 		s.defaultSampler = defaultSampler
 	}
 	return nil
