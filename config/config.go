@@ -110,7 +110,7 @@ func (c Configuration) New(
 	}
 	if c.Sampler == nil {
 		c.Sampler = &SamplerConfig{
-			Type:  jaeger.SamplerTypeProbabilistic,
+			Type:  jaeger.SamplerTypeRemote,
 			Param: defaultSamplingProbability,
 		}
 	}

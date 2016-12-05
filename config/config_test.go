@@ -49,3 +49,13 @@ func TestDefaultSampler(t *testing.T) {
 	require.True(t, ok, "converted to RemotelyControlledSampler")
 	rcs.Close()
 }
+
+func TestDefaultConfig(t *testing.T) {
+	cfg := Configuration{}
+	_, _, err := cfg.New("", jaeger.NullStatsReporter)
+	require.EqualError(t, err, "no service name provided")
+
+	_, closer, err := cfg.New("testService", jaeger.NullStatsReporter)
+	defer closer.Close()
+	require.NoError(t, err)
+}
