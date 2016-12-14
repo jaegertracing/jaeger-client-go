@@ -1,8 +1,8 @@
-hash: 2f4a81772d4d619868713bd5d983039a1b3d3fa7fae74fdadbdf484b91a84262
-updated: 2016-10-12T15:36:08.038784937-07:00
+hash: 78eb1747c40833ea71f4ebf71fc1be436de0c8ef43242c751625a97121baa279
+updated: 2016-12-14T14:42:28.873699878-08:00
 imports:
 - name: github.com/apache/thrift
-  version: d1c0d331992014f36b221ea707943cbaa3bfb3a3
+  version: 60611917cf309d2a25b9cd8f8b5631784b07323d
   subpackages:
   - lib/go/thrift
 - name: github.com/crossdock/crossdock-go
@@ -11,7 +11,7 @@ imports:
   - assert
   - require
 - name: github.com/davecgh/go-spew
-  version: 6d212800a42e8ab5c146b8ace3490ee17e5225f9
+  version: 346938d642f2ec3594ed81d874461961cd0faa76
   subpackages:
   - spew
 - name: github.com/opentracing/opentracing-go
@@ -43,7 +43,7 @@ imports:
   - trand
   - typed
 - name: golang.org/x/net
-  version: 6dba816f1056709e29a1c442883cab1336d3c083
+  version: 3b993948b6f0e651ffb58ba135d8538a68b1cddf
   subpackages:
   - context
   - context/ctxhttp
