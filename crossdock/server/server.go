@@ -64,9 +64,10 @@ func (s *Server) Start(endToEndCfg config.Configuration) error {
 		return err
 	}
 	s.eHandler = &endtoend.Handler{}
-	if err := s.eHandler.Init(endToEndCfg); err != nil {
-		return err
-	}
+	// TODO test_driver host needs to be initialized before this
+	//if err := s.eHandler.Init(endToEndCfg); err != nil {
+	//	return err
+	//}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { return }) // health check
@@ -84,7 +85,8 @@ func (s *Server) Start(endToEndCfg config.Configuration) error {
 			return s.doJoinTrace(ctx, req.(*tracetest.JoinTraceRequest))
 		})
 	})
-	mux.HandleFunc("/endtoend", s.eHandler.Trace)
+	// TODO test_driver host needs to be initialized before this
+	//mux.HandleFunc("/endtoend", s.eHandler.Trace)
 
 	listener, err := net.Listen("tcp", s.HostPortHTTP)
 	if err != nil {
