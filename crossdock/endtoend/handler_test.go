@@ -115,7 +115,3 @@ func TestGenerateTraces(t *testing.T) {
 	handler.generateTraces(&testTraceRequest)
 	assert.Equal(t, 2, reporter.SpansSubmitted())
 }
-
-func TestHandler(t *testing.T) {
-
-}
