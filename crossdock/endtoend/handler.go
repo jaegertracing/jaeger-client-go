@@ -3,6 +3,7 @@ package endtoend
 import (
 	"encoding/json"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
@@ -13,8 +14,7 @@ import (
 )
 
 var (
-	// EndToEndConfig is the default config used to connect tracer to other crossdock components
-	EndToEndConfig = config.Configuration{
+	endToEndConfig = config.Configuration{
 		Disabled: false,
 		Sampler: &config.SamplerConfig{
 			Type:               jaeger.SamplerTypeRemote,
@@ -30,6 +30,8 @@ var (
 
 // Handler creates traces via jaeger-client.
 type Handler struct {
+	sync.RWMutex
+
 	tracer opentracing.Tracer
 }
 
@@ -39,8 +41,8 @@ type traceRequest struct {
 	Count     int               `json:"count"`
 }
 
-// Init initializes the handler with a tracer
-func (h *Handler) Init(cfg config.Configuration) error {
+// init initializes the handler with a tracer
+func (h *Handler) init(cfg config.Configuration) error {
 	tracer, _, err := cfg.New(common.DefaultTracerServiceName, jaeger.NullStatsReporter)
 	if err != nil {
 		return err
@@ -51,14 +53,19 @@ func (h *Handler) Init(cfg config.Configuration) error {
 
 // Trace creates traces given the parameters in the request.
 func (h *Handler) Trace(w http.ResponseWriter, r *http.Request) {
+	h.Lock()
+	if h.tracer == nil {
+		h.init(endToEndConfig)
+	}
+	h.Unlock()
+	if h.tracer == nil {
+		http.Error(w, "Tracer is not initialized", http.StatusBadRequest)
+		return
+	}
 	decoder := json.NewDecoder(r.Body)
 	var req traceRequest
 	if err := decoder.Decode(&req); err != nil {
 		http.Error(w, "JSON payload is invalid", http.StatusBadRequest)
-		return
-	}
-	if h.tracer == nil {
-		http.Error(w, "Call init before trace", http.StatusBadRequest)
 		return
 	}
 	h.generateTraces(&req)

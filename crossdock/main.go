@@ -28,7 +28,6 @@ import (
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/crossdock/client"
 	"github.com/uber/jaeger-client-go/crossdock/common"
-	"github.com/uber/jaeger-client-go/crossdock/endtoend"
 	"github.com/uber/jaeger-client-go/crossdock/log"
 	"github.com/uber/jaeger-client-go/crossdock/server"
 )
@@ -40,7 +39,7 @@ func main() {
 	defer tCloser.Close()
 
 	s := &server.Server{Tracer: tracer}
-	if err := s.Start(endtoend.EndToEndConfig); err != nil {
+	if err := s.Start(); err != nil {
 		panic(err.Error())
 	} else {
 		defer s.Close()

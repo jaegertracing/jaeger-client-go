@@ -72,13 +72,13 @@ func newInMemoryTracer() (opentracing.Tracer, *jaeger.InMemoryReporter) {
 
 func TestInit(t *testing.T) {
 	handler := &Handler{}
-	err := handler.Init(testConfig)
+	err := handler.init(testConfig)
 	assert.NoError(t, err)
 }
 
 func TestInitBadConfig(t *testing.T) {
 	handler := &Handler{}
-	err := handler.Init(badConfig)
+	err := handler.init(badConfig)
 	assert.Error(t, err)
 }
 
@@ -96,7 +96,7 @@ func TestTrace(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		req, err := http.NewRequest("POST", "/endtoend", bytes.NewBuffer([]byte(test.json)))
+		req, err := http.NewRequest("POST", "/create_spans", bytes.NewBuffer([]byte(test.json)))
 		if err != nil {
 			assert.FailNow(t, "Failed to initialize request: %v", err)
 		}

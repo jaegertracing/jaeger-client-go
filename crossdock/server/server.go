@@ -34,7 +34,6 @@ import (
 	"github.com/uber/tchannel-go"
 	"golang.org/x/net/context"
 
-	"github.com/uber/jaeger-client-go/config"
 	"github.com/uber/jaeger-client-go/crossdock/common"
 	"github.com/uber/jaeger-client-go/crossdock/endtoend"
 	"github.com/uber/jaeger-client-go/crossdock/log"
@@ -52,7 +51,7 @@ type Server struct {
 }
 
 // Start starts the test server called by the Client and other upstream servers.
-func (s *Server) Start(endToEndCfg config.Configuration) error {
+func (s *Server) Start() error {
 	if s.HostPortHTTP == "" {
 		s.HostPortHTTP = ":" + common.DefaultServerPortHTTP
 	}
@@ -64,10 +63,6 @@ func (s *Server) Start(endToEndCfg config.Configuration) error {
 		return err
 	}
 	s.eHandler = &endtoend.Handler{}
-	// TODO test_driver host needs to be initialized before this
-	//if err := s.eHandler.Init(endToEndCfg); err != nil {
-	//	return err
-	//}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { return }) // health check
@@ -85,8 +80,7 @@ func (s *Server) Start(endToEndCfg config.Configuration) error {
 			return s.doJoinTrace(ctx, req.(*tracetest.JoinTraceRequest))
 		})
 	})
-	// TODO test_driver host needs to be initialized before this
-	//mux.HandleFunc("/endtoend", s.eHandler.Trace)
+	mux.HandleFunc("/create_traces", s.eHandler.Trace)
 
 	listener, err := net.Listen("tcp", s.HostPortHTTP)
 	if err != nil {
