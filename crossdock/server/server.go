@@ -34,7 +34,9 @@ import (
 	"github.com/uber/tchannel-go"
 	"golang.org/x/net/context"
 
+	"github.com/uber/jaeger-client-go/config"
 	"github.com/uber/jaeger-client-go/crossdock/common"
+	"github.com/uber/jaeger-client-go/crossdock/endtoend"
 	"github.com/uber/jaeger-client-go/crossdock/log"
 	"github.com/uber/jaeger-client-go/crossdock/thrift/tracetest"
 )
@@ -46,10 +48,11 @@ type Server struct {
 	Tracer           opentracing.Tracer
 	listener         net.Listener
 	channel          *tchannel.Channel
+	eHandler         *endtoend.Handler
 }
 
 // Start starts the test server called by the Client and other upstream servers.
-func (s *Server) Start() error {
+func (s *Server) Start(endToEndCfg config.Configuration) error {
 	if s.HostPortHTTP == "" {
 		s.HostPortHTTP = ":" + common.DefaultServerPortHTTP
 	}
@@ -58,6 +61,10 @@ func (s *Server) Start() error {
 	}
 
 	if err := s.startTChannelServer(s.Tracer); err != nil {
+		return err
+	}
+	s.eHandler = &endtoend.Handler{}
+	if err := s.eHandler.Init(endToEndCfg); err != nil {
 		return err
 	}
 
@@ -77,6 +84,8 @@ func (s *Server) Start() error {
 			return s.doJoinTrace(ctx, req.(*tracetest.JoinTraceRequest))
 		})
 	})
+	mux.HandleFunc("/endtoend", s.eHandler.Trace)
+
 	listener, err := net.Listen("tcp", s.HostPortHTTP)
 	if err != nil {
 		return err

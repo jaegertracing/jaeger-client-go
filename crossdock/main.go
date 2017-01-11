@@ -40,17 +40,13 @@ func main() {
 	defer tCloser.Close()
 
 	s := &server.Server{Tracer: tracer}
-	if err := s.Start(); err != nil {
+	if err := s.Start(endtoend.EndToEndConfig); err != nil {
 		panic(err.Error())
 	} else {
 		defer s.Close()
 	}
 	client := &client.Client{}
 	if err := client.Start(); err != nil {
-		panic(err.Error())
-	}
-	eS := &endtoend.Server{}
-	if err := eS.Start(endtoend.EndToEndConfig); err != nil {
 		panic(err.Error())
 	}
 }

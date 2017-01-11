@@ -2,7 +2,6 @@ package endtoend
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -29,8 +28,8 @@ var (
 	}
 )
 
-// Server is a service that creates traces via jaeger-client.
-type Server struct {
+// Handler creates traces via jaeger-client.
+type Handler struct {
 	tracer opentracing.Tracer
 }
 
@@ -40,42 +39,38 @@ type traceRequest struct {
 	Count     int               `json:"count"`
 }
 
-// Start begins a end to end crossdock server
-func (s *Server) Start(cfg config.Configuration) error {
+// Init initializes the handler with a tracer
+func (h *Handler) Init(cfg config.Configuration) error {
 	tracer, _, err := cfg.New(common.DefaultTracerServiceName, jaeger.NullStatsReporter)
 	if err != nil {
 		return err
 	}
-	s.tracer = tracer
-
-	http.HandleFunc("/trace", s.Trace)
-	hostPort := fmt.Sprintf(":%s", common.DefaultEndToEndServerPort)
-	go http.ListenAndServe(hostPort, nil)
+	h.tracer = tracer
 	return nil
 }
 
 // Trace creates traces given the parameters in the request.
-func (s *Server) Trace(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Trace(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	var req traceRequest
 	if err := decoder.Decode(&req); err != nil {
 		http.Error(w, "JSON payload is invalid", http.StatusBadRequest)
 		return
 	}
-	if s.tracer == nil {
+	if h.tracer == nil {
 		http.Error(w, "Call init before trace", http.StatusBadRequest)
 		return
 	}
-	s.generateTraces(&req)
+	h.generateTraces(&req)
 }
 
-func (s *Server) generateTraces(r *traceRequest) {
+func (h *Handler) generateTraces(r *traceRequest) {
 	opts := make([]opentracing.StartSpanOption, 0, len(r.Tags))
 	for k, v := range r.Tags {
 		opts = append(opts, opentracing.Tag{Key: k, Value: v})
 	}
 	for i := 0; i < r.Count; i++ {
-		span := s.tracer.StartSpan(r.Operation, opts...)
+		span := h.tracer.StartSpan(r.Operation, opts...)
 		span.Finish()
 	}
 }

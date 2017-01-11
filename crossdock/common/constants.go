@@ -30,9 +30,6 @@ const (
 	// DefaultServerPortTChannel is the port where TChannel server runs
 	DefaultServerPortTChannel = "8082"
 
-	// DefaultEndToEndServerPort is the port where end to end HTTP server runs
-	DefaultEndToEndServerPort = "8083"
-
 	// DefaultServiceName is the service name used by TChannel server
 	DefaultServiceName = "go"
 

@@ -70,15 +70,15 @@ func newInMemoryTracer() (opentracing.Tracer, *jaeger.InMemoryReporter) {
 	return tracer, inMemoryReporter
 }
 
-func TestServer(t *testing.T) {
-	server := &Server{}
-	err := server.Start(testConfig)
+func TestInit(t *testing.T) {
+	handler := &Handler{}
+	err := handler.Init(testConfig)
 	assert.NoError(t, err)
 }
 
-func TestStartBadConfig(t *testing.T) {
-	server := &Server{}
-	err := server.Start(badConfig)
+func TestInitBadConfig(t *testing.T) {
+	handler := &Handler{}
+	err := handler.Init(badConfig)
 	assert.Error(t, err)
 }
 
@@ -88,20 +88,20 @@ func TestTrace(t *testing.T) {
 	tests := []struct {
 		expectedCode int
 		json         string
-		server       *Server
+		handler      *Handler
 	}{
-		{http.StatusOK, testTraceJSONRequest, &Server{tracer: tracer}},
-		{http.StatusBadRequest, testInvalidJSON, &Server{}},
-		{http.StatusBadRequest, testTraceJSONRequest, &Server{}}, // Tracer hasn't been initialized
+		{http.StatusOK, testTraceJSONRequest, &Handler{tracer: tracer}},
+		{http.StatusBadRequest, testInvalidJSON, &Handler{}},
+		{http.StatusBadRequest, testTraceJSONRequest, &Handler{}}, // Tracer hasn't been initialized
 	}
 
 	for _, test := range tests {
-		req, err := http.NewRequest("POST", "/trace", bytes.NewBuffer([]byte(test.json)))
+		req, err := http.NewRequest("POST", "/endtoend", bytes.NewBuffer([]byte(test.json)))
 		if err != nil {
 			assert.FailNow(t, "Failed to initialize request: %v", err)
 		}
 		recorder := httptest.NewRecorder()
-		handlerFunc := http.HandlerFunc(test.server.Trace)
+		handlerFunc := http.HandlerFunc(test.handler.Trace)
 
 		handlerFunc.ServeHTTP(recorder, req)
 
@@ -111,7 +111,11 @@ func TestTrace(t *testing.T) {
 
 func TestGenerateTraces(t *testing.T) {
 	tracer, reporter := newInMemoryTracer()
-	server := &Server{tracer: tracer}
-	server.generateTraces(&testTraceRequest)
+	handler := &Handler{tracer: tracer}
+	handler.generateTraces(&testTraceRequest)
 	assert.Equal(t, 2, reporter.SpansSubmitted())
+}
+
+func TestHandler(t *testing.T) {
+
 }

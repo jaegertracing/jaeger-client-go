@@ -29,6 +29,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/uber/jaeger-client-go"
+	"github.com/uber/jaeger-client-go/config"
 	"github.com/uber/jaeger-client-go/crossdock/common"
 	"github.com/uber/jaeger-client-go/crossdock/log"
 	"github.com/uber/jaeger-client-go/crossdock/server"
@@ -56,7 +57,7 @@ func TestCrossdock(t *testing.T) {
 		HostPortTChannel: "127.0.0.1:0",
 		Tracer:           tracer,
 	}
-	err := s.Start()
+	err := s.Start(config.Configuration{})
 	require.NoError(t, err)
 	defer s.Close()
 
