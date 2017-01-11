@@ -14,12 +14,12 @@ type Propagator struct{}
 
 // NewZipkinB3HTTPHeaderPropagator creates a Propagator for reading Zipkin
 // HTTP B3 headers
-func NewZipkinB3HTTPHeaderPropagator() *Propagator {
-	return &Propagator{}
+func NewZipkinB3HTTPHeaderPropagator() Propagator {
+	return Propagator{}
 }
 
 // Inject implements Inject()
-func (p *Propagator) Inject(
+func (p Propagator) Inject(
 	sc jaeger.SpanContext,
 	abstractCarrier interface{},
 ) error {
@@ -42,7 +42,7 @@ func (p *Propagator) Inject(
 }
 
 // Extract implements Extract()
-func (p *Propagator) Extract(abstractCarrier interface{}) (jaeger.SpanContext, error) {
+func (p Propagator) Extract(abstractCarrier interface{}) (jaeger.SpanContext, error) {
 	textMapReader, ok := abstractCarrier.(opentracing.TextMapReader)
 	if !ok {
 		return jaeger.SpanContext{}, opentracing.ErrInvalidCarrier
