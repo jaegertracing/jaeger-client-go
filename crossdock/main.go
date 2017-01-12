@@ -23,12 +23,13 @@ package main
 import (
 	"io"
 
+	"github.com/opentracing/opentracing-go"
+
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/crossdock/client"
+	"github.com/uber/jaeger-client-go/crossdock/common"
 	"github.com/uber/jaeger-client-go/crossdock/log"
 	"github.com/uber/jaeger-client-go/crossdock/server"
-
-	"github.com/opentracing/opentracing-go"
 )
 
 func main() {
@@ -51,7 +52,7 @@ func main() {
 
 func initTracer() (opentracing.Tracer, io.Closer) {
 	t, c := jaeger.NewTracer(
-		"crossdock-go",
+		common.DefaultTracerServiceName,
 		jaeger.NewConstSampler(false),
 		jaeger.NewLoggingReporter(jaeger.StdLogger))
 	return t, c

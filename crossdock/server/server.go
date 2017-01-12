@@ -35,6 +35,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/uber/jaeger-client-go/crossdock/common"
+	"github.com/uber/jaeger-client-go/crossdock/endtoend"
 	"github.com/uber/jaeger-client-go/crossdock/log"
 	"github.com/uber/jaeger-client-go/crossdock/thrift/tracetest"
 )
@@ -46,6 +47,7 @@ type Server struct {
 	Tracer           opentracing.Tracer
 	listener         net.Listener
 	channel          *tchannel.Channel
+	eHandler         *endtoend.Handler
 }
 
 // Start starts the test server called by the Client and other upstream servers.
@@ -60,6 +62,7 @@ func (s *Server) Start() error {
 	if err := s.startTChannelServer(s.Tracer); err != nil {
 		return err
 	}
+	s.eHandler = &endtoend.Handler{}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { return }) // health check
@@ -77,6 +80,8 @@ func (s *Server) Start() error {
 			return s.doJoinTrace(ctx, req.(*tracetest.JoinTraceRequest))
 		})
 	})
+	mux.HandleFunc("/create_traces", s.eHandler.GenerateTraces)
+
 	listener, err := net.Listen("tcp", s.HostPortHTTP)
 	if err != nil {
 		return err
