@@ -80,7 +80,7 @@ func (s *Server) Start() error {
 			return s.doJoinTrace(ctx, req.(*tracetest.JoinTraceRequest))
 		})
 	})
-	mux.HandleFunc("/create_traces", s.eHandler.Trace)
+	mux.HandleFunc("/create_traces", s.eHandler.GenerateTraces)
 
 	listener, err := net.Listen("tcp", s.HostPortHTTP)
 	if err != nil {

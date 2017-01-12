@@ -1,3 +1,23 @@
+// Copyright (c) 2017 Uber Technologies, Inc.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+
 package endtoend
 
 import (
@@ -82,7 +102,7 @@ func TestInitBadConfig(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestTrace(t *testing.T) {
+func TestGenerateTraces(t *testing.T) {
 	tracer, _ := newInMemoryTracer()
 
 	tests := []struct {
@@ -91,25 +111,22 @@ func TestTrace(t *testing.T) {
 		handler      *Handler
 	}{
 		{http.StatusOK, testTraceJSONRequest, &Handler{tracer: tracer}},
-		{http.StatusBadRequest, testInvalidJSON, &Handler{}},
-		{http.StatusBadRequest, testTraceJSONRequest, &Handler{}}, // Tracer hasn't been initialized
+		{http.StatusBadRequest, testInvalidJSON, &Handler{tracer: tracer}},
+		{http.StatusInternalServerError, testTraceJSONRequest, &Handler{}}, // Tracer hasn't been initialized
 	}
 
 	for _, test := range tests {
 		req, err := http.NewRequest("POST", "/create_spans", bytes.NewBuffer([]byte(test.json)))
-		if err != nil {
-			assert.FailNow(t, "Failed to initialize request: %v", err)
-		}
+		assert.NoError(t, err, "Failed to initialize request")
 		recorder := httptest.NewRecorder()
-		handlerFunc := http.HandlerFunc(test.handler.Trace)
-
+		handlerFunc := http.HandlerFunc(test.handler.GenerateTraces)
 		handlerFunc.ServeHTTP(recorder, req)
 
 		assert.Equal(t, test.expectedCode, recorder.Code)
 	}
 }
 
-func TestGenerateTraces(t *testing.T) {
+func TestGenerateTracesInternal(t *testing.T) {
 	tracer, reporter := newInMemoryTracer()
 	handler := &Handler{tracer: tracer}
 	handler.generateTraces(&testTraceRequest)

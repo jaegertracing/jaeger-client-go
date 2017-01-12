@@ -28,6 +28,7 @@ import (
 
 	"github.com/opentracing/opentracing-go"
 
+	"fmt"
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/config"
 	"github.com/uber/jaeger-client-go/crossdock/common"
@@ -71,33 +72,32 @@ func (h *Handler) init(cfg config.Configuration) error {
 	return nil
 }
 
-// Trace creates traces given the parameters in the request.
-func (h *Handler) Trace(w http.ResponseWriter, r *http.Request) {
+// GenerateTraces creates traces given the parameters in the request.
+func (h *Handler) GenerateTraces(w http.ResponseWriter, r *http.Request) {
 	h.Lock()
 	if h.tracer == nil {
 		h.init(endToEndConfig)
 	}
 	h.Unlock()
 	if h.tracer == nil {
-		http.Error(w, "Tracer is not initialized", http.StatusBadRequest)
+		http.Error(w, "Tracer is not initialized", http.StatusInternalServerError)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
 	var req traceRequest
 	if err := decoder.Decode(&req); err != nil {
-		http.Error(w, "JSON payload is invalid", http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("JSON payload is invalid: %s", err.Error()), http.StatusBadRequest)
 		return
 	}
 	h.generateTraces(&req)
 }
 
 func (h *Handler) generateTraces(r *traceRequest) {
-	opts := make([]opentracing.StartSpanOption, 0, len(r.Tags))
-	for k, v := range r.Tags {
-		opts = append(opts, opentracing.Tag{Key: k, Value: v})
-	}
 	for i := 0; i < r.Count; i++ {
-		span := h.tracer.StartSpan(r.Operation, opts...)
+		span := h.tracer.StartSpan(r.Operation)
+		for k, v := range r.Tags {
+			span.SetTag(k, v)
+		}
 		span.Finish()
 	}
 }
