@@ -22,13 +22,13 @@ package endtoend
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"sync"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
 
-	"fmt"
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/config"
 	"github.com/uber/jaeger-client-go/crossdock/common"
