@@ -1,4 +1,4 @@
-// Copyright (c) 2016 The OpenTracing Authors
+// Copyright (c) 2017 The OpenTracing Authors
 // Copyright (c) 2016 Bas van Beek
 // Copyright (c) 2016 Uber Technologies, Inc.
 //
