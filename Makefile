@@ -40,6 +40,7 @@ test:
 .PHONY: fmt
 fmt:
 	$(GOFMT) -e -s -l -w $(ALL_SRC)
+	./scripts/updateLicenses.sh
 
 .PHONY: lint
 lint:
