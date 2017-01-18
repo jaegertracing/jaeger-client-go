@@ -40,7 +40,7 @@ var (
 		Sampler: &config.SamplerConfig{
 			Type:                    jaeger.SamplerTypeRemote,
 			Param:                   1.0,
-			LocalAgentHostPort:      "test_driver:5778/sampling",
+			LocalAgentHostPort:      "test_driver:5778",
 			SamplingRefreshInterval: 5 * time.Second,
 		},
 		Reporter: &config.ReporterConfig{
