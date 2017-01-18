@@ -31,9 +31,9 @@ import (
 )
 
 const (
-	defaultSamplingServerHostPort = "localhost:5778"
-
-	defaultMaxOperations = 2000
+	defaultSamplingServerHostPort  = "localhost:5778"
+	defaultSamplingRefreshInterval = time.Minute
+	defaultMaxOperations           = 2000
 )
 
 // Sampler decides whether a new trace should be sampled or not.
@@ -379,10 +379,11 @@ func (s *adaptiveSampler) update(strategies *sampling.PerOperationSamplingStrate
 type RemotelyControlledSampler struct {
 	sync.RWMutex
 
-	serviceName string
-	timer       *time.Ticker
-	manager     sampling.SamplingManager
-	pollStopped sync.WaitGroup
+	serviceName             string
+	timer                   *time.Ticker
+	manager                 sampling.SamplingManager
+	pollStopped             sync.WaitGroup
+	samplingRefreshInterval time.Duration
 
 	hostPort      string
 	logger        Logger
@@ -413,16 +414,17 @@ func NewRemotelyControlledSampler(
 ) *RemotelyControlledSampler {
 	initialSampler, _ := NewProbabilisticSampler(0.001)
 	sampler := &RemotelyControlledSampler{
-		serviceName:   serviceName,
-		logger:        NullLogger,
-		metrics:       NewMetrics(NullStatsReporter, nil),
-		timer:         time.NewTicker(1 * time.Minute),
-		hostPort:      defaultSamplingServerHostPort,
-		sampler:       initialSampler,
-		maxOperations: defaultMaxOperations,
+		serviceName:             serviceName,
+		logger:                  NullLogger,
+		metrics:                 NewMetrics(NullStatsReporter, nil),
+		samplingRefreshInterval: defaultSamplingRefreshInterval,
+		hostPort:                defaultSamplingServerHostPort,
+		sampler:                 initialSampler,
+		maxOperations:           defaultMaxOperations,
 	}
 
 	sampler.applyOptions(options...)
+	sampler.timer = time.NewTicker(sampler.samplingRefreshInterval)
 	sampler.manager = &httpSamplingManager{serverURL: "http://" + sampler.hostPort}
 
 	go sampler.pollController()
@@ -449,8 +451,8 @@ func (s *RemotelyControlledSampler) applyOptions(options ...SamplerOption) {
 	if opts.metrics != nil {
 		s.metrics = opts.metrics
 	}
-	if opts.timer != nil {
-		s.timer = opts.timer
+	if opts.samplingRefreshInterval != 0 {
+		s.samplingRefreshInterval = opts.samplingRefreshInterval
 	}
 }
 

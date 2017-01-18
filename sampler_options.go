@@ -29,12 +29,12 @@ type SamplerOption func(options *samplerOptions)
 var SamplerOptions samplerOptions
 
 type samplerOptions struct {
-	metrics       *Metrics
-	maxOperations int
-	sampler       Sampler
-	logger        Logger
-	hostPort      string
-	timer         *time.Ticker
+	metrics                 *Metrics
+	maxOperations           int
+	sampler                 Sampler
+	logger                  Logger
+	hostPort                string
+	samplingRefreshInterval time.Duration
 }
 
 // Metrics creates a SamplerOption that initializes Metrics on the sampler,
@@ -80,6 +80,6 @@ func (samplerOptions) HostPort(hostPort string) SamplerOption {
 // sampler will poll local agent for the appropriate sampling strategy.
 func (samplerOptions) SamplingRefreshInterval(samplingRefreshInterval time.Duration) SamplerOption {
 	return func(o *samplerOptions) {
-		o.timer = time.NewTicker(samplingRefreshInterval)
+		o.samplingRefreshInterval = samplingRefreshInterval
 	}
 }
