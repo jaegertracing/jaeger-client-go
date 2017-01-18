@@ -449,6 +449,9 @@ func (s *RemotelyControlledSampler) applyOptions(options ...SamplerOption) {
 	if opts.metrics != nil {
 		s.metrics = opts.metrics
 	}
+	if opts.timer != nil {
+		s.timer = opts.timer
+	}
 }
 
 // IsSampled implements IsSampled() of Sampler.

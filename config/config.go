@@ -70,6 +70,10 @@ type SamplerConfig struct {
 	// will keep track of. If an operation is not tracked, a default probabilistic
 	// sampler will be used rather than the per operation specific sampler.
 	MaxOperations int `yaml:"maxOperations"`
+
+	// SamplingRefreshInterval controls how often the remotely controlled sampler will poll
+	// jaeger-agent for the appropriate sampling strategy.
+	SamplingRefreshInterval time.Duration `yaml:"samplingRefreshInterval"`
 }
 
 // ReporterConfig configures the reporter. All fields are optional.
@@ -192,6 +196,9 @@ func (sc *SamplerConfig) NewSampler(
 		}
 		if sc.MaxOperations != 0 {
 			options = append(options, jaeger.SamplerOptions.MaxOperations(sc.MaxOperations))
+		}
+		if sc.SamplingRefreshInterval != 0 {
+			options = append(options, jaeger.SamplerOptions.SamplingRefreshInterval(sc.SamplingRefreshInterval))
 		}
 		return jaeger.NewRemotelyControlledSampler(serviceName, options...), nil
 	}
