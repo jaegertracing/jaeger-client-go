@@ -400,7 +400,7 @@ func (s *httpSamplingManager) GetSamplingStrategy(serviceName string) (*sampling
 	var out sampling.SamplingStrategyResponse
 	v := url.Values{}
 	v.Set("service", serviceName)
-	if err := utils.GetJSON(s.serverURL+"/?"+v.Encode(), &out); err != nil {
+	if err := utils.GetJSON(s.serverURL+"?"+v.Encode(), &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
