@@ -40,7 +40,7 @@ var (
 		Sampler: &config.SamplerConfig{
 			Type:               jaeger.SamplerTypeRemote,
 			Param:              1.0,
-			LocalAgentHostPort: "test_driver:5778",
+			LocalAgentHostPort: "test_driver:5778/sampling",
 		},
 		Reporter: &config.ReporterConfig{
 			BufferFlushInterval: time.Second,
