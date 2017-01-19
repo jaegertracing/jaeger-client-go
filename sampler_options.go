@@ -20,6 +20,8 @@
 
 package jaeger
 
+import "time"
+
 // SamplerOption is a function that sets some option on the sampler
 type SamplerOption func(options *samplerOptions)
 
@@ -27,11 +29,12 @@ type SamplerOption func(options *samplerOptions)
 var SamplerOptions samplerOptions
 
 type samplerOptions struct {
-	metrics       *Metrics
-	maxOperations int
-	sampler       Sampler
-	logger        Logger
-	hostPort      string
+	metrics                 *Metrics
+	maxOperations           int
+	sampler                 Sampler
+	logger                  Logger
+	hostPort                string
+	samplingRefreshInterval time.Duration
 }
 
 // Metrics creates a SamplerOption that initializes Metrics on the sampler,
@@ -70,5 +73,13 @@ func (samplerOptions) Logger(logger Logger) SamplerOption {
 func (samplerOptions) HostPort(hostPort string) SamplerOption {
 	return func(o *samplerOptions) {
 		o.hostPort = hostPort
+	}
+}
+
+// SamplingRefreshInterval creates a SamplerOption that sets how often the
+// sampler will poll local agent for the appropriate sampling strategy.
+func (samplerOptions) SamplingRefreshInterval(samplingRefreshInterval time.Duration) SamplerOption {
+	return func(o *samplerOptions) {
+		o.samplingRefreshInterval = samplingRefreshInterval
 	}
 }

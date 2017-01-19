@@ -38,9 +38,10 @@ var (
 	endToEndConfig = config.Configuration{
 		Disabled: false,
 		Sampler: &config.SamplerConfig{
-			Type:               jaeger.SamplerTypeRemote,
-			Param:              1.0,
-			LocalAgentHostPort: "test_driver:5778/sampling",
+			Type:                    jaeger.SamplerTypeRemote,
+			Param:                   1.0,
+			LocalAgentHostPort:      "test_driver:5778/sampling",
+			SamplingRefreshInterval: 5 * time.Second,
 		},
 		Reporter: &config.ReporterConfig{
 			BufferFlushInterval: time.Second,

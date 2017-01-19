@@ -280,6 +280,7 @@ func initAgent(t *testing.T) (*testutils.MockAgent, *RemotelyControlledSampler, 
 		SamplerOptions.MaxOperations(testDefaultMaxOperations),
 		SamplerOptions.InitialSampler(initialSampler),
 		SamplerOptions.Logger(NullLogger),
+		SamplerOptions.SamplingRefreshInterval(time.Minute),
 	)
 	sampler.Close() // stop timer-based updates, we want to call them manually
 
