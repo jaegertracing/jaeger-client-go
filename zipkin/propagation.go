@@ -9,16 +9,16 @@ import (
 	"github.com/uber/jaeger-client-go"
 )
 
-// Propagator Injector and Extractor
+// Propagator is an Injector and Extractor
 type Propagator struct{}
 
-// NewZipkinB3HTTPHeaderPropagator creates a Propagator for reading Zipkin
-// HTTP B3 headers
+// NewZipkinB3HTTPHeaderPropagator creates a Propagator for extracting and injecting
+// Zipkin HTTP B3 headers into SpanContexts.
 func NewZipkinB3HTTPHeaderPropagator() Propagator {
 	return Propagator{}
 }
 
-// Inject implements Inject()
+// Inject conforms to the Injector interface for decoding Zipkin HTTP B3 headers
 func (p Propagator) Inject(
 	sc jaeger.SpanContext,
 	abstractCarrier interface{},
@@ -41,7 +41,7 @@ func (p Propagator) Inject(
 	return nil
 }
 
-// Extract implements Extract()
+// Extract conforms to the Extractor interface for encoding Zipkin HTTP B3 headers
 func (p Propagator) Extract(abstractCarrier interface{}) (jaeger.SpanContext, error) {
 	textMapReader, ok := abstractCarrier.(opentracing.TextMapReader)
 	if !ok {
