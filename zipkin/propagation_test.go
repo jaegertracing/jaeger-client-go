@@ -9,9 +9,9 @@ import (
 )
 
 var (
-	rootSampled       = jaeger.NewSpanContext(1, 2, 0, true, nil)
-	nonRootSampled    = jaeger.NewSpanContext(1, 2, 1, true, nil)
-	nonRootNonSampled = jaeger.NewSpanContext(1, 2, 1, false, nil)
+	rootSampled       = newSpanContext(1, 2, 0, true)
+	nonRootSampled    = newSpanContext(1, 2, 1, true)
+	nonRootNonSampled = newSpanContext(1, 2, 1, false)
 )
 
 var (
@@ -43,6 +43,16 @@ var (
 var (
 	propagator = NewZipkinB3HTTPHeaderPropagator()
 )
+
+func newSpanContext(traceID, spanID, parentID uint64, sampled bool) jaeger.SpanContext {
+	return jaeger.NewSpanContext(
+		jaeger.TraceID{Low: traceID},
+		jaeger.SpanID(spanID),
+		jaeger.SpanID(parentID),
+		sampled,
+		nil,
+	)
+}
 
 func TestExtractorInvalid(t *testing.T) {
 	_, err := propagator.Extract(invalidHeader)

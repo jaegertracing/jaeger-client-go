@@ -28,11 +28,12 @@ func (p Propagator) Inject(
 		return opentracing.ErrInvalidCarrier
 	}
 
-	textMapWriter.Set("x-b3-traceid", strconv.FormatUint(sc.TraceID(), 16))
+	// TODO this needs to change to support 128bit IDs
+	textMapWriter.Set("x-b3-traceid", strconv.FormatUint(sc.TraceID().Low, 16))
 	if sc.ParentID() != 0 {
-		textMapWriter.Set("x-b3-parentspanid", strconv.FormatUint(sc.ParentID(), 16))
+		textMapWriter.Set("x-b3-parentspanid", strconv.FormatUint(uint64(sc.ParentID()), 16))
 	}
-	textMapWriter.Set("x-b3-spanid", strconv.FormatUint(sc.SpanID(), 16))
+	textMapWriter.Set("x-b3-spanid", strconv.FormatUint(uint64(sc.SpanID()), 16))
 	if sc.IsSampled() {
 		textMapWriter.Set("x-b3-sampled", "1")
 	} else {
@@ -72,5 +73,9 @@ func (p Propagator) Extract(abstractCarrier interface{}) (jaeger.SpanContext, er
 	if traceID == 0 {
 		return jaeger.SpanContext{}, opentracing.ErrSpanContextNotFound
 	}
-	return jaeger.NewSpanContext(traceID, spanID, parentID, sampled, nil), nil
+	return jaeger.NewSpanContext(
+		jaeger.TraceID{Low: traceID},
+		jaeger.SpanID(spanID),
+		jaeger.SpanID(parentID),
+		sampled, nil), nil
 }
