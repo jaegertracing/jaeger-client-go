@@ -48,6 +48,7 @@ type tracer struct {
 
 	options struct {
 		poolSpans bool
+		gen128Bit bool // whether to generate 128bit trace IDs
 		// more options to come
 	}
 	// pool for Span objects
@@ -185,8 +186,11 @@ func (t *tracer) startSpanWithOptions(
 	newTrace := false
 	if !hasParent || !parent.IsValid() {
 		newTrace = true
-		ctx.traceID = t.randomID()
-		ctx.spanID = ctx.traceID
+		ctx.traceID.Low = t.randomID()
+		if t.options.gen128Bit {
+			ctx.traceID.High = t.randomID()
+		}
+		ctx.spanID = SpanID(ctx.traceID.Low)
 		ctx.parentID = 0
 		ctx.flags = byte(0)
 		if hasParent && parent.isDebugIDContainerOnly() {
@@ -203,7 +207,7 @@ func (t *tracer) startSpanWithOptions(
 			ctx.spanID = parent.spanID
 			ctx.parentID = parent.parentID
 		} else {
-			ctx.spanID = t.randomID()
+			ctx.spanID = SpanID(t.randomID())
 			ctx.parentID = parent.spanID
 		}
 		ctx.flags = parent.flags

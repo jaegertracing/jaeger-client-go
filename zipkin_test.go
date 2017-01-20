@@ -39,9 +39,9 @@ func TestZipkinPropagator(t *testing.T) {
 		t.Fatalf("Inject failed: %+v", err)
 	}
 	sp1 := sp.(*span)
-	assert.Equal(t, sp1.context.traceID, carrier.traceID)
-	assert.Equal(t, sp1.context.spanID, carrier.spanID)
-	assert.Equal(t, sp1.context.parentID, carrier.parentID)
+	assert.Equal(t, sp1.context.traceID, TraceID{Low: carrier.traceID})
+	assert.Equal(t, sp1.context.spanID, SpanID(carrier.spanID))
+	assert.Equal(t, sp1.context.parentID, SpanID(carrier.parentID))
 	assert.Equal(t, sp1.context.flags, carrier.flags)
 
 	sp2ctx, err := tracer.Extract("zipkin-span-format", carrier)

@@ -162,7 +162,7 @@ func (p *textMapPropagator) Extract(abstractCarrier interface{}) (SpanContext, e
 		p.tracer.metrics.DecodingErrors.Inc(1)
 		return emptyContext, err
 	}
-	if ctx.traceID == 0 && ctx.debugID == "" && len(baggage) == 0 {
+	if !ctx.traceID.IsValid() && ctx.debugID == "" && len(baggage) == 0 {
 		return emptyContext, opentracing.ErrSpanContextNotFound
 	}
 	ctx.baggage = baggage
