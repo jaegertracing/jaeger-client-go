@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	defaultSamplingServerHostPort  = "localhost:5778"
+	defaultSamplingServerHostPort  = "localhost:5778/sampling"
 	defaultSamplingRefreshInterval = time.Minute
 	defaultMaxOperations           = 2000
 )
