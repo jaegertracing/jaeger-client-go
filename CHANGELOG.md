@@ -4,7 +4,7 @@ Changes by Version
 1.6.1 (unreleased)
 -------------------
 
-- No changes yet
+- Add Zipkin HTTP B3 Propagation format support #72
 
 
 1.6.0 (2016-10-14)
@@ -32,5 +32,3 @@ Changes by Version
 -------------------
 
 - Support debug traces via HTTP header "jaeger-debug-id"
-
-
