@@ -1,9 +1,12 @@
 Changes by Version
 ==================
 
-1.6.1 (unreleased)
+2.0.0 (unreleased)
 -------------------
 
+- Support Adaptive Sampling
+- Support 128bit Trace IDs
+- Change trace/span IDs from uint64 to strong types TraceID and SpanID
 - Add Zipkin HTTP B3 Propagation format support #72
 
 
