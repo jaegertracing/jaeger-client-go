@@ -87,7 +87,7 @@ func TestObserveSpan(t *testing.T) {
 	s, err := observeSpan(ctx, tracer)
 	assert.NoError(t, err)
 	assert.True(t, s.Sampled)
-	traceID := fmt.Sprintf("%x", span.Context().(jaeger.SpanContext).TraceID())
+	traceID := span.Context().(jaeger.SpanContext).TraceID().String()
 	assert.Equal(t, traceID, s.TraceId)
 	assert.Equal(t, "xyz", s.Baggage)
 }
