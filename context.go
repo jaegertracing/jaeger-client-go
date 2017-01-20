@@ -144,7 +144,7 @@ func (c SpanContext) SpanID() SpanID {
 	return c.spanID
 }
 
-// ParentID implemereturns the parent span ID of this span context
+// ParentID returns the parent span ID of this span context
 func (c SpanContext) ParentID() SpanID {
 	return c.parentID
 }
