@@ -81,7 +81,7 @@ func (s *tracerSuite) TestBeginRootSpan() {
 	s.Equal("server", ss.spanKind, "Span must be server-side")
 	s.Equal("peer-service", ss.peer.ServiceName, "Client is 'peer-service'")
 
-	s.EqualValues(someID, ss.context.traceID)
+	s.EqualValues(someID, ss.context.traceID.Low)
 	s.EqualValues(0, ss.context.parentID)
 
 	s.Equal(startTime, ss.startTime)
@@ -179,7 +179,7 @@ func (s *tracerSuite) TestRandomIDNotZero() {
 		return
 	}
 	sp := s.tracer.StartSpan("get_name").(*span)
-	s.EqualValues(int64(1), sp.context.traceID)
+	s.EqualValues(TraceID{Low: 1}, sp.context.traceID)
 
 	rng := utils.NewRand(0)
 	rng.Seed(1) // for test coverage
@@ -246,7 +246,7 @@ func TestEmptySpanContextAsParent(t *testing.T) {
 
 	span := tracer.StartSpan("test", opentracing.ChildOf(emptyContext))
 	ctx := span.Context().(SpanContext)
-	assert.NotEqual(t, uint64(0), uint64(ctx.traceID))
+	assert.True(t, ctx.traceID.IsValid())
 	assert.True(t, ctx.IsValid())
 }
 

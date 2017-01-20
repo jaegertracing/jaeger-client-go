@@ -72,7 +72,7 @@ func TestSamplerTags(t *testing.T) {
 		{remote, "const", true},
 	}
 	for _, test := range tests {
-		_, tags := test.sampler.IsSampled(0, testOperationName)
+		_, tags := test.sampler.IsSampled(TraceID{}, testOperationName)
 		count := 0
 		for _, tag := range tags {
 			if tag.key == SamplerTypeTagKey {
@@ -97,10 +97,10 @@ func TestProbabilisticSamplerErrors(t *testing.T) {
 
 func TestProbabilisticSampler(t *testing.T) {
 	sampler, _ := NewProbabilisticSampler(0.5)
-	sampled, tags := sampler.IsSampled(testMaxID+10, testOperationName)
+	sampled, tags := sampler.IsSampled(TraceID{Low: testMaxID + 10}, testOperationName)
 	assert.False(t, sampled)
 	assert.Equal(t, testProbabilisticExpectedTags, tags)
-	sampled, tags = sampler.IsSampled(testMaxID-20, testOperationName)
+	sampled, tags = sampler.IsSampled(TraceID{Low: testMaxID - 20}, testOperationName)
 	assert.True(t, sampled)
 	assert.Equal(t, testProbabilisticExpectedTags, tags)
 	sampler2, _ := NewProbabilisticSampler(0.5)
@@ -114,7 +114,7 @@ func TestProbabilisticSamplerPerformance(t *testing.T) {
 	rand := utils.NewRand(8736823764)
 	var count uint64
 	for i := 0; i < 100000000; i++ {
-		id := uint64(rand.Int63())
+		id := TraceID{Low: uint64(rand.Int63())}
 		if sampled, _ := sampler.IsSampled(id, testOperationName); sampled {
 			count++
 		}
@@ -171,19 +171,19 @@ func TestAdaptiveSampler(t *testing.T) {
 	require.NoError(t, err)
 	defer sampler.Close()
 
-	sampled, tags := sampler.IsSampled(testMaxID-20, testOperationName)
+	sampled, tags := sampler.IsSampled(TraceID{Low: testMaxID - 20}, testOperationName)
 	assert.True(t, sampled)
 	assert.Equal(t, testProbabilisticExpectedTags, tags)
 
-	sampled, tags = sampler.IsSampled(testMaxID+10, testOperationName)
+	sampled, tags = sampler.IsSampled(TraceID{Low: testMaxID + 10}, testOperationName)
 	assert.True(t, sampled)
 	assert.Equal(t, testLowerBoundExpectedTags, tags)
 
-	sampled, tags = sampler.IsSampled(testMaxID+10, testOperationName)
+	sampled, tags = sampler.IsSampled(TraceID{Low: testMaxID + 10}, testOperationName)
 	assert.False(t, sampled)
 
 	// This operation is seen for the first time by the sampler
-	sampled, tags = sampler.IsSampled(testMaxID, testFirstTimeOperationName)
+	sampled, tags = sampler.IsSampled(TraceID{Low: testMaxID}, testFirstTimeOperationName)
 	assert.True(t, sampled)
 	assert.Equal(t, testProbabilisticExpectedTags, tags)
 }
@@ -321,10 +321,10 @@ func TestRemotelyControlledSampler(t *testing.T) {
 	assert.True(t, ok)
 	assert.NotEqual(t, initSampler, sampler.sampler, "Sampler should have been updated")
 
-	sampled, tags := sampler.IsSampled(testMaxID+10, testOperationName)
+	sampled, tags := sampler.IsSampled(TraceID{Low: testMaxID + 10}, testOperationName)
 	assert.False(t, sampled)
 	assert.Equal(t, testProbabilisticExpectedTags, tags)
-	sampled, tags = sampler.IsSampled(testMaxID-10, testOperationName)
+	sampled, tags = sampler.IsSampled(TraceID{Low: testMaxID - 10}, testOperationName)
 	assert.True(t, sampled)
 	assert.Equal(t, testProbabilisticExpectedTags, tags)
 
@@ -450,9 +450,9 @@ func TestUpdateSampler(t *testing.T) {
 		assert.NotEqual(t, initSampler, sampler.sampler, "Sampler should have been updated")
 		assert.Equal(t, test.defaultProbability, s.defaultSampler.SamplingRate())
 
-		sampled, tags := sampler.IsSampled(testMaxID+10, testOperationName)
+		sampled, tags := sampler.IsSampled(TraceID{Low: testMaxID + 10}, testOperationName)
 		assert.False(t, sampled)
-		sampled, tags = sampler.IsSampled(testMaxID-10, testOperationName)
+		sampled, tags = sampler.IsSampled(TraceID{Low: testMaxID - 10}, testOperationName)
 		assert.True(t, sampled)
 		assert.Equal(t, testProbabilisticExpectedTags, tags)
 	}
@@ -474,7 +474,7 @@ func TestMaxOperations(t *testing.T) {
 	sampler, err := NewAdaptiveSampler(strategies, 1)
 	assert.NoError(t, err)
 
-	sampled, tags := sampler.IsSampled(testMaxID-10, testFirstTimeOperationName)
+	sampled, tags := sampler.IsSampled(TraceID{Low: testMaxID - 10}, testFirstTimeOperationName)
 	assert.True(t, sampled)
 	assert.Equal(t, testProbabilisticExpectedTags, tags)
 }

@@ -43,7 +43,7 @@ type Sampler interface {
 	// can be used to identify the type of sampling that was applied to
 	// the root span. Most simple samplers would return two tags,
 	// sampler.type and sampler.param, similar to those used in the Configuration
-	IsSampled(id uint64, operation string) (sampled bool, tags []Tag)
+	IsSampled(id TraceID, operation string) (sampled bool, tags []Tag)
 
 	// Close does a clean shutdown of the sampler, stopping any background
 	// go-routines it may have started.
@@ -75,7 +75,7 @@ func NewConstSampler(sample bool) Sampler {
 }
 
 // IsSampled implements IsSampled() of Sampler.
-func (s *ConstSampler) IsSampled(id uint64, operation string) (bool, []Tag) {
+func (s *ConstSampler) IsSampled(id TraceID, operation string) (bool, []Tag) {
 	return s.Decision, s.tags
 }
 
@@ -130,8 +130,8 @@ func (s *ProbabilisticSampler) SamplingRate() float64 {
 }
 
 // IsSampled implements IsSampled() of Sampler.
-func (s *ProbabilisticSampler) IsSampled(id uint64, operation string) (bool, []Tag) {
-	return s.samplingBoundary >= id, s.tags
+func (s *ProbabilisticSampler) IsSampled(id TraceID, operation string) (bool, []Tag) {
+	return s.samplingBoundary >= id.Low, s.tags
 }
 
 // Close implements Close() of Sampler.
@@ -172,7 +172,7 @@ func NewRateLimitingSampler(maxTracesPerSecond float64) Sampler {
 }
 
 // IsSampled implements IsSampled() of Sampler.
-func (s *rateLimitingSampler) IsSampled(id uint64, operation string) (bool, []Tag) {
+func (s *rateLimitingSampler) IsSampled(id TraceID, operation string) (bool, []Tag) {
 	return s.rateLimiter.CheckCredit(1.0), s.tags
 }
 
@@ -227,7 +227,7 @@ func NewGuaranteedThroughputProbabilisticSampler(
 }
 
 // IsSampled implements IsSampled() of Sampler.
-func (s *GuaranteedThroughputProbabilisticSampler) IsSampled(id uint64, operation string) (bool, []Tag) {
+func (s *GuaranteedThroughputProbabilisticSampler) IsSampled(id TraceID, operation string) (bool, []Tag) {
 	if sampled, tags := s.probabilisticSampler.IsSampled(id, operation); sampled {
 		s.lowerBoundSampler.IsSampled(id, operation)
 		return true, tags
@@ -307,7 +307,7 @@ func NewAdaptiveSampler(strategies *sampling.PerOperationSamplingStrategies, max
 	}, nil
 }
 
-func (s *adaptiveSampler) IsSampled(id uint64, operation string) (bool, []Tag) {
+func (s *adaptiveSampler) IsSampled(id TraceID, operation string) (bool, []Tag) {
 	sampler, ok := s.samplers[operation]
 	if !ok {
 		if len(s.samplers) >= s.maxOperations {
@@ -457,7 +457,7 @@ func (s *RemotelyControlledSampler) applyOptions(options ...SamplerOption) {
 }
 
 // IsSampled implements IsSampled() of Sampler.
-func (s *RemotelyControlledSampler) IsSampled(id uint64, operation string) (bool, []Tag) {
+func (s *RemotelyControlledSampler) IsSampled(id TraceID, operation string) (bool, []Tag) {
 	s.RLock()
 	defer s.RUnlock()
 	return s.sampler.IsSampled(id, operation)

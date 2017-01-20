@@ -123,8 +123,8 @@ func TestSpanIntegrityAfterSerialize(t *testing.T) {
 
 	context, err := ContextFromString(serializedString)
 	require.NoError(t, err)
-	require.True(t, context.traceID > (uint64(1)<<63))
-	require.True(t, int64(context.traceID) < 0)
+	require.True(t, context.traceID.Low > (uint64(1)<<63))
+	require.True(t, int64(context.traceID.Low) < 0)
 
 	newSerializedString := context.String()
 	require.Equal(t, serializedString, newSerializedString)
@@ -233,7 +233,7 @@ func TestDebugCorrelationID(t *testing.T) {
 	assert.EqualValues(t, "value1", ctx.(SpanContext).debugID)
 	sp := tracer.StartSpan("root", opentracing.ChildOf(ctx)).(*span)
 	assert.EqualValues(t, 0, sp.context.parentID)
-	assert.True(t, sp.context.traceID != 0)
+	assert.True(t, sp.context.traceID.IsValid())
 	assert.True(t, sp.context.IsSampled())
 	assert.True(t, sp.context.IsDebug())
 	tagFound := false

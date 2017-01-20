@@ -39,19 +39,27 @@ var (
 	emptyContext = SpanContext{}
 )
 
+// TraceID represents unique 128bit identifier of a trace
+type TraceID struct {
+	High, Low uint64
+}
+
+// SpanID represents unique 64bit identifier of a span
+type SpanID uint64
+
 // SpanContext represents propagated span identity and state
 type SpanContext struct {
 	// traceID represents globally unique ID of the trace.
 	// Usually generated as a random number.
-	traceID uint64
+	traceID TraceID
 
 	// spanID represents span ID that must be unique within its trace,
 	// but does not have to be globally unique.
-	spanID uint64
+	spanID SpanID
 
 	// parentID refers to the ID of the parent span.
 	// Should be 0 if the current span is a root span.
-	parentID uint64
+	parentID SpanID
 
 	// flags is a bitmap containing such bits as 'sampled' and 'debug'.
 	flags byte
@@ -88,11 +96,14 @@ func (c SpanContext) IsDebug() bool {
 
 // IsValid indicates whether this context actually represents a valid trace.
 func (c SpanContext) IsValid() bool {
-	return c.traceID != 0 && c.spanID != 0
+	return c.traceID.IsValid() && c.spanID != 0
 }
 
 func (c SpanContext) String() string {
-	return fmt.Sprintf("%x:%x:%x:%x", c.traceID, c.spanID, c.parentID, c.flags)
+	if c.traceID.High == 0 {
+		return fmt.Sprintf("%x:%x:%x:%x", c.traceID.Low, uint64(c.spanID), uint64(c.parentID), c.flags)
+	}
+	return fmt.Sprintf("%x%016x:%x:%x:%x", c.traceID.High, c.traceID.Low, uint64(c.spanID), uint64(c.parentID), c.flags)
 }
 
 // ContextFromString reconstructs the Context encoded in a string
@@ -106,13 +117,13 @@ func ContextFromString(value string) (SpanContext, error) {
 		return emptyContext, errMalformedTracerStateString
 	}
 	var err error
-	if context.traceID, err = strconv.ParseUint(parts[0], 16, 64); err != nil {
+	if context.traceID, err = TraceIDFromString(parts[0]); err != nil {
 		return emptyContext, err
 	}
-	if context.spanID, err = strconv.ParseUint(parts[1], 16, 64); err != nil {
+	if context.spanID, err = SpanIDFromString(parts[1]); err != nil {
 		return emptyContext, err
 	}
-	if context.parentID, err = strconv.ParseUint(parts[2], 16, 64); err != nil {
+	if context.parentID, err = SpanIDFromString(parts[2]); err != nil {
 		return emptyContext, err
 	}
 	flags, err := strconv.ParseUint(parts[3], 10, 8)
@@ -123,23 +134,23 @@ func ContextFromString(value string) (SpanContext, error) {
 	return context, nil
 }
 
-// TraceID implements TraceID() of SpanID
-func (c SpanContext) TraceID() uint64 {
+// TraceID returns the trace ID of this span context
+func (c SpanContext) TraceID() TraceID {
 	return c.traceID
 }
 
-// SpanID implements SpanID() of SpanID
-func (c SpanContext) SpanID() uint64 {
+// SpanID returns the span ID of this span context
+func (c SpanContext) SpanID() SpanID {
 	return c.spanID
 }
 
-// ParentID implements ParentID() of SpanID
-func (c SpanContext) ParentID() uint64 {
+// ParentID returns the parent span ID of this span context
+func (c SpanContext) ParentID() SpanID {
 	return c.parentID
 }
 
 // NewSpanContext creates a new instance of SpanContext
-func NewSpanContext(traceID, spanID, parentID uint64, sampled bool, baggage map[string]string) SpanContext {
+func NewSpanContext(traceID TraceID, spanID, parentID SpanID, sampled bool, baggage map[string]string) SpanContext {
 	flags := byte(0)
 	if sampled {
 		flags = flagSampled
@@ -194,6 +205,60 @@ func (c SpanContext) WithBaggageItem(key, value string) SpanContext {
 //
 // See JaegerDebugHeader in constants.go
 // See textMapPropagator#Extract
-func (c SpanContext) isDebugIDContainerOnly() bool {
-	return c.traceID == 0 && c.debugID != ""
+func (c *SpanContext) isDebugIDContainerOnly() bool {
+	return !c.traceID.IsValid() && c.debugID != ""
+}
+
+// ------- TraceID -------
+
+func (t TraceID) String() string {
+	if t.High == 0 {
+		return fmt.Sprintf("%x", t.Low)
+	}
+	return fmt.Sprintf("%x%016x", t.High, t.Low)
+}
+
+// TraceIDFromString creates a TraceID from a hexadecimal string
+func TraceIDFromString(s string) (TraceID, error) {
+	var hi, lo uint64
+	var err error
+	if len(s) > 32 {
+		return TraceID{}, fmt.Errorf("TraceID cannot be longer than 32 hex characters: %s", s)
+	} else if len(s) > 16 {
+		hiLen := len(s) - 16
+		if hi, err = strconv.ParseUint(s[0:hiLen], 16, 64); err != nil {
+			return TraceID{}, err
+		}
+		if lo, err = strconv.ParseUint(s[hiLen:], 16, 64); err != nil {
+			return TraceID{}, err
+		}
+	} else {
+		if lo, err = strconv.ParseUint(s, 16, 64); err != nil {
+			return TraceID{}, err
+		}
+	}
+	return TraceID{High: hi, Low: lo}, nil
+}
+
+// IsValid checks if the trace ID is valid, i.e. not zero.
+func (t TraceID) IsValid() bool {
+	return t.High != 0 || t.Low != 0
+}
+
+// ------- SpanID -------
+
+func (s SpanID) String() string {
+	return fmt.Sprintf("%x", uint64(s))
+}
+
+// SpanIDFromString creates a SpanID from a hexadecimal string
+func SpanIDFromString(s string) (SpanID, error) {
+	if len(s) > 16 {
+		return SpanID(0), fmt.Errorf("SpanID cannot be longer than 16 hex characters: %s", s)
+	}
+	id, err := strconv.ParseUint(s, 16, 64)
+	if err != nil {
+		return SpanID(0), err
+	}
+	return SpanID(id), nil
 }

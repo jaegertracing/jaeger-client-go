@@ -75,7 +75,7 @@ func TestHttpTransport(t *testing.T) {
 	srcSpanCtx := span.Context().(jaeger.SpanContext)
 	gotSpan := server.spans()[0]
 	assert.Equal(t, "root", gotSpan.Name)
-	assert.EqualValues(t, srcSpanCtx.TraceID(), gotSpan.TraceID)
+	assert.EqualValues(t, srcSpanCtx.TraceID().Low, gotSpan.TraceID)
 	assert.EqualValues(t, srcSpanCtx.SpanID(), gotSpan.ID)
 }
 

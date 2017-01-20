@@ -100,7 +100,7 @@ func observeSpan(ctx context.Context, tracer opentracing.Tracer) (*tracetest.Obs
 	}
 	sc := span.Context().(jaeger.SpanContext)
 	observedSpan := tracetest.NewObservedSpan()
-	observedSpan.TraceId = fmt.Sprintf("%x", sc.TraceID())
+	observedSpan.TraceId = sc.TraceID().String()
 	observedSpan.Sampled = sc.IsSampled()
 	observedSpan.Baggage = span.BaggageItem(BaggageKey)
 	return observedSpan, nil
