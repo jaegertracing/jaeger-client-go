@@ -174,9 +174,9 @@ This allows using Jaeger UI to find the trace by this tag.
 ### Zipkin HTTP B3 compatible header propagation
 
 Jaeger Tracer supports Zipkin B3 Propagation HTTP headers, which are used
-by a lot of Zipkin tracers. This means that you can use Jaeger in conjunction with e.ge [these OpenZipkin tracers](https://github.com/openzipkin).
+by a lot of Zipkin tracers. This means that you can use Jaeger in conjunction with e.g. [these OpenZipkin tracers](https://github.com/openzipkin).
 
-However it is not the default propagation format, see [here](zipkin/README.MD#NewZipkinB3HTTPHeaderPropagator) how to set it up.
+However it is not the default propagation format, see [here](zipkin/README.md#NewZipkinB3HTTPHeaderPropagator) how to set it up.
 
 ## License
 
