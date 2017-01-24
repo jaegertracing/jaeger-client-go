@@ -33,7 +33,7 @@ type samplerOptions struct {
 	maxOperations           int
 	sampler                 Sampler
 	logger                  Logger
-	hostPort                string
+	samplingServerURL       string
 	samplingRefreshInterval time.Duration
 }
 
@@ -68,11 +68,11 @@ func (samplerOptions) Logger(logger Logger) SamplerOption {
 	}
 }
 
-// HostPort creates a SamplerOption that sets the host:port of the local
-// agent that contains the sampling strategies.
-func (samplerOptions) HostPort(hostPort string) SamplerOption {
+// SamplingServerURL creates a SamplerOption that sets the sampling server url
+// of the local agent that contains the sampling strategies.
+func (samplerOptions) SamplingServerURL(samplingServerURL string) SamplerOption {
 	return func(o *samplerOptions) {
-		o.hostPort = hostPort
+		o.samplingServerURL = samplingServerURL
 	}
 }
 

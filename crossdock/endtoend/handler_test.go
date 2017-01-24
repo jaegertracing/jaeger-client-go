@@ -41,9 +41,9 @@ var (
 	testConfig = config.Configuration{
 		Disabled: false,
 		Sampler: &config.SamplerConfig{
-			Type:               jaeger.SamplerTypeRemote,
-			Param:              1.0,
-			LocalAgentHostPort: "localhost:5778",
+			Type:              jaeger.SamplerTypeRemote,
+			Param:             1.0,
+			SamplingServerURL: "localhost:5778",
 		},
 		Reporter: &config.ReporterConfig{
 			BufferFlushInterval: time.Second,
