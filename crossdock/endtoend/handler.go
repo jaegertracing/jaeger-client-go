@@ -40,7 +40,7 @@ var (
 		Sampler: &config.SamplerConfig{
 			Type:                    jaeger.SamplerTypeRemote,
 			Param:                   1.0,
-			SamplingServerURL:       "test_driver:5778/sampling",
+			SamplingServerURL:       "http://test_driver:5778/sampling",
 			SamplingRefreshInterval: 5 * time.Second,
 		},
 		Reporter: &config.ReporterConfig{

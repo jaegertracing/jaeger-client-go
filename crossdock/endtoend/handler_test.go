@@ -43,7 +43,7 @@ var (
 		Sampler: &config.SamplerConfig{
 			Type:              jaeger.SamplerTypeRemote,
 			Param:             1.0,
-			SamplingServerURL: "localhost:5778",
+			SamplingServerURL: "http://localhost:5778/sampling",
 		},
 		Reporter: &config.ReporterConfig{
 			BufferFlushInterval: time.Second,

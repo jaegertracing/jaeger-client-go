@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	defaultSamplingServerURL       = "localhost:5778/sampling"
+	defaultSamplingServerURL       = "http://localhost:5778/sampling"
 	defaultSamplingRefreshInterval = time.Minute
 	defaultMaxOperations           = 2000
 )
@@ -425,7 +425,7 @@ func NewRemotelyControlledSampler(
 
 	sampler.applyOptions(options...)
 	sampler.timer = time.NewTicker(sampler.samplingRefreshInterval)
-	sampler.manager = &httpSamplingManager{serverURL: "http://" + sampler.samplingServerURL}
+	sampler.manager = &httpSamplingManager{serverURL: sampler.samplingServerURL}
 
 	go sampler.pollController()
 	return sampler
