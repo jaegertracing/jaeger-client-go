@@ -63,8 +63,8 @@ type SamplerConfig struct {
 	//   is received from the mothership
 	Param float64 `yaml:"param"`
 
-	// LocalAgentHostPort is the address of jaeger-agent's HTTP server
-	LocalAgentHostPort string `yaml:"localAgentHostPort"`
+	// SamplingServerURL is the address of jaeger-agent's HTTP sampling server
+	SamplingServerURL string `yaml:"samplingServerURL"`
 
 	// MaxOperations is the maximum number of operations that the sampler
 	// will keep track of. If an operation is not tracked, a default probabilistic
@@ -192,7 +192,7 @@ func (sc *SamplerConfig) NewSampler(
 		options := []jaeger.SamplerOption{
 			jaeger.SamplerOptions.Metrics(metrics),
 			jaeger.SamplerOptions.InitialSampler(initSampler),
-			jaeger.SamplerOptions.HostPort(sc.LocalAgentHostPort),
+			jaeger.SamplerOptions.SamplingServerURL(sc.SamplingServerURL),
 		}
 		if sc.MaxOperations != 0 {
 			options = append(options, jaeger.SamplerOptions.MaxOperations(sc.MaxOperations))

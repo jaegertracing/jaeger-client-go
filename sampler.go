@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	defaultSamplingServerHostPort  = "localhost:5778"
+	defaultSamplingServerURL       = "http://localhost:5778/sampling"
 	defaultSamplingRefreshInterval = time.Minute
 	defaultMaxOperations           = 2000
 )
@@ -385,11 +385,11 @@ type RemotelyControlledSampler struct {
 	pollStopped             sync.WaitGroup
 	samplingRefreshInterval time.Duration
 
-	hostPort      string
-	logger        Logger
-	sampler       Sampler
-	metrics       *Metrics
-	maxOperations int
+	samplingServerURL string
+	logger            Logger
+	sampler           Sampler
+	metrics           *Metrics
+	maxOperations     int
 }
 
 type httpSamplingManager struct {
@@ -418,14 +418,14 @@ func NewRemotelyControlledSampler(
 		logger:                  NullLogger,
 		metrics:                 NewMetrics(NullStatsReporter, nil),
 		samplingRefreshInterval: defaultSamplingRefreshInterval,
-		hostPort:                defaultSamplingServerHostPort,
+		samplingServerURL:       defaultSamplingServerURL,
 		sampler:                 initialSampler,
 		maxOperations:           defaultMaxOperations,
 	}
 
 	sampler.applyOptions(options...)
 	sampler.timer = time.NewTicker(sampler.samplingRefreshInterval)
-	sampler.manager = &httpSamplingManager{serverURL: "http://" + sampler.hostPort}
+	sampler.manager = &httpSamplingManager{serverURL: sampler.samplingServerURL}
 
 	go sampler.pollController()
 	return sampler
@@ -445,8 +445,8 @@ func (s *RemotelyControlledSampler) applyOptions(options ...SamplerOption) {
 	if opts.maxOperations > 0 {
 		s.maxOperations = opts.maxOperations
 	}
-	if opts.hostPort != "" {
-		s.hostPort = opts.hostPort
+	if opts.samplingServerURL != "" {
+		s.samplingServerURL = opts.samplingServerURL
 	}
 	if opts.metrics != nil {
 		s.metrics = opts.metrics
