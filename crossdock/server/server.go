@@ -62,7 +62,7 @@ func (s *Server) Start() error {
 	if err := s.startTChannelServer(s.Tracer); err != nil {
 		return err
 	}
-	s.eHandler = &endtoend.Handler{}
+	s.eHandler = endtoend.NewHandler()
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { return }) // health check

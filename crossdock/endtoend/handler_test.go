@@ -59,6 +59,7 @@ var (
 	}
 
 	testTraceRequest = traceRequest{
+		Type:      jaeger.SamplerTypeConst,
 		Operation: testOperation,
 		Tags: map[string]string{
 			"key": "value",
@@ -70,6 +71,18 @@ var (
 
 	testTraceJSONRequest = `
 		{
+			"type": "const",
+			"operation": "testOperation",
+			"tags": {
+				"key": "value"
+			},
+			"count": 2
+		}
+	`
+
+	testInvalidTypeJSONRequest = `
+		{
+			"type": "INVALID_TYPE",
 			"operation": "testOperation",
 			"tags": {
 				"key": "value"
@@ -91,15 +104,28 @@ func newInMemoryTracer() (opentracing.Tracer, *jaeger.InMemoryReporter) {
 }
 
 func TestInit(t *testing.T) {
-	handler := &Handler{}
+	handler := NewHandler()
 	err := handler.init(testConfig)
 	assert.NoError(t, err)
 }
 
 func TestInitBadConfig(t *testing.T) {
-	handler := &Handler{}
+	handler := NewHandler()
 	err := handler.init(badConfig)
 	assert.Error(t, err)
+}
+
+func TestGetTracer(t *testing.T) {
+	iTracer, _ := newInMemoryTracer()
+	handler := &Handler{tracers: map[string]opentracing.Tracer{jaeger.SamplerTypeConst: iTracer}}
+	tracer := handler.getTracer(jaeger.SamplerTypeConst)
+	assert.Equal(t, iTracer, tracer)
+}
+
+func TestGetTracerError(t *testing.T) {
+	handler := NewHandler()
+	tracer := handler.getTracer("INVALID_TYPE")
+	assert.Nil(t, tracer)
 }
 
 func TestGenerateTraces(t *testing.T) {
@@ -110,9 +136,9 @@ func TestGenerateTraces(t *testing.T) {
 		json         string
 		handler      *Handler
 	}{
-		{http.StatusOK, testTraceJSONRequest, &Handler{tracer: tracer}},
-		{http.StatusBadRequest, testInvalidJSON, &Handler{tracer: tracer}},
-		{http.StatusInternalServerError, testTraceJSONRequest, &Handler{}}, // Tracer hasn't been initialized
+		{http.StatusOK, testTraceJSONRequest, &Handler{tracers: map[string]opentracing.Tracer{jaeger.SamplerTypeConst: tracer}}},
+		{http.StatusBadRequest, testInvalidJSON, NewHandler()},
+		{http.StatusInternalServerError, testInvalidTypeJSONRequest, NewHandler()}, // Tracer failed to initialize
 	}
 
 	for _, test := range tests {
@@ -128,7 +154,6 @@ func TestGenerateTraces(t *testing.T) {
 
 func TestGenerateTracesInternal(t *testing.T) {
 	tracer, reporter := newInMemoryTracer()
-	handler := &Handler{tracer: tracer}
-	handler.generateTraces(&testTraceRequest)
+	generateTraces(tracer, &testTraceRequest)
 	assert.Equal(t, 2, reporter.SpansSubmitted())
 }

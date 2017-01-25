@@ -32,13 +32,16 @@ import (
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/config"
 	"github.com/uber/jaeger-client-go/crossdock/common"
+	"github.com/uber/jaeger-client-go/crossdock/log"
 )
 
 var (
+	defaultSamplerType = jaeger.SamplerTypeRemote
+
 	endToEndConfig = config.Configuration{
 		Disabled: false,
 		Sampler: &config.SamplerConfig{
-			Type:                    jaeger.SamplerTypeRemote,
+			Type:                    defaultSamplerType,
 			Param:                   1.0,
 			SamplingServerURL:       "http://test_driver:5778/sampling",
 			SamplingRefreshInterval: 5 * time.Second,
@@ -50,17 +53,39 @@ var (
 	}
 )
 
-// Handler creates traces via jaeger-client.
+/*Handler handles creating traces from a http request.
+ *
+ * json: {
+ *   "type": "remote",
+ *   "operation": "operationName",
+ *   "count": 2,
+ *   "tags": {
+ *     "key": "value"
+ *   }
+ * }
+ *
+ * Given the above json payload, the handler will use a tracer with the RemotelyControlledSampler
+ * to create 2 traces for "operationName" operation with the tags: {"key":"value"}. These traces
+ * are reported to the agent with the hostname "test_driver".
+ */
 type Handler struct {
 	sync.RWMutex
 
-	tracer opentracing.Tracer
+	tracers map[string]opentracing.Tracer
 }
 
 type traceRequest struct {
+	Type      string            `json:"type"`
 	Operation string            `json:"operation"`
 	Tags      map[string]string `json:"tags"`
 	Count     int               `json:"count"`
+}
+
+// NewHandler returns a Handler.
+func NewHandler() *Handler {
+	return &Handler{
+		tracers: make(map[string]opentracing.Tracer),
+	}
 }
 
 // init initializes the handler with a tracer
@@ -69,33 +94,47 @@ func (h *Handler) init(cfg config.Configuration) error {
 	if err != nil {
 		return err
 	}
-	h.tracer = tracer
+	h.tracers[cfg.Sampler.Type] = tracer
 	return nil
+}
+
+func (h *Handler) getTracer(samplerType string) opentracing.Tracer {
+	if samplerType == "" {
+		samplerType = defaultSamplerType
+	}
+	h.Lock()
+	defer h.Unlock()
+	tracer, ok := h.tracers[samplerType]
+	if !ok {
+		endToEndConfig.Sampler.Type = samplerType
+		if err := h.init(endToEndConfig); err != nil {
+			log.Printf("Failed to create tracer: %s", err.Error())
+			return nil
+		}
+		tracer, _ = h.tracers[samplerType]
+	}
+	return tracer
 }
 
 // GenerateTraces creates traces given the parameters in the request.
 func (h *Handler) GenerateTraces(w http.ResponseWriter, r *http.Request) {
-	h.Lock()
-	if h.tracer == nil {
-		h.init(endToEndConfig)
-	}
-	h.Unlock()
-	if h.tracer == nil {
-		http.Error(w, "Tracer is not initialized", http.StatusInternalServerError)
-		return
-	}
 	decoder := json.NewDecoder(r.Body)
 	var req traceRequest
 	if err := decoder.Decode(&req); err != nil {
 		http.Error(w, fmt.Sprintf("JSON payload is invalid: %s", err.Error()), http.StatusBadRequest)
 		return
 	}
-	h.generateTraces(&req)
+	tracer := h.getTracer(req.Type)
+	if tracer == nil {
+		http.Error(w, "Tracer is not initialized", http.StatusInternalServerError)
+		return
+	}
+	generateTraces(tracer, &req)
 }
 
-func (h *Handler) generateTraces(r *traceRequest) {
+func generateTraces(tracer opentracing.Tracer, r *traceRequest) {
 	for i := 0; i < r.Count; i++ {
-		span := h.tracer.StartSpan(r.Operation)
+		span := tracer.StartSpan(r.Operation)
 		for k, v := range r.Tags {
 			span.SetTag(k, v)
 		}
