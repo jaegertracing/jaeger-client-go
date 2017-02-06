@@ -416,7 +416,7 @@ func NewRemotelyControlledSampler(
 	sampler := &RemotelyControlledSampler{
 		serviceName:             serviceName,
 		logger:                  NullLogger,
-		metrics:                 NewNullMetrics(),
+		metrics:                 NewNullMetrics(nil),
 		samplingRefreshInterval: defaultSamplingRefreshInterval,
 		samplingServerURL:       defaultSamplingServerURL,
 		sampler:                 initialSampler,

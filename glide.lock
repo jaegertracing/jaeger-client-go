@@ -1,8 +1,8 @@
 hash: 78eb1747c40833ea71f4ebf71fc1be436de0c8ef43242c751625a97121baa279
-updated: 2017-02-02T17:52:55.476106614-05:00
+updated: 2017-02-06T14:45:17.715674569-05:00
 imports:
 - name: github.com/apache/thrift
-  version: fac3f69725f507872e6d68afea5debd020ce2580
+  version: 3a8bbbd4a68fb28f2b33a7ee9e81ba3dd4a929a5
   subpackages:
   - lib/go/thrift
 - name: github.com/codahale/hdrhistogram
@@ -34,7 +34,7 @@ imports:
 - name: github.com/uber-go/atomic
   version: 0c9e689d64f004564b79d9a663634756df322902
 - name: github.com/uber/jaeger-lib
-  version: 69ff5f942615c68473d0aac1917943ec6544a7c1
+  version: 8a9505ec797863acca8c8aad57441afec15ac29f
   subpackages:
   - metrics
 - name: github.com/uber/tchannel-go

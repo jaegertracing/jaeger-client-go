@@ -64,7 +64,7 @@ func TestNewSamplerProbabilistic(t *testing.T) {
 
 func TestDefaultSampler(t *testing.T) {
 	cfg := &SamplerConfig{MaxOperations: 10}
-	s, err := cfg.NewSampler("x", jaeger.NewNullMetrics())
+	s, err := cfg.NewSampler("x", jaeger.NewNullMetrics(nil))
 	require.NoError(t, err)
 	rcs, ok := s.(*jaeger.RemotelyControlledSampler)
 	require.True(t, ok, "converted to RemotelyControlledSampler")

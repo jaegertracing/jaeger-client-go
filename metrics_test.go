@@ -25,21 +25,23 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/uber/jaeger-lib/metrics"
 )
 
 func TestNewMetrics(t *testing.T) {
 	tags := map[string]string{"lib": "jaeger"}
 
-	m := &Metrics{}
-	err := initMetrics(m, nil, tags)
-	require.NoError(t, err)
+	b := metrics.NewLocalBackend(0)
+	defer b.Stop()
+	factory := metrics.NewLocalFactory(b)
+	m := NewMetrics(factory, tags)
 
-	m = NewMetrics(nil, tags)
 	require.NotNil(t, m.SpansSampled, "counter not initialized")
 	require.NotNil(t, m.ReporterQueueLength, "gauge not initialized")
-	require.NotEmpty(t, m.SpansSampled.tags)
-	assert.Equal(t, "jaeger.spans", m.SpansSampled.name)
-	assert.Equal(t, "sampling", m.SpansSampled.tags["group"])
-	assert.Equal(t, "y", m.SpansSampled.tags["sampled"])
-	assert.Equal(t, "jaeger", m.SpansSampled.tags["lib"])
+
+	m.SpansSampled.Inc(1)
+	m.ReporterQueueLength.Update(11)
+	counters, gauges := b.Snapshot()
+	assert.EqualValues(t, 1, counters["jaeger.spans|group=sampling|lib=jaeger|sampled=y"])
+	assert.EqualValues(t, gauges["jaeger.reporter-queue|lib=jaeger"], 11)
 }

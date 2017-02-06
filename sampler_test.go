@@ -27,6 +27,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/uber/jaeger-lib/metrics"
 
 	"github.com/uber/jaeger-client-go/testutils"
 	"github.com/uber/jaeger-client-go/thrift-gen/sampling"
@@ -265,12 +266,13 @@ func TestAdaptiveSamplerUpdate(t *testing.T) {
 	assert.Len(t, sampler.samplers, 2)
 }
 
-func initAgent(t *testing.T) (*testutils.MockAgent, *RemotelyControlledSampler, *InMemoryStatsCollector) {
+func initAgent(t *testing.T) (*testutils.MockAgent, *RemotelyControlledSampler, *metrics.LocalBackend) {
 	agent, err := testutils.StartMockAgent()
 	require.NoError(t, err)
 
-	stats := NewInMemoryStatsCollector()
-	metrics := NewMetrics(stats, nil)
+	stats := metrics.NewLocalBackend(0)
+	factory := metrics.NewLocalFactory(stats)
+	metrics := NewMetrics(factory, nil)
 
 	initialSampler, _ := NewProbabilisticSampler(0.001)
 	sampler := NewRemotelyControlledSampler(
@@ -290,6 +292,7 @@ func initAgent(t *testing.T) (*testutils.MockAgent, *RemotelyControlledSampler, 
 func TestRemotelyControlledSampler(t *testing.T) {
 	agent, sampler, stats := initAgent(t)
 	defer agent.Close()
+	defer stats.Stop()
 
 	initSampler, ok := sampler.sampler.(*ProbabilisticSampler)
 	assert.True(t, ok)
@@ -300,7 +303,8 @@ func TestRemotelyControlledSampler(t *testing.T) {
 			SamplingRate: 1.5, // bad value
 		}})
 	sampler.updateSampler()
-	assert.EqualValues(t, 1, stats.GetCounterValue("jaeger.sampler", "phase", "parsing", "state", "failure"))
+	counters, _ := stats.Snapshot()
+	assert.EqualValues(t, 1, counters["jaeger.sampler|phase=parsing|state=failure"])
 	_, ok = sampler.sampler.(*ProbabilisticSampler)
 	assert.True(t, ok)
 	assert.Equal(t, initSampler, sampler.sampler, "Sampler should not have been updated")
@@ -311,11 +315,10 @@ func TestRemotelyControlledSampler(t *testing.T) {
 			SamplingRate: testDefaultSamplingProbability, // good value
 		}})
 	sampler.updateSampler()
-	assertMetrics(t, stats, []expectedMetric{
-		{[]string{"jaeger.sampler", "phase", "parsing", "state", "failure"}, 1},
-		{[]string{"jaeger.sampler", "state", "retrieved"}, 1},
-		{[]string{"jaeger.sampler", "state", "updated"}, 1},
-	})
+	counters, _ = stats.Snapshot()
+	assert.EqualValues(t, 1, counters["jaeger.sampler|phase=parsing|state=failure"])
+	assert.EqualValues(t, 1, counters["jaeger.sampler|state=retrieved"])
+	assert.EqualValues(t, 1, counters["jaeger.sampler|state=updated"])
 
 	_, ok = sampler.sampler.(*ProbabilisticSampler)
 	assert.True(t, ok)
@@ -353,6 +356,7 @@ func TestRemotelyControlledSampler(t *testing.T) {
 func TestUpdateSampler(t *testing.T) {
 	agent, sampler, stats := initAgent(t)
 	defer agent.Close()
+	defer stats.Stop()
 
 	initSampler, ok := sampler.sampler.(*ProbabilisticSampler)
 	assert.True(t, ok)
@@ -360,21 +364,21 @@ func TestUpdateSampler(t *testing.T) {
 	tests := []struct {
 		probabilities      map[string]float64
 		defaultProbability float64
-		statTags           []string
+		statTags           string
 		statCount          int64
 		isErr              bool
 	}{
 		{
 			map[string]float64{testOperationName: 1.1},
 			testDefaultSamplingProbability,
-			[]string{"phase", "parsing", "state", "failure"},
+			"|phase=parsing|state=failure",
 			1,
 			true,
 		},
 		{
 			map[string]float64{testOperationName: testDefaultSamplingProbability},
 			testDefaultSamplingProbability,
-			[]string{"state", "updated"},
+			"|state=updated",
 			1,
 			false,
 		},
@@ -384,35 +388,35 @@ func TestUpdateSampler(t *testing.T) {
 				testFirstTimeOperationName: testDefaultSamplingProbability,
 			},
 			testDefaultSamplingProbability,
-			[]string{"state", "updated"},
+			"|state=updated",
 			2,
 			false,
 		},
 		{
 			map[string]float64{testOperationName: 1.1},
 			testDefaultSamplingProbability,
-			[]string{"phase", "updating", "state", "failure"},
+			"|phase=updating|state=failure",
 			1,
 			true,
 		},
 		{
 			map[string]float64{"new op": 1.1},
 			testDefaultSamplingProbability,
-			[]string{"phase", "updating", "state", "failure"},
+			"|phase=updating|state=failure",
 			2,
 			true,
 		},
 		{
 			map[string]float64{testOperationName: testDefaultSamplingProbability},
 			0.5,
-			[]string{"state", "updated"},
+			"|state=updated",
 			3,
 			false,
 		},
 		{
 			map[string]float64{testOperationName: testDefaultSamplingProbability},
 			1.1,
-			[]string{"phase", "updating", "state", "failure"},
+			"|phase=updating|state=failure",
 			3,
 			true,
 		},
@@ -440,7 +444,8 @@ func TestUpdateSampler(t *testing.T) {
 		agent.AddSamplingStrategy("client app", res)
 		sampler.updateSampler()
 
-		assert.EqualValues(t, test.statCount, stats.GetCounterValue("jaeger.sampler", test.statTags...))
+		counters, _ := stats.Snapshot()
+		assert.EqualValues(t, test.statCount, counters["jaeger.sampler"+test.statTags])
 		if test.isErr {
 			continue
 		}
@@ -482,6 +487,7 @@ func TestMaxOperations(t *testing.T) {
 func TestSamplerQueryError(t *testing.T) {
 	agent, sampler, stats := initAgent(t)
 	defer agent.Close()
+	defer stats.Stop()
 
 	// override the actual handler
 	sampler.manager = &fakeSamplingManager{}
@@ -493,7 +499,9 @@ func TestSamplerQueryError(t *testing.T) {
 
 	sampler.updateSampler()
 	assert.Equal(t, initSampler, sampler.sampler, "Sampler should not have been updated due to query error")
-	assert.EqualValues(t, 1, stats.GetCounterValue("jaeger.sampler", "phase", "query", "state", "failure"))
+
+	counters, _ := stats.Snapshot()
+	assert.EqualValues(t, 1, counters["jaeger.sampler|phase=query|state=failure"])
 }
 
 type fakeSamplingManager struct{}

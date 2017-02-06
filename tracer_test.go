@@ -29,6 +29,7 @@ import (
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+	"github.com/uber/jaeger-lib/metrics"
 
 	"github.com/uber/jaeger-client-go/utils"
 )
@@ -37,14 +38,15 @@ type tracerSuite struct {
 	suite.Suite
 	tracer opentracing.Tracer
 	closer io.Closer
-	stats  *InMemoryStatsCollector
+	stats  *metrics.LocalBackend
 }
 
 var IP uint32 = 1<<24 | 2<<16 | 3<<8 | 4
 
 func (s *tracerSuite) SetupTest() {
-	s.stats = NewInMemoryStatsCollector()
-	metrics := NewMetrics(s.stats, nil)
+	s.stats = metrics.NewLocalBackend(0)
+	factory := metrics.NewLocalFactory(s.stats)
+	metrics := NewMetrics(factory, nil)
 
 	s.tracer, s.closer = NewTracer("DOOP", // respect the classics, man!
 		NewConstSampler(true),
@@ -66,6 +68,7 @@ func TestTracerSuite(t *testing.T) {
 }
 
 func (s *tracerSuite) TestBeginRootSpan() {
+	s.stats.Clear()
 	startTime := time.Now()
 	s.tracer.(*tracer).timeNow = func() time.Time { return startTime }
 	someID := uint64(12345)
@@ -89,12 +92,11 @@ func (s *tracerSuite) TestBeginRootSpan() {
 	sp.Finish()
 	s.NotNil(ss.duration)
 
-	assertMetrics(s.T(), s.stats, []expectedMetric{
-		{[]string{"jaeger.spans", "group", "lifecycle", "state", "started"}, 1},
-		{[]string{"jaeger.spans", "group", "lifecycle", "state", "finished"}, 1},
-		{[]string{"jaeger.spans", "group", "sampling", "sampled", "y"}, 1},
-		{[]string{"jaeger.traces", "sampled", "y", "state", "started"}, 1},
-	})
+	counters, _ := s.stats.Snapshot()
+	s.EqualValues(1, counters["jaeger.spans|group=lifecycle|state=started"])
+	s.EqualValues(1, counters["jaeger.spans|group=lifecycle|state=finished"])
+	s.EqualValues(1, counters["jaeger.spans|group=sampling|sampled=y"])
+	s.EqualValues(1, counters["jaeger.traces|sampled=y|state=started"])
 }
 
 func (s *tracerSuite) TestStartRootSpanWithOptions() {
@@ -107,18 +109,18 @@ func (s *tracerSuite) TestStartRootSpanWithOptions() {
 }
 
 func (s *tracerSuite) TestStartChildSpan() {
+	s.stats.Clear()
 	sp1 := s.tracer.StartSpan("get_address")
 	sp2 := s.tracer.StartSpan("get_street", opentracing.ChildOf(sp1.Context()))
 	s.Equal(sp1.(*span).context.spanID, sp2.(*span).context.parentID)
 	sp2.Finish()
 	s.NotNil(sp2.(*span).duration)
 	sp1.Finish()
-	assertMetrics(s.T(), s.stats, []expectedMetric{
-		{[]string{"jaeger.spans", "group", "sampling", "sampled", "y"}, 2},
-		{[]string{"jaeger.traces", "sampled", "y", "state", "started"}, 1},
-		{[]string{"jaeger.spans", "group", "lifecycle", "state", "started"}, 2},
-		{[]string{"jaeger.spans", "group", "lifecycle", "state", "finished"}, 2},
-	})
+	counters, _ := s.stats.Snapshot()
+	s.EqualValues(2, counters["jaeger.spans|group=sampling|sampled=y"])
+	s.EqualValues(1, counters["jaeger.traces|sampled=y|state=started"])
+	s.EqualValues(2, counters["jaeger.spans|group=lifecycle|state=started"])
+	s.EqualValues(2, counters["jaeger.spans|group=lifecycle|state=finished"])
 }
 
 func (s *tracerSuite) TestTraceStartedOrJoinedMetrics() {
@@ -143,13 +145,12 @@ func (s *tracerSuite) TestTraceStartedOrJoinedMetrics() {
 		s.Equal(test.sampled, sp1.Context().(SpanContext).IsSampled())
 		s.Equal(test.sampled, sp2.Context().(SpanContext).IsSampled())
 
-		assertMetrics(s.T(), s.stats, []expectedMetric{
-			{[]string{"jaeger.spans", "group", "sampling", "sampled", test.label}, 3},
-			{[]string{"jaeger.spans", "group", "lifecycle", "state", "started"}, 3},
-			{[]string{"jaeger.spans", "group", "lifecycle", "state", "finished"}, 3},
-			{[]string{"jaeger.traces", "state", "started", "sampled", test.label}, 1},
-			{[]string{"jaeger.traces", "state", "joined", "sampled", test.label}, 1},
-		})
+		counters, _ := s.stats.Snapshot()
+		s.EqualValues(3, counters["jaeger.spans|group=sampling|sampled="+test.label])
+		s.EqualValues(3, counters["jaeger.spans|group=lifecycle|state=started"])
+		s.EqualValues(3, counters["jaeger.spans|group=lifecycle|state=finished"])
+		s.EqualValues(1, counters["jaeger.traces|sampled="+test.label+"|state=started"])
+		s.EqualValues(1, counters["jaeger.traces|sampled="+test.label+"|state=joined"])
 	}
 }
 

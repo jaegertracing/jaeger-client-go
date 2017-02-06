@@ -75,7 +75,7 @@ func NewTracer(
 		reporter:    reporter,
 		injectors:   make(map[interface{}]Injector),
 		extractors:  make(map[interface{}]Extractor),
-		metrics:     *NewNullMetrics(),
+		metrics:     *NewNullMetrics(nil),
 		spanPool: sync.Pool{New: func() interface{} {
 			return &span{}
 		}},
