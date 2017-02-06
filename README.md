@@ -1,10 +1,10 @@
-[![GoDoc][doc-img]][doc] [![Build Status][ci-img]][ci] [![Coverage Status][cov-img]][cov] [![OpenTracing Compatible][ot-img]][ot-url]
+[![GoDoc][doc-img]][doc] [![Build Status][ci-img]][ci] [![Coverage Status][cov-img]][cov] [![OpenTracing 1.0 Enabled][ot-img]][ot-url]
 
 # Jaeger Bindings for Go OpenTracing API
 
 This is a client side library that implements an
-[OpenTracing](http://opentracing.io) Tracer, with Zipkin-compatible
-data model.
+[OpenTracing](http://opentracing.io) Tracer, 
+with Zipkin-compatible data model.
 
 ## Initialization
 
@@ -189,5 +189,5 @@ However it is not the default propagation format, see [here](zipkin/README.md#Ne
 [ci]: https://travis-ci.org/uber/jaeger-client-go
 [cov-img]: https://coveralls.io/repos/uber/jaeger-client-go/badge.svg?branch=master&service=github
 [cov]: https://coveralls.io/github/uber/jaeger-client-go?branch=master
-[ot-img]: https://github.com/opentracing/contrib/blob/master/badge/OpenTracing-enabled-blue.png
+[ot-img]: https://img.shields.io/badge/OpenTracing--1.0-enabled-blue.svg
 [ot-url]: http://opentracing.io
