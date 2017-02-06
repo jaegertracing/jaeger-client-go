@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/opentracing/opentracing-go"
+	"github.com/uber/jaeger-lib/metrics"
 
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/transport"
@@ -104,7 +105,7 @@ func (*nullCloser) Close() error { return nil }
 // before shutdown.
 func (c Configuration) New(
 	serviceName string,
-	statsReporter jaeger.StatsReporter,
+	factory metrics.Factory,
 ) (opentracing.Tracer, io.Closer, error) {
 	if c.Disabled {
 		return &opentracing.NoopTracer{}, &nullCloser{}, nil
@@ -122,14 +123,14 @@ func (c Configuration) New(
 		c.Reporter = &ReporterConfig{}
 	}
 
-	metrics := jaeger.NewMetrics(statsReporter, nil)
+	clientMetrics := jaeger.NewMetrics(factory, nil)
 
-	sampler, err := c.Sampler.NewSampler(serviceName, metrics)
+	sampler, err := c.Sampler.NewSampler(serviceName, clientMetrics)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	reporter, err := c.Reporter.NewReporter(serviceName, metrics, c.Logger)
+	reporter, err := c.Reporter.NewReporter(serviceName, clientMetrics, c.Logger)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -138,7 +139,7 @@ func (c Configuration) New(
 		serviceName,
 		sampler,
 		reporter,
-		jaeger.TracerOptions.Metrics(metrics),
+		jaeger.TracerOptions.Metrics(clientMetrics),
 		jaeger.TracerOptions.Logger(c.Logger))
 
 	return tracer, closer, nil
@@ -148,12 +149,12 @@ func (c Configuration) New(
 // It returns a closer func that can be used to flush buffers before shutdown.
 func (c Configuration) InitGlobalTracer(
 	serviceName string,
-	statsReporter jaeger.StatsReporter,
+	factory metrics.Factory,
 ) (io.Closer, error) {
 	if c.Disabled {
 		return &nullCloser{}, nil
 	}
-	tracer, closer, err := c.New(serviceName, statsReporter)
+	tracer, closer, err := c.New(serviceName, factory)
 	if err != nil {
 		return nil, err
 	}

@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/opentracing/opentracing-go"
+	"github.com/uber/jaeger-lib/metrics"
 
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/config"
@@ -90,7 +91,7 @@ func NewHandler() *Handler {
 
 // init initializes the handler with a tracer
 func (h *Handler) init(cfg config.Configuration) error {
-	tracer, _, err := cfg.New(common.DefaultTracerServiceName, jaeger.NullStatsReporter)
+	tracer, _, err := cfg.New(common.DefaultTracerServiceName, metrics.NullFactory)
 	if err != nil {
 		return err
 	}

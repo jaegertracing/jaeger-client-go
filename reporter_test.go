@@ -31,12 +31,13 @@ import (
 
 	"github.com/uber/jaeger-client-go/testutils"
 	z "github.com/uber/jaeger-client-go/thrift-gen/zipkincore"
-
+	"github.com/uber/jaeger-lib/metrics"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+
 	"github.com/uber/jaeger-client-go/transport"
 	"github.com/uber/jaeger-client-go/transport/udp"
 )
@@ -48,12 +49,13 @@ type reporterSuite struct {
 	serviceName string
 	reporter    *remoteReporter
 	collector   *fakeSender
-	stats       *InMemoryStatsCollector
+	stats       *metrics.LocalBackend
 }
 
 func (s *reporterSuite) SetupTest() {
-	s.stats = NewInMemoryStatsCollector()
-	metrics := NewMetrics(s.stats, nil)
+	s.stats = metrics.NewLocalBackend(0)
+	factory := metrics.NewLocalFactory(s.stats)
+	metrics := NewMetrics(factory, nil)
 	s.serviceName = "DOOP"
 	s.collector = &fakeSender{}
 	s.reporter = NewRemoteReporter(
