@@ -88,7 +88,7 @@ func NewMetrics(factory metrics.Factory, globalTags map[string]string) *Metrics 
 	return m
 }
 
-// NewNullMetrics creates a new Metrics struct and that won't report any metrics.
+// NewNullMetrics creates a new Metrics struct that won't report any metrics.
 func NewNullMetrics(globalTags map[string]string) *Metrics {
 	return NewMetrics(metrics.NullFactory, globalTags)
 }
