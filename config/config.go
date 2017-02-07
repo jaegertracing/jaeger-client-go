@@ -104,9 +104,11 @@ func (c Configuration) New(
 	serviceName string,
 	options ...ClientOption,
 ) (opentracing.Tracer, io.Closer, error) {
-	c.clientMetrics = jaeger.NewNullMetrics()
 	for _, option := range options {
 		option(&c)
+	}
+	if c.clientMetrics == nil {
+		c.clientMetrics = jaeger.NewNullMetrics()
 	}
 	if c.Disabled {
 		return &opentracing.NoopTracer{}, &nullCloser{}, nil

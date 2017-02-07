@@ -29,14 +29,9 @@ import (
 // ClientOption is a function that sets some option on the client
 type ClientOption func(c *Configuration)
 
-// ClientOptions is a factory for all available ClientOption's
-var ClientOptions clientOptions
-
-type clientOptions struct{}
-
 // Metrics creates a ClientOption that initializes Metrics in the client,
 // which is used to emit statistics.
-func (clientOptions) Metrics(factory metrics.Factory) func(*Configuration) {
+func Metrics(factory metrics.Factory) ClientOption {
 	return func(c *Configuration) {
 		c.clientMetrics = jaeger.NewMetrics(factory, nil)
 	}
@@ -44,7 +39,7 @@ func (clientOptions) Metrics(factory metrics.Factory) func(*Configuration) {
 
 // Logger can be provided to log Reporter errors, as well as to log spans
 // if Reporter.LogSpans is set to true.
-func (clientOptions) Logger(logger jaeger.Logger) func(*Configuration) {
+func Logger(logger jaeger.Logger) ClientOption {
 	return func(c *Configuration) {
 		c.logger = logger
 	}
