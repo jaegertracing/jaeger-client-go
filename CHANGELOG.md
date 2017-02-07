@@ -1,7 +1,7 @@
 Changes by Version
 ==================
 
-2.0.0 (unreleased)
+2.0.0 (2016-02-07)
 -------------------
 
 - Support Adaptive Sampling
