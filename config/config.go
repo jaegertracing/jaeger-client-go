@@ -42,10 +42,8 @@ type Configuration struct {
 	Sampler  *SamplerConfig  `yaml:"sampler"`
 	Reporter *ReporterConfig `yaml:"reporter"`
 
-	// Logger can be provided to log Reporter errors, as well as to log spans
-	// if Reporter.LogSpans is set to true. This cannot be specified in
-	// the configuration file, it must be specified in code.
-	Logger jaeger.Logger `yaml:"-"`
+	clientMetrics *jaeger.Metrics
+	logger        jaeger.Logger
 }
 
 // SamplerConfig allows initializing a non-default sampler.  All fields are optional.
@@ -104,8 +102,14 @@ func (*nullCloser) Close() error { return nil }
 // before shutdown.
 func (c Configuration) New(
 	serviceName string,
-	statsReporter jaeger.StatsReporter,
+	options ...ClientOption,
 ) (opentracing.Tracer, io.Closer, error) {
+	for _, option := range options {
+		option(&c)
+	}
+	if c.clientMetrics == nil {
+		c.clientMetrics = jaeger.NewNullMetrics()
+	}
 	if c.Disabled {
 		return &opentracing.NoopTracer{}, &nullCloser{}, nil
 	}
@@ -122,14 +126,12 @@ func (c Configuration) New(
 		c.Reporter = &ReporterConfig{}
 	}
 
-	metrics := jaeger.NewMetrics(statsReporter, nil)
-
-	sampler, err := c.Sampler.NewSampler(serviceName, metrics)
+	sampler, err := c.Sampler.NewSampler(serviceName, c.clientMetrics)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	reporter, err := c.Reporter.NewReporter(serviceName, metrics, c.Logger)
+	reporter, err := c.Reporter.NewReporter(serviceName, c.clientMetrics, c.logger)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -138,8 +140,8 @@ func (c Configuration) New(
 		serviceName,
 		sampler,
 		reporter,
-		jaeger.TracerOptions.Metrics(metrics),
-		jaeger.TracerOptions.Logger(c.Logger))
+		jaeger.TracerOptions.Metrics(c.clientMetrics),
+		jaeger.TracerOptions.Logger(c.logger))
 
 	return tracer, closer, nil
 }
@@ -148,12 +150,12 @@ func (c Configuration) New(
 // It returns a closer func that can be used to flush buffers before shutdown.
 func (c Configuration) InitGlobalTracer(
 	serviceName string,
-	statsReporter jaeger.StatsReporter,
+	options ...ClientOption,
 ) (io.Closer, error) {
 	if c.Disabled {
 		return &nullCloser{}, nil
 	}
-	tracer, closer, err := c.New(serviceName, statsReporter)
+	tracer, closer, err := c.New(serviceName, options...)
 	if err != nil {
 		return nil, err
 	}

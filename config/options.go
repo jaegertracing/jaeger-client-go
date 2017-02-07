@@ -18,25 +18,29 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package jaeger
+package config
 
 import (
-	"testing"
+	"github.com/uber/jaeger-lib/metrics"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/uber/jaeger-client-go"
 )
 
-type expectedMetric struct {
-	metric []string
-	value  int
+// ClientOption is a function that sets some option on the client
+type ClientOption func(c *Configuration)
+
+// Metrics creates a ClientOption that initializes Metrics in the client,
+// which is used to emit statistics.
+func Metrics(factory metrics.Factory) ClientOption {
+	return func(c *Configuration) {
+		c.clientMetrics = jaeger.NewMetrics(factory, nil)
+	}
 }
 
-func assertMetrics(t *testing.T, stats *InMemoryStatsCollector, expectedMetrics []expectedMetric) {
-	for _, expected := range expectedMetrics {
-		assert.EqualValues(t, expected.value,
-			stats.GetCounterValue(expected.metric[0], expected.metric[1:]...),
-			"metric %+v", expected.metric,
-		)
+// Logger can be provided to log Reporter errors, as well as to log spans
+// if Reporter.LogSpans is set to true.
+func Logger(logger jaeger.Logger) ClientOption {
+	return func(c *Configuration) {
+		c.logger = logger
 	}
-	assert.Len(t, stats.GetCounterValues(), len(expectedMetrics))
 }

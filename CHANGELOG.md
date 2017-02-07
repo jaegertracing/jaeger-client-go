@@ -8,6 +8,8 @@ Changes by Version
 - Support 128bit Trace IDs
 - Change trace/span IDs from uint64 to strong types TraceID and SpanID
 - Add Zipkin HTTP B3 Propagation format support #72
+- Rip out existing metrics and use github.com/uber/jaeger-lib/metrics
+- Change API for tracer initialization
 
 
 1.6.0 (2016-10-14)

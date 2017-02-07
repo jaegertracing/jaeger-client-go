@@ -30,13 +30,19 @@ import (
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/uber/jaeger-lib/metrics"
+	"github.com/uber/jaeger-lib/metrics/testutils"
 )
+
+func initMetrics() (*metrics.LocalFactory, *Metrics) {
+	factory := metrics.NewLocalFactory(0)
+	return factory, NewMetrics(factory, nil)
+}
 
 func TestSpanPropagator(t *testing.T) {
 	const op = "test"
 	reporter := NewInMemoryReporter()
-	stats := NewInMemoryStatsCollector()
-	metrics := NewMetrics(stats, nil)
+	metricsFactory, metrics := initMetrics()
 	tracer, closer := NewTracer("x", NewConstSampler(true), reporter, TracerOptions.Metrics(metrics))
 
 	mapc := opentracing.TextMapCarrier(make(map[string]string))
@@ -109,13 +115,13 @@ func TestSpanPropagator(t *testing.T) {
 		assert.Equal(t, exp, sp, formatName)
 	}
 
-	assertMetrics(t, stats, []expectedMetric{
-		{[]string{"jaeger.spans", "group", "sampling", "sampled", "y"}, 1 + 2*len(tests)},
-		{[]string{"jaeger.spans", "group", "lifecycle", "state", "started"}, 1 + 2*len(tests)},
-		{[]string{"jaeger.spans", "group", "lifecycle", "state", "finished"}, 1 + len(tests)},
-		{[]string{"jaeger.traces", "sampled", "y", "state", "started"}, 1},
-		{[]string{"jaeger.traces", "sampled", "y", "state", "joined"}, len(tests)},
-	})
+	testutils.AssertCounterMetrics(t, metricsFactory, []testutils.ExpectedMetric{
+		{Name: "jaeger.spans", Tags: map[string]string{"group": "sampling", "sampled": "y"}, Value: 1 + 2*len(tests)},
+		{Name: "jaeger.spans", Tags: map[string]string{"group": "lifecycle", "state": "started"}, Value: 1 + 2*len(tests)},
+		{Name: "jaeger.spans", Tags: map[string]string{"group": "lifecycle", "state": "finished"}, Value: 1 + len(tests)},
+		{Name: "jaeger.traces", Tags: map[string]string{"state": "started", "sampled": "y"}, Value: 1},
+		{Name: "jaeger.traces", Tags: map[string]string{"state": "joined", "sampled": "y"}, Value: len(tests)},
+	}...)
 }
 
 func TestSpanIntegrityAfterSerialize(t *testing.T) {
@@ -132,8 +138,7 @@ func TestSpanIntegrityAfterSerialize(t *testing.T) {
 
 func TestDecodingError(t *testing.T) {
 	reporter := NewInMemoryReporter()
-	stats := NewInMemoryStatsCollector()
-	metrics := NewMetrics(stats, nil)
+	metricsFactory, metrics := initMetrics()
 	tracer, closer := NewTracer("x", NewConstSampler(true), reporter, TracerOptions.Metrics(metrics))
 	defer closer.Close()
 
@@ -143,7 +148,8 @@ func TestDecodingError(t *testing.T) {
 	tmc := opentracing.HTTPHeadersCarrier(httpHeader)
 	_, err := tracer.Extract(opentracing.HTTPHeaders, tmc)
 	assert.Error(t, err)
-	assert.EqualValues(t, 1, stats.GetCounterValue("jaeger.decoding-errors"))
+
+	testutils.AssertCounterMetrics(t, metricsFactory, testutils.ExpectedMetric{Name: "jaeger.decoding-errors", Value: 1})
 }
 
 func TestBaggagePropagationHTTP(t *testing.T) {
@@ -169,8 +175,7 @@ func TestBaggagePropagationHTTP(t *testing.T) {
 }
 
 func TestJaegerBaggageHeader(t *testing.T) {
-	stats := NewInMemoryStatsCollector()
-	metrics := NewMetrics(stats, nil)
+	metricsFactory, metrics := initMetrics()
 	tracer, closer := NewTracer("DOOP",
 		NewConstSampler(true),
 		NewNullReporter(),
@@ -190,8 +195,11 @@ func TestJaegerBaggageHeader(t *testing.T) {
 	assert.Equal(t, "value two", sp.BaggageItem("key 2"))
 
 	// ensure that traces.started counter is incremented, not traces.joined
-	assert.EqualValues(t, 1,
-		stats.GetCounterValue("jaeger.traces", "sampled", "y", "state", "started"))
+	testutils.AssertCounterMetrics(t, metricsFactory,
+		testutils.ExpectedMetric{
+			Name: "jaeger.traces", Tags: map[string]string{"state": "started", "sampled": "y"}, Value: 1,
+		},
+	)
 }
 
 func TestParseCommaSeperatedMap(t *testing.T) {
@@ -216,8 +224,7 @@ func TestParseCommaSeperatedMap(t *testing.T) {
 }
 
 func TestDebugCorrelationID(t *testing.T) {
-	stats := NewInMemoryStatsCollector()
-	metrics := NewMetrics(stats, nil)
+	metricsFactory, metrics := initMetrics()
 	tracer, closer := NewTracer("DOOP",
 		NewConstSampler(true),
 		NewNullReporter(),
@@ -246,6 +253,9 @@ func TestDebugCorrelationID(t *testing.T) {
 	assert.True(t, tagFound)
 
 	// ensure that traces.started counter is incremented, not traces.joined
-	assert.EqualValues(t, 1,
-		stats.GetCounterValue("jaeger.traces", "sampled", "y", "state", "started"))
+	testutils.AssertCounterMetrics(t, metricsFactory,
+		testutils.ExpectedMetric{
+			Name: "jaeger.traces", Tags: map[string]string{"state": "started", "sampled": "y"}, Value: 1,
+		},
+	)
 }

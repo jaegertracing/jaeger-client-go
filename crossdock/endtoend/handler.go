@@ -90,7 +90,7 @@ func NewHandler() *Handler {
 
 // init initializes the handler with a tracer
 func (h *Handler) init(cfg config.Configuration) error {
-	tracer, _, err := cfg.New(common.DefaultTracerServiceName, jaeger.NullStatsReporter)
+	tracer, _, err := cfg.New(common.DefaultTracerServiceName)
 	if err != nil {
 		return err
 	}

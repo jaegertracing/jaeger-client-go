@@ -29,31 +29,33 @@ import (
 	"testing"
 	"time"
 
-	"github.com/uber/jaeger-client-go/testutils"
-	z "github.com/uber/jaeger-client-go/thrift-gen/zipkincore"
-
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"github.com/uber/jaeger-client-go/testutils"
+	z "github.com/uber/jaeger-client-go/thrift-gen/zipkincore"
+	"github.com/uber/jaeger-lib/metrics"
+	mTestutils "github.com/uber/jaeger-lib/metrics/testutils"
+
 	"github.com/uber/jaeger-client-go/transport"
 	"github.com/uber/jaeger-client-go/transport/udp"
 )
 
 type reporterSuite struct {
 	suite.Suite
-	tracer      opentracing.Tracer
-	closer      io.Closer
-	serviceName string
-	reporter    *remoteReporter
-	collector   *fakeSender
-	stats       *InMemoryStatsCollector
+	tracer         opentracing.Tracer
+	closer         io.Closer
+	serviceName    string
+	reporter       *remoteReporter
+	collector      *fakeSender
+	metricsFactory *metrics.LocalFactory
 }
 
 func (s *reporterSuite) SetupTest() {
-	s.stats = NewInMemoryStatsCollector()
-	metrics := NewMetrics(s.stats, nil)
+	s.metricsFactory = metrics.NewLocalFactory(0)
+	metrics := NewMetrics(s.metricsFactory, nil)
 	s.serviceName = "DOOP"
 	s.collector = &fakeSender{}
 	s.reporter = NewRemoteReporter(
@@ -91,6 +93,7 @@ func (s *reporterSuite) flushReporter() {
 }
 
 func (s *reporterSuite) TestRootSpanAnnotations() {
+	s.metricsFactory.Clear()
 	sp := s.tracer.StartSpan("get_name")
 	ext.SpanKindRPCServer.Set(sp)
 	ext.PeerService.Set(sp, s.serviceName)
@@ -102,10 +105,18 @@ func (s *reporterSuite) TestRootSpanAnnotations() {
 	s.NotNil(findAnnotation(zSpan, "ss"), "expecting ss annotation")
 	s.NotNil(findBinaryAnnotation(zSpan, "ca"), "expecting ca annotation")
 	s.NotNil(findBinaryAnnotation(zSpan, JaegerClientVersionTagKey), "expecting client version tag")
-	s.EqualValues(1, s.stats.GetCounterValue("jaeger.reporter-spans", "state", "success"))
+
+	mTestutils.AssertCounterMetrics(s.T(), s.metricsFactory,
+		mTestutils.ExpectedMetric{
+			Name:  "jaeger.reporter-spans",
+			Tags:  map[string]string{"state": "success"},
+			Value: 1,
+		},
+	)
 }
 
 func (s *reporterSuite) TestClientSpanAnnotations() {
+	s.metricsFactory.Clear()
 	sp := s.tracer.StartSpan("get_name")
 	ext.SpanKindRPCServer.Set(sp)
 	ext.PeerService.Set(sp, s.serviceName)
@@ -123,7 +134,14 @@ func (s *reporterSuite) TestClientSpanAnnotations() {
 	s.NotNil(findAnnotation(zSpan, "cs"), "expecting cs annotation")
 	s.NotNil(findAnnotation(zSpan, "cr"), "expecting cr annotation")
 	s.NotNil(findBinaryAnnotation(zSpan, "sa"), "expecting sa annotation")
-	s.EqualValues(2, s.stats.GetCounterValue("jaeger.reporter-spans", "state", "success"))
+
+	mTestutils.AssertCounterMetrics(s.T(), s.metricsFactory,
+		mTestutils.ExpectedMetric{
+			Name:  "jaeger.reporter-spans",
+			Tags:  map[string]string{"state": "success"},
+			Value: 2,
+		},
+	)
 }
 
 func (s *reporterSuite) TestTagsAndEvents() {
@@ -200,8 +218,8 @@ func testRemoteReporter(
 	factory func(m *Metrics) (transport.Transport, error),
 	getSpans func() []*z.Span,
 ) {
-	stats := NewInMemoryStatsCollector()
-	metrics := NewMetrics(stats, nil)
+	metricsFactory := metrics.NewLocalFactory(0)
+	metrics := NewMetrics(metricsFactory, nil)
 
 	sender, err := factory(metrics)
 	require.NoError(t, err)
@@ -228,8 +246,10 @@ func testRemoteReporter(
 	require.NotNil(t, sa)
 	assert.Equal(t, "downstream", sa.Host.ServiceName)
 
-	assert.EqualValues(t, 1, stats.GetCounterValue("jaeger.reporter-spans", "state", "success"), "success metric")
-	assert.EqualValues(t, 0, stats.GetCounterValue("jaeger.reporter-spans", "state", "failure"), "failure metric")
+	mTestutils.AssertCounterMetrics(t, metricsFactory, []mTestutils.ExpectedMetric{
+		{Name: "jaeger.reporter-spans", Tags: map[string]string{"state": "success"}, Value: 1},
+		{Name: "jaeger.reporter-spans", Tags: map[string]string{"state": "failure"}, Value: 0},
+	}...)
 }
 
 func (s *reporterSuite) TestMemoryReporterReport() {
