@@ -1,5 +1,5 @@
-hash: 78eb1747c40833ea71f4ebf71fc1be436de0c8ef43242c751625a97121baa279
-updated: 2017-02-06T14:45:17.715674569-05:00
+hash: 2d065dacbd72b291202f969bf78b2fdd099861b3f63304097d66d94266474d05
+updated: 2017-02-07T16:28:38.489805329-05:00
 imports:
 - name: github.com/apache/thrift
   version: 3a8bbbd4a68fb28f2b33a7ee9e81ba3dd4a929a5
@@ -17,7 +17,7 @@ imports:
   subpackages:
   - spew
 - name: github.com/opentracing/opentracing-go
-  version: 0c3154a3c2ce79d3271985848659870599dfb77c
+  version: 6edb48674bd9467b8e91fda004f2bd7202d60ce4
   subpackages:
   - ext
   - log
@@ -34,9 +34,10 @@ imports:
 - name: github.com/uber-go/atomic
   version: 0c9e689d64f004564b79d9a663634756df322902
 - name: github.com/uber/jaeger-lib
-  version: 8a9505ec797863acca8c8aad57441afec15ac29f
+  version: 014e46f56f3a34b444650db52f738cef09aac95f
   subpackages:
   - metrics
+  - metrics/testutils
 - name: github.com/uber/tchannel-go
   version: 79387824978f91318be3bfb43ae12e04c38cfe97
   subpackages:

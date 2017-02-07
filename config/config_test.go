@@ -73,7 +73,7 @@ func TestDefaultSampler(t *testing.T) {
 
 func TestDefaultConfig(t *testing.T) {
 	cfg := Configuration{}
-	_, _, err := cfg.New("", ClientOptions.WithMetrics(metrics.NullFactory), ClientOptions.WithLogger(jaeger.NullLogger))
+	_, _, err := cfg.New("", ClientOptions.Metrics(metrics.NullFactory), ClientOptions.Logger(jaeger.NullLogger))
 	require.EqualError(t, err, "no service name provided")
 
 	_, closer, err := cfg.New("testService")

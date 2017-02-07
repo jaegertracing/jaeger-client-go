@@ -30,23 +30,23 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	"github.com/uber/jaeger-lib/metrics"
+	"github.com/uber/jaeger-lib/metrics/testutils"
 
 	"github.com/uber/jaeger-client-go/utils"
 )
 
 type tracerSuite struct {
 	suite.Suite
-	tracer opentracing.Tracer
-	closer io.Closer
-	stats  *metrics.LocalBackend
+	tracer         opentracing.Tracer
+	closer         io.Closer
+	metricsFactory *metrics.LocalFactory
 }
 
 var IP uint32 = 1<<24 | 2<<16 | 3<<8 | 4
 
 func (s *tracerSuite) SetupTest() {
-	s.stats = metrics.NewLocalBackend(0)
-	factory := metrics.NewLocalFactory(s.stats)
-	metrics := NewMetrics(factory, nil)
+	s.metricsFactory = metrics.NewLocalFactory(0)
+	metrics := NewMetrics(s.metricsFactory, nil)
 
 	s.tracer, s.closer = NewTracer("DOOP", // respect the classics, man!
 		NewConstSampler(true),
@@ -68,7 +68,7 @@ func TestTracerSuite(t *testing.T) {
 }
 
 func (s *tracerSuite) TestBeginRootSpan() {
-	s.stats.Clear()
+	s.metricsFactory.Clear()
 	startTime := time.Now()
 	s.tracer.(*tracer).timeNow = func() time.Time { return startTime }
 	someID := uint64(12345)
@@ -92,11 +92,12 @@ func (s *tracerSuite) TestBeginRootSpan() {
 	sp.Finish()
 	s.NotNil(ss.duration)
 
-	counters, _ := s.stats.Snapshot()
-	s.EqualValues(1, counters["jaeger.spans|group=lifecycle|state=started"])
-	s.EqualValues(1, counters["jaeger.spans|group=lifecycle|state=finished"])
-	s.EqualValues(1, counters["jaeger.spans|group=sampling|sampled=y"])
-	s.EqualValues(1, counters["jaeger.traces|sampled=y|state=started"])
+	testutils.AssertCounterMetrics(s.T(), s.metricsFactory, []testutils.ExpectedMetric{
+		{Name: "jaeger.spans", Tags: map[string]string{"group": "lifecycle", "state": "started"}, Value: 1},
+		{Name: "jaeger.spans", Tags: map[string]string{"group": "lifecycle", "state": "finished"}, Value: 1},
+		{Name: "jaeger.spans", Tags: map[string]string{"group": "sampling", "sampled": "y"}, Value: 1},
+		{Name: "jaeger.traces", Tags: map[string]string{"sampled": "y", "state": "started"}, Value: 1},
+	}...)
 }
 
 func (s *tracerSuite) TestStartRootSpanWithOptions() {
@@ -109,18 +110,19 @@ func (s *tracerSuite) TestStartRootSpanWithOptions() {
 }
 
 func (s *tracerSuite) TestStartChildSpan() {
-	s.stats.Clear()
+	s.metricsFactory.Clear()
 	sp1 := s.tracer.StartSpan("get_address")
 	sp2 := s.tracer.StartSpan("get_street", opentracing.ChildOf(sp1.Context()))
 	s.Equal(sp1.(*span).context.spanID, sp2.(*span).context.parentID)
 	sp2.Finish()
 	s.NotNil(sp2.(*span).duration)
 	sp1.Finish()
-	counters, _ := s.stats.Snapshot()
-	s.EqualValues(2, counters["jaeger.spans|group=sampling|sampled=y"])
-	s.EqualValues(1, counters["jaeger.traces|sampled=y|state=started"])
-	s.EqualValues(2, counters["jaeger.spans|group=lifecycle|state=started"])
-	s.EqualValues(2, counters["jaeger.spans|group=lifecycle|state=finished"])
+	testutils.AssertCounterMetrics(s.T(), s.metricsFactory, []testutils.ExpectedMetric{
+		{Name: "jaeger.spans", Tags: map[string]string{"group": "sampling", "sampled": "y"}, Value: 2},
+		{Name: "jaeger.traces", Tags: map[string]string{"sampled": "y", "state": "started"}, Value: 1},
+		{Name: "jaeger.spans", Tags: map[string]string{"group": "lifecycle", "state": "started"}, Value: 2},
+		{Name: "jaeger.spans", Tags: map[string]string{"group": "lifecycle", "state": "finished"}, Value: 2},
+	}...)
 }
 
 func (s *tracerSuite) TestTraceStartedOrJoinedMetrics() {
@@ -132,7 +134,7 @@ func (s *tracerSuite) TestTraceStartedOrJoinedMetrics() {
 		{false, "n"},
 	}
 	for _, test := range tests {
-		s.stats.Clear()
+		s.metricsFactory.Clear()
 		s.tracer.(*tracer).sampler = NewConstSampler(test.sampled)
 		sp1 := s.tracer.StartSpan("parent", ext.RPCServerOption(nil))
 		sp2 := s.tracer.StartSpan("child1", opentracing.ChildOf(sp1.Context()))
@@ -145,12 +147,13 @@ func (s *tracerSuite) TestTraceStartedOrJoinedMetrics() {
 		s.Equal(test.sampled, sp1.Context().(SpanContext).IsSampled())
 		s.Equal(test.sampled, sp2.Context().(SpanContext).IsSampled())
 
-		counters, _ := s.stats.Snapshot()
-		s.EqualValues(3, counters["jaeger.spans|group=sampling|sampled="+test.label])
-		s.EqualValues(3, counters["jaeger.spans|group=lifecycle|state=started"])
-		s.EqualValues(3, counters["jaeger.spans|group=lifecycle|state=finished"])
-		s.EqualValues(1, counters["jaeger.traces|sampled="+test.label+"|state=started"])
-		s.EqualValues(1, counters["jaeger.traces|sampled="+test.label+"|state=joined"])
+		testutils.AssertCounterMetrics(s.T(), s.metricsFactory, []testutils.ExpectedMetric{
+			{Name: "jaeger.spans", Tags: map[string]string{"group": "sampling", "sampled": test.label}, Value: 3},
+			{Name: "jaeger.spans", Tags: map[string]string{"group": "lifecycle", "state": "started"}, Value: 3},
+			{Name: "jaeger.spans", Tags: map[string]string{"group": "lifecycle", "state": "finished"}, Value: 3},
+			{Name: "jaeger.traces", Tags: map[string]string{"sampled": test.label, "state": "started"}, Value: 1},
+			{Name: "jaeger.traces", Tags: map[string]string{"sampled": test.label, "state": "joined"}, Value: 1},
+		}...)
 	}
 }
 

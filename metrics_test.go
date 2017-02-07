@@ -23,17 +23,15 @@ package jaeger
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/uber/jaeger-lib/metrics"
+	"github.com/uber/jaeger-lib/metrics/testutils"
 )
 
 func TestNewMetrics(t *testing.T) {
 	tags := map[string]string{"lib": "jaeger"}
 
-	b := metrics.NewLocalBackend(0)
-	defer b.Stop()
-	factory := metrics.NewLocalFactory(b)
+	factory := metrics.NewLocalFactory(0)
 	m := NewMetrics(factory, tags)
 
 	require.NotNil(t, m.SpansSampled, "counter not initialized")
@@ -41,7 +39,18 @@ func TestNewMetrics(t *testing.T) {
 
 	m.SpansSampled.Inc(1)
 	m.ReporterQueueLength.Update(11)
-	counters, gauges := b.Snapshot()
-	assert.EqualValues(t, 1, counters["jaeger.spans|group=sampling|lib=jaeger|sampled=y"])
-	assert.EqualValues(t, gauges["jaeger.reporter-queue|lib=jaeger"], 11)
+	testutils.AssertCounterMetrics(t, factory,
+		testutils.ExpectedMetric{
+			Name:  "jaeger.spans",
+			Tags:  map[string]string{"group": "sampling", "lib": "jaeger", "sampled": "y"},
+			Value: 1,
+		},
+	)
+	testutils.AssertGaugeMetrics(t, factory,
+		testutils.ExpectedMetric{
+			Name:  "jaeger.reporter-queue",
+			Tags:  map[string]string{"lib": "jaeger"},
+			Value: 11,
+		},
+	)
 }

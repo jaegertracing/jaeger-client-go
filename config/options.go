@@ -34,17 +34,17 @@ var ClientOptions clientOptions
 
 type clientOptions struct{}
 
-// WithMetrics creates a ClientOption that initializes Metrics in the client,
+// Metrics creates a ClientOption that initializes Metrics in the client,
 // which is used to emit statistics.
-func (clientOptions) WithMetrics(factory metrics.Factory) func(*Configuration) {
+func (clientOptions) Metrics(factory metrics.Factory) func(*Configuration) {
 	return func(c *Configuration) {
 		c.clientMetrics = jaeger.NewMetrics(factory, nil)
 	}
 }
 
-// WithLogger can be provided to log Reporter errors, as well as to log spans
+// Logger can be provided to log Reporter errors, as well as to log spans
 // if Reporter.LogSpans is set to true.
-func (clientOptions) WithLogger(logger jaeger.Logger) func(*Configuration) {
+func (clientOptions) Logger(logger jaeger.Logger) func(*Configuration) {
 	return func(c *Configuration) {
 		c.logger = logger
 	}

@@ -28,6 +28,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/uber/jaeger-lib/metrics"
+	mTestutils "github.com/uber/jaeger-lib/metrics/testutils"
 
 	"github.com/uber/jaeger-client-go/testutils"
 	"github.com/uber/jaeger-client-go/thrift-gen/sampling"
@@ -266,13 +267,12 @@ func TestAdaptiveSamplerUpdate(t *testing.T) {
 	assert.Len(t, sampler.samplers, 2)
 }
 
-func initAgent(t *testing.T) (*testutils.MockAgent, *RemotelyControlledSampler, *metrics.LocalBackend) {
+func initAgent(t *testing.T) (*testutils.MockAgent, *RemotelyControlledSampler, *metrics.LocalFactory) {
 	agent, err := testutils.StartMockAgent()
 	require.NoError(t, err)
 
-	stats := metrics.NewLocalBackend(0)
-	factory := metrics.NewLocalFactory(stats)
-	metrics := NewMetrics(factory, nil)
+	metricsFactory := metrics.NewLocalFactory(0)
+	metrics := NewMetrics(metricsFactory, nil)
 
 	initialSampler, _ := NewProbabilisticSampler(0.001)
 	sampler := NewRemotelyControlledSampler(
@@ -286,13 +286,12 @@ func initAgent(t *testing.T) (*testutils.MockAgent, *RemotelyControlledSampler, 
 	)
 	sampler.Close() // stop timer-based updates, we want to call them manually
 
-	return agent, sampler, stats
+	return agent, sampler, metricsFactory
 }
 
 func TestRemotelyControlledSampler(t *testing.T) {
-	agent, sampler, stats := initAgent(t)
+	agent, sampler, metricsFactory := initAgent(t)
 	defer agent.Close()
-	defer stats.Stop()
 
 	initSampler, ok := sampler.sampler.(*ProbabilisticSampler)
 	assert.True(t, ok)
@@ -303,8 +302,13 @@ func TestRemotelyControlledSampler(t *testing.T) {
 			SamplingRate: 1.5, // bad value
 		}})
 	sampler.updateSampler()
-	counters, _ := stats.Snapshot()
-	assert.EqualValues(t, 1, counters["jaeger.sampler|phase=parsing|state=failure"])
+	mTestutils.AssertCounterMetrics(t, metricsFactory,
+		mTestutils.ExpectedMetric{
+			Name:  "jaeger.sampler",
+			Tags:  map[string]string{"state": "failure", "phase": "parsing"},
+			Value: 1,
+		},
+	)
 	_, ok = sampler.sampler.(*ProbabilisticSampler)
 	assert.True(t, ok)
 	assert.Equal(t, initSampler, sampler.sampler, "Sampler should not have been updated")
@@ -315,11 +319,11 @@ func TestRemotelyControlledSampler(t *testing.T) {
 			SamplingRate: testDefaultSamplingProbability, // good value
 		}})
 	sampler.updateSampler()
-	counters, _ = stats.Snapshot()
-	assert.EqualValues(t, 1, counters["jaeger.sampler|phase=parsing|state=failure"])
-	assert.EqualValues(t, 1, counters["jaeger.sampler|state=retrieved"])
-	assert.EqualValues(t, 1, counters["jaeger.sampler|state=updated"])
-
+	mTestutils.AssertCounterMetrics(t, metricsFactory, []mTestutils.ExpectedMetric{
+		{Name: "jaeger.sampler", Tags: map[string]string{"state": "failure", "phase": "parsing"}, Value: 1},
+		{Name: "jaeger.sampler", Tags: map[string]string{"state": "retrieved"}, Value: 1},
+		{Name: "jaeger.sampler", Tags: map[string]string{"state": "updated"}, Value: 1},
+	}...)
 	_, ok = sampler.sampler.(*ProbabilisticSampler)
 	assert.True(t, ok)
 	assert.NotEqual(t, initSampler, sampler.sampler, "Sampler should have been updated")
@@ -354,9 +358,8 @@ func TestRemotelyControlledSampler(t *testing.T) {
 }
 
 func TestUpdateSampler(t *testing.T) {
-	agent, sampler, stats := initAgent(t)
+	agent, sampler, metricsFactory := initAgent(t)
 	defer agent.Close()
-	defer stats.Stop()
 
 	initSampler, ok := sampler.sampler.(*ProbabilisticSampler)
 	assert.True(t, ok)
@@ -365,7 +368,7 @@ func TestUpdateSampler(t *testing.T) {
 		probabilities      map[string]float64
 		defaultProbability float64
 		statTags           string
-		statCount          int64
+		statCount          int
 		isErr              bool
 	}{
 		{
@@ -444,8 +447,11 @@ func TestUpdateSampler(t *testing.T) {
 		agent.AddSamplingStrategy("client app", res)
 		sampler.updateSampler()
 
-		counters, _ := stats.Snapshot()
-		assert.EqualValues(t, test.statCount, counters["jaeger.sampler"+test.statTags])
+		mTestutils.AssertCounterMetrics(t, metricsFactory,
+			mTestutils.ExpectedMetric{
+				Name: "jaeger.sampler" + test.statTags, Value: test.statCount,
+			},
+		)
 		if test.isErr {
 			continue
 		}
@@ -485,9 +491,8 @@ func TestMaxOperations(t *testing.T) {
 }
 
 func TestSamplerQueryError(t *testing.T) {
-	agent, sampler, stats := initAgent(t)
+	agent, sampler, metricsFactory := initAgent(t)
 	defer agent.Close()
-	defer stats.Stop()
 
 	// override the actual handler
 	sampler.manager = &fakeSamplingManager{}
@@ -500,8 +505,13 @@ func TestSamplerQueryError(t *testing.T) {
 	sampler.updateSampler()
 	assert.Equal(t, initSampler, sampler.sampler, "Sampler should not have been updated due to query error")
 
-	counters, _ := stats.Snapshot()
-	assert.EqualValues(t, 1, counters["jaeger.sampler|phase=query|state=failure"])
+	mTestutils.AssertCounterMetrics(t, metricsFactory,
+		mTestutils.ExpectedMetric{
+			Name:  "jaeger.sampler",
+			Tags:  map[string]string{"phase": "query", "state": "failure"},
+			Value: 1,
+		},
+	)
 }
 
 type fakeSamplingManager struct{}

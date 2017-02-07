@@ -37,6 +37,7 @@ import (
 	"github.com/uber/jaeger-client-go/testutils"
 	z "github.com/uber/jaeger-client-go/thrift-gen/zipkincore"
 	"github.com/uber/jaeger-lib/metrics"
+	mTestutils "github.com/uber/jaeger-lib/metrics/testutils"
 
 	"github.com/uber/jaeger-client-go/transport"
 	"github.com/uber/jaeger-client-go/transport/udp"
@@ -44,18 +45,17 @@ import (
 
 type reporterSuite struct {
 	suite.Suite
-	tracer      opentracing.Tracer
-	closer      io.Closer
-	serviceName string
-	reporter    *remoteReporter
-	collector   *fakeSender
-	stats       *metrics.LocalBackend
+	tracer         opentracing.Tracer
+	closer         io.Closer
+	serviceName    string
+	reporter       *remoteReporter
+	collector      *fakeSender
+	metricsFactory *metrics.LocalFactory
 }
 
 func (s *reporterSuite) SetupTest() {
-	s.stats = metrics.NewLocalBackend(0)
-	factory := metrics.NewLocalFactory(s.stats)
-	metrics := NewMetrics(factory, nil)
+	s.metricsFactory = metrics.NewLocalFactory(0)
+	metrics := NewMetrics(s.metricsFactory, nil)
 	s.serviceName = "DOOP"
 	s.collector = &fakeSender{}
 	s.reporter = NewRemoteReporter(
@@ -75,7 +75,6 @@ func (s *reporterSuite) TearDownTest() {
 	s.tracer = nil
 	s.reporter = nil
 	s.collector = nil
-	s.stats.Stop()
 }
 
 func TestReporter(t *testing.T) {
@@ -94,7 +93,7 @@ func (s *reporterSuite) flushReporter() {
 }
 
 func (s *reporterSuite) TestRootSpanAnnotations() {
-	s.stats.Clear()
+	s.metricsFactory.Clear()
 	sp := s.tracer.StartSpan("get_name")
 	ext.SpanKindRPCServer.Set(sp)
 	ext.PeerService.Set(sp, s.serviceName)
@@ -107,12 +106,17 @@ func (s *reporterSuite) TestRootSpanAnnotations() {
 	s.NotNil(findBinaryAnnotation(zSpan, "ca"), "expecting ca annotation")
 	s.NotNil(findBinaryAnnotation(zSpan, JaegerClientVersionTagKey), "expecting client version tag")
 
-	counters, _ := s.stats.Snapshot()
-	s.EqualValues(1, counters["jaeger.reporter-spans|state=success"])
+	mTestutils.AssertCounterMetrics(s.T(), s.metricsFactory,
+		mTestutils.ExpectedMetric{
+			Name:  "jaeger.reporter-spans",
+			Tags:  map[string]string{"state": "success"},
+			Value: 1,
+		},
+	)
 }
 
 func (s *reporterSuite) TestClientSpanAnnotations() {
-	s.stats.Clear()
+	s.metricsFactory.Clear()
 	sp := s.tracer.StartSpan("get_name")
 	ext.SpanKindRPCServer.Set(sp)
 	ext.PeerService.Set(sp, s.serviceName)
@@ -130,8 +134,14 @@ func (s *reporterSuite) TestClientSpanAnnotations() {
 	s.NotNil(findAnnotation(zSpan, "cs"), "expecting cs annotation")
 	s.NotNil(findAnnotation(zSpan, "cr"), "expecting cr annotation")
 	s.NotNil(findBinaryAnnotation(zSpan, "sa"), "expecting sa annotation")
-	counters, _ := s.stats.Snapshot()
-	s.EqualValues(2, counters["jaeger.reporter-spans|state=success"])
+
+	mTestutils.AssertCounterMetrics(s.T(), s.metricsFactory,
+		mTestutils.ExpectedMetric{
+			Name:  "jaeger.reporter-spans",
+			Tags:  map[string]string{"state": "success"},
+			Value: 2,
+		},
+	)
 }
 
 func (s *reporterSuite) TestTagsAndEvents() {
@@ -208,8 +218,7 @@ func testRemoteReporter(
 	factory func(m *Metrics) (transport.Transport, error),
 	getSpans func() []*z.Span,
 ) {
-	stats := metrics.NewLocalBackend(0)
-	metricsFactory := metrics.NewLocalFactory(stats)
+	metricsFactory := metrics.NewLocalFactory(0)
 	metrics := NewMetrics(metricsFactory, nil)
 
 	sender, err := factory(metrics)
@@ -237,9 +246,10 @@ func testRemoteReporter(
 	require.NotNil(t, sa)
 	assert.Equal(t, "downstream", sa.Host.ServiceName)
 
-	counters, _ := stats.Snapshot()
-	assert.EqualValues(t, 1, counters["jaeger.reporter-spans|state=success"])
-	assert.EqualValues(t, 0, counters["jaeger.reporter-spans|state=failure"])
+	mTestutils.AssertCounterMetrics(t, metricsFactory, []mTestutils.ExpectedMetric{
+		{Name: "jaeger.reporter-spans", Tags: map[string]string{"state": "success"}, Value: 1},
+		{Name: "jaeger.reporter-spans", Tags: map[string]string{"state": "failure"}, Value: 0},
+	}...)
 }
 
 func (s *reporterSuite) TestMemoryReporterReport() {
