@@ -79,6 +79,8 @@ func (s *Span) handleTagInLock(key string, value interface{}) {
 	if key == string(ext.HTTPStatusCode) {
 		if v, ok := value.(uint16); ok {
 			s.httpStatusCode = v
+		} else if v, ok := value.(int); ok {
+			s.httpStatusCode = uint16(v)
 		} else if v, ok := value.(string); ok {
 			if vv, err := strconv.Atoi(v); err == nil {
 				s.httpStatusCode = uint16(vv)
