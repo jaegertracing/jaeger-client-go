@@ -55,9 +55,6 @@ func NewSpan(
 		operationName: operationName,
 		startTime:     options.StartTime,
 	}
-	if s.operationName != "" {
-		s.tracer.metricsByEndpoint.get(s.operationName).updatePendingCount(1)
-	}
 	for k, v := range options.Tags {
 		s.handleTagInLock(k, v)
 	}
@@ -115,7 +112,7 @@ func (s *Span) FinishWithOptions(opts opentracing.FinishOptions) {
 
 	// emit metrics
 
-	if s.operationName == "" {
+	if s.operationName == "" || s.kind != Inbound {
 		return
 	}
 
@@ -123,8 +120,8 @@ func (s *Span) FinishWithOptions(opts opentracing.FinishOptions) {
 	if endTime.IsZero() {
 		endTime = time.Now()
 	}
+
 	mets := s.tracer.metricsByEndpoint.get(s.operationName)
-	mets.updatePendingCount(-1)
 	mets.Requests.Inc(1)
 	if s.err {
 		mets.Failures.Inc(1)
@@ -144,13 +141,7 @@ func (s *Span) Context() opentracing.SpanContext {
 func (s *Span) SetOperationName(operationName string) opentracing.Span {
 	s.realSpan.SetOperationName(operationName)
 	s.mux.Lock()
-	if s.operationName != "" {
-		s.tracer.metricsByEndpoint.get(s.operationName).updatePendingCount(-1)
-	}
 	s.operationName = operationName
-	if s.operationName != "" {
-		s.tracer.metricsByEndpoint.get(s.operationName).updatePendingCount(1)
-	}
 	s.mux.Unlock()
 	return s
 }

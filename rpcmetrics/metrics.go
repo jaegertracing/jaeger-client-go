@@ -2,7 +2,6 @@ package rpcmetrics
 
 import (
 	"sync"
-	"sync/atomic"
 
 	"github.com/uber/jaeger-lib/metrics"
 )
@@ -20,9 +19,6 @@ type Metrics struct {
 
 	// Failures is a counter of the number of times any failure has been observed.
 	Failures metrics.Counter `metric:"failures"`
-
-	// Pending is a guage of the current total number of outstanding requests.
-	Pending metrics.Gauge `metric:"pending"`
 
 	// RequestLatencyMs is a histogram of the latency of requests in milliseconds.
 	RequestLatencyMs metrics.Timer `metric:"request_latency_ms"`
@@ -52,11 +48,6 @@ func (m *Metrics) recordHTTPStatusCode(statusCode uint16) {
 	} else if statusCode >= 500 && statusCode < 600 {
 		m.HTTPStatusCode5xx.Inc(1)
 	}
-}
-
-func (m *Metrics) updatePendingCount(delta int64) {
-	pending := atomic.AddInt64(&m.pendingCount, delta)
-	m.Pending.Update(pending)
 }
 
 // MetricsByEndpoint is a registry of metrics for each unique endpoint name
