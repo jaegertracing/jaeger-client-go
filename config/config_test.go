@@ -64,7 +64,7 @@ func TestNewSamplerProbabilistic(t *testing.T) {
 
 func TestDefaultSampler(t *testing.T) {
 	cfg := &SamplerConfig{MaxOperations: 10}
-	s, err := cfg.NewSampler("x", jaeger.NewNullMetrics(nil))
+	s, err := cfg.NewSampler("x", jaeger.NewNullMetrics())
 	require.NoError(t, err)
 	rcs, ok := s.(*jaeger.RemotelyControlledSampler)
 	require.True(t, ok, "converted to RemotelyControlledSampler")
@@ -73,10 +73,10 @@ func TestDefaultSampler(t *testing.T) {
 
 func TestDefaultConfig(t *testing.T) {
 	cfg := Configuration{}
-	_, _, err := cfg.New("", metrics.NullFactory)
+	_, _, err := cfg.New("", ClientOptions.WithMetrics(metrics.NullFactory))
 	require.EqualError(t, err, "no service name provided")
 
-	_, closer, err := cfg.New("testService", metrics.NullFactory)
+	_, closer, err := cfg.New("testService")
 	defer closer.Close()
 	require.NoError(t, err)
 }

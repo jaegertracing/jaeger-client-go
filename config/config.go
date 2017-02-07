@@ -28,7 +28,6 @@ import (
 	"time"
 
 	"github.com/opentracing/opentracing-go"
-	"github.com/uber/jaeger-lib/metrics"
 
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/transport"
@@ -43,10 +42,8 @@ type Configuration struct {
 	Sampler  *SamplerConfig  `yaml:"sampler"`
 	Reporter *ReporterConfig `yaml:"reporter"`
 
-	// Logger can be provided to log Reporter errors, as well as to log spans
-	// if Reporter.LogSpans is set to true. This cannot be specified in
-	// the configuration file, it must be specified in code.
-	Logger jaeger.Logger `yaml:"-"`
+	clientMetrics *jaeger.Metrics
+	logger        jaeger.Logger
 }
 
 // SamplerConfig allows initializing a non-default sampler.  All fields are optional.
@@ -105,8 +102,12 @@ func (*nullCloser) Close() error { return nil }
 // before shutdown.
 func (c Configuration) New(
 	serviceName string,
-	factory metrics.Factory,
+	options ...ClientOption,
 ) (opentracing.Tracer, io.Closer, error) {
+	c.clientMetrics = jaeger.NewNullMetrics()
+	for _, option := range options {
+		option(&c)
+	}
 	if c.Disabled {
 		return &opentracing.NoopTracer{}, &nullCloser{}, nil
 	}
@@ -123,14 +124,12 @@ func (c Configuration) New(
 		c.Reporter = &ReporterConfig{}
 	}
 
-	clientMetrics := jaeger.NewMetrics(factory, nil)
-
-	sampler, err := c.Sampler.NewSampler(serviceName, clientMetrics)
+	sampler, err := c.Sampler.NewSampler(serviceName, c.clientMetrics)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	reporter, err := c.Reporter.NewReporter(serviceName, clientMetrics, c.Logger)
+	reporter, err := c.Reporter.NewReporter(serviceName, c.clientMetrics, c.logger)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -139,8 +138,8 @@ func (c Configuration) New(
 		serviceName,
 		sampler,
 		reporter,
-		jaeger.TracerOptions.Metrics(clientMetrics),
-		jaeger.TracerOptions.Logger(c.Logger))
+		jaeger.TracerOptions.Metrics(c.clientMetrics),
+		jaeger.TracerOptions.Logger(c.logger))
 
 	return tracer, closer, nil
 }
@@ -149,12 +148,12 @@ func (c Configuration) New(
 // It returns a closer func that can be used to flush buffers before shutdown.
 func (c Configuration) InitGlobalTracer(
 	serviceName string,
-	factory metrics.Factory,
+	options ...ClientOption,
 ) (io.Closer, error) {
 	if c.Disabled {
 		return &nullCloser{}, nil
 	}
-	tracer, closer, err := c.New(serviceName, factory)
+	tracer, closer, err := c.New(serviceName, options...)
 	if err != nil {
 		return nil, err
 	}

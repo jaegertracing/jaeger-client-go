@@ -199,7 +199,7 @@ func NewRemoteReporter(sender transport.Transport, options *ReporterOptions) Rep
 		options.Logger = NullLogger
 	}
 	if options.Metrics == nil {
-		options.Metrics = NewNullMetrics(nil)
+		options.Metrics = NewNullMetrics()
 	}
 
 	reporter := &remoteReporter{

@@ -28,3 +28,6 @@ import:
   - require
   - suite
 - package: github.com/crossdock/crossdock-go
+- name: github.com/uber/jaeger-lib
+  subpackages:
+  - metrics
