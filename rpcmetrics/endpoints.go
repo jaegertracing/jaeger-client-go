@@ -9,11 +9,10 @@ type normalizedEndpoints struct {
 	mux         sync.RWMutex
 }
 
-func newNormalizedEndpoints(maxSize int, defaultName string) *normalizedEndpoints {
+func newNormalizedEndpoints(maxSize int) *normalizedEndpoints {
 	return &normalizedEndpoints{
-		maxSize:     maxSize,
-		defaultName: defaultName,
-		names:       make(map[string]string, maxSize+1),
+		maxSize: maxSize,
+		names:   make(map[string]string, maxSize),
 	}
 }
 
@@ -32,7 +31,7 @@ func (n *normalizedEndpoints) normalize(name string) string {
 		return norm
 	}
 	if len(n.names) >= n.maxSize {
-		return n.defaultName
+		return ""
 	}
 	n.names[name] = norm
 	return norm
@@ -55,6 +54,9 @@ func (n *normalizedEndpoints) safeName(name string) string {
 			}
 			retMe[i] = '-'
 		}
+	}
+	if retMe == nil {
+		return name
 	}
 	return string(retMe)
 }

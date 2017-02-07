@@ -6,7 +6,11 @@ import (
 	"github.com/uber/jaeger-lib/metrics"
 )
 
-const defaultMaxNumberOfEndpoints = 200
+const (
+	defaultMaxNumberOfEndpoints = 200
+	otherEndpointsPlaceholder   = "other"
+	endpointNameMetricTag       = "endpoint"
+)
 
 // Metrics is a collection of metrics for an endpoint describing
 // throughput, success, errors, and performance
@@ -62,16 +66,16 @@ type MetricsByEndpoint struct {
 func newMetricsByEndpoint(metricsFactory metrics.Factory) *MetricsByEndpoint {
 	return &MetricsByEndpoint{
 		metricsFactory:       metricsFactory,
-		endpoints:            newNormalizedEndpoints(defaultMaxNumberOfEndpoints, ""),
-		metricsByEndpoint:    make(map[string]*Metrics),
-		maxNumberOfEndpoints: 200,
+		endpoints:            newNormalizedEndpoints(defaultMaxNumberOfEndpoints),
+		maxNumberOfEndpoints: defaultMaxNumberOfEndpoints,
+		metricsByEndpoint:    make(map[string]*Metrics, defaultMaxNumberOfEndpoints+1), // +1 for "other"
 	}
 }
 
 func (m *MetricsByEndpoint) get(endpoint string) *Metrics {
 	safeName := m.endpoints.normalize(endpoint)
 	if safeName == "" {
-		safeName = "other"
+		safeName = otherEndpointsPlaceholder
 	}
 	m.mux.RLock()
 	met := m.metricsByEndpoint[safeName]
@@ -88,15 +92,14 @@ func (m *MetricsByEndpoint) get(endpoint string) *Metrics {
 	}
 
 	if len(m.metricsByEndpoint) >= m.maxNumberOfEndpoints {
-		safeName = "other"
-	}
-
-	if met, ok := m.metricsByEndpoint[safeName]; ok {
-		return met // couldn've been created earlier
+		safeName = otherEndpointsPlaceholder
+		if met, ok := m.metricsByEndpoint[safeName]; ok {
+			return met
+		}
 	}
 
 	met = &Metrics{}
-	tags := map[string]string{"endpoint": safeName}
+	tags := map[string]string{endpointNameMetricTag: safeName}
 	metrics.Init(met, m.metricsFactory, tags)
 	m.metricsByEndpoint[safeName] = met
 	return met
