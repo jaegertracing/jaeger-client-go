@@ -2,6 +2,7 @@ package rpcmetrics
 
 import (
 	"sync"
+	"sync/atomic"
 
 	"github.com/uber/jaeger-lib/metrics"
 )
@@ -37,6 +38,25 @@ type Metrics struct {
 
 	// HTTPStatusCode5xx is a counter of the total number of requests with HTTP status code 500-599
 	HTTPStatusCode5xx metrics.Counter `metric:"http_status_code_5xx"`
+
+	pendingCount int64
+}
+
+func (m *Metrics) recordHTTPStatusCode(statusCode uint16) {
+	if statusCode >= 200 && statusCode < 300 {
+		m.HTTPStatusCode2xx.Inc(1)
+	} else if statusCode >= 300 && statusCode < 400 {
+		m.HTTPStatusCode3xx.Inc(1)
+	} else if statusCode >= 400 && statusCode < 500 {
+		m.HTTPStatusCode4xx.Inc(1)
+	} else if statusCode >= 500 && statusCode < 600 {
+		m.HTTPStatusCode5xx.Inc(1)
+	}
+}
+
+func (m *Metrics) updatePendingCount(delta int64) {
+	pending := atomic.AddInt64(&m.pendingCount, delta)
+	m.Pending.Update(pending)
 }
 
 // MetricsByEndpoint is a registry of metrics for each unique endpoint name

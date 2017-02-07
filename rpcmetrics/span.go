@@ -4,17 +4,35 @@ import (
 	"sync"
 	"time"
 
+	"strconv"
+
 	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
+)
+
+// SpanKind identifies the span as inboud, outbound, or internal
+type SpanKind int
+
+const (
+	// Local span kind
+	Local SpanKind = iota
+	// Inbound span kind
+	Inbound
+	// Outbound span kind
+	Outbound
 )
 
 // Span is a wrapper around opentracing.Span that collects RPC metrics
 type Span struct {
-	tracer        *Tracer
-	realSpan      opentracing.Span
-	operationName string
-	startTime     time.Time
-	mux           sync.Mutex
+	tracer         *Tracer
+	realSpan       opentracing.Span
+	operationName  string
+	startTime      time.Time
+	mux            sync.Mutex
+	kind           SpanKind
+	httpStatusCode uint16
+	err            bool
 }
 
 // NewSpan creates a new opentracing.Span decorator that can emit RPC metrics.
@@ -37,8 +55,11 @@ func NewSpan(
 		operationName: operationName,
 		startTime:     options.StartTime,
 	}
+	if s.operationName != "" {
+		s.tracer.metricsByEndpoint.get(s.operationName).updatePendingCount(1)
+	}
 	for k, v := range options.Tags {
-		s.handleTag(k, v)
+		s.handleTagInLock(k, v)
 	}
 	return s
 }
@@ -46,8 +67,38 @@ func NewSpan(
 // handleTags watches for special tags
 // - SpanKind
 // - HttpStatusCode
-func (s *Span) handleTag(key string, value interface{}) {
-
+// - Error
+func (s *Span) handleTagInLock(key string, value interface{}) {
+	if key == string(ext.SpanKind) {
+		if v, ok := value.(string); ok {
+			if v == string(ext.SpanKindRPCClientEnum) {
+				s.kind = Outbound
+			} else if v == string(ext.SpanKindRPCServerEnum) {
+				s.kind = Inbound
+			}
+		}
+		return
+	}
+	if key == string(ext.HTTPStatusCode) {
+		if v, ok := value.(uint16); ok {
+			s.httpStatusCode = v
+		} else if v, ok := value.(string); ok {
+			if vv, err := strconv.Atoi(v); err == nil {
+				s.httpStatusCode = uint16(vv)
+			}
+		}
+		return
+	}
+	if key == string(ext.Error) {
+		if v, ok := value.(bool); ok {
+			s.err = v
+		} else if v, ok := value.(string); ok {
+			if vv, err := strconv.ParseBool(v); err == nil {
+				s.err = vv
+			}
+		}
+		return
+	}
 }
 
 // Finish implements opentracing.Span
@@ -58,7 +109,30 @@ func (s *Span) Finish() {
 // FinishWithOptions implements opentracing.Span
 func (s *Span) FinishWithOptions(opts opentracing.FinishOptions) {
 	s.realSpan.FinishWithOptions(opts)
-	// TODO emit metrics
+
+	s.mux.Lock()
+	defer s.mux.Unlock()
+
+	// emit metrics
+
+	if s.operationName == "" {
+		return
+	}
+
+	endTime := opts.FinishTime
+	if endTime.IsZero() {
+		endTime = time.Now()
+	}
+	mets := s.tracer.metricsByEndpoint.get(s.operationName)
+	mets.updatePendingCount(-1)
+	mets.Requests.Inc(1)
+	if s.err {
+		mets.Failures.Inc(1)
+	} else {
+		mets.Success.Inc(1)
+	}
+	mets.RequestLatencyMs.Record(endTime.Sub(s.startTime))
+	mets.recordHTTPStatusCode(s.httpStatusCode)
 }
 
 // Context implements opentracing.Span
@@ -68,17 +142,25 @@ func (s *Span) Context() opentracing.SpanContext {
 
 // SetOperationName implements opentracing.Span
 func (s *Span) SetOperationName(operationName string) opentracing.Span {
-	s.mux.Lock()
-	s.operationName = operationName
-	s.mux.Unlock()
 	s.realSpan.SetOperationName(operationName)
+	s.mux.Lock()
+	if s.operationName != "" {
+		s.tracer.metricsByEndpoint.get(s.operationName).updatePendingCount(-1)
+	}
+	s.operationName = operationName
+	if s.operationName != "" {
+		s.tracer.metricsByEndpoint.get(s.operationName).updatePendingCount(1)
+	}
+	s.mux.Unlock()
 	return s
 }
 
 // SetTag implements opentracing.Span
 func (s *Span) SetTag(key string, value interface{}) opentracing.Span {
 	s.realSpan.SetTag(key, value)
-	// TODO check for RPC tags
+	s.mux.Lock()
+	s.handleTagInLock(key, value)
+	s.mux.Unlock()
 	return s
 }
 
