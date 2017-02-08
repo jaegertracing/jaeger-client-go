@@ -48,7 +48,7 @@ func TestHttpTransport(t *testing.T) {
 	tracer, closer := jaeger.NewTracer(
 		"test",
 		jaeger.NewConstSampler(true),
-		jaeger.NewRemoteReporter(sender, nil),
+		jaeger.NewRemoteReporter(sender),
 	)
 
 	span := tracer.StartSpan("root")

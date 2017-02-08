@@ -164,7 +164,7 @@ const (
 )
 
 type remoteReporter struct {
-	ReporterOptions
+	reporterOptions
 	sender       transport.Transport
 	queue        chan *zipkincore.Span
 	queueLength  int64 // signed because metric's gauge is signed
@@ -172,42 +172,28 @@ type remoteReporter struct {
 	flushSignal  chan *sync.WaitGroup
 }
 
-// ReporterOptions control behavior of the reporter
-type ReporterOptions struct {
-	// QueueSize is the size of internal queue where reported spans are stored before they are processed in the background
-	QueueSize int
-	// BufferFlushInterval is how often the buffer is force-flushed, even if it's not full
-	BufferFlushInterval time.Duration
-	// Logger is used to log errors of span submissions
-	Logger Logger
-	// Metrics is used to record runtime stats
-	Metrics *Metrics
-}
-
 // NewRemoteReporter creates a new reporter that sends spans out of process by means of Sender
-func NewRemoteReporter(sender transport.Transport, options *ReporterOptions) Reporter {
-	if options == nil {
-		options = &ReporterOptions{}
-	}
-	if options.QueueSize <= 0 {
-		options.QueueSize = defaultQueueSize
-	}
-	if options.BufferFlushInterval <= 0 {
-		options.BufferFlushInterval = defaultBufferFlushInterval
-	}
-	if options.Logger == nil {
-		options.Logger = NullLogger
-	}
-	if options.Metrics == nil {
-		options.Metrics = NewNullMetrics()
-	}
-
+func NewRemoteReporter(sender transport.Transport, options ...ReporterOption) Reporter {
 	reporter := &remoteReporter{
-		ReporterOptions: *options,
-		sender:          sender,
-		queue:           make(chan *zipkincore.Span, options.QueueSize),
-		flushSignal:     make(chan *sync.WaitGroup),
+		sender:      sender,
+		flushSignal: make(chan *sync.WaitGroup),
 	}
+	for _, option := range options {
+		option(&reporter.reporterOptions)
+	}
+	if reporter.bufferFlushInterval <= 0 {
+		reporter.bufferFlushInterval = defaultBufferFlushInterval
+	}
+	if reporter.logger == nil {
+		reporter.logger = NullLogger
+	}
+	if reporter.metrics == nil {
+		reporter.metrics = NewNullMetrics()
+	}
+	if reporter.queueSize <= 0 {
+		reporter.queueSize = defaultQueueSize
+	}
+	reporter.queue = make(chan *zipkincore.Span, reporter.queueSize)
 	go reporter.processQueue()
 	return reporter
 }
@@ -220,7 +206,7 @@ func (r *remoteReporter) Report(span *span) {
 	case r.queue <- thriftSpan:
 		atomic.AddInt64(&r.queueLength, 1)
 	default:
-		r.Metrics.ReporterDropped.Inc(1)
+		r.metrics.ReporterDropped.Inc(1)
 	}
 }
 
@@ -237,19 +223,19 @@ func (r *remoteReporter) Close() {
 // Buffer also gets flushed automatically every batchFlushInterval seconds, just in case the tracer stopped
 // reporting new spans.
 func (r *remoteReporter) processQueue() {
-	timer := time.NewTicker(r.BufferFlushInterval)
+	timer := time.NewTicker(r.bufferFlushInterval)
 	for {
 		select {
 		case span, ok := <-r.queue:
 			if ok {
 				atomic.AddInt64(&r.queueLength, -1)
 				if flushed, err := r.sender.Append(span); err != nil {
-					r.Metrics.ReporterFailure.Inc(int64(flushed))
-					r.Logger.Error(err.Error())
+					r.metrics.ReporterFailure.Inc(int64(flushed))
+					r.logger.Error(err.Error())
 				} else if flushed > 0 {
-					r.Metrics.ReporterSuccess.Inc(int64(flushed))
+					r.metrics.ReporterSuccess.Inc(int64(flushed))
 					// to reduce the number of gauge stats, we only emit queue length on flush
-					r.Metrics.ReporterQueueLength.Update(atomic.LoadInt64(&r.queueLength))
+					r.metrics.ReporterQueueLength.Update(atomic.LoadInt64(&r.queueLength))
 				}
 			} else {
 				// queue closed
@@ -270,9 +256,9 @@ func (r *remoteReporter) processQueue() {
 // flush causes the Sender to flush its accumulated spans and clear the buffer
 func (r *remoteReporter) flush() {
 	if flushed, err := r.sender.Flush(); err != nil {
-		r.Metrics.ReporterFailure.Inc(int64(flushed))
-		r.Logger.Error(err.Error())
+		r.metrics.ReporterFailure.Inc(int64(flushed))
+		r.logger.Error(err.Error())
 	} else if flushed > 0 {
-		r.Metrics.ReporterSuccess.Inc(int64(flushed))
+		r.metrics.ReporterSuccess.Inc(int64(flushed))
 	}
 }

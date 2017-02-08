@@ -59,9 +59,8 @@ func TestSamplerTags(t *testing.T) {
 	prob, err := NewProbabilisticSampler(0.1)
 	require.NoError(t, err)
 	rate := NewRateLimitingSampler(0.1)
-	remote := &RemotelyControlledSampler{
-		sampler: NewConstSampler(true),
-	}
+	remote := &RemotelyControlledSampler{}
+	remote.sampler = NewConstSampler(true)
 	tests := []struct {
 		sampler  Sampler
 		typeTag  string
