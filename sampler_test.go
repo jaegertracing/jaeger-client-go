@@ -89,6 +89,19 @@ func TestSamplerTags(t *testing.T) {
 	}
 }
 
+func TestApplySamplerOptions(t *testing.T) {
+	options := applySamplerOptions()
+	sampler, ok := options.sampler.(*ProbabilisticSampler)
+	assert.True(t, ok)
+	assert.Equal(t, 0.001, sampler.samplingRate)
+
+	assert.NotNil(t, options.logger)
+	assert.NotZero(t, options.maxOperations)
+	assert.NotEmpty(t, options.samplingServerURL)
+	assert.NotNil(t, options.metrics)
+	assert.NotZero(t, options.samplingRefreshInterval)
+}
+
 func TestProbabilisticSamplerErrors(t *testing.T) {
 	_, err := NewProbabilisticSampler(-0.1)
 	assert.Error(t, err)

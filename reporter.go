@@ -173,27 +173,29 @@ type remoteReporter struct {
 }
 
 // NewRemoteReporter creates a new reporter that sends spans out of process by means of Sender
-func NewRemoteReporter(sender transport.Transport, options ...ReporterOption) Reporter {
+func NewRemoteReporter(sender transport.Transport, opts ...ReporterOption) Reporter {
+	options := reporterOptions{}
+	for _, option := range opts {
+		option(&options)
+	}
+	if options.bufferFlushInterval <= 0 {
+		options.bufferFlushInterval = defaultBufferFlushInterval
+	}
+	if options.logger == nil {
+		options.logger = NullLogger
+	}
+	if options.metrics == nil {
+		options.metrics = NewNullMetrics()
+	}
+	if options.queueSize <= 0 {
+		options.queueSize = defaultQueueSize
+	}
 	reporter := &remoteReporter{
-		sender:      sender,
-		flushSignal: make(chan *sync.WaitGroup),
+		reporterOptions: options,
+		sender:          sender,
+		flushSignal:     make(chan *sync.WaitGroup),
+		queue:           make(chan *zipkincore.Span, options.queueSize),
 	}
-	for _, option := range options {
-		option(&reporter.reporterOptions)
-	}
-	if reporter.bufferFlushInterval <= 0 {
-		reporter.bufferFlushInterval = defaultBufferFlushInterval
-	}
-	if reporter.logger == nil {
-		reporter.logger = NullLogger
-	}
-	if reporter.metrics == nil {
-		reporter.metrics = NewNullMetrics()
-	}
-	if reporter.queueSize <= 0 {
-		reporter.queueSize = defaultQueueSize
-	}
-	reporter.queue = make(chan *zipkincore.Span, reporter.queueSize)
 	go reporter.processQueue()
 	return reporter
 }

@@ -404,38 +404,45 @@ func (s *httpSamplingManager) GetSamplingStrategy(serviceName string) (*sampling
 // the sampling strategy from an HTTP sampling server (e.g. jaeger-agent).
 func NewRemotelyControlledSampler(
 	serviceName string,
-	options ...SamplerOption,
+	opts ...SamplerOption,
 ) *RemotelyControlledSampler {
-	initialSampler, _ := NewProbabilisticSampler(0.001)
+	options := applySamplerOptions(opts...)
 	sampler := &RemotelyControlledSampler{
-		serviceName: serviceName,
+		samplerOptions: options,
+		serviceName:    serviceName,
+		timer:          time.NewTicker(options.samplingRefreshInterval),
+		manager:        &httpSamplingManager{serverURL: options.samplingServerURL},
 	}
-	for _, option := range options {
-		option(&sampler.samplerOptions)
-	}
-	if sampler.sampler == nil {
-		sampler.sampler = initialSampler
-	}
-	if sampler.logger == nil {
-		sampler.logger = NullLogger
-	}
-	if sampler.maxOperations <= 0 {
-		sampler.maxOperations = defaultMaxOperations
-	}
-	if sampler.samplingServerURL == "" {
-		sampler.samplingServerURL = defaultSamplingServerURL
-	}
-	if sampler.metrics == nil {
-		sampler.metrics = NewNullMetrics()
-	}
-	if sampler.samplingRefreshInterval <= 0 {
-		sampler.samplingRefreshInterval = defaultSamplingRefreshInterval
-	}
-	sampler.timer = time.NewTicker(sampler.samplingRefreshInterval)
-	sampler.manager = &httpSamplingManager{serverURL: sampler.samplingServerURL}
 
 	go sampler.pollController()
 	return sampler
+}
+
+func applySamplerOptions(opts ...SamplerOption) samplerOptions {
+	options := samplerOptions{}
+	for _, option := range opts {
+		option(&options)
+	}
+	if options.sampler == nil {
+		initialSampler, _ := NewProbabilisticSampler(0.001)
+		options.sampler = initialSampler
+	}
+	if options.logger == nil {
+		options.logger = NullLogger
+	}
+	if options.maxOperations <= 0 {
+		options.maxOperations = defaultMaxOperations
+	}
+	if options.samplingServerURL == "" {
+		options.samplingServerURL = defaultSamplingServerURL
+	}
+	if options.metrics == nil {
+		options.metrics = NewNullMetrics()
+	}
+	if options.samplingRefreshInterval <= 0 {
+		options.samplingRefreshInterval = defaultSamplingRefreshInterval
+	}
+	return options
 }
 
 // IsSampled implements IsSampled() of Sampler.

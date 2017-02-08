@@ -23,6 +23,7 @@ package config
 import (
 	"testing"
 
+	"github.com/opentracing/opentracing-go"
 	"github.com/stretchr/testify/require"
 	"github.com/uber/jaeger-lib/metrics"
 
@@ -63,6 +64,14 @@ func TestNewSamplerProbabilistic(t *testing.T) {
 }
 
 func TestDefaultSampler(t *testing.T) {
+	cfg := Configuration{
+		Sampler: &SamplerConfig{Type: "InvalidType"},
+	}
+	_, _, err := cfg.New("testService")
+	require.Error(t, err)
+}
+
+func TestInvalidSamplerType(t *testing.T) {
 	cfg := &SamplerConfig{MaxOperations: 10}
 	s, err := cfg.NewSampler("x", jaeger.NewNullMetrics())
 	require.NoError(t, err)
@@ -79,4 +88,50 @@ func TestDefaultConfig(t *testing.T) {
 	_, closer, err := cfg.New("testService")
 	defer closer.Close()
 	require.NoError(t, err)
+}
+
+func TestDisabledFlag(t *testing.T) {
+	cfg := Configuration{Disabled: true}
+	_, closer, err := cfg.New("testService")
+	defer closer.Close()
+	require.NoError(t, err)
+}
+
+func TestNewReporterError(t *testing.T) {
+	cfg := Configuration{
+		Reporter: &ReporterConfig{LocalAgentHostPort: "bad_local_agent"},
+	}
+	_, _, err := cfg.New("testService")
+	require.Error(t, err)
+}
+
+func TestInitGlobalTracer(t *testing.T) {
+	// Save the existing GlobalTracer and replace after finishing function
+	prevTracer := opentracing.GlobalTracer()
+	defer opentracing.InitGlobalTracer(prevTracer)
+	noopTracer := opentracing.NoopTracer{}
+
+	tests := []struct {
+		cfg           Configuration
+		shouldErr     bool
+		tracerChanged bool
+	}{
+		{Configuration{Disabled: true}, false, false},
+		{Configuration{Sampler: &SamplerConfig{Type: "InvalidType"}}, true, false},
+		{Configuration{}, false, true},
+	}
+	for _, test := range tests {
+		opentracing.InitGlobalTracer(noopTracer)
+		_, err := test.cfg.InitGlobalTracer("testService")
+		if test.shouldErr {
+			require.Error(t, err)
+		} else {
+			require.NoError(t, err)
+		}
+		if test.tracerChanged {
+			require.NotEqual(t, noopTracer, opentracing.GlobalTracer())
+		} else {
+			require.Equal(t, noopTracer, opentracing.GlobalTracer())
+		}
+	}
 }
