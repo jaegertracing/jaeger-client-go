@@ -1,13 +1,7 @@
 Changes by Version
 ==================
 
-2.0.1 (unreleased)
--------------------
-
-- No changes yet
-
-
-2.0.0 (2016-02-07)
+2.0.0 (2016-02-08)
 -------------------
 
 - Support Adaptive Sampling
@@ -15,7 +9,7 @@ Changes by Version
 - Change trace/span IDs from uint64 to strong types TraceID and SpanID
 - Add Zipkin HTTP B3 Propagation format support #72
 - Rip out existing metrics and use github.com/uber/jaeger-lib/metrics
-- Change API for tracer initialization
+- Change API for tracer, reporter, sampler initialization
 
 
 1.6.0 (2016-10-14)
