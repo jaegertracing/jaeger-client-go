@@ -59,7 +59,7 @@ func (s *reporterSuite) SetupTest() {
 	s.serviceName = "DOOP"
 	s.collector = &fakeSender{}
 	s.reporter = NewRemoteReporter(
-		s.collector, &ReporterOptions{Metrics: metrics},
+		s.collector, ReporterOptions.Metrics(metrics),
 	).(*remoteReporter)
 
 	s.tracer, s.closer = NewTracer(
@@ -223,7 +223,7 @@ func testRemoteReporter(
 
 	sender, err := factory(metrics)
 	require.NoError(t, err)
-	reporter := NewRemoteReporter(sender, &ReporterOptions{Metrics: metrics}).(*remoteReporter)
+	reporter := NewRemoteReporter(sender, ReporterOptions.Metrics(metrics)).(*remoteReporter)
 
 	tracer, closer := NewTracer(
 		"reporter-test-service",

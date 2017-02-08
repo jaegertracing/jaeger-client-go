@@ -38,12 +38,11 @@ const defaultSamplingProbability = 0.001
 
 // Configuration configures and creates Jaeger Tracer
 type Configuration struct {
+	ClientOptions
+
 	Disabled bool            `yaml:"disabled"`
 	Sampler  *SamplerConfig  `yaml:"sampler"`
 	Reporter *ReporterConfig `yaml:"reporter"`
-
-	clientMetrics *jaeger.Metrics
-	logger        jaeger.Logger
 }
 
 // SamplerConfig allows initializing a non-default sampler.  All fields are optional.
@@ -105,10 +104,10 @@ func (c Configuration) New(
 	options ...ClientOption,
 ) (opentracing.Tracer, io.Closer, error) {
 	for _, option := range options {
-		option(&c)
+		option(&c.ClientOptions)
 	}
-	if c.clientMetrics == nil {
-		c.clientMetrics = jaeger.NewNullMetrics()
+	if c.metrics == nil {
+		c.metrics = jaeger.NewNullMetrics()
 	}
 	if c.Disabled {
 		return &opentracing.NoopTracer{}, &nullCloser{}, nil
@@ -126,12 +125,12 @@ func (c Configuration) New(
 		c.Reporter = &ReporterConfig{}
 	}
 
-	sampler, err := c.Sampler.NewSampler(serviceName, c.clientMetrics)
+	sampler, err := c.Sampler.NewSampler(serviceName, c.metrics)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	reporter, err := c.Reporter.NewReporter(serviceName, c.clientMetrics, c.logger)
+	reporter, err := c.Reporter.NewReporter(serviceName, c.metrics, c.logger)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -140,7 +139,7 @@ func (c Configuration) New(
 		serviceName,
 		sampler,
 		reporter,
-		jaeger.TracerOptions.Metrics(c.clientMetrics),
+		jaeger.TracerOptions.Metrics(c.metrics),
 		jaeger.TracerOptions.Logger(c.logger))
 
 	return tracer, closer, nil
@@ -217,14 +216,12 @@ func (rc *ReporterConfig) NewReporter(
 	if err != nil {
 		return nil, err
 	}
-
 	reporter := jaeger.NewRemoteReporter(
 		sender,
-		&jaeger.ReporterOptions{
-			QueueSize:           rc.QueueSize,
-			BufferFlushInterval: rc.BufferFlushInterval,
-			Logger:              logger,
-			Metrics:             metrics})
+		jaeger.ReporterOptions.QueueSize(rc.QueueSize),
+		jaeger.ReporterOptions.BufferFlushInterval(rc.BufferFlushInterval),
+		jaeger.ReporterOptions.Logger(logger),
+		jaeger.ReporterOptions.Metrics(metrics))
 	if rc.LogSpans && logger != nil {
 		logger.Infof("Initializing logging reporter\n")
 		reporter = jaeger.NewCompositeReporter(jaeger.NewLoggingReporter(logger), reporter)

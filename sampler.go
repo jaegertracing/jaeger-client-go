@@ -378,18 +378,12 @@ func (s *adaptiveSampler) update(strategies *sampling.PerOperationSamplingStrate
 // delegates to it for sampling decisions.
 type RemotelyControlledSampler struct {
 	sync.RWMutex
+	samplerOptions
 
-	serviceName             string
-	timer                   *time.Ticker
-	manager                 sampling.SamplingManager
-	pollStopped             sync.WaitGroup
-	samplingRefreshInterval time.Duration
-
-	samplingServerURL string
-	logger            Logger
-	sampler           Sampler
-	metrics           *Metrics
-	maxOperations     int
+	serviceName string
+	timer       *time.Ticker
+	manager     sampling.SamplingManager
+	pollStopped sync.WaitGroup
 }
 
 type httpSamplingManager struct {
@@ -410,50 +404,45 @@ func (s *httpSamplingManager) GetSamplingStrategy(serviceName string) (*sampling
 // the sampling strategy from an HTTP sampling server (e.g. jaeger-agent).
 func NewRemotelyControlledSampler(
 	serviceName string,
-	options ...SamplerOption,
+	opts ...SamplerOption,
 ) *RemotelyControlledSampler {
-	initialSampler, _ := NewProbabilisticSampler(0.001)
+	options := applySamplerOptions(opts...)
 	sampler := &RemotelyControlledSampler{
-		serviceName:             serviceName,
-		logger:                  NullLogger,
-		metrics:                 NewNullMetrics(),
-		samplingRefreshInterval: defaultSamplingRefreshInterval,
-		samplingServerURL:       defaultSamplingServerURL,
-		sampler:                 initialSampler,
-		maxOperations:           defaultMaxOperations,
+		samplerOptions: options,
+		serviceName:    serviceName,
+		timer:          time.NewTicker(options.samplingRefreshInterval),
+		manager:        &httpSamplingManager{serverURL: options.samplingServerURL},
 	}
-
-	sampler.applyOptions(options...)
-	sampler.timer = time.NewTicker(sampler.samplingRefreshInterval)
-	sampler.manager = &httpSamplingManager{serverURL: sampler.samplingServerURL}
 
 	go sampler.pollController()
 	return sampler
 }
 
-func (s *RemotelyControlledSampler) applyOptions(options ...SamplerOption) {
-	opts := samplerOptions{}
-	for _, option := range options {
-		option(&opts)
+func applySamplerOptions(opts ...SamplerOption) samplerOptions {
+	options := samplerOptions{}
+	for _, option := range opts {
+		option(&options)
 	}
-	if opts.sampler != nil {
-		s.sampler = opts.sampler
+	if options.sampler == nil {
+		initialSampler, _ := NewProbabilisticSampler(0.001)
+		options.sampler = initialSampler
 	}
-	if opts.logger != nil {
-		s.logger = opts.logger
+	if options.logger == nil {
+		options.logger = NullLogger
 	}
-	if opts.maxOperations > 0 {
-		s.maxOperations = opts.maxOperations
+	if options.maxOperations <= 0 {
+		options.maxOperations = defaultMaxOperations
 	}
-	if opts.samplingServerURL != "" {
-		s.samplingServerURL = opts.samplingServerURL
+	if options.samplingServerURL == "" {
+		options.samplingServerURL = defaultSamplingServerURL
 	}
-	if opts.metrics != nil {
-		s.metrics = opts.metrics
+	if options.metrics == nil {
+		options.metrics = NewNullMetrics()
 	}
-	if opts.samplingRefreshInterval != 0 {
-		s.samplingRefreshInterval = opts.samplingRefreshInterval
+	if options.samplingRefreshInterval <= 0 {
+		options.samplingRefreshInterval = defaultSamplingRefreshInterval
 	}
+	return options
 }
 
 // IsSampled implements IsSampled() of Sampler.
