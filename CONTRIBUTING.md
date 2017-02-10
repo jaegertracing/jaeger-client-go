@@ -32,6 +32,17 @@ pull request is most likely to be accepted if it:
 * Has a [good commit
   message](http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html).
 
+## Cutting a Release
+
+* Send a pull request against dev including:
+  * update CHANGELOG.md
+  * update JaegerClientVersion in constants.go
+* Send a pull request for dev into master
+* `git tag -m v0.0.0 -a v0.0.0`
+* `git push origin --tags`
+* Copy CHANGELOG.md fragment into release notes on
+  https://github.com/uber/jaeger-client-go/releases
+
 ## License
 
 By contributing your code, you agree to license your contribution under the terms
