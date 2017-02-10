@@ -34,14 +34,14 @@ pull request is most likely to be accepted if it:
 
 ## Cutting a Release
 
-* Send a pull request against dev including:
+* Send a pull request with the commit comment: "Release X.Y.Z" against dev including:
   * update CHANGELOG.md
   * update JaegerClientVersion in constants.go
 * Send a pull request for dev into master
-* `git tag -m v0.0.0 -a v0.0.0`
-* `git push origin --tags`
-* Copy CHANGELOG.md fragment into release notes on
+* Create new tag "vX.Y.Z" and copy CHANGELOG.md fragment into release notes on
   https://github.com/uber/jaeger-client-go/releases
+* Send a pull request with the commit comment: "Back to development" against dev including:
+  * update CHANGELOG.md
 
 ## License
 
