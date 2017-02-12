@@ -34,14 +34,14 @@ pull request is most likely to be accepted if it:
 
 ## Cutting a Release
 
-* Send a pull request with the commit comment: "Release X.Y.Z" against dev including:
-  * update CHANGELOG.md
-  * update JaegerClientVersion in constants.go
-* Send a pull request for dev into master
-* Create new tag "vX.Y.Z" and copy CHANGELOG.md fragment into release notes on
-  https://github.com/uber/jaeger-client-go/releases
-* Send a pull request with the commit comment: "Back to development" against dev including:
-  * update CHANGELOG.md
+1. Create a PR "Preparing for release X.Y.Z" against master branch
+    * Alter CHANGELOG.md from `<placeholder_version> (unreleased)` to `<X.Y.Z> (YYYY-MM-DD)`
+    * Update `JaegerClientVersion` in constants.go to `Go-X.Y.Z`
+2. Create a release "Release X.Y.Z" on Github
+    * Create Tag `vX.Y.Z`
+    * Copy CHANGELOG.md into the release notes
+3. Create a PR "Back to development" against master branch
+    * Add `<next_version> (unreleased)` to CHANGELOG.md
 
 ## License
 
