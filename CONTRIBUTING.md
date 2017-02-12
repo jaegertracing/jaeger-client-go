@@ -32,6 +32,17 @@ pull request is most likely to be accepted if it:
 * Has a [good commit
   message](http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html).
 
+## Cutting a Release
+
+1. Create a PR "Preparing for release X.Y.Z" against master branch
+    * Alter CHANGELOG.md from `<placeholder_version> (unreleased)` to `<X.Y.Z> (YYYY-MM-DD)`
+    * Update `JaegerClientVersion` in constants.go to `Go-X.Y.Z`
+2. Create a release "Release X.Y.Z" on Github
+    * Create Tag `vX.Y.Z`
+    * Copy CHANGELOG.md into the release notes
+3. Create a PR "Back to development" against master branch
+    * Add `<next_version> (unreleased)` to CHANGELOG.md
+
 ## License
 
 By contributing your code, you agree to license your contribution under the terms
