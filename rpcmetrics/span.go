@@ -67,6 +67,9 @@ func NewSpan(
 // - Error
 func (s *Span) handleTagInLock(key string, value interface{}) {
 	if key == string(ext.SpanKind) {
+		if v, ok := value.(ext.SpanKindEnum); ok {
+			value = string(v)
+		}
 		if v, ok := value.(string); ok {
 			if v == string(ext.SpanKindRPCClientEnum) {
 				s.kind = Outbound
