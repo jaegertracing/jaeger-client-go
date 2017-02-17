@@ -32,6 +32,7 @@ import (
 
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/config"
+	"github.com/uber/jaeger-client-go/log"
 )
 
 var (
@@ -99,7 +100,7 @@ func newInMemoryTracer() (opentracing.Tracer, *jaeger.InMemoryReporter) {
 		jaeger.NewConstSampler(true),
 		inMemoryReporter,
 		jaeger.TracerOptions.Metrics(jaeger.NewNullMetrics()),
-		jaeger.TracerOptions.Logger(jaeger.NullLogger))
+		jaeger.TracerOptions.Logger(log.NullLogger))
 	return tracer, inMemoryReporter
 }
 

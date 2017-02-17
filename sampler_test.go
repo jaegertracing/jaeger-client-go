@@ -30,6 +30,7 @@ import (
 	"github.com/uber/jaeger-lib/metrics"
 	mTestutils "github.com/uber/jaeger-lib/metrics/testutils"
 
+	"github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-client-go/testutils"
 	"github.com/uber/jaeger-client-go/thrift-gen/sampling"
 	"github.com/uber/jaeger-client-go/utils"
@@ -293,7 +294,7 @@ func initAgent(t *testing.T) (*testutils.MockAgent, *RemotelyControlledSampler, 
 		SamplerOptions.SamplingServerURL("http://"+agent.SamplingServerAddr()),
 		SamplerOptions.MaxOperations(testDefaultMaxOperations),
 		SamplerOptions.InitialSampler(initialSampler),
-		SamplerOptions.Logger(NullLogger),
+		SamplerOptions.Logger(log.NullLogger),
 		SamplerOptions.SamplingRefreshInterval(time.Minute),
 	)
 	sampler.Close() // stop timer-based updates, we want to call them manually

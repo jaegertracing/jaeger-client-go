@@ -18,15 +18,17 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package jaeger
+package zap
 
 import (
 	"testing"
+
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 func TestLogger(t *testing.T) {
-	for _, logger := range []Logger{StdLogger, NullLogger} {
-		logger.Infof("Hi %s", "there")
-		logger.Error("Bad wolf")
-	}
+	logger := NewLogger(*zap.New(zapcore.NewNopCore()))
+	logger.Infof("Hi %s", "there")
+	logger.Error("Bad wolf")
 }

@@ -31,6 +31,7 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 
+	"github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-client-go/utils"
 )
 
@@ -41,7 +42,7 @@ type tracer struct {
 	sampler  Sampler
 	reporter Reporter
 	metrics  Metrics
-	logger   Logger
+	logger   log.Logger
 
 	timeNow      func() time.Time
 	randomNumber func() uint64
@@ -117,7 +118,7 @@ func NewTracer(
 		t.timeNow = time.Now
 	}
 	if t.logger == nil {
-		t.logger = NullLogger
+		t.logger = log.NullLogger
 	}
 	// TODO once on the new data model, support both v4 and v6 IPs
 	if t.hostIPv4 == 0 {

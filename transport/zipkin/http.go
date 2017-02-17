@@ -32,7 +32,7 @@ import (
 
 	"github.com/apache/thrift/lib/go/thrift"
 
-	"github.com/uber/jaeger-client-go"
+	"github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-client-go/thrift-gen/zipkincore"
 	"github.com/uber/jaeger-client-go/transport"
 )
@@ -42,7 +42,7 @@ const defaultHTTPTimeout = time.Second * 5
 
 // HTTPTransport implements Transport by forwarding spans to a http server.
 type HTTPTransport struct {
-	logger    jaeger.Logger
+	logger    log.Logger
 	url       string
 	client    *http.Client
 	batchSize int
@@ -55,7 +55,7 @@ type HTTPOption func(c *HTTPTransport)
 // HTTPLogger sets the logger used to report errors in the collection
 // process. By default, a no-op logger is used, i.e. no errors are logged
 // anywhere. It's important to set this option in a production service.
-func HTTPLogger(logger jaeger.Logger) HTTPOption {
+func HTTPLogger(logger log.Logger) HTTPOption {
 	return func(c *HTTPTransport) { c.logger = logger }
 }
 
@@ -75,7 +75,7 @@ func HTTPBatchSize(n int) HTTPOption {
 //     http://hostname:9411/api/v1/spans
 func NewHTTPTransport(url string, options ...HTTPOption) (transport.Transport, error) {
 	c := &HTTPTransport{
-		logger:    jaeger.NullLogger,
+		logger:    log.NullLogger,
 		url:       url,
 		client:    &http.Client{Timeout: defaultHTTPTimeout},
 		batchSize: 100,

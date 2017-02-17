@@ -30,6 +30,7 @@ import (
 	"github.com/opentracing/opentracing-go"
 
 	"github.com/uber/jaeger-client-go"
+	"github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-client-go/transport"
 	"github.com/uber/jaeger-client-go/transport/udp"
 )
@@ -210,7 +211,7 @@ func (sc *SamplerConfig) NewSampler(
 func (rc *ReporterConfig) NewReporter(
 	serviceName string,
 	metrics *jaeger.Metrics,
-	logger jaeger.Logger,
+	logger log.Logger,
 ) (jaeger.Reporter, error) {
 	sender, err := rc.newTransport()
 	if err != nil {

@@ -26,6 +26,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-client-go/thrift-gen/sampling"
 	"github.com/uber/jaeger-client-go/utils"
 )
@@ -428,7 +429,7 @@ func applySamplerOptions(opts ...SamplerOption) samplerOptions {
 		options.sampler = initialSampler
 	}
 	if options.logger == nil {
-		options.logger = NullLogger
+		options.logger = log.NullLogger
 	}
 	if options.maxOperations <= 0 {
 		options.maxOperations = defaultMaxOperations

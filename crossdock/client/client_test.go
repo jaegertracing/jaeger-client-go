@@ -32,6 +32,7 @@ import (
 	"github.com/uber/jaeger-client-go/crossdock/common"
 	"github.com/uber/jaeger-client-go/crossdock/log"
 	"github.com/uber/jaeger-client-go/crossdock/server"
+	jlog "github.com/uber/jaeger-client-go/log"
 )
 
 func TestCrossdock(t *testing.T) {
@@ -40,7 +41,7 @@ func TestCrossdock(t *testing.T) {
 
 	var reporter jaeger.Reporter
 	if log.Enabled {
-		reporter = jaeger.NewLoggingReporter(jaeger.StdLogger)
+		reporter = jaeger.NewLoggingReporter(jlog.StdLogger)
 	} else {
 		reporter = jaeger.NewNullReporter()
 	}

@@ -20,7 +20,11 @@
 
 package jaeger
 
-import "time"
+import (
+	"time"
+
+	"github.com/uber/jaeger-client-go/log"
+)
 
 // ReporterOption is a function that sets some option on the reporter.
 type ReporterOption func(c *reporterOptions)
@@ -35,7 +39,7 @@ type reporterOptions struct {
 	// bufferFlushInterval is how often the buffer is force-flushed, even if it's not full
 	bufferFlushInterval time.Duration
 	// logger is used to log errors of span submissions
-	logger Logger
+	logger log.Logger
 	// metrics is used to record runtime stats
 	metrics *Metrics
 }
@@ -66,7 +70,7 @@ func (reporterOptions) BufferFlushInterval(bufferFlushInterval time.Duration) Re
 
 // Logger creates a ReporterOption that initializes the logger used to log
 // errors of span submissions.
-func (reporterOptions) Logger(logger Logger) ReporterOption {
+func (reporterOptions) Logger(logger log.Logger) ReporterOption {
 	return func(r *reporterOptions) {
 		r.logger = logger
 	}

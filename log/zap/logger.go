@@ -18,36 +18,30 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package config
+package zap
 
 import (
-	"github.com/uber/jaeger-lib/metrics"
+	"fmt"
 
-	"github.com/uber/jaeger-client-go"
-	"github.com/uber/jaeger-client-go/log"
+	"go.uber.org/zap"
 )
 
-// ClientOption is a function that sets some option on the client.
-type ClientOption func(c *ClientOptions)
-
-// ClientOptions control behavior of the client.
-type ClientOptions struct {
-	metrics *jaeger.Metrics
-	logger  log.Logger
+// Logger is an adapter from zap Logger to jaeger-lib Logger.
+type Logger struct {
+	logger zap.Logger
 }
 
-// Metrics creates a ClientOption that initializes Metrics in the client,
-// which is used to emit statistics.
-func Metrics(factory metrics.Factory) ClientOption {
-	return func(c *ClientOptions) {
-		c.metrics = jaeger.NewMetrics(factory, nil)
-	}
+// NewLogger creates a new Logger.
+func NewLogger(logger zap.Logger) *Logger {
+	return &Logger{logger: logger}
 }
 
-// Logger can be provided to log Reporter errors, as well as to log spans
-// if Reporter.LogSpans is set to true.
-func Logger(logger log.Logger) ClientOption {
-	return func(c *ClientOptions) {
-		c.logger = logger
-	}
+// Error logs a message at error priority
+func (l *Logger) Error(msg string) {
+	l.logger.Error(msg)
+}
+
+// Infof logs a message at info priority
+func (l *Logger) Infof(msg string, args ...interface{}) {
+	l.logger.Info(fmt.Sprintf(msg, args))
 }

@@ -25,6 +25,7 @@ import (
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/uber/jaeger-client-go"
+	jlog "github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-client-go/transport/zipkin"
 )
 
@@ -34,7 +35,7 @@ func ExampleNewHTTPTransport() {
 	transport, err := zipkin.NewHTTPTransport(
 		"http://localhost:9411/api/v1/spans",
 		zipkin.HTTPBatchSize(10),
-		zipkin.HTTPLogger(jaeger.StdLogger),
+		zipkin.HTTPLogger(jlog.StdLogger),
 	)
 	if err != nil {
 		log.Fatalf("Cannot initialize Zipkin HTTP transport: %v", err)
