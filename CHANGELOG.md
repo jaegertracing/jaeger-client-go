@@ -1,10 +1,11 @@
 Changes by Version
 ==================
 
-2.0.1 (unreleased)
+2.1.0 (2016-02-17)
 -------------------
 
-- No changes yet
+- Add adapter for zap.Logger (https://github.com/uber-go/zap)
+- Move logging API to ./log/ package
 
 
 2.0.0 (2016-02-08)
