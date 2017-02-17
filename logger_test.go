@@ -18,35 +18,15 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package config
+package jaeger
 
 import (
-	"github.com/uber/jaeger-lib/metrics"
-
-	"github.com/uber/jaeger-client-go"
+	"testing"
 )
 
-// ClientOption is a function that sets some option on the client.
-type ClientOption func(c *ClientOptions)
-
-// ClientOptions control behavior of the client.
-type ClientOptions struct {
-	metrics *jaeger.Metrics
-	logger  jaeger.Logger
-}
-
-// Metrics creates a ClientOption that initializes Metrics in the client,
-// which is used to emit statistics.
-func Metrics(factory metrics.Factory) ClientOption {
-	return func(c *ClientOptions) {
-		c.metrics = jaeger.NewMetrics(factory, nil)
-	}
-}
-
-// Logger can be provided to log Reporter errors, as well as to log spans
-// if Reporter.LogSpans is set to true.
-func Logger(logger jaeger.Logger) ClientOption {
-	return func(c *ClientOptions) {
-		c.logger = logger
+func TestLogger(t *testing.T) {
+	for _, logger := range []Logger{StdLogger, NullLogger} {
+		logger.Infof("Hi %s", "there")
+		logger.Error("Bad wolf")
 	}
 }
