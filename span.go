@@ -73,7 +73,7 @@ type span struct {
 	// The span's "micro-log"
 	logs []opentracing.LogRecord
 
-	observers []SpanObserver
+	observer SpanObserver
 }
 
 // Tag a simple key value wrapper
@@ -89,11 +89,13 @@ func (s *span) SetOperationName(operationName string) opentracing.Span {
 	if s.context.IsSampled() {
 		s.operationName = operationName
 	}
+	s.observer.OnSetOperationName(operationName)
 	return s
 }
 
 // SetTag implements SetTag() of opentracing.Span
 func (s *span) SetTag(key string, value interface{}) opentracing.Span {
+	s.observer.OnSetTag(key, value)
 	if key == string(ext.SamplingPriority) && setSamplingPriority(s, key, value) {
 		return s
 	}
@@ -198,13 +200,13 @@ func (s *span) Finish() {
 }
 
 func (s *span) FinishWithOptions(options opentracing.FinishOptions) {
+	if options.FinishTime.IsZero() {
+		options.FinishTime = s.tracer.timeNow()
+	}
+	s.observer.OnFinish(options)
 	s.Lock()
 	if s.context.IsSampled() {
-		finishTime := options.FinishTime
-		if finishTime.IsZero() {
-			finishTime = s.tracer.timeNow()
-		}
-		s.duration = finishTime.Sub(s.startTime)
+		s.duration = options.FinishTime.Sub(s.startTime)
 		// Note: bulk logs are not subject to maxLogsPerSpan limit
 		if options.LogRecords != nil {
 			s.logs = append(s.logs, options.LogRecords...)

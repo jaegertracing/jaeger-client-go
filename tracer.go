@@ -58,7 +58,7 @@ type tracer struct {
 	injectors  map[interface{}]Injector
 	extractors map[interface{}]Extractor
 
-	observers []Observer
+	observer observer
 
 	tags []Tag
 }
@@ -226,6 +226,7 @@ func (t *tracer) startSpanWithOptions(
 
 	sp := t.newSpan()
 	sp.context = ctx
+	sp.observer = t.observer.OnStartSpan(operationName, options)
 	return t.startSpanInternal(
 		sp,
 		operationName,
@@ -278,7 +279,6 @@ func (t *tracer) newSpan() *span {
 	sp.tracer = nil
 	sp.tags = nil
 	sp.logs = nil
-	sp.observers = nil
 	return sp
 }
 
@@ -300,6 +300,7 @@ func (t *tracer) startSpanInternal(
 		sp.tags = make([]Tag, len(internalTags), len(tags)+len(internalTags))
 		copy(sp.tags, internalTags)
 		for k, v := range tags {
+			sp.observer.OnSetTag(k, v)
 			if k == string(ext.SamplingPriority) && setSamplingPriority(sp, k, v) {
 				continue
 			}
