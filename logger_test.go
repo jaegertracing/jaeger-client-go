@@ -22,10 +22,24 @@ package jaeger
 
 import (
 	"testing"
+
+	"github.com/uber/jaeger-client-go/log"
 )
 
 func TestLogger(t *testing.T) {
 	for _, logger := range []Logger{StdLogger, NullLogger} {
+		logger.Infof("Hi %s", "there")
+		logger.Error("Bad wolf")
+	}
+}
+
+func TestCompatibility(t *testing.T) {
+	for _, logger := range []log.Logger{StdLogger, NullLogger} {
+		logger.Infof("Hi %s", "there")
+		logger.Error("Bad wolf")
+	}
+
+	for _, logger := range []Logger{log.StdLogger, log.NullLogger} {
 		logger.Infof("Hi %s", "there")
 		logger.Error("Bad wolf")
 	}
