@@ -72,6 +72,8 @@ type span struct {
 
 	// The span's "micro-log"
 	logs []opentracing.LogRecord
+
+	observers []SpanObserver
 }
 
 // Tag a simple key value wrapper

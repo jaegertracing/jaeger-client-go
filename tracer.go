@@ -58,6 +58,8 @@ type tracer struct {
 	injectors  map[interface{}]Injector
 	extractors map[interface{}]Extractor
 
+	observers []Observer
+
 	tags []Tag
 }
 
@@ -152,9 +154,8 @@ func (t *tracer) startSpanWithOptions(
 	operationName string,
 	options opentracing.StartSpanOptions,
 ) opentracing.Span {
-	startTime := options.StartTime
-	if startTime.IsZero() {
-		startTime = t.timeNow()
+	if options.StartTime.IsZero() {
+		options.StartTime = t.timeNow()
 	}
 
 	var parent SpanContext
@@ -228,7 +229,7 @@ func (t *tracer) startSpanWithOptions(
 	return t.startSpanInternal(
 		sp,
 		operationName,
-		startTime,
+		options.StartTime,
 		samplerTags,
 		options.Tags,
 		newTrace,
@@ -266,7 +267,7 @@ func (t *tracer) Close() error {
 	return nil
 }
 
-// getSpan retrieves an instance of a clean Span object.
+// newSpan returns an instance of a clean Span object.
 // If options.PoolSpans is true, the spans are retrieved from an object pool.
 func (t *tracer) newSpan() *span {
 	if !t.options.poolSpans {
@@ -277,6 +278,7 @@ func (t *tracer) newSpan() *span {
 	sp.tracer = nil
 	sp.tags = nil
 	sp.logs = nil
+	sp.observers = nil
 	return sp
 }
 
