@@ -20,7 +20,9 @@
 
 package jaeger
 
-import "time"
+import (
+	"time"
+)
 
 // SamplerOption is a function that sets some option on the sampler
 type SamplerOption func(options *samplerOptions)

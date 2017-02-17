@@ -28,6 +28,7 @@ import (
 	"github.com/uber/jaeger-lib/metrics"
 
 	"github.com/uber/jaeger-client-go"
+	"github.com/uber/jaeger-client-go/log"
 )
 
 func TestNewSamplerConst(t *testing.T) {
@@ -82,7 +83,7 @@ func TestInvalidSamplerType(t *testing.T) {
 
 func TestDefaultConfig(t *testing.T) {
 	cfg := Configuration{}
-	_, _, err := cfg.New("", Metrics(metrics.NullFactory), Logger(jaeger.NullLogger))
+	_, _, err := cfg.New("", Metrics(metrics.NullFactory), Logger(log.NullLogger))
 	require.EqualError(t, err, "no service name provided")
 
 	_, closer, err := cfg.New("testService")

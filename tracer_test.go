@@ -32,6 +32,7 @@ import (
 	"github.com/uber/jaeger-lib/metrics"
 	"github.com/uber/jaeger-lib/metrics/testutils"
 
+	"github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-client-go/utils"
 )
 
@@ -203,7 +204,7 @@ func TestTracerOptions(t *testing.T) {
 	openTracer, closer := NewTracer("DOOP", // respect the classics, man!
 		NewConstSampler(true),
 		NewNullReporter(),
-		TracerOptions.Logger(StdLogger),
+		TracerOptions.Logger(log.StdLogger),
 		TracerOptions.TimeNow(timeNow),
 		TracerOptions.RandomNumber(rnd),
 		TracerOptions.PoolSpans(true),
@@ -211,7 +212,7 @@ func TestTracerOptions(t *testing.T) {
 	defer closer.Close()
 
 	tracer := openTracer.(*tracer)
-	assert.Equal(t, StdLogger, tracer.logger)
+	assert.Equal(t, log.StdLogger, tracer.logger)
 	assert.Equal(t, t1, tracer.timeNow())
 	assert.Equal(t, uint64(1), tracer.randomNumber())
 	assert.Equal(t, uint64(1), tracer.randomNumber())

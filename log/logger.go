@@ -18,11 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package jaeger
+package log
 
 import "log"
-
-// NB This will be deprecated in 3.0.0, please use jaeger-client-go/log/logger instead.
 
 // Logger provides an abstract interface for logging from Reporters.
 // Applications can provide their own implementation of this interface to adapt

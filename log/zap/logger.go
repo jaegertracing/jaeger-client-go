@@ -18,35 +18,30 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package zipkin_test
+package zap
 
 import (
-	"log"
+	"fmt"
 
-	"github.com/opentracing/opentracing-go"
-	"github.com/uber/jaeger-client-go"
-	jlog "github.com/uber/jaeger-client-go/log"
-	"github.com/uber/jaeger-client-go/transport/zipkin"
+	"go.uber.org/zap"
 )
 
-func ExampleNewHTTPTransport() {
-	// assume this is your main()
+// Logger is an adapter from zap Logger to jaeger-lib Logger.
+type Logger struct {
+	logger zap.Logger
+}
 
-	transport, err := zipkin.NewHTTPTransport(
-		"http://localhost:9411/api/v1/spans",
-		zipkin.HTTPBatchSize(10),
-		zipkin.HTTPLogger(jlog.StdLogger),
-	)
-	if err != nil {
-		log.Fatalf("Cannot initialize Zipkin HTTP transport: %v", err)
-	}
-	tracer, closer := jaeger.NewTracer(
-		"my-service-name",
-		jaeger.NewConstSampler(true),
-		jaeger.NewRemoteReporter(transport, nil),
-	)
-	defer closer.Close()
-	opentracing.InitGlobalTracer(tracer)
+// NewLogger creates a new Logger.
+func NewLogger(logger zap.Logger) *Logger {
+	return &Logger{logger: logger}
+}
 
-	// initialize servers
+// Error logs a message at error priority
+func (l *Logger) Error(msg string) {
+	l.logger.Error(msg)
+}
+
+// Infof logs a message at info priority
+func (l *Logger) Infof(msg string, args ...interface{}) {
+	l.logger.Info(fmt.Sprintf(msg, args))
 }

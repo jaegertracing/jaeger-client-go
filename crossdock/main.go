@@ -30,6 +30,7 @@ import (
 	"github.com/uber/jaeger-client-go/crossdock/common"
 	"github.com/uber/jaeger-client-go/crossdock/log"
 	"github.com/uber/jaeger-client-go/crossdock/server"
+	jlog "github.com/uber/jaeger-client-go/log"
 )
 
 func main() {
@@ -54,6 +55,6 @@ func initTracer() (opentracing.Tracer, io.Closer) {
 	t, c := jaeger.NewTracer(
 		common.DefaultTracerServiceName,
 		jaeger.NewConstSampler(false),
-		jaeger.NewLoggingReporter(jaeger.StdLogger))
+		jaeger.NewLoggingReporter(jlog.StdLogger))
 	return t, c
 }

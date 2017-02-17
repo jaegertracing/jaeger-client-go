@@ -1,8 +1,8 @@
 hash: 2d065dacbd72b291202f969bf78b2fdd099861b3f63304097d66d94266474d05
-updated: 2017-02-07T16:28:38.489805329-05:00
+updated: 2017-02-17T10:35:00.069472323-05:00
 imports:
 - name: github.com/apache/thrift
-  version: 3a8bbbd4a68fb28f2b33a7ee9e81ba3dd4a929a5
+  version: e8ba7877baec6f9871a88db8d3885361a2260ab2
   subpackages:
   - lib/go/thrift
 - name: github.com/codahale/hdrhistogram
@@ -50,6 +50,16 @@ imports:
   - trace/thrift/gen-go/tcollector
   - trand
   - typed
+- name: go.uber.org/atomic
+  version: 0c9e689d64f004564b79d9a663634756df322902
+- name: go.uber.org/zap
+  version: 066278dd4c1dedb5aa4dbc4a79df2651401810fd
+  subpackages:
+  - buffer
+  - internal/bufferpool
+  - internal/exit
+  - internal/multierror
+  - zapcore
 - name: golang.org/x/net
   version: 3b993948b6f0e651ffb58ba135d8538a68b1cddf
   subpackages:

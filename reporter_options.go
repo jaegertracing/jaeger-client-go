@@ -20,7 +20,9 @@
 
 package jaeger
 
-import "time"
+import (
+	"time"
+)
 
 // ReporterOption is a function that sets some option on the reporter.
 type ReporterOption func(c *reporterOptions)

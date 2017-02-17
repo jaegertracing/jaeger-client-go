@@ -37,6 +37,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/uber/jaeger-client-go"
+	"github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-client-go/thrift-gen/zipkincore"
 )
 
@@ -82,12 +83,12 @@ func TestHttpTransport(t *testing.T) {
 func TestHTTPOptions(t *testing.T) {
 	sender, err := NewHTTPTransport(
 		"some url",
-		HTTPLogger(jaeger.StdLogger),
+		HTTPLogger(log.StdLogger),
 		HTTPBatchSize(123),
 		HTTPTimeout(123*time.Millisecond),
 	)
 	require.NoError(t, err)
-	assert.Equal(t, jaeger.StdLogger, sender.(*HTTPTransport).logger)
+	assert.Equal(t, log.StdLogger, sender.(*HTTPTransport).logger)
 	assert.Equal(t, 123, sender.(*HTTPTransport).batchSize)
 	assert.Equal(t, 123*time.Millisecond, sender.(*HTTPTransport).client.Timeout)
 }

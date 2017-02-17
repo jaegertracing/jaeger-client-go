@@ -33,6 +33,7 @@ import (
 	"github.com/apache/thrift/lib/go/thrift"
 
 	"github.com/uber/jaeger-client-go"
+	"github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-client-go/thrift-gen/zipkincore"
 	"github.com/uber/jaeger-client-go/transport"
 )
@@ -75,7 +76,7 @@ func HTTPBatchSize(n int) HTTPOption {
 //     http://hostname:9411/api/v1/spans
 func NewHTTPTransport(url string, options ...HTTPOption) (transport.Transport, error) {
 	c := &HTTPTransport{
-		logger:    jaeger.NullLogger,
+		logger:    log.NullLogger,
 		url:       url,
 		client:    &http.Client{Timeout: defaultHTTPTimeout},
 		batchSize: 100,

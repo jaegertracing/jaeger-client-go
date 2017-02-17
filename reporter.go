@@ -27,6 +27,7 @@ import (
 
 	"github.com/opentracing/opentracing-go"
 
+	"github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-client-go/thrift-gen/zipkincore"
 	"github.com/uber/jaeger-client-go/transport"
 )
@@ -182,7 +183,7 @@ func NewRemoteReporter(sender transport.Transport, opts ...ReporterOption) Repor
 		options.bufferFlushInterval = defaultBufferFlushInterval
 	}
 	if options.logger == nil {
-		options.logger = NullLogger
+		options.logger = log.NullLogger
 	}
 	if options.metrics == nil {
 		options.metrics = NewNullMetrics()
