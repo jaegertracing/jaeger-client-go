@@ -14,7 +14,7 @@ type SpanObserver interface {
 	OnFinish(options opentracing.FinishOptions)
 }
 
-// observer is a disatcher to other observers
+// observer is a dispatcher to other observers
 type observer struct {
 	observers []Observer
 }
@@ -59,7 +59,6 @@ func (o spanObserver) OnSetTag(key string, value interface{}) {
 	for _, obs := range o.observers {
 		obs.OnSetTag(key, value)
 	}
-
 }
 
 func (o spanObserver) OnFinish(options opentracing.FinishOptions) {
