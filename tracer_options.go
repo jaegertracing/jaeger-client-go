@@ -22,8 +22,6 @@ package jaeger
 
 import (
 	"time"
-
-	"github.com/uber/jaeger-client-go/log"
 )
 
 // TracerOption is a function that sets some option on the tracer
@@ -43,7 +41,7 @@ func (tracerOptions) Metrics(m *Metrics) TracerOption {
 }
 
 // Logger creates a TracerOption that gives the tracer a Logger.
-func (tracerOptions) Logger(logger log.Logger) TracerOption {
+func (tracerOptions) Logger(logger Logger) TracerOption {
 	return func(tracer *tracer) {
 		tracer.logger = logger
 	}

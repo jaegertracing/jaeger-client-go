@@ -63,11 +63,11 @@ func (r *nullReporter) Close() {
 // ------------------------------
 
 type loggingReporter struct {
-	logger log.Logger
+	logger Logger
 }
 
 // NewLoggingReporter creates a reporter that logs all reported spans to provided logger.
-func NewLoggingReporter(logger log.Logger) Reporter {
+func NewLoggingReporter(logger Logger) Reporter {
 	return &loggingReporter{logger}
 }
 

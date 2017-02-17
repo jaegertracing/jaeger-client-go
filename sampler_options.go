@@ -22,8 +22,6 @@ package jaeger
 
 import (
 	"time"
-
-	"github.com/uber/jaeger-client-go/log"
 )
 
 // SamplerOption is a function that sets some option on the sampler
@@ -36,7 +34,7 @@ type samplerOptions struct {
 	metrics                 *Metrics
 	maxOperations           int
 	sampler                 Sampler
-	logger                  log.Logger
+	logger                  Logger
 	samplingServerURL       string
 	samplingRefreshInterval time.Duration
 }
@@ -66,7 +64,7 @@ func (samplerOptions) InitialSampler(sampler Sampler) SamplerOption {
 }
 
 // Logger creates a SamplerOption that sets the logger used by the sampler.
-func (samplerOptions) Logger(logger log.Logger) SamplerOption {
+func (samplerOptions) Logger(logger Logger) SamplerOption {
 	return func(o *samplerOptions) {
 		o.logger = logger
 	}
