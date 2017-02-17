@@ -1,10 +1,10 @@
 Changes by Version
 ==================
 
-2.0.1 (unreleased)
+2.1.0 (2016-02-17)
 -------------------
 
-- No changes yet
+- Add support for zap.Logger
 
 
 2.0.0 (2016-02-08)
