@@ -20,7 +20,10 @@
 
 package utils
 
-import "time"
+import (
+	"math"
+	"time"
+)
 
 // RateLimiter is a filter used to check if a message that is worth itemCost units is within the rate limits.
 type RateLimiter interface {
@@ -62,8 +65,9 @@ func (b *rateLimiter) CheckCredit(itemCost float64) bool {
 	b.lastTick = currentTime
 	// calculate how much credit have we accumulated since the last tick
 	b.balance += elapsedTime.Seconds() * b.creditsPerSecond
-	if b.balance > b.creditsPerSecond {
-		b.balance = b.creditsPerSecond
+	upperbound := math.Max(b.creditsPerSecond, itemCost)
+	if b.balance > upperbound {
+		b.balance = upperbound
 	}
 	// if we have enough credits to pay for current item, then reduce balance and allow
 	if b.balance >= itemCost {
