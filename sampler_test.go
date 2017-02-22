@@ -178,7 +178,7 @@ func TestAdaptiveSampler(t *testing.T) {
 	}
 	strategies := &sampling.PerOperationSamplingStrategies{
 		DefaultSamplingProbability:       testDefaultSamplingProbability,
-		DefaultLowerBoundTracesPerSecond: 2.0,
+		DefaultLowerBoundTracesPerSecond: 1.0,
 		PerOperationStrategies:           samplingRates,
 	}
 
@@ -186,13 +186,13 @@ func TestAdaptiveSampler(t *testing.T) {
 	require.NoError(t, err)
 	defer sampler.Close()
 
-	sampled, tags := sampler.IsSampled(TraceID{Low: testMaxID - 20}, testOperationName)
-	assert.True(t, sampled)
-	assert.Equal(t, testProbabilisticExpectedTags, tags)
-
-	sampled, tags = sampler.IsSampled(TraceID{Low: testMaxID + 10}, testOperationName)
+	sampled, tags := sampler.IsSampled(TraceID{Low: testMaxID + 10}, testOperationName)
 	assert.True(t, sampled)
 	assert.Equal(t, testLowerBoundExpectedTags, tags)
+
+	sampled, tags = sampler.IsSampled(TraceID{Low: testMaxID - 20}, testOperationName)
+	assert.True(t, sampled)
+	assert.Equal(t, testProbabilisticExpectedTags, tags)
 
 	sampled, tags = sampler.IsSampled(TraceID{Low: testMaxID + 10}, testOperationName)
 	assert.False(t, sampled)

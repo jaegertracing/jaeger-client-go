@@ -28,7 +28,7 @@ import (
 )
 
 func TestRateLimiter(t *testing.T) {
-	limiter := NewRateLimiter(2.0)
+	limiter := NewRateLimiter(2.0, 2.0)
 	// stop time
 	ts := time.Now()
 	limiter.(*rateLimiter).lastTick = ts
@@ -61,8 +61,8 @@ func TestRateLimiter(t *testing.T) {
 	assert.False(t, limiter.CheckCredit(1.0))
 }
 
-func TestUpperbound(t *testing.T) {
-	limiter := NewRateLimiter(0.1)
+func TestMaxBalance(t *testing.T) {
+	limiter := NewRateLimiter(0.1, 1.0)
 	// stop time
 	ts := time.Now()
 	limiter.(*rateLimiter).lastTick = ts
