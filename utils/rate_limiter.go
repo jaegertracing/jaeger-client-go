@@ -30,6 +30,7 @@ type RateLimiter interface {
 type rateLimiter struct {
 	creditsPerSecond float64
 	balance          float64
+	maxBalance       float64
 	lastTick         time.Time
 
 	timeNow func() time.Time
@@ -47,10 +48,11 @@ type rateLimiter struct {
 //
 // It can also be used to limit the rate of traffic in bytes, by setting creditsPerSecond to desired throughput
 // as bytes/second, and calling CheckCredit() with the actual message size.
-func NewRateLimiter(creditsPerSecond float64) RateLimiter {
+func NewRateLimiter(creditsPerSecond, maxBalance float64) RateLimiter {
 	return &rateLimiter{
 		creditsPerSecond: creditsPerSecond,
 		balance:          creditsPerSecond,
+		maxBalance:       maxBalance,
 		lastTick:         time.Now(),
 		timeNow:          time.Now}
 }
@@ -62,8 +64,8 @@ func (b *rateLimiter) CheckCredit(itemCost float64) bool {
 	b.lastTick = currentTime
 	// calculate how much credit have we accumulated since the last tick
 	b.balance += elapsedTime.Seconds() * b.creditsPerSecond
-	if b.balance > b.creditsPerSecond {
-		b.balance = b.creditsPerSecond
+	if b.balance > b.maxBalance {
+		b.balance = b.maxBalance
 	}
 	// if we have enough credits to pay for current item, then reduce balance and allow
 	if b.balance >= itemCost {

@@ -167,7 +167,7 @@ func NewRateLimitingSampler(maxTracesPerSecond float64) Sampler {
 	}
 	return &rateLimitingSampler{
 		maxTracesPerSecond: maxTracesPerSecond,
-		rateLimiter:        utils.NewRateLimiter(maxTracesPerSecond),
+		rateLimiter:        utils.NewRateLimiter(maxTracesPerSecond, 1.0),
 		tags:               tags,
 	}
 }
