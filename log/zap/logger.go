@@ -41,5 +41,5 @@ func (l *Logger) Error(msg string) {
 
 // Infof logs a message at info priority
 func (l *Logger) Infof(msg string, args ...interface{}) {
-	l.logger.Infof(msg, args)
+	l.logger.Infof(msg, args...)
 }

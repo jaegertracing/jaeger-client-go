@@ -21,13 +21,21 @@
 package zap
 
 import (
+	"bytes"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 func TestLogger(t *testing.T) {
-	logger := NewLogger(zap.NewNop())
-	logger.Infof("Hi %s", "there")
+	buf := &bytes.Buffer{}
+	encoder := zapcore.NewConsoleEncoder(zapcore.EncoderConfig{MessageKey: "key"})
+	logger := NewLogger(zap.New(zapcore.NewCore(encoder, zapcore.AddSync(buf), zapcore.InfoLevel)))
+	logger.Infof("Hi %s %d", "there", 5)
+	assert.Equal(t, buf.String(), "Hi there 5\n")
+	buf.Reset()
 	logger.Error("Bad wolf")
+	assert.Equal(t, buf.String(), "Bad wolf\n")
 }
