@@ -8,7 +8,7 @@ with Zipkin-compatible data model.
 
 ## Initialization
 
-See [tracer initialization](config/example_test.go).
+See [tracer initialization](./config/example_test.go).
 
 ### Metrics & Monitoring
 

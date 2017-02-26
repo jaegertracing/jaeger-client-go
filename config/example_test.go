@@ -30,13 +30,32 @@ import (
 	jaegerlog "github.com/uber/jaeger-client-go/log"
 )
 
-func ExampleInitialization() {
+func ExampleInitializationForTesting() {
+	// Recommended configs for testing. Use constant sampling to sample every trace
+	// and enable LogSpan to log every span via configured Logger.
 	cfg := jaegercfg.Configuration{
 		Sampler: &jaegercfg.SamplerConfig{
-			Type:  jaeger.SamplerTypeProbabilistic,
-			Param: 0.001,
+			Type:  jaeger.SamplerTypeConst,
+			Param: 1,
+		},
+		Reporter: &jaegercfg.ReporterConfig{
+			LogSpans: true,
 		},
 	}
+
+	// Initialize tracer with a logger and a metrics factory
+	closer, err := cfg.InitGlobalTracer("serviceName", jaegercfg.Logger(jaegerlog.StdLogger),
+		jaegercfg.Metrics(metrics.NullFactory))
+	if err != nil {
+		log.Printf("Could not initialize jaeger tracer: %s", err.Error())
+		return
+	}
+	defer closer.Close()
+}
+
+func ExampleInitializationForProduction() {
+	// Recommended configs for production.
+	cfg := jaegercfg.Configuration{}
 
 	// Initialize tracer with a logger and a metrics factory
 	closer, err := cfg.InitGlobalTracer("serviceName", jaegercfg.Logger(jaegerlog.StdLogger),
