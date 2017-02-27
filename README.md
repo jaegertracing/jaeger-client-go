@@ -8,29 +8,7 @@ with Zipkin-compatible data model.
 
 ## Initialization
 
-```go
-import (
-    "github.com/opentracing/opentracing-go"
-    "github.com/uber/jaeger-client-go/config"
-)
-
-type AppConfig struct {
-    ...
-    Tracing config.Configuration
-    ...
-}
-
-func main() {
-    cfg := loadAppConfig() // e.g. from a yaml file
-
-    tracer, closer, err := cfg.Tracing.New("your-service-name", nil)
-    // check err
-    defer closer.Close()
-
-    opentracing.InitGlobalTracer(tracer)
-    ...
-}
-```
+See [tracer initialization](./config/example_test.go).
 
 ### Metrics & Monitoring
 
