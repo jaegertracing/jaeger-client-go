@@ -30,8 +30,16 @@ import (
 	jaegerlog "github.com/uber/jaeger-client-go/log"
 )
 
+var (
+	// Example logger and metrics factory. Use github.com/uber/jaeger-client-go/log
+	// and github.com/uber/jaeger-lib/metrics respectively to bind to real logging and metrics
+	// frameworks.
+	jLogger         = jaegerlog.StdLogger
+	jMetricsFactory = metrics.NullFactory
+)
+
 func ExampleInitializationForTesting() {
-	// Recommended configs for testing. Use constant sampling to sample every trace
+	// Sample configuration for testing. Use constant sampling to sample every trace
 	// and enable LogSpan to log every span via configured Logger.
 	cfg := jaegercfg.Configuration{
 		Sampler: &jaegercfg.SamplerConfig{
@@ -44,8 +52,11 @@ func ExampleInitializationForTesting() {
 	}
 
 	// Initialize tracer with a logger and a metrics factory
-	closer, err := cfg.InitGlobalTracer("serviceName", jaegercfg.Logger(jaegerlog.StdLogger),
-		jaegercfg.Metrics(metrics.NullFactory))
+	closer, err := cfg.InitGlobalTracer(
+		"serviceName",
+		jaegercfg.Logger(jLogger),
+		jaegercfg.Metrics(jMetricsFactory),
+	)
 	if err != nil {
 		log.Printf("Could not initialize jaeger tracer: %s", err.Error())
 		return
@@ -54,12 +65,15 @@ func ExampleInitializationForTesting() {
 }
 
 func ExampleInitializationForProduction() {
-	// Recommended configs for production.
+	// Recommended configuration for production.
 	cfg := jaegercfg.Configuration{}
 
 	// Initialize tracer with a logger and a metrics factory
-	closer, err := cfg.InitGlobalTracer("serviceName", jaegercfg.Logger(jaegerlog.StdLogger),
-		jaegercfg.Metrics(metrics.NullFactory))
+	closer, err := cfg.InitGlobalTracer(
+		"serviceName",
+		jaegercfg.Logger(jLogger),
+		jaegercfg.Metrics(jMetricsFactory),
+	)
 	if err != nil {
 		log.Printf("Could not initialize jaeger tracer: %s", err.Error())
 		return
