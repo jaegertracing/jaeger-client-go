@@ -22,7 +22,7 @@ package jaeger
 
 const (
 	// JaegerClientVersion is the version of the client library reported as Span tag.
-	JaegerClientVersion = "Go-2.1.1"
+	JaegerClientVersion = "Go-2.1.2"
 
 	// JaegerClientVersionTagKey is the name of the tag used to report client version.
 	JaegerClientVersionTagKey = "jaeger.version"

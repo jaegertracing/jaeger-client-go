@@ -1,10 +1,12 @@
 Changes by Version
 ==================
 
-2.2.0 (unreleased)
+2.1.2 (2016-02-27)
 -------------------
 
-- No changes yet
+- Fix leaky bucket bug
+- Fix zap logger Infof
+- Add tracer initialization godoc examples
 
 
 2.1.1 (2016-02-21)
