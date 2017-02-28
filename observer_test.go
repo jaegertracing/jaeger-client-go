@@ -37,21 +37,24 @@ func TestObservers(t *testing.T) {
 	}
 
 	forEachObs(func(so *testSpanObserver) {
-		assert.Equal(t, "test", so.operationName)
-		assert.Equal(t, map[string]interface{}{
-			"span.kind": ext.SpanKindRPCServerEnum,
-		}, so.tags)
+		assert.Equal(t, testSpanObserver{
+			operationName: "test",
+			tags: map[string]interface{}{
+				"span.kind": ext.SpanKindRPCServerEnum,
+			},
+		}, *so)
 	})
 
 	s.SetOperationName("test2")
 	s.SetTag("bender", "rodriguez")
 	forEachObs(func(so *testSpanObserver) {
-		assert.Equal(t, "test2", so.operationName)
-		assert.Equal(t, map[string]interface{}{
-			"span.kind": ext.SpanKindRPCServerEnum,
-			"bender":    "rodriguez",
-		}, so.tags)
-		assert.False(t, so.finished)
+		assert.Equal(t, testSpanObserver{
+			operationName: "test2",
+			tags: map[string]interface{}{
+				"span.kind": ext.SpanKindRPCServerEnum,
+				"bender":    "rodriguez",
+			},
+		}, *so)
 	})
 
 	s.Finish()
