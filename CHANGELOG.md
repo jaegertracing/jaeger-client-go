@@ -1,10 +1,12 @@
 Changes by Version
 ==================
 
-2.2.0 (unreleased)
+2.1.2 (2016-02-27)
 -------------------
 
-- No changes yet
+- Fix leaky bucket bug (https://github.com/uber/jaeger-client-go/pull/99)
+- Fix zap logger Infof (https://github.com/uber/jaeger-client-go/pull/100)
+- Add tracer initialization godoc examples
 
 
 2.1.1 (2016-02-21)
