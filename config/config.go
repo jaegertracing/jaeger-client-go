@@ -135,12 +135,20 @@ func (c Configuration) New(
 		return nil, nil, err
 	}
 
+	tracerOptions := []jaeger.TracerOption{
+		jaeger.TracerOptions.Metrics(c.metrics),
+		jaeger.TracerOptions.Logger(c.logger),
+	}
+
+	for _, obs := range c.ClientOptions.observers {
+		tracerOptions = append(tracerOptions, jaeger.TracerOptions.Observer(obs))
+	}
+
 	tracer, closer := jaeger.NewTracer(
 		serviceName,
 		sampler,
 		reporter,
-		jaeger.TracerOptions.Metrics(c.metrics),
-		jaeger.TracerOptions.Logger(c.logger))
+		tracerOptions...)
 
 	return tracer, closer, nil
 }
