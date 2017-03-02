@@ -31,8 +31,9 @@ type ClientOption func(c *ClientOptions)
 
 // ClientOptions control behavior of the client.
 type ClientOptions struct {
-	metrics *jaeger.Metrics
-	logger  jaeger.Logger
+	metrics   *jaeger.Metrics
+	logger    jaeger.Logger
+	observers []jaeger.Observer
 }
 
 // Metrics creates a ClientOption that initializes Metrics in the client,
@@ -48,5 +49,12 @@ func Metrics(factory metrics.Factory) ClientOption {
 func Logger(logger jaeger.Logger) ClientOption {
 	return func(c *ClientOptions) {
 		c.logger = logger
+	}
+}
+
+// Observer can be registered with the Tracer to receive notifications about new Spans.
+func Observer(observer jaeger.Observer) ClientOption {
+	return func(c *ClientOptions) {
+		c.observers = append(c.observers, observer)
 	}
 }

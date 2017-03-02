@@ -1,6 +1,12 @@
 Changes by Version
 ==================
 
+2.2.0 (Unreleased)
+------------------
+
+- Introduce Observer and SpanObserver
+
+
 2.1.2 (2016-02-27)
 -------------------
 

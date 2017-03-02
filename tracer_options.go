@@ -92,3 +92,9 @@ func (tracerOptions) Extractor(format interface{}, extractor Extractor) TracerOp
 		tracer.extractors[format] = extractor
 	}
 }
+
+func (tracerOptions) Observer(observer Observer) TracerOption {
+	return func(tracer *tracer) {
+		tracer.observer.append(observer)
+	}
+}
