@@ -34,7 +34,7 @@ import (
 
 const defaultMaxNumberOfEndpoints = 200
 
-// Observer is an observer that can emit RPC metricso.
+// Observer is an observer that can emit RPC metrics.
 type Observer struct {
 	metricsByEndpoint *MetricsByEndpoint
 }
@@ -81,7 +81,7 @@ type SpanObserver struct {
 	err               bool
 }
 
-// NewSpanObserver creates a new SpanObserver that can emit RPC metricso.
+// NewSpanObserver creates a new SpanObserver that can emit RPC metrics.
 func NewSpanObserver(
 	metricsByEndpoint *MetricsByEndpoint,
 	operationName string,
