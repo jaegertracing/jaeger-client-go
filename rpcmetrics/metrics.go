@@ -7,9 +7,8 @@ import (
 )
 
 const (
-	defaultMaxNumberOfEndpoints = 200
-	otherEndpointsPlaceholder   = "other"
-	endpointNameMetricTag       = "endpoint"
+	otherEndpointsPlaceholder = "other"
+	endpointNameMetricTag     = "endpoint"
 )
 
 // Metrics is a collection of metrics for an endpoint describing
@@ -54,19 +53,21 @@ func (m *Metrics) recordHTTPStatusCode(statusCode uint16) {
 
 // MetricsByEndpoint is a registry of metrics for each unique endpoint name
 type MetricsByEndpoint struct {
-	metricsFactory       metrics.Factory
-	endpoints            *normalizedEndpoints
-	metricsByEndpoint    map[string]*Metrics
-	maxNumberOfEndpoints int
-	mux                  sync.RWMutex
+	metricsFactory    metrics.Factory
+	endpoints         *normalizedEndpoints
+	metricsByEndpoint map[string]*Metrics
+	mux               sync.RWMutex
 }
 
-func newMetricsByEndpoint(metricsFactory metrics.Factory, normalizer NameNormalizer) *MetricsByEndpoint {
+func newMetricsByEndpoint(
+	metricsFactory metrics.Factory,
+	normalizer NameNormalizer,
+	maxNumberOfEndpoints int,
+) *MetricsByEndpoint {
 	return &MetricsByEndpoint{
-		metricsFactory:       metricsFactory,
-		endpoints:            newNormalizedEndpoints(defaultMaxNumberOfEndpoints, normalizer),
-		maxNumberOfEndpoints: defaultMaxNumberOfEndpoints,
-		metricsByEndpoint:    make(map[string]*Metrics, defaultMaxNumberOfEndpoints+1), // +1 for "other"
+		metricsFactory:    metricsFactory,
+		endpoints:         newNormalizedEndpoints(maxNumberOfEndpoints, normalizer),
+		metricsByEndpoint: make(map[string]*Metrics, maxNumberOfEndpoints+1), // +1 for "other"
 	}
 }
 
@@ -82,23 +83,26 @@ func (m *MetricsByEndpoint) get(endpoint string) *Metrics {
 		return met
 	}
 
+	return m.getWithWriteLock(safeName)
+}
+
+// split to make easier to test
+func (m *MetricsByEndpoint) getWithWriteLock(safeName string) *Metrics {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
+	// it is possible that the name has been already registered after we released
+	// the read lock and before we grabbed the write lock, so check for that.
 	if met, ok := m.metricsByEndpoint[safeName]; ok {
-		return met // created since we released read lock
+		return met
 	}
 
-	if len(m.metricsByEndpoint) >= m.maxNumberOfEndpoints {
-		safeName = otherEndpointsPlaceholder
-		if met, ok := m.metricsByEndpoint[safeName]; ok {
-			return met
-		}
-	}
-
-	met = &Metrics{}
+	// it would be nice to create the struct before locking, since Init() is somewhat
+	// expensive, however some metrics backend (e.g. expvar) may not like duplicate metrics.
+	met := &Metrics{}
 	tags := map[string]string{endpointNameMetricTag: safeName}
 	metrics.Init(met, m.metricsFactory, tags)
+
 	m.metricsByEndpoint[safeName] = met
 	return met
 }

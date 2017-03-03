@@ -12,6 +12,8 @@ import (
 	jaeger "github.com/uber/jaeger-client-go"
 )
 
+const defaultMaxNumberOfEndpoints = 200
+
 // Observer is an observer that can emit RPC metricso.
 type Observer struct {
 	metricsByEndpoint *MetricsByEndpoint
@@ -20,7 +22,11 @@ type Observer struct {
 // NewObserver creates a new observer that can emit RPC metricso.
 func NewObserver(metricsFactory metrics.Factory, normalizer NameNormalizer) *Observer {
 	return &Observer{
-		metricsByEndpoint: newMetricsByEndpoint(metricsFactory, normalizer),
+		metricsByEndpoint: newMetricsByEndpoint(
+			metricsFactory,
+			normalizer,
+			defaultMaxNumberOfEndpoints,
+		),
 	}
 }
 
