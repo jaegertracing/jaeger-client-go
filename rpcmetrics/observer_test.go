@@ -34,6 +34,33 @@ import (
 	jaeger "github.com/uber/jaeger-client-go"
 )
 
+func ExampleObserver() {
+	metricsFactory := metrics.NewLocalFactory(0)
+	metricsObserver := NewObserver(
+		metricsFactory,
+		DefaultNameNormalizer,
+	)
+	tracer, closer := jaeger.NewTracer(
+		"serviceName",
+		jaeger.NewConstSampler(true),
+		jaeger.NewInMemoryReporter(),
+		jaeger.TracerOptions.Observer(metricsObserver),
+	)
+	defer closer.Close()
+
+	span := tracer.StartSpan("test", ext.SpanKindRPCServer)
+	span.Finish()
+
+	c, _ := metricsFactory.Snapshot()
+	fmt.Printf("requests: %d\n", c["requests|endpoint=test"])
+	fmt.Printf("success: %d\n", c["success|endpoint=test"])
+	fmt.Printf("errors: %d\n", c["errors|endpoint=test"])
+	// Output:
+	// requests: 1
+	// success: 1
+	// errors: 0
+}
+
 type testTracer struct {
 	metrics *metrics.LocalFactory
 	tracer  opentracing.Tracer

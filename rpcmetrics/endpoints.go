@@ -22,6 +22,7 @@ package rpcmetrics
 
 import "sync"
 
+// normalizedEndpoints is a cache for endpointName -> safeName mappings.
 type normalizedEndpoints struct {
 	names       map[string]string
 	maxSize     int
@@ -38,6 +39,9 @@ func newNormalizedEndpoints(maxSize int, normalizer NameNormalizer) *normalizedE
 	}
 }
 
+// normalize looks up the name in the cache, if not found it uses normalizer
+// to convert the name to a safe name. If called with more than maxSize unique
+// names it returns "" for all other names beyond those already cached.
 func (n *normalizedEndpoints) normalize(name string) string {
 	n.mux.RLock()
 	norm := n.names[name]

@@ -96,7 +96,7 @@ func (n *SimpleNameNormalizer) Normalize(name string) string {
 	return string(retMe)
 }
 
-// safeByte checks if b is in the safe charset [a-zA-Z0-9-./_].
+// safeByte checks if b against all safe charsets.
 func (n *SimpleNameNormalizer) safeByte(b byte) bool {
 	for i := range n.SafeSets {
 		if n.SafeSets[i].IsSafe(b) {

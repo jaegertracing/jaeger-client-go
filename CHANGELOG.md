@@ -4,7 +4,8 @@ Changes by Version
 2.2.0 (Unreleased)
 ------------------
 
-- Introduce Observer and SpanObserver
+- Introduce Observer and SpanObserver (https://github.com/uber/jaeger-client-go/pull/94)
+- Add RPC metrics emitter as Observer/SpanObserver (https://github.com/uber/jaeger-client-go/pull/103)
 
 
 2.1.2 (2016-02-27)

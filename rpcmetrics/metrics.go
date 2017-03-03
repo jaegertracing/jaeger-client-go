@@ -32,7 +32,7 @@ const (
 )
 
 // Metrics is a collection of metrics for an endpoint describing
-// throughput, success, errors, and performance
+// throughput, success, errors, and performance.
 type Metrics struct {
 	// Requests is a counter of the total number of successes + failures.
 	Requests metrics.Counter `metric:"requests"`
@@ -71,7 +71,9 @@ func (m *Metrics) recordHTTPStatusCode(statusCode uint16) {
 	}
 }
 
-// MetricsByEndpoint is a registry of metrics for each unique endpoint name
+// MetricsByEndpoint is a registry/cache of metrics for each unique endpoint name.
+// Only maxNumberOfEndpoints Metrics are stored, all other endpoint names are mapped
+// to a generic endpoint name "other".
 type MetricsByEndpoint struct {
 	metricsFactory    metrics.Factory
 	endpoints         *normalizedEndpoints
@@ -118,7 +120,7 @@ func (m *MetricsByEndpoint) getWithWriteLock(safeName string) *Metrics {
 	}
 
 	// it would be nice to create the struct before locking, since Init() is somewhat
-	// expensive, however some metrics backend (e.g. expvar) may not like duplicate metrics.
+	// expensive, however some metrics backends (e.g. expvar) may not like duplicate metrics.
 	met := &Metrics{}
 	tags := map[string]string{endpointNameMetricTag: safeName}
 	metrics.Init(met, m.metricsFactory, tags)
