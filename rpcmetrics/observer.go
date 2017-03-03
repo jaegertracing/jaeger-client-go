@@ -39,7 +39,7 @@ type Observer struct {
 	metricsByEndpoint *MetricsByEndpoint
 }
 
-// NewObserver creates a new observer that can emit RPC metricso.
+// NewObserver creates a new observer that can emit RPC metrics.
 func NewObserver(metricsFactory metrics.Factory, normalizer NameNormalizer) *Observer {
 	return &Observer{
 		metricsByEndpoint: newMetricsByEndpoint(

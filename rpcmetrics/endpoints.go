@@ -44,14 +44,23 @@ func newNormalizedEndpoints(maxSize int, normalizer NameNormalizer) *normalizedE
 // names it returns "" for all other names beyond those already cached.
 func (n *normalizedEndpoints) normalize(name string) string {
 	n.mux.RLock()
-	norm := n.names[name]
+	norm, ok := n.names[name]
+	l := len(n.names)
 	n.mux.RUnlock()
-	if norm != "" {
+	if ok {
 		return norm
 	}
-	norm = n.normalizer.Normalize(name)
+	if l >= n.maxSize {
+		return ""
+	}
+	return n.normalizeWithLock(name)
+}
+
+func (n *normalizedEndpoints) normalizeWithLock(name string) string {
+	norm := n.normalizer.Normalize(name)
 	n.mux.Lock()
 	defer n.mux.Unlock()
+	// cache may have grown while we were not holding the lock
 	if len(n.names) >= n.maxSize {
 		return ""
 	}
