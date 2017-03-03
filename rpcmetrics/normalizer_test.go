@@ -20,37 +20,21 @@
 
 package rpcmetrics
 
-import "sync"
+import (
+	"testing"
 
-type normalizedEndpoints struct {
-	names       map[string]string
-	maxSize     int
-	defaultName string
-	normalizer  NameNormalizer
-	mux         sync.RWMutex
-}
+	"github.com/stretchr/testify/assert"
+)
 
-func newNormalizedEndpoints(maxSize int, normalizer NameNormalizer) *normalizedEndpoints {
-	return &normalizedEndpoints{
-		maxSize:    maxSize,
-		normalizer: normalizer,
-		names:      make(map[string]string, maxSize),
+func TestSimpleNameNormalizer(t *testing.T) {
+	n := &SimpleNameNormalizer{
+		SafeSets: []SafeCharacterSet{
+			&Range{From: 'a', To: 'z'},
+			&Char{'-'},
+		},
+		Replacement: '-',
 	}
-}
-
-func (n *normalizedEndpoints) normalize(name string) string {
-	n.mux.RLock()
-	norm := n.names[name]
-	n.mux.RUnlock()
-	if norm != "" {
-		return norm
-	}
-	norm = n.normalizer.Normalize(name)
-	n.mux.Lock()
-	defer n.mux.Unlock()
-	if len(n.names) >= n.maxSize {
-		return ""
-	}
-	n.names[name] = norm
-	return norm
+	assert.Equal(t, "ab-cd", n.Normalize("ab-cd"), "all valid")
+	assert.Equal(t, "ab-cd", n.Normalize("ab.cd"), "single mismatch")
+	assert.Equal(t, "a--cd", n.Normalize("aB-cd"), "range letter mismatch")
 }

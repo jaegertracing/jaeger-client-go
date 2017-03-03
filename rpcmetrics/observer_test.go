@@ -56,17 +56,7 @@ func withTestTracer(runTest func(tt *testTracer)) {
 	})
 }
 
-func TestNonRPCSpan(t *testing.T) {
-	withTestTracer(func(testTracer *testTracer) {
-		span := testTracer.tracer.StartSpan("test")
-		span.Finish()
-
-		c, _ := testTracer.metrics.Snapshot()
-		assert.Len(t, c, 0)
-	})
-}
-
-func TestRPCSpans(t *testing.T) {
+func TestObserver(t *testing.T) {
 	withTestTracer(func(testTracer *testTracer) {
 		ts := time.Now()
 		finishOptions := opentracing.FinishOptions{
