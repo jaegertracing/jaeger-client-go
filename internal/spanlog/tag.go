@@ -36,7 +36,7 @@ func MaterializeWithJaegerTags(logFields []log.Field) []*j.Tag {
 	for _, field := range logFields {
 		field.Marshal(&fields)
 	}
-	// TODO what is this?
+	// TODO what is this? was "event" a first class tag in zipkin?
 	//if event, ok := fields["event"]; ok && len(fields) == 1 {
 	//	return []byte(event), nil
 	//}

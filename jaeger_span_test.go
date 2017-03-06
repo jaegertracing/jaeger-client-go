@@ -21,13 +21,27 @@
 package jaeger
 
 import (
+	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
 	"github.com/stretchr/testify/assert"
 	j "github.com/uber/jaeger-client-go/thrift-gen/jaeger"
+	"github.com/uber/jaeger-client-go/utils"
+)
+
+var (
+	someString      = "str"
+	someBool        = true
+	someLong        = int64(123)
+	someDouble      = float64(123)
+	someBinary      = []byte("hello")
+	someSlice       = []string{"a"}
+	someSliceString = "[a]"
 )
 
 func TestBuildJaegerSpan(t *testing.T) {
@@ -59,60 +73,194 @@ func TestBuildLogs(t *testing.T) {
 	defer closer.Close()
 	root := tracer.StartSpan("s1")
 
-	//someTime := time.Now().Add(-time.Minute)
-	//someTimeInt64 := utils.TimeToMicrosecondsSinceEpochInt64(someTime)
+	someTime := time.Now().Add(-time.Minute)
+	someTimeInt64 := utils.TimeToMicrosecondsSinceEpochInt64(someTime)
 
-	someString := "happened"
-	someBool := true
-	someLong := 123
-	someDouble := 123
+	errString := "error"
 
-	fields := func(fields ...log.Field) []log.Field {
-		return fields
-	}
 	tests := []struct {
-		fields            []log.Field
+		field             log.Field
 		logFunc           func(sp opentracing.Span)
 		expected          []*j.Tag
 		expectedTimestamp int64
 		disableSampling   bool
 	}{
-		{fields: fields(log.String("event", "happened")), expected: []*j.Tag{{Key: "event", VType: j.TagType_STRING, VStr: &someString}}},
-		{fields: fields(log.String("something", "happened")), expected: []*j.Tag{{Key: "something", VType: j.TagType_STRING, VStr: &someString}}},
-		{fields: fields(log.Bool("something", true)), expected: []*j.Tag{{Key: "something", VType: j.TagType_BOOL, VStr: &someBool}}},
-		{fields: fields(log.Int("something", 123)), expected: []*j.Tag{{Key: "something", VType: j.TagType_LONG, VStr: &someLong}}},
-		{fields: fields(log.Int32("something", 123)), expected: []*j.Tag{{Key: "something", VType: j.TagType_LONG, VStr: &someLong}}},
-		{fields: fields(log.Int64("something", 123)), expected: []*j.Tag{{Key: "something", VType: j.TagType_LONG, VStr: &someLong}}},
-		{fields: fields(log.Uint32("something", 123)), expected: []*j.Tag{{Key: "something", VType: j.TagType_LONG, VStr: &someLong}}},
-		{fields: fields(log.Uint64("something", 123)), expected: []*j.Tag{{Key: "something", VType: j.TagType_LONG, VStr: &someLong}}},
-		{fields: fields(log.Float32("something", 123)), expected: []*j.Tag{{Key: "something", VType: j.TagType_DOUBLE, VStr: &someDouble}}},
-		{fields: fields(log.Float64("something", 123)), expected: []*j.Tag{{Key: "something", VType: j.TagType_DOUBLE, VStr: &someDouble}}},
-		//{fields: fields(log.Error(errors.New("drugs are baaad, m-k"))),
-		//	expected: `{"error":"drugs are baaad, m-k"}`},
-		//{fields: fields(log.Object("something", 123)), expected: `{"something":"123"}`},
+		{field: log.String("event", someString), expected: []*j.Tag{{Key: "event", VType: j.TagType_STRING, VStr: &someString}}},
+		{field: log.String("k", someString), expected: []*j.Tag{{Key: "k", VType: j.TagType_STRING, VStr: &someString}}},
+		{field: log.Bool("k", someBool), expected: []*j.Tag{{Key: "k", VType: j.TagType_BOOL, VBool: &someBool}}},
+		{field: log.Int("k", 123), expected: []*j.Tag{{Key: "k", VType: j.TagType_LONG, VLong: &someLong}}},
+		{field: log.Int32("k", 123), expected: []*j.Tag{{Key: "k", VType: j.TagType_LONG, VLong: &someLong}}},
+		{field: log.Int64("k", 123), expected: []*j.Tag{{Key: "k", VType: j.TagType_LONG, VLong: &someLong}}},
+		{field: log.Uint32("k", 123), expected: []*j.Tag{{Key: "k", VType: j.TagType_LONG, VLong: &someLong}}},
+		{field: log.Uint64("k", 123), expected: []*j.Tag{{Key: "k", VType: j.TagType_LONG, VLong: &someLong}}},
+		{field: log.Float32("k", 123), expected: []*j.Tag{{Key: "k", VType: j.TagType_DOUBLE, VDouble: &someDouble}}},
+		{field: log.Float64("k", 123), expected: []*j.Tag{{Key: "k", VType: j.TagType_DOUBLE, VDouble: &someDouble}}},
+		{field: log.Error(errors.New(errString)), expected: []*j.Tag{{Key: "error", VType: j.TagType_STRING, VStr: &errString}}},
+		{field: log.Object("k", someSlice), expected: []*j.Tag{{Key: "k", VType: j.TagType_STRING, VStr: &someSliceString}}},
+		{
+			field: log.Lazy(func(fv log.Encoder) {
+				fv.EmitBool("k", someBool)
+			}),
+			expected: []*j.Tag{{Key: "k", VType: j.TagType_BOOL, VBool: &someBool}},
+		},
+		{
+			logFunc: func(sp opentracing.Span) {
+				sp.LogKV("event", someString)
+			},
+			expected: []*j.Tag{{Key: "event", VType: j.TagType_STRING, VStr: &someString}},
+		},
+		{
+			logFunc: func(sp opentracing.Span) {
+				sp.LogKV("non-even number of arguments")
+			},
+			// this is a bit fragile, but ¯\_(ツ)_/¯
+			expected: []*j.Tag{
+				{Key: "error", VType: j.TagType_STRING, VStr: getStringPtr("non-even keyValues len: 1")},
+				{Key: "function", VType: j.TagType_STRING, VStr: getStringPtr("LogKV")},
+			},
+		},
+		{
+			logFunc: func(sp opentracing.Span) {
+				sp.LogEvent(someString)
+			},
+			expected: []*j.Tag{{Key: "event", VType: j.TagType_STRING, VStr: &someString}},
+		},
+		{
+			logFunc: func(sp opentracing.Span) {
+				sp.LogEventWithPayload(someString, "payload")
+			},
+			expected: []*j.Tag{
+				{Key: "event", VType: j.TagType_STRING, VStr: &someString},
+				{Key: "payload", VType: j.TagType_STRING, VStr: getStringPtr("payload")},
+			},
+		},
+		{
+			logFunc: func(sp opentracing.Span) {
+				sp.Log(opentracing.LogData{Event: someString})
+			},
+			expected: []*j.Tag{{Key: "event", VType: j.TagType_STRING, VStr: &someString}},
+		},
+		{
+			logFunc: func(sp opentracing.Span) {
+				sp.Log(opentracing.LogData{Event: someString, Payload: "payload"})
+			},
+			expected: []*j.Tag{
+				{Key: "event", VType: j.TagType_STRING, VStr: &someString},
+				{Key: "payload", VType: j.TagType_STRING, VStr: getStringPtr("payload")},
+			},
+		},
+		{
+			logFunc: func(sp opentracing.Span) {
+				sp.FinishWithOptions(opentracing.FinishOptions{
+					LogRecords: []opentracing.LogRecord{
+						{
+							Timestamp: someTime,
+							Fields:    []log.Field{log.String("event", someString)},
+						},
+					},
+				})
+			},
+			expected:          []*j.Tag{{Key: "event", VType: j.TagType_STRING, VStr: &someString}},
+			expectedTimestamp: someTimeInt64,
+		},
+		{
+			logFunc: func(sp opentracing.Span) {
+				sp.FinishWithOptions(opentracing.FinishOptions{
+					BulkLogData: []opentracing.LogData{
+						{
+							Timestamp: someTime,
+							Event:     someString,
+						},
+					},
+				})
+			},
+			expected:          []*j.Tag{{Key: "event", VType: j.TagType_STRING, VStr: &someString}},
+			expectedTimestamp: someTimeInt64,
+		},
+		{
+			logFunc: func(sp opentracing.Span) {
+				sp.FinishWithOptions(opentracing.FinishOptions{
+					BulkLogData: []opentracing.LogData{
+						{
+							Timestamp: someTime,
+							Event:     someString,
+							Payload:   "payload",
+						},
+					},
+				})
+			},
+			expected: []*j.Tag{
+				{Key: "event", VType: j.TagType_STRING, VStr: &someString},
+				{Key: "payload", VType: j.TagType_STRING, VStr: getStringPtr("payload")},
+			},
+			expectedTimestamp: someTimeInt64,
+		},
+		{
+			disableSampling: true,
+			field:           log.String("event", someString),
+		},
+		{
+			disableSampling: true,
+			logFunc: func(sp opentracing.Span) {
+				sp.LogKV("event", someString)
+			},
+		},
 	}
 	for i, test := range tests {
 		testName := fmt.Sprintf("test-%02d", i)
 		sp := tracer.StartSpan(testName, opentracing.ChildOf(root.Context()))
-		//if test.disableSampling {
-		//	ext.SamplingPriority.Set(sp, 0)
-		//}
+		if test.disableSampling {
+			ext.SamplingPriority.Set(sp, 0)
+		}
 		if test.logFunc != nil {
 			test.logFunc(sp)
-		} else if len(test.fields) > 0 {
-			sp.LogFields(test.fields...)
+		} else if test.field != (log.Field{}) {
+			sp.LogFields(test.field)
 		}
-		thriftSpan := buildJaegerSpan(sp.(*span))
-		//if test.disableSampling {
-		//	assert.Equal(t, 0, len(thriftSpan.Annotations), testName)
-		//	continue
-		//}
-		assert.Equal(t, 1, len(thriftSpan.Logs), testName)
-		compareTags(t, test.expected[0], thriftSpan.Logs[0].GetFields()[0], testName)
-		//if test.expectedTimestamp != 0 {
-		//	assert.Equal(t, test.expectedTimestamp, thriftSpan.Annotations[0].Timestamp, testName)
-		//}
+		jaegerSpan := buildJaegerSpan(sp.(*span))
+		if test.disableSampling {
+			assert.Equal(t, 0, len(jaegerSpan.Logs), testName)
+			continue
+		}
+		assert.Equal(t, 1, len(jaegerSpan.Logs), testName)
+		compareTagSlices(t, test.expected, jaegerSpan.Logs[0].GetFields(), testName)
+		if test.expectedTimestamp != 0 {
+			assert.Equal(t, test.expectedTimestamp, jaegerSpan.Logs[0].Timestamp, testName)
+		}
 	}
+}
+
+func TestBuildTags(t *testing.T) {
+	tests := []struct {
+		tag      Tag
+		expected *j.Tag
+	}{
+		{tag: Tag{key: "k", value: someString}, expected: &j.Tag{Key: "k", VType: j.TagType_STRING, VStr: &someString}},
+		{tag: Tag{key: "k", value: int(123)}, expected: &j.Tag{Key: "k", VType: j.TagType_LONG, VLong: &someLong}},
+		{tag: Tag{key: "k", value: uint(123)}, expected: &j.Tag{Key: "k", VType: j.TagType_LONG, VLong: &someLong}},
+		{tag: Tag{key: "k", value: int8(123)}, expected: &j.Tag{Key: "k", VType: j.TagType_LONG, VLong: &someLong}},
+		{tag: Tag{key: "k", value: uint8(123)}, expected: &j.Tag{Key: "k", VType: j.TagType_LONG, VLong: &someLong}},
+		{tag: Tag{key: "k", value: int16(123)}, expected: &j.Tag{Key: "k", VType: j.TagType_LONG, VLong: &someLong}},
+		{tag: Tag{key: "k", value: int32(123)}, expected: &j.Tag{Key: "k", VType: j.TagType_LONG, VLong: &someLong}},
+		{tag: Tag{key: "k", value: uint32(123)}, expected: &j.Tag{Key: "k", VType: j.TagType_LONG, VLong: &someLong}},
+		{tag: Tag{key: "k", value: int64(123)}, expected: &j.Tag{Key: "k", VType: j.TagType_LONG, VLong: &someLong}},
+		{tag: Tag{key: "k", value: uint64(123)}, expected: &j.Tag{Key: "k", VType: j.TagType_LONG, VLong: &someLong}},
+		{tag: Tag{key: "k", value: float32(123)}, expected: &j.Tag{Key: "k", VType: j.TagType_DOUBLE, VDouble: &someDouble}},
+		{tag: Tag{key: "k", value: float64(123)}, expected: &j.Tag{Key: "k", VType: j.TagType_DOUBLE, VDouble: &someDouble}},
+		{tag: Tag{key: "k", value: someBool}, expected: &j.Tag{Key: "k", VType: j.TagType_BOOL, VBool: &someBool}},
+		{tag: Tag{key: "k", value: someBinary}, expected: &j.Tag{Key: "k", VType: j.TagType_BINARY, VBinary: someBinary}},
+		{tag: Tag{key: "k", value: someSlice}, expected: &j.Tag{Key: "k", VType: j.TagType_STRING, VStr: &someSliceString}},
+	}
+	for i, test := range tests {
+		testName := fmt.Sprintf("test-%02d", i)
+		actual := buildTags([]Tag{test.tag})
+		assert.Len(t, actual, 1)
+		compareTags(t, test.expected, actual[0], testName)
+	}
+}
+
+func getStringPtr(s string) *string {
+	return &s
 }
 
 func findTag(span *j.Span, key string) *j.Tag {
@@ -124,7 +272,31 @@ func findTag(span *j.Span, key string) *j.Tag {
 	return nil
 }
 
+func findJaegerTag(key string, tags []*j.Tag) *j.Tag {
+	for _, tag := range tags {
+		if tag.Key == key {
+			return tag
+		}
+	}
+	return nil
+}
+
+func compareTagSlices(t *testing.T, expectedTags, actualTags []*j.Tag, testName string) {
+	assert.Equal(t, len(expectedTags), len(actualTags))
+	for _, expectedTag := range expectedTags {
+		actualTag := findJaegerTag(expectedTag.Key, actualTags)
+		compareTags(t, expectedTag, actualTag, testName)
+	}
+}
+
 func compareTags(t *testing.T, expected, actual *j.Tag, testName string) {
+	if expected == nil && actual == nil {
+		return
+	}
+	if expected == nil || actual == nil {
+		assert.Fail(t, "one of the tags is nil", testName)
+		return
+	}
 	assert.Equal(t, expected.Key, actual.Key, testName)
 	assert.Equal(t, expected.VType, actual.VType, testName)
 	switch expected.VType {
@@ -137,7 +309,6 @@ func compareTags(t *testing.T, expected, actual *j.Tag, testName string) {
 	case j.TagType_BOOL:
 		assert.Equal(t, *expected.VBool, *actual.VBool, testName)
 	case j.TagType_BINARY:
-		assert.Equal(t, *expected.VBinary, *actual.VBinary, testName)
+		assert.Equal(t, expected.VBinary, actual.VBinary, testName)
 	}
-
 }
