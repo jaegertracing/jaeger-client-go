@@ -25,21 +25,19 @@ import (
 
 	"github.com/opentracing/opentracing-go"
 
-	"github.com/uber/jaeger-client-go/internal/spanlog"
 	j "github.com/uber/jaeger-client-go/thrift-gen/jaeger"
 	"github.com/uber/jaeger-client-go/utils"
 )
 
 // buildJaegerSpan builds jaeger span based on internal span.
 func buildJaegerSpan(span *span) *j.Span {
-	parentID := int64(span.context.parentID)
 	startTime := utils.TimeToMicrosecondsSinceEpochInt64(span.startTime)
 	duration := span.duration.Nanoseconds() / int64(time.Microsecond)
 	jaegerSpan := &j.Span{
 		TraceIdLow:    int64(span.context.traceID.Low),
 		TraceIdHigh:   int64(span.context.traceID.High),
 		SpanId:        int64(span.context.spanID),
-		ParentSpanId:  parentID,
+		ParentSpanId:  int64(span.context.parentID),
 		OperationName: span.operationName,
 		Flags:         int32(span.context.flags),
 		StartTime:     startTime,
@@ -65,7 +63,7 @@ func buildLogs(logs []opentracing.LogRecord) []*j.Log {
 	for _, log := range logs {
 		jLog := &j.Log{
 			Timestamp: utils.TimeToMicrosecondsSinceEpochInt64(log.Timestamp),
-			Fields:    spanlog.MaterializeWithJaegerTags(log.Fields),
+			Fields:    ConvertLogsToJaegerTags(log.Fields),
 		}
 		jLogs = append(jLogs, jLog)
 	}

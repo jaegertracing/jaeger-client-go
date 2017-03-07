@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package spanlog
+package jaeger
 
 import (
 	"fmt"
@@ -30,16 +30,12 @@ import (
 
 type tags []*j.Tag
 
-// MaterializeWithJaegerTags converts log Fields into jaeger tags
-func MaterializeWithJaegerTags(logFields []log.Field) []*j.Tag {
+// ConvertLogsToJaegerTags converts log Fields into jaeger tags.
+func ConvertLogsToJaegerTags(logFields []log.Field) []*j.Tag {
 	fields := tags(make([]*j.Tag, 0, len(logFields)))
 	for _, field := range logFields {
 		field.Marshal(&fields)
 	}
-	// TODO what is this? was "event" a first class tag in zipkin?
-	//if event, ok := fields["event"]; ok && len(fields) == 1 {
-	//	return []byte(event), nil
-	//}
 	return fields
 }
 
