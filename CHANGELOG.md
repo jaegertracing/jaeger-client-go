@@ -1,14 +1,14 @@
 Changes by Version
 ==================
 
-2.2.0 (Unreleased)
+2.2.0 (2017-03-10)
 ------------------
 
 - Introduce Observer and SpanObserver (https://github.com/uber/jaeger-client-go/pull/94)
 - Add RPC metrics emitter as Observer/SpanObserver (https://github.com/uber/jaeger-client-go/pull/103)
 
 
-2.1.2 (2016-02-27)
+2.1.2 (2017-02-27)
 -------------------
 
 - Fix leaky bucket bug (https://github.com/uber/jaeger-client-go/pull/99)
@@ -16,20 +16,20 @@ Changes by Version
 - Add tracer initialization godoc examples
 
 
-2.1.1 (2016-02-21)
+2.1.1 (2017-02-21)
 -------------------
 
 - Fix inefficient usage of zap.Logger
 
 
-2.1.0 (2016-02-17)
+2.1.0 (2017-02-17)
 -------------------
 
 - Add adapter for zap.Logger (https://github.com/uber-go/zap)
 - Move logging API to ./log/ package
 
 
-2.0.0 (2016-02-08)
+2.0.0 (2017-02-08)
 -------------------
 
 - Support Adaptive Sampling
