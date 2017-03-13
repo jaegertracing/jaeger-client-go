@@ -492,6 +492,7 @@ func (s *RemotelyControlledSampler) updateSampler() {
 	if res, err := s.manager.GetSamplingStrategy(s.serviceName); err == nil {
 		if sampler, strategies, err := s.extractSampler(res); err == nil {
 			s.metrics.SamplerRetrieved.Inc(1)
+			// NB: adaptive sampler always returns false from Equal()
 			if !s.sampler.Equal(sampler) {
 				s.lockAndUpdateSampler(sampler, strategies)
 			}
@@ -510,7 +511,7 @@ func (s *RemotelyControlledSampler) lockAndUpdateSampler(
 ) {
 	s.Lock()
 	defer s.Unlock()
-	if adaptiveSampler, ok := s.sampler.(*adaptiveSampler); ok {
+	if adaptiveSampler, ok := s.sampler.(*adaptiveSampler); ok && strategies != nil {
 		if err := adaptiveSampler.update(strategies); err != nil {
 			s.metrics.SamplerUpdateFailure.Inc(1)
 			return
