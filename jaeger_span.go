@@ -132,7 +132,7 @@ func buildTag(tag *Tag) *j.Tag {
 		jTag.VBool = &vBool
 		jTag.VType = j.TagType_BOOL
 	default:
-		vStr := stringify(value)
+		vStr := truncateString(stringify(value))
 		jTag.VStr = &vStr
 		jTag.VType = j.TagType_STRING
 	}
