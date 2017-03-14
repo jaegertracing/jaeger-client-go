@@ -42,6 +42,7 @@ pull request is most likely to be accepted if it:
     * Copy CHANGELOG.md into the release notes
 3. Create a PR "Back to development" against master branch
     * Add `<next_version> (unreleased)` to CHANGELOG.md
+    * Update `JaegerClientVersion` in constants.go to `Go-<next_version>dev`
 
 ## License
 
