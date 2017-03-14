@@ -1,10 +1,10 @@
 Changes by Version
 ==================
 
-2.2.1 (Unreleased)
+2.2.1 (2017-03-14)
 ------------------
 
-- Nothing yet.
+- Fix panic caused by updating the remote sampler from adaptive sampler to any other sampler type (https://github.com/uber/jaeger-client-go/pull/111)
 
 
 2.2.0 (2017-03-10)
