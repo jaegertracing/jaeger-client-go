@@ -532,3 +532,46 @@ type fakeSamplingManager struct{}
 func (c *fakeSamplingManager) GetSamplingStrategy(serviceName string) (*sampling.SamplingStrategyResponse, error) {
 	return nil, errors.New("query error")
 }
+
+func TestRemotelyControlledSampler_updateSamplerFromAdaptiveSampler(t *testing.T) {
+	agent, remoteSampler, _ := initAgent(t)
+	defer agent.Close()
+	remoteSampler.Close() // stop timer-based updates, we want to call them manually
+
+	strategies := &sampling.PerOperationSamplingStrategies{
+		DefaultSamplingProbability:       testDefaultSamplingProbability,
+		DefaultLowerBoundTracesPerSecond: 1.0,
+	}
+
+	adaptiveSampler, err := NewAdaptiveSampler(strategies, testDefaultMaxOperations)
+	require.NoError(t, err)
+	defer adaptiveSampler.Close()
+
+	// Overwrite the sampler with an adaptive sampler
+	remoteSampler.sampler = adaptiveSampler
+
+	agent.AddSamplingStrategy("client app", &sampling.SamplingStrategyResponse{
+		StrategyType: sampling.SamplingStrategyType_PROBABILISTIC,
+		ProbabilisticSampling: &sampling.ProbabilisticSamplingStrategy{
+			SamplingRate: 0.5,
+		}})
+	remoteSampler.updateSampler()
+
+	// Sampler should have been updated to probabilistic
+	_, ok := remoteSampler.sampler.(*ProbabilisticSampler)
+	require.True(t, ok)
+
+	// Overwrite the sampler with an adaptive sampler
+	remoteSampler.sampler = adaptiveSampler
+
+	agent.AddSamplingStrategy("client app", &sampling.SamplingStrategyResponse{
+		StrategyType: sampling.SamplingStrategyType_RATE_LIMITING,
+		RateLimitingSampling: &sampling.RateLimitingSamplingStrategy{
+			MaxTracesPerSecond: 1,
+		}})
+	remoteSampler.updateSampler()
+
+	// Sampler should have been updated to ratelimiting
+	_, ok = remoteSampler.sampler.(*rateLimitingSampler)
+	require.True(t, ok)
+}
