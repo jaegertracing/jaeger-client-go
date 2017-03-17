@@ -306,80 +306,62 @@ func initAgent(t *testing.T) (*testutils.MockAgent, *RemotelyControlledSampler, 
 }
 
 func TestRemotelyControlledSampler(t *testing.T) {
-	agent, sampler, metricsFactory := initAgent(t)
+	agent, remoteSampler, metricsFactory := initAgent(t)
 	defer agent.Close()
 
-	initSampler, ok := sampler.sampler.(*ProbabilisticSampler)
+	initSampler, ok := remoteSampler.sampler.(*ProbabilisticSampler)
 	assert.True(t, ok)
 
-	agent.AddSamplingStrategy("client app", &sampling.SamplingStrategyResponse{
-		StrategyType: sampling.SamplingStrategyType_PROBABILISTIC,
-		ProbabilisticSampling: &sampling.ProbabilisticSamplingStrategy{
-			SamplingRate: 1.5, // bad value
-		}})
-	sampler.updateSampler()
+	agent.AddSamplingStrategy("client app",
+		getSamplingStrategyResponse(sampling.SamplingStrategyType_PROBABILISTIC, 1.5 /*bad value*/))
+	remoteSampler.updateSampler()
 	mTestutils.AssertCounterMetrics(t, metricsFactory,
 		mTestutils.ExpectedMetric{
 			Name:  "jaeger.sampler",
-			Tags:  map[string]string{"state": "failure", "phase": "parsing"},
+			Tags:  map[string]string{"state": "failure", "phase": "updating"},
 			Value: 1,
 		},
 	)
-	_, ok = sampler.sampler.(*ProbabilisticSampler)
+	_, ok = remoteSampler.sampler.(*ProbabilisticSampler)
 	assert.True(t, ok)
-	assert.Equal(t, initSampler, sampler.sampler, "Sampler should not have been updated")
+	assert.Equal(t, initSampler, remoteSampler.sampler, "Sampler should not have been updated")
 
-	agent.AddSamplingStrategy("client app", &sampling.SamplingStrategyResponse{
-		StrategyType: sampling.SamplingStrategyType_PROBABILISTIC,
-		ProbabilisticSampling: &sampling.ProbabilisticSamplingStrategy{
-			SamplingRate: testDefaultSamplingProbability, // good value
-		}})
-	sampler.updateSampler()
+	agent.AddSamplingStrategy("client app",
+		getSamplingStrategyResponse(sampling.SamplingStrategyType_PROBABILISTIC, testDefaultSamplingProbability))
+	remoteSampler.updateSampler()
 	mTestutils.AssertCounterMetrics(t, metricsFactory, []mTestutils.ExpectedMetric{
-		{Name: "jaeger.sampler", Tags: map[string]string{"state": "failure", "phase": "parsing"}, Value: 1},
-		{Name: "jaeger.sampler", Tags: map[string]string{"state": "retrieved"}, Value: 1},
+		{Name: "jaeger.sampler", Tags: map[string]string{"state": "failure", "phase": "updating"}, Value: 1},
+		{Name: "jaeger.sampler", Tags: map[string]string{"state": "retrieved"}, Value: 2},
 		{Name: "jaeger.sampler", Tags: map[string]string{"state": "updated"}, Value: 1},
 	}...)
-	_, ok = sampler.sampler.(*ProbabilisticSampler)
+	_, ok = remoteSampler.sampler.(*ProbabilisticSampler)
 	assert.True(t, ok)
-	assert.NotEqual(t, initSampler, sampler.sampler, "Sampler should have been updated")
+	assert.NotEqual(t, initSampler, remoteSampler.sampler, "Sampler should have been updated")
 
-	sampled, tags := sampler.IsSampled(TraceID{Low: testMaxID + 10}, testOperationName)
+	sampled, tags := remoteSampler.IsSampled(TraceID{Low: testMaxID + 10}, testOperationName)
 	assert.False(t, sampled)
 	assert.Equal(t, testProbabilisticExpectedTags, tags)
-	sampled, tags = sampler.IsSampled(TraceID{Low: testMaxID - 10}, testOperationName)
+	sampled, tags = remoteSampler.IsSampled(TraceID{Low: testMaxID - 10}, testOperationName)
 	assert.True(t, sampled)
 	assert.Equal(t, testProbabilisticExpectedTags, tags)
 
-	sampler.sampler = initSampler
+	remoteSampler.sampler = initSampler
 	c := make(chan time.Time)
-	sampler.Lock()
-	sampler.timer = &time.Ticker{C: c}
-	sampler.Unlock()
-	go sampler.pollController()
+	remoteSampler.Lock()
+	remoteSampler.timer = &time.Ticker{C: c}
+	remoteSampler.Unlock()
+	go remoteSampler.pollController()
 
 	c <- time.Now() // force update based on timer
 	time.Sleep(10 * time.Millisecond)
-	sampler.Close()
+	remoteSampler.Close()
 
-	_, ok = sampler.sampler.(*ProbabilisticSampler)
+	_, ok = remoteSampler.sampler.(*ProbabilisticSampler)
 	assert.True(t, ok)
-	assert.NotEqual(t, initSampler, sampler.sampler, "Sampler should have been updated from timer")
-
-	_, _, err := sampler.extractSampler(&sampling.SamplingStrategyResponse{})
-	assert.Error(t, err)
-	_, _, err = sampler.extractSampler(&sampling.SamplingStrategyResponse{
-		ProbabilisticSampling: &sampling.ProbabilisticSamplingStrategy{SamplingRate: 1.1}})
-	assert.Error(t, err)
+	assert.NotEqual(t, initSampler, remoteSampler.sampler, "Sampler should have been updated from timer")
 }
 
 func TestUpdateSampler(t *testing.T) {
-	agent, sampler, metricsFactory := initAgent(t)
-	defer agent.Close()
-
-	initSampler, ok := sampler.sampler.(*ProbabilisticSampler)
-	assert.True(t, ok)
-
 	tests := []struct {
 		probabilities      map[string]float64
 		defaultProbability float64
@@ -390,7 +372,7 @@ func TestUpdateSampler(t *testing.T) {
 		{
 			map[string]float64{testOperationName: 1.1},
 			testDefaultSamplingProbability,
-			"|phase=parsing|state=failure",
+			"|phase=updating|state=failure",
 			1,
 			true,
 		},
@@ -408,7 +390,7 @@ func TestUpdateSampler(t *testing.T) {
 			},
 			testDefaultSamplingProbability,
 			"|state=updated",
-			2,
+			1,
 			false,
 		},
 		{
@@ -422,26 +404,31 @@ func TestUpdateSampler(t *testing.T) {
 			map[string]float64{"new op": 1.1},
 			testDefaultSamplingProbability,
 			"|phase=updating|state=failure",
-			2,
+			1,
 			true,
 		},
 		{
 			map[string]float64{testOperationName: testDefaultSamplingProbability},
 			0.5,
 			"|state=updated",
-			3,
+			1,
 			false,
 		},
 		{
 			map[string]float64{testOperationName: testDefaultSamplingProbability},
 			1.1,
 			"|phase=updating|state=failure",
-			3,
+			1,
 			true,
 		},
 	}
 
 	for _, test := range tests {
+		agent, sampler, metricsFactory := initAgent(t)
+
+		initSampler, ok := sampler.sampler.(*ProbabilisticSampler)
+		assert.True(t, ok)
+
 		res := &sampling.SamplingStrategyResponse{
 			StrategyType: sampling.SamplingStrategyType_PROBABILISTIC,
 			OperationSampling: &sampling.PerOperationSamplingStrategies{
@@ -553,11 +540,8 @@ func TestRemotelyControlledSampler_updateSamplerFromAdaptiveSampler(t *testing.T
 	// Overwrite the sampler with an adaptive sampler
 	remoteSampler.sampler = adaptiveSampler
 
-	agent.AddSamplingStrategy("client app", &sampling.SamplingStrategyResponse{
-		StrategyType: sampling.SamplingStrategyType_PROBABILISTIC,
-		ProbabilisticSampling: &sampling.ProbabilisticSamplingStrategy{
-			SamplingRate: 0.5,
-		}})
+	agent.AddSamplingStrategy("client app",
+		getSamplingStrategyResponse(sampling.SamplingStrategyType_PROBABILISTIC, 0.5))
 	remoteSampler.updateSampler()
 
 	// Sampler should have been updated to probabilistic
@@ -567,16 +551,117 @@ func TestRemotelyControlledSampler_updateSamplerFromAdaptiveSampler(t *testing.T
 	// Overwrite the sampler with an adaptive sampler
 	remoteSampler.sampler = adaptiveSampler
 
-	agent.AddSamplingStrategy("client app", &sampling.SamplingStrategyResponse{
-		StrategyType: sampling.SamplingStrategyType_RATE_LIMITING,
-		RateLimitingSampling: &sampling.RateLimitingSamplingStrategy{
-			MaxTracesPerSecond: 1,
-		}})
+	agent.AddSamplingStrategy("client app",
+		getSamplingStrategyResponse(sampling.SamplingStrategyType_RATE_LIMITING, 1))
 	remoteSampler.updateSampler()
 
 	// Sampler should have been updated to ratelimiting
 	_, ok = remoteSampler.sampler.(*rateLimitingSampler)
 	require.True(t, ok)
+}
+
+func TestRemotelyControlledSampler_updateRateLimitingOrProbabilisticSampler(t *testing.T) {
+	probabilisticSampler, err := NewProbabilisticSampler(0.002)
+	require.NoError(t, err)
+	otherProbabilisticSampler, err := NewProbabilisticSampler(0.003)
+	require.NoError(t, err)
+
+	rateLimitingSampler := NewRateLimitingSampler(2)
+	otherRateLimitingSampler := NewRateLimitingSampler(3)
+
+	testCases := []struct {
+		res                  *sampling.SamplingStrategyResponse
+		initSampler          Sampler
+		expectedSampler      Sampler
+		shouldErr            bool
+		referenceEquivalence bool
+		caption              string
+	}{
+		{
+			res:                  getSamplingStrategyResponse(sampling.SamplingStrategyType_PROBABILISTIC, 1.5),
+			initSampler:          probabilisticSampler,
+			expectedSampler:      probabilisticSampler,
+			shouldErr:            true,
+			referenceEquivalence: true,
+			caption:              "invalid probabilistic strategy",
+		},
+		{
+			res:                  getSamplingStrategyResponse(sampling.SamplingStrategyType_PROBABILISTIC, 0.002),
+			initSampler:          probabilisticSampler,
+			expectedSampler:      probabilisticSampler,
+			shouldErr:            false,
+			referenceEquivalence: true,
+			caption:              "unchanged probabilistic strategy",
+		},
+		{
+			res:                  getSamplingStrategyResponse(sampling.SamplingStrategyType_PROBABILISTIC, 0.003),
+			initSampler:          probabilisticSampler,
+			expectedSampler:      otherProbabilisticSampler,
+			shouldErr:            false,
+			referenceEquivalence: false,
+			caption:              "valid probabilistic strategy",
+		},
+		{
+			res:                  getSamplingStrategyResponse(sampling.SamplingStrategyType_RATE_LIMITING, 2),
+			initSampler:          rateLimitingSampler,
+			expectedSampler:      rateLimitingSampler,
+			shouldErr:            false,
+			referenceEquivalence: true,
+			caption:              "unchanged rate limiting strategy",
+		},
+		{
+			res:                  getSamplingStrategyResponse(sampling.SamplingStrategyType_RATE_LIMITING, 3),
+			initSampler:          rateLimitingSampler,
+			expectedSampler:      otherRateLimitingSampler,
+			shouldErr:            false,
+			referenceEquivalence: false,
+			caption:              "valid rate limiting strategy",
+		},
+		{
+			res:                  &sampling.SamplingStrategyResponse{},
+			initSampler:          rateLimitingSampler,
+			expectedSampler:      rateLimitingSampler,
+			shouldErr:            true,
+			referenceEquivalence: true,
+			caption:              "invalid strategy",
+		},
+	}
+
+	for _, tc := range testCases {
+		testCase := tc // capture loop var
+		t.Run(testCase.caption, func(t *testing.T) {
+			remoteSampler := &RemotelyControlledSampler{samplerOptions: samplerOptions{sampler: testCase.initSampler}}
+			err := remoteSampler.updateRateLimitingOrProbabilisticSampler(testCase.res)
+			if testCase.shouldErr {
+				require.Error(t, err)
+			}
+			if testCase.referenceEquivalence {
+				assert.Equal(t, testCase.expectedSampler, remoteSampler.sampler)
+			} else {
+				assert.True(t, testCase.expectedSampler.Equal(remoteSampler.sampler))
+			}
+		})
+	}
+}
+
+func getSamplingStrategyResponse(strategyType sampling.SamplingStrategyType, value float64) *sampling.SamplingStrategyResponse {
+	if strategyType == sampling.SamplingStrategyType_PROBABILISTIC {
+		return &sampling.SamplingStrategyResponse{
+			StrategyType: sampling.SamplingStrategyType_PROBABILISTIC,
+			ProbabilisticSampling: &sampling.ProbabilisticSamplingStrategy{
+				SamplingRate: value,
+			},
+		}
+	}
+	if strategyType == sampling.SamplingStrategyType_RATE_LIMITING {
+		return &sampling.SamplingStrategyResponse{
+			StrategyType: sampling.SamplingStrategyType_RATE_LIMITING,
+			RateLimitingSampling: &sampling.RateLimitingSamplingStrategy{
+				MaxTracesPerSecond: int16(value),
+			},
+		}
+	}
+	return nil
 }
 
 func TestAdaptiveSampler_lockRaceCondition(t *testing.T) {
