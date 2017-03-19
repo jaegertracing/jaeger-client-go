@@ -35,7 +35,7 @@ import (
 // Reporter is called by the tracer when a span is completed to report the span to the tracing collector.
 type Reporter interface {
 	// Report submits a new span to collectors, possibly asynchronously and/or with buffering.
-	Report(span *span)
+	Report(span *Span)
 
 	// Close does a clean shutdown of the reporter, flushing any traces that may be buffered in memory.
 	Close()
@@ -51,7 +51,7 @@ func NewNullReporter() Reporter {
 }
 
 // Report implements Report() method of Reporter by doing nothing.
-func (r *nullReporter) Report(span *span) {
+func (r *nullReporter) Report(span *Span) {
 	// no-op
 }
 
@@ -72,7 +72,7 @@ func NewLoggingReporter(logger Logger) Reporter {
 }
 
 // Report implements Report() method of Reporter by logging the span to the logger.
-func (r *loggingReporter) Report(span *span) {
+func (r *loggingReporter) Report(span *Span) {
 	r.logger.Infof("Reporting span %+v", span)
 }
 
@@ -98,7 +98,7 @@ func NewInMemoryReporter() *InMemoryReporter {
 }
 
 // Report implements Report() method of Reporter by storing the span in the buffer.
-func (r *InMemoryReporter) Report(span *span) {
+func (r *InMemoryReporter) Report(span *Span) {
 	r.lock.Lock()
 	r.spans = append(r.spans, span)
 	r.lock.Unlock()
@@ -144,7 +144,7 @@ func NewCompositeReporter(reporters ...Reporter) Reporter {
 }
 
 // Report implements Report() method of Reporter by delegating to each underlying reporter.
-func (r *compositeReporter) Report(span *span) {
+func (r *compositeReporter) Report(span *Span) {
 	for _, reporter := range r.reporters {
 		reporter.Report(span)
 	}
@@ -203,7 +203,7 @@ func NewRemoteReporter(sender transport.Transport, opts ...ReporterOption) Repor
 
 // Report implements Report() method of Reporter.
 // It passes the span to a background go-routine for submission to Jaeger.
-func (r *remoteReporter) Report(span *span) {
+func (r *remoteReporter) Report(span *Span) {
 	thriftSpan := buildThriftSpan(span)
 	select {
 	case r.queue <- thriftSpan:

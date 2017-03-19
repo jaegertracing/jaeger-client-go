@@ -31,7 +31,7 @@ func TestBaggageIterator(t *testing.T) {
 	tracer, closer := NewTracer("DOOP", NewConstSampler(true), NewNullReporter())
 	defer closer.Close()
 
-	sp1 := tracer.StartSpan("s1").(*span)
+	sp1 := tracer.StartSpan("s1").(*Span)
 	sp1.SetBaggageItem("Some_Key", "12345")
 	sp1.SetBaggageItem("Some-other-key", "42")
 	expectedBaggage := map[string]string{"some-key": "12345", "some-other-key": "42"}
@@ -62,7 +62,7 @@ func TestSpanProperties(t *testing.T) {
 	tracer, closer := NewTracer("DOOP", NewConstSampler(true), NewNullReporter())
 	defer closer.Close()
 
-	sp1 := tracer.StartSpan("s1").(*span)
+	sp1 := tracer.StartSpan("s1").(*Span)
 	assert.Equal(t, tracer, sp1.Tracer())
 	assert.NotNil(t, sp1.Context())
 }

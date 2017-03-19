@@ -38,7 +38,7 @@ func TestZipkinPropagator(t *testing.T) {
 	if err := tracer.Inject(sp.Context(), "zipkin-span-format", carrier); err != nil {
 		t.Fatalf("Inject failed: %+v", err)
 	}
-	sp1 := sp.(*span)
+	sp1 := sp.(*Span)
 	assert.Equal(t, sp1.context.traceID, TraceID{Low: carrier.traceID})
 	assert.Equal(t, sp1.context.spanID, SpanID(carrier.spanID))
 	assert.Equal(t, sp1.context.parentID, SpanID(carrier.parentID))
@@ -49,7 +49,7 @@ func TestZipkinPropagator(t *testing.T) {
 		t.Fatalf("Extract failed: %+v", err)
 	}
 	sp2 := tracer.StartSpan("x", ext.RPCServerOption(sp2ctx))
-	sp3 := sp2.(*span)
+	sp3 := sp2.(*Span)
 	assert.Equal(t, sp1.context.traceID, sp3.context.traceID)
 	assert.Equal(t, sp1.context.spanID, sp3.context.spanID)
 	assert.Equal(t, sp1.context.parentID, sp3.context.parentID)

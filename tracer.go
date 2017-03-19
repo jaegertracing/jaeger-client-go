@@ -80,7 +80,7 @@ func NewTracer(
 		extractors:  make(map[interface{}]Extractor),
 		metrics:     *NewNullMetrics(),
 		spanPool: sync.Pool{New: func() interface{} {
-			return &span{}
+			return &Span{}
 		}},
 	}
 
@@ -270,11 +270,11 @@ func (t *tracer) Close() error {
 
 // newSpan returns an instance of a clean Span object.
 // If options.PoolSpans is true, the spans are retrieved from an object pool.
-func (t *tracer) newSpan() *span {
+func (t *tracer) newSpan() *Span {
 	if !t.options.poolSpans {
-		return &span{}
+		return &Span{}
 	}
-	sp := t.spanPool.Get().(*span)
+	sp := t.spanPool.Get().(*Span)
 	sp.context = emptyContext
 	sp.tracer = nil
 	sp.tags = nil
@@ -283,14 +283,14 @@ func (t *tracer) newSpan() *span {
 }
 
 func (t *tracer) startSpanInternal(
-	sp *span,
+	sp *Span,
 	operationName string,
 	startTime time.Time,
 	internalTags []Tag,
 	tags opentracing.Tags,
 	newTrace bool,
 	rpcServer bool,
-) opentracing.Span {
+) *Span {
 	sp.tracer = t
 	sp.operationName = operationName
 	sp.startTime = startTime
@@ -331,7 +331,7 @@ func (t *tracer) startSpanInternal(
 	return sp
 }
 
-func (t *tracer) reportSpan(sp *span) {
+func (t *tracer) reportSpan(sp *Span) {
 	t.metrics.SpansFinished.Inc(1)
 	if sp.context.IsSampled() {
 		if sp.firstInProcess {
