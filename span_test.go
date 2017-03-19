@@ -66,3 +66,14 @@ func TestSpanProperties(t *testing.T) {
 	assert.Equal(t, tracer, sp1.Tracer())
 	assert.NotNil(t, sp1.Context())
 }
+
+func TestSpanOperationName(t *testing.T) {
+	tracer, closer := NewTracer("DOOP", NewConstSampler(true), NewNullReporter())
+	defer closer.Close()
+
+	sp1 := tracer.StartSpan("s1").(*Span)
+	sp1.SetOperationName("s2")
+	sp1.Finish()
+
+	assert.Equal(t, "s2", sp1.OperationName())
+}
