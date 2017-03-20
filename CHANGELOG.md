@@ -1,10 +1,11 @@
 Changes by Version
 ==================
 
-2.2.2 (unreleased)
+2.3.0 (2017-03-20)
 ------------------
 
-- Nothing yet
+- Make Span type public to allow access to non-std methods for testing [#117](https://github.com/uber/jaeger-client-go/pull/117)
+- Add a structured way to extract traces for logging with zap [#118](https://github.com/uber/jaeger-client-go/pull/118)
 
 
 2.2.1 (2017-03-14)
