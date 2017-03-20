@@ -33,7 +33,7 @@ func TestEmptyObserver(t *testing.T) {
 	defer closer.Close()
 	s := tracer.StartSpan("test", ext.RPCServerOption(nil))
 	s.Finish()
-	assert.Equal(t, s.(*span).observer, noopSpanObserver)
+	assert.Equal(t, s.(*Span).observer, noopSpanObserver)
 }
 
 func TestObservers(t *testing.T) {
@@ -49,7 +49,7 @@ func TestObservers(t *testing.T) {
 	s := tracer.StartSpan("test", ext.RPCServerOption(nil))
 
 	forEachObs := func(f func(so *testSpanObserver)) {
-		observers := s.(*span).observer.(spanObserver).observers
+		observers := s.(*Span).observer.(spanObserver).observers
 		assert.Len(t, observers, 2)
 		for _, so := range observers {
 			f(so.(*testSpanObserver))

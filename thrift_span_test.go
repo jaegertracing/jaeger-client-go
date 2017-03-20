@@ -41,13 +41,13 @@ func TestThriftFirstInProcessSpan(t *testing.T) {
 		NewNullReporter())
 	defer closer.Close()
 
-	sp1 := tracer.StartSpan("s1").(*span)
-	sp2 := tracer.StartSpan("sp2", opentracing.ChildOf(sp1.Context())).(*span)
+	sp1 := tracer.StartSpan("s1").(*Span)
+	sp2 := tracer.StartSpan("sp2", opentracing.ChildOf(sp1.Context())).(*Span)
 	sp2.Finish()
 	sp1.Finish()
 
 	tests := []struct {
-		span     *span
+		span     *Span
 		wantTags bool
 	}{
 		{sp1, true},
@@ -75,7 +75,7 @@ func TestThriftForceSampled(t *testing.T) {
 		NewNullReporter())
 	defer closer.Close()
 
-	sp := tracer.StartSpan("s1").(*span)
+	sp := tracer.StartSpan("s1").(*Span)
 	ext.SamplingPriority.Set(sp, 1)
 	assert.True(t, sp.context.IsSampled())
 	assert.True(t, sp.context.IsDebug())
@@ -227,7 +227,7 @@ func TestThriftSpanLogs(t *testing.T) {
 		} else if len(test.fields) > 0 {
 			sp.LogFields(test.fields...)
 		}
-		thriftSpan := buildThriftSpan(sp.(*span))
+		thriftSpan := buildThriftSpan(sp.(*Span))
 		if test.disableSampling {
 			assert.Equal(t, 0, len(thriftSpan.Annotations), testName)
 			continue
@@ -255,7 +255,7 @@ func TestThriftLocalComponentSpan(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		sp := tracer.StartSpan("s1").(*span)
+		sp := tracer.StartSpan("s1").(*Span)
 		if test.addComponentTag {
 			ext.Component.Set(sp, "c1")
 		}

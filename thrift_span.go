@@ -40,7 +40,7 @@ const (
 )
 
 // buildThriftSpan builds thrift span based on internal span.
-func buildThriftSpan(span *span) *z.Span {
+func buildThriftSpan(span *Span) *z.Span {
 	parentID := int64(span.context.parentID)
 	var ptrParentID *int64
 	if parentID != 0 {
@@ -64,7 +64,7 @@ func buildThriftSpan(span *span) *z.Span {
 	return thriftSpan
 }
 
-func buildAnnotations(span *span, endpoint *z.Endpoint) []*z.Annotation {
+func buildAnnotations(span *Span, endpoint *z.Endpoint) []*z.Annotation {
 	// automatically adding 2 Zipkin CoreAnnotations
 	annotations := make([]*z.Annotation, 0, 2+len(span.logs))
 	var startLabel, endLabel string
@@ -102,7 +102,7 @@ func buildAnnotations(span *span, endpoint *z.Endpoint) []*z.Annotation {
 	return annotations
 }
 
-func buildBinaryAnnotations(span *span, endpoint *z.Endpoint) []*z.BinaryAnnotation {
+func buildBinaryAnnotations(span *Span, endpoint *z.Endpoint) []*z.BinaryAnnotation {
 	// automatically adding local component or server/client address tag, and client version
 	annotations := make([]*z.BinaryAnnotation, 0, 2+len(span.tags))
 

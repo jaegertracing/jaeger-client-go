@@ -79,7 +79,7 @@ func (s *tracerSuite) TestBeginRootSpan() {
 	ext.SpanKindRPCServer.Set(sp)
 	ext.PeerService.Set(sp, "peer-service")
 	s.NotNil(sp)
-	ss := sp.(*span)
+	ss := sp.(*Span)
 	s.NotNil(ss.tracer, "Tracer must be referenced from span")
 	s.Equal("get_name", ss.operationName)
 	s.Equal("server", ss.spanKind, "Span must be server-side")
@@ -104,7 +104,7 @@ func (s *tracerSuite) TestBeginRootSpan() {
 func (s *tracerSuite) TestStartRootSpanWithOptions() {
 	ts := time.Now()
 	sp := s.tracer.StartSpan("get_address", opentracing.StartTime(ts))
-	ss := sp.(*span)
+	ss := sp.(*Span)
 	s.Equal("get_address", ss.operationName)
 	s.Equal("", ss.spanKind, "Span must not be RPC")
 	s.Equal(ts, ss.startTime)
@@ -114,9 +114,9 @@ func (s *tracerSuite) TestStartChildSpan() {
 	s.metricsFactory.Clear()
 	sp1 := s.tracer.StartSpan("get_address")
 	sp2 := s.tracer.StartSpan("get_street", opentracing.ChildOf(sp1.Context()))
-	s.Equal(sp1.(*span).context.spanID, sp2.(*span).context.parentID)
+	s.Equal(sp1.(*Span).context.spanID, sp2.(*Span).context.parentID)
 	sp2.Finish()
-	s.NotNil(sp2.(*span).duration)
+	s.NotNil(sp2.(*Span).duration)
 	sp1.Finish()
 	testutils.AssertCounterMetrics(s.T(), s.metricsFactory, []testutils.ExpectedMetric{
 		{Name: "jaeger.spans", Tags: map[string]string{"group": "sampling", "sampled": "y"}, Value: 2},
@@ -140,8 +140,8 @@ func (s *tracerSuite) TestTraceStartedOrJoinedMetrics() {
 		sp1 := s.tracer.StartSpan("parent", ext.RPCServerOption(nil))
 		sp2 := s.tracer.StartSpan("child1", opentracing.ChildOf(sp1.Context()))
 		sp3 := s.tracer.StartSpan("child2", ext.RPCServerOption(sp2.Context()))
-		s.Equal(sp2.(*span).context.spanID, sp3.(*span).context.spanID)
-		s.Equal(sp2.(*span).context.parentID, sp3.(*span).context.parentID)
+		s.Equal(sp2.(*Span).context.spanID, sp3.(*Span).context.spanID)
+		s.Equal(sp2.(*Span).context.parentID, sp3.(*Span).context.parentID)
 		sp3.Finish()
 		sp2.Finish()
 		sp1.Finish()
@@ -161,18 +161,18 @@ func (s *tracerSuite) TestTraceStartedOrJoinedMetrics() {
 func (s *tracerSuite) TestSetOperationName() {
 	sp1 := s.tracer.StartSpan("get_address")
 	sp1.SetOperationName("get_street")
-	s.Equal("get_street", sp1.(*span).operationName)
+	s.Equal("get_street", sp1.(*Span).operationName)
 }
 
 func (s *tracerSuite) TestSamplerEffects() {
 	s.tracer.(*tracer).sampler = NewConstSampler(true)
 	sp := s.tracer.StartSpan("test")
-	flags := sp.(*span).context.flags
+	flags := sp.(*Span).context.flags
 	s.EqualValues(flagSampled, flags&flagSampled)
 
 	s.tracer.(*tracer).sampler = NewConstSampler(false)
 	sp = s.tracer.StartSpan("test")
-	flags = sp.(*span).context.flags
+	flags = sp.(*Span).context.flags
 	s.EqualValues(0, flags&flagSampled)
 }
 
@@ -183,7 +183,7 @@ func (s *tracerSuite) TestRandomIDNotZero() {
 		val++
 		return
 	}
-	sp := s.tracer.StartSpan("get_name").(*span)
+	sp := s.tracer.StartSpan("get_name").(*Span)
 	s.EqualValues(TraceID{Low: 1}, sp.context.traceID)
 
 	rng := utils.NewRand(0)

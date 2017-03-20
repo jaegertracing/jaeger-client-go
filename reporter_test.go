@@ -128,7 +128,7 @@ func (s *reporterSuite) TestClientSpanAnnotations() {
 	s.flushReporter()
 	s.Equal(2, len(s.collector.Spans()))
 	zSpan := s.collector.Spans()[0] // child span is reported first
-	s.EqualValues(zSpan.ID, sp2.(*span).context.spanID)
+	s.EqualValues(zSpan.ID, sp2.(*Span).context.spanID)
 	s.Equal(2, len(zSpan.Annotations), "expecting two annotations, cs and cr")
 	s.Equal(1, len(zSpan.BinaryAnnotations), "expecting one binary annotation sa")
 	s.NotNil(findAnnotation(zSpan, "cs"), "expecting cs annotation")
@@ -256,7 +256,7 @@ func (s *reporterSuite) TestMemoryReporterReport() {
 	sp := s.tracer.StartSpan("leela")
 	ext.PeerService.Set(sp, s.serviceName)
 	reporter := NewInMemoryReporter()
-	reporter.Report(sp.(*span))
+	reporter.Report(sp.(*Span))
 	s.Equal(1, reporter.SpansSubmitted(), "expected number of spans submitted")
 	reporter.Close()
 }

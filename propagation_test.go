@@ -77,9 +77,9 @@ func TestSpanPropagator(t *testing.T) {
 	otSpans := reporter.GetSpans()
 	require.Equal(t, len(tests)+1, len(otSpans), "unexpected number of spans reporter")
 
-	spans := make([]*span, len(otSpans))
+	spans := make([]*Span, len(otSpans))
 	for i, s := range otSpans {
-		spans[i] = s.(*span)
+		spans[i] = s.(*Span)
 	}
 
 	// The last span is the original one.
@@ -158,9 +158,9 @@ func TestBaggagePropagationHTTP(t *testing.T) {
 
 	sp1 := tracer.StartSpan("s1")
 	sp1.SetBaggageItem("Some_Key", "12345")
-	assert.Equal(t, "12345", sp1.BaggageItem("some-KEY"), "baggage: %+v", sp1.(*span).context.baggage)
+	assert.Equal(t, "12345", sp1.BaggageItem("some-KEY"), "baggage: %+v", sp1.(*Span).context.baggage)
 	sp1.SetBaggageItem("Some_Key", "98:765") // colon : should be escaped as %3A
-	assert.Equal(t, "98:765", sp1.BaggageItem("some-KEY"), "baggage: %+v", sp1.(*span).context.baggage)
+	assert.Equal(t, "98:765", sp1.BaggageItem("some-KEY"), "baggage: %+v", sp1.(*Span).context.baggage)
 
 	h := http.Header{}
 	h.Add("header1", "value1") // make sure this does not get unmarshalled as baggage
@@ -189,7 +189,7 @@ func TestJaegerBaggageHeader(t *testing.T) {
 	ctx, err := tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(h))
 	require.NoError(t, err)
 
-	sp := tracer.StartSpan("root", opentracing.ChildOf(ctx)).(*span)
+	sp := tracer.StartSpan("root", opentracing.ChildOf(ctx)).(*Span)
 
 	assert.Equal(t, "value1", sp.BaggageItem("key1"))
 	assert.Equal(t, "value two", sp.BaggageItem("key 2"))
@@ -238,7 +238,7 @@ func TestDebugCorrelationID(t *testing.T) {
 	require.NoError(t, err)
 	assert.EqualValues(t, 0, ctx.(SpanContext).parentID)
 	assert.EqualValues(t, "value1", ctx.(SpanContext).debugID)
-	sp := tracer.StartSpan("root", opentracing.ChildOf(ctx)).(*span)
+	sp := tracer.StartSpan("root", opentracing.ChildOf(ctx)).(*Span)
 	assert.EqualValues(t, 0, sp.context.parentID)
 	assert.True(t, sp.context.traceID.IsValid())
 	assert.True(t, sp.context.IsSampled())
