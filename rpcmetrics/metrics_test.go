@@ -56,7 +56,7 @@ func TestMetricsByEndpoint(t *testing.T) {
 	m5 := mbe.get("overflow2")
 
 	for _, m := range []*Metrics{m1, m2, m2a, m3, m4, m5} {
-		m.Success.Inc(1)
+		m.RequestCountSuccess.Inc(1)
 	}
 
 	testutils.AssertCounterMetrics(t, met,

@@ -92,10 +92,12 @@ func TestObserver(t *testing.T) {
 			name           string
 			tag            opentracing.Tag
 			opNameOverride string
+			err            bool
 		}{
 			{name: "local-span", tag: opentracing.Tag{Key: "x", Value: "y"}},
 			{name: "get-user", tag: ext.SpanKindRPCServer},
 			{name: "get-user", tag: ext.SpanKindRPCServer, opNameOverride: "get-user-override"},
+			{name: "get-user", tag: ext.SpanKindRPCServer, err: true},
 			{name: "get-user-client", tag: ext.SpanKindRPCClient},
 		}
 
@@ -108,6 +110,9 @@ func TestObserver(t *testing.T) {
 			if testCase.opNameOverride != "" {
 				span.SetOperationName(testCase.opNameOverride)
 			}
+			if testCase.err {
+				ext.Error.Set(span, true)
+			}
 			span.FinishWithOptions(finishOptions)
 		}
 
@@ -115,13 +120,15 @@ func TestObserver(t *testing.T) {
 			testTracer.metrics,
 			u.ExpectedMetric{Name: "requests", Tags: endpointTags("local-span", "error", "false"), Value: 0},
 			u.ExpectedMetric{Name: "requests", Tags: endpointTags("get-user", "error", "false"), Value: 1},
+			u.ExpectedMetric{Name: "requests", Tags: endpointTags("get-user", "error", "true"), Value: 1},
 			u.ExpectedMetric{Name: "requests", Tags: endpointTags("get-user-override", "error", "false"), Value: 1},
 			u.ExpectedMetric{Name: "requests", Tags: endpointTags("get-user-client", "error", "false"), Value: 0},
 		)
 		// TODO something wrong with string generation, .P99 should not be appended to the tag
 		// as a result we cannot use u.AssertGaugeMetrics
 		_, g := testTracer.metrics.Snapshot()
-		assert.EqualValues(t, 51, g["request_latency|endpoint=get-user.P99"])
+		assert.EqualValues(t, 51, g["request_latency|endpoint=get-user|error=false.P99"])
+		assert.EqualValues(t, 51, g["request_latency|endpoint=get-user|error=true.P99"])
 	})
 }
 

@@ -151,12 +151,14 @@ func (so *SpanObserver) OnFinish(options opentracing.FinishOptions) {
 	}
 
 	mets := so.metricsByEndpoint.get(so.operationName)
+	latency := options.FinishTime.Sub(so.startTime)
 	if so.err {
-		mets.Failures.Inc(1)
+		mets.RequestCountFailures.Inc(1)
+		mets.RequestLatencyFailures.Record(latency)
 	} else {
-		mets.Success.Inc(1)
+		mets.RequestCountSuccess.Inc(1)
+		mets.RequestLatencySuccess.Record(latency)
 	}
-	mets.RequestLatency.Record(options.FinishTime.Sub(so.startTime))
 	mets.recordHTTPStatusCode(so.httpStatusCode)
 }
 
