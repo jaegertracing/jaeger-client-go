@@ -43,8 +43,8 @@ type Metrics struct {
 	// Failures is a counter of the number of times any failure has been observed.
 	Failures metrics.Counter `metric:"failures"`
 
-	// RequestLatencyMs is a histogram of the latency of requests in milliseconds.
-	RequestLatencyMs metrics.Timer `metric:"request_latency_ms"`
+	// RequestLatency is a histogram of the latency of requests.
+	RequestLatency metrics.Timer `metric:"request_latency"`
 
 	// HTTPStatusCode2xx is a counter of the total number of requests with HTTP status code 200-299
 	HTTPStatusCode2xx metrics.Counter `metric:"http_status_code_2xx"`

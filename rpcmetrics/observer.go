@@ -157,7 +157,7 @@ func (so *SpanObserver) OnFinish(options opentracing.FinishOptions) {
 	} else {
 		mets.Success.Inc(1)
 	}
-	mets.RequestLatencyMs.Record(options.FinishTime.Sub(so.startTime))
+	mets.RequestLatency.Record(options.FinishTime.Sub(so.startTime))
 	mets.recordHTTPStatusCode(so.httpStatusCode)
 }
 
