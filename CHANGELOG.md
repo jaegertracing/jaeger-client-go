@@ -1,6 +1,13 @@
 Changes by Version
 ==================
 
+2.4.0 (2017-03-21)
+------------------
+
+- Remove "_ms" suffix from request latency metric name [#121](https://github.com/uber/jaeger-client-go/pull/121)
+- Rename all metrics to "request" and "http_request" and use tags for other dimensions [#121](https://github.com/uber/jaeger-client-go/pull/121)
+
+
 2.3.0 (2017-03-20)
 ------------------
 
