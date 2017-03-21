@@ -151,7 +151,6 @@ func (so *SpanObserver) OnFinish(options opentracing.FinishOptions) {
 	}
 
 	mets := so.metricsByEndpoint.get(so.operationName)
-	mets.Requests.Inc(1)
 	if so.err {
 		mets.Failures.Inc(1)
 	} else {

@@ -28,10 +28,17 @@ import (
 	"github.com/uber/jaeger-lib/metrics/testutils"
 )
 
-func endpointTags(endpoint string) map[string]string {
-	return map[string]string{
-		"endpoint": endpoint,
+// E.g. tags("key", "value", "key", "value")
+func tags(kv ...string) map[string]string {
+	m := make(map[string]string)
+	for i := 0; i < len(kv)-1; i += 2 {
+		m[kv[i]] = kv[i+1]
 	}
+	return m
+}
+
+func endpointTags(endpoint string, kv ...string) map[string]string {
+	return tags(append([]string{"endpoint", endpoint}, kv...)...)
 }
 
 func TestMetricsByEndpoint(t *testing.T) {
@@ -49,12 +56,12 @@ func TestMetricsByEndpoint(t *testing.T) {
 	m5 := mbe.get("overflow2")
 
 	for _, m := range []*Metrics{m1, m2, m2a, m3, m4, m5} {
-		m.Requests.Inc(1)
+		m.Success.Inc(1)
 	}
 
 	testutils.AssertCounterMetrics(t, met,
-		testutils.ExpectedMetric{Name: "requests", Tags: endpointTags("abc1"), Value: 3},
-		testutils.ExpectedMetric{Name: "requests", Tags: endpointTags("abc3"), Value: 1},
-		testutils.ExpectedMetric{Name: "requests", Tags: endpointTags("other"), Value: 2},
+		testutils.ExpectedMetric{Name: "requests", Tags: endpointTags("abc1", "error", "false"), Value: 3},
+		testutils.ExpectedMetric{Name: "requests", Tags: endpointTags("abc3", "error", "false"), Value: 1},
+		testutils.ExpectedMetric{Name: "requests", Tags: endpointTags("other", "error", "false"), Value: 2},
 	)
 }
