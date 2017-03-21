@@ -34,29 +34,26 @@ const (
 // Metrics is a collection of metrics for an endpoint describing
 // throughput, success, errors, and performance.
 type Metrics struct {
-	// Requests is a counter of the total number of successes + failures.
-	Requests metrics.Counter `metric:"requests"`
-
 	// Success is a counter of the total number of successes.
-	Success metrics.Counter `metric:"success"`
+	Success metrics.Counter `metric:"requests" tags:"error=false"`
 
 	// Failures is a counter of the number of times any failure has been observed.
-	Failures metrics.Counter `metric:"failures"`
+	Failures metrics.Counter `metric:"requests" tags:"error=true"`
 
-	// RequestLatencyMs is a histogram of the latency of requests in milliseconds.
-	RequestLatencyMs metrics.Timer `metric:"request_latency_ms"`
+	// RequestLatency is a histogram of the latency of requests.
+	RequestLatency metrics.Timer `metric:"request_latency"`
 
 	// HTTPStatusCode2xx is a counter of the total number of requests with HTTP status code 200-299
-	HTTPStatusCode2xx metrics.Counter `metric:"http_status_code_2xx"`
+	HTTPStatusCode2xx metrics.Counter `metric:"http_requests" tags:"status_code=2xx"`
 
 	// HTTPStatusCode3xx is a counter of the total number of requests with HTTP status code 300-399
-	HTTPStatusCode3xx metrics.Counter `metric:"http_status_code_3xx"`
+	HTTPStatusCode3xx metrics.Counter `metric:"http_requests" tags:"status_code=3xx"`
 
 	// HTTPStatusCode4xx is a counter of the total number of requests with HTTP status code 400-499
-	HTTPStatusCode4xx metrics.Counter `metric:"http_status_code_4xx"`
+	HTTPStatusCode4xx metrics.Counter `metric:"http_requests" tags:"status_code=4xx"`
 
 	// HTTPStatusCode5xx is a counter of the total number of requests with HTTP status code 500-599
-	HTTPStatusCode5xx metrics.Counter `metric:"http_status_code_5xx"`
+	HTTPStatusCode5xx metrics.Counter `metric:"http_requests" tags:"status_code=5xx"`
 }
 
 func (m *Metrics) recordHTTPStatusCode(statusCode uint16) {
