@@ -23,6 +23,7 @@ package jaeger
 import (
 	"errors"
 	"fmt"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -612,6 +613,7 @@ func TestAdaptiveSampler_lockRaceCondition(t *testing.T) {
 
 func isSampled(t *testing.T, remoteSampler *RemotelyControlledSampler, numOperations int, operationNamePrefix string) {
 	for i := 0; i < numOperations; i++ {
+		runtime.Gosched()
 		sampled, _ := remoteSampler.IsSampled(TraceID{}, fmt.Sprintf("%s%d", operationNamePrefix, i))
 		assert.True(t, sampled)
 	}
