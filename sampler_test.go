@@ -524,7 +524,7 @@ func (c *fakeSamplingManager) GetSamplingStrategy(serviceName string) (*sampling
 }
 
 func TestRemotelyControlledSampler_updateSamplerFromAdaptiveSampler(t *testing.T) {
-	agent, remoteSampler, _ := initAgent(t)
+	agent, remoteSampler, metricsFactory := initAgent(t)
 	defer agent.Close()
 	remoteSampler.Close() // stop timer-based updates, we want to call them manually
 
@@ -566,8 +566,18 @@ func TestRemotelyControlledSampler_updateSamplerFromAdaptiveSampler(t *testing.T
 	agent.AddSamplingStrategy("client app", &sampling.SamplingStrategyResponse{OperationSampling: strategies})
 	remoteSampler.updateSampler()
 
-	_, ok = remoteSampler.sampler.(*adaptiveSampler)
-	require.True(t, ok)
+	mTestutils.AssertCounterMetrics(t, metricsFactory,
+		mTestutils.ExpectedMetric{
+			Name:  "jaeger.sampler",
+			Tags:  map[string]string{"state": "retrieved"},
+			Value: 3,
+		},
+		mTestutils.ExpectedMetric{
+			Name:  "jaeger.sampler",
+			Tags:  map[string]string{"state": "updated"},
+			Value: 3,
+		},
+	)
 }
 
 func TestRemotelyControlledSampler_updateRateLimitingOrProbabilisticSampler(t *testing.T) {
