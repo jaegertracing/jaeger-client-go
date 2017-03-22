@@ -370,105 +370,107 @@ func TestUpdateSampler(t *testing.T) {
 		isErr              bool
 	}{
 		{
-			map[string]float64{testOperationName: 1.1},
-			testDefaultSamplingProbability,
-			"|phase=updating|state=failure",
-			1,
-			true,
+			probabilities:      map[string]float64{testOperationName: 1.1},
+			defaultProbability: testDefaultSamplingProbability,
+			statTags:           "|phase=updating|state=failure",
+			statCount:          1,
+			isErr:              true,
 		},
 		{
-			map[string]float64{testOperationName: testDefaultSamplingProbability},
-			testDefaultSamplingProbability,
-			"|state=updated",
-			1,
-			false,
+			probabilities:      map[string]float64{testOperationName: testDefaultSamplingProbability},
+			defaultProbability: testDefaultSamplingProbability,
+			statTags:           "|state=updated",
+			statCount:          1,
+			isErr:              false,
 		},
 		{
-			map[string]float64{
+			probabilities: map[string]float64{
 				testOperationName:          testDefaultSamplingProbability,
 				testFirstTimeOperationName: testDefaultSamplingProbability,
 			},
-			testDefaultSamplingProbability,
-			"|state=updated",
-			1,
-			false,
+			defaultProbability: testDefaultSamplingProbability,
+			statTags:           "|state=updated",
+			statCount:          1,
+			isErr:              false,
 		},
 		{
-			map[string]float64{testOperationName: 1.1},
-			testDefaultSamplingProbability,
-			"|phase=updating|state=failure",
-			1,
-			true,
+			probabilities:      map[string]float64{testOperationName: 1.1},
+			defaultProbability: testDefaultSamplingProbability,
+			statTags:           "|phase=updating|state=failure",
+			statCount:          1,
+			isErr:              true,
 		},
 		{
-			map[string]float64{"new op": 1.1},
-			testDefaultSamplingProbability,
-			"|phase=updating|state=failure",
-			1,
-			true,
+			probabilities:      map[string]float64{"new op": 1.1},
+			defaultProbability: testDefaultSamplingProbability,
+			statTags:           "|phase=updating|state=failure",
+			statCount:          1,
+			isErr:              true,
 		},
 		{
-			map[string]float64{testOperationName: testDefaultSamplingProbability},
-			0.5,
-			"|state=updated",
-			1,
-			false,
+			probabilities:      map[string]float64{testOperationName: testDefaultSamplingProbability},
+			defaultProbability: 0.5,
+			statTags:           "|state=updated",
+			statCount:          1,
+			isErr:              false,
 		},
 		{
-			map[string]float64{testOperationName: testDefaultSamplingProbability},
-			1.1,
-			"|phase=updating|state=failure",
-			1,
-			true,
+			probabilities:      map[string]float64{testOperationName: testDefaultSamplingProbability},
+			defaultProbability: 1.1,
+			statTags:           "|phase=updating|state=failure",
+			statCount:          1,
+			isErr:              true,
 		},
 	}
 
-	for _, test := range tests {
-		agent, sampler, metricsFactory := initAgent(t)
+	for i, test := range tests {
+		t.Run(fmt.Sprintf("test_%d", i), func(t *testing.T) {
+			agent, sampler, metricsFactory := initAgent(t)
 
-		initSampler, ok := sampler.sampler.(*ProbabilisticSampler)
-		assert.True(t, ok)
+			initSampler, ok := sampler.sampler.(*ProbabilisticSampler)
+			assert.True(t, ok)
 
-		res := &sampling.SamplingStrategyResponse{
-			StrategyType: sampling.SamplingStrategyType_PROBABILISTIC,
-			OperationSampling: &sampling.PerOperationSamplingStrategies{
-				DefaultSamplingProbability:       test.defaultProbability,
-				DefaultLowerBoundTracesPerSecond: 0.001,
-			},
-		}
-		for opName, prob := range test.probabilities {
-			res.OperationSampling.PerOperationStrategies = append(res.OperationSampling.PerOperationStrategies,
-				&sampling.OperationSamplingStrategy{
-					Operation: opName,
-					ProbabilisticSampling: &sampling.ProbabilisticSamplingStrategy{
-						SamplingRate: prob,
+			res := &sampling.SamplingStrategyResponse{
+				StrategyType: sampling.SamplingStrategyType_PROBABILISTIC,
+				OperationSampling: &sampling.PerOperationSamplingStrategies{
+					DefaultSamplingProbability:       test.defaultProbability,
+					DefaultLowerBoundTracesPerSecond: 0.001,
+				},
+			}
+			for opName, prob := range test.probabilities {
+				res.OperationSampling.PerOperationStrategies = append(res.OperationSampling.PerOperationStrategies,
+					&sampling.OperationSamplingStrategy{
+						Operation: opName,
+						ProbabilisticSampling: &sampling.ProbabilisticSamplingStrategy{
+							SamplingRate: prob,
+						},
 					},
+				)
+			}
+
+			agent.AddSamplingStrategy("client app", res)
+			sampler.updateSampler()
+
+			mTestutils.AssertCounterMetrics(t, metricsFactory,
+				mTestutils.ExpectedMetric{
+					Name: "jaeger.sampler" + test.statTags, Value: test.statCount,
 				},
 			)
-		}
+			if test.isErr {
+				return
+			}
 
-		agent.AddSamplingStrategy("client app", res)
-		sampler.updateSampler()
+			s, ok := sampler.sampler.(*adaptiveSampler)
+			assert.True(t, ok)
+			assert.NotEqual(t, initSampler, sampler.sampler, "Sampler should have been updated")
+			assert.Equal(t, test.defaultProbability, s.defaultSampler.SamplingRate())
 
-		mTestutils.AssertCounterMetrics(t, metricsFactory,
-			mTestutils.ExpectedMetric{
-				Name: "jaeger.sampler" + test.statTags, Value: test.statCount,
-			},
-		)
-		if test.isErr {
-			continue
-		}
-
-		s, ok := sampler.sampler.(*adaptiveSampler)
-		assert.True(t, ok)
-		assert.NotEqual(t, initSampler, sampler.sampler, "Sampler should have been updated")
-		assert.Equal(t, test.defaultProbability, s.defaultSampler.SamplingRate())
-
-		sampled, tags := sampler.IsSampled(TraceID{Low: testMaxID + 10}, testOperationName)
-		assert.False(t, sampled)
-		sampled, tags = sampler.IsSampled(TraceID{Low: testMaxID - 10}, testOperationName)
-		assert.True(t, sampled)
-		assert.Equal(t, testProbabilisticExpectedTags, tags)
+			sampled, tags := sampler.IsSampled(TraceID{Low: testMaxID + 10}, testOperationName)
+			assert.False(t, sampled)
+			sampled, tags = sampler.IsSampled(TraceID{Low: testMaxID - 10}, testOperationName)
+			assert.True(t, sampled)
+			assert.Equal(t, testProbabilisticExpectedTags, tags)
+		})
 	}
 }
 
