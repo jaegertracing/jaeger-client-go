@@ -311,14 +311,18 @@ func NewAdaptiveSampler(strategies *sampling.PerOperationSamplingStrategies, max
 }
 
 func (s *adaptiveSampler) IsSampled(id TraceID, operation string) (bool, []Tag) {
-	samplerExists, sampled, tags := s.isSampledWithReadLock(id, operation)
-	if samplerExists {
-		return sampled, tags
+	s.RLock()
+	sampler, ok := s.samplers[operation]
+	if ok {
+		defer s.RUnlock()
+		return sampler.IsSampled(id, operation)
 	}
+	s.RUnlock()
 	s.Lock()
 	defer s.Unlock()
+
 	// Check if sampler has already been created
-	sampler, ok := s.samplers[operation]
+	sampler, ok = s.samplers[operation]
 	if ok {
 		return sampler.IsSampled(id, operation)
 	}
@@ -332,17 +336,6 @@ func (s *adaptiveSampler) IsSampled(id TraceID, operation string) (bool, []Tag) 
 	}
 	s.samplers[operation] = newSampler
 	return newSampler.IsSampled(id, operation)
-}
-
-func (s *adaptiveSampler) isSampledWithReadLock(id TraceID, operation string) (samplerExists bool, sampled bool, tags []Tag) {
-	s.RLock()
-	defer s.RUnlock()
-	sampler, ok := s.samplers[operation]
-	if ok {
-		sampled, tags = sampler.IsSampled(id, operation)
-		return true, sampled, tags
-	}
-	return false, false, nil
 }
 
 func (s *adaptiveSampler) Close() {
