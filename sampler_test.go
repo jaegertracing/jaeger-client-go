@@ -22,6 +22,9 @@ package jaeger
 
 import (
 	"errors"
+	"fmt"
+	"runtime"
+	"sync"
 	"testing"
 	"time"
 
@@ -574,4 +577,44 @@ func TestRemotelyControlledSampler_updateSamplerFromAdaptiveSampler(t *testing.T
 	// Sampler should have been updated to ratelimiting
 	_, ok = remoteSampler.sampler.(*rateLimitingSampler)
 	require.True(t, ok)
+}
+
+func TestAdaptiveSampler_lockRaceCondition(t *testing.T) {
+	agent, remoteSampler, _ := initAgent(t)
+	defer agent.Close()
+	remoteSampler.Close() // stop timer-based updates, we want to call them manually
+
+	numOperations := 1000
+	adaptiveSampler, err := NewAdaptiveSampler(
+		&sampling.PerOperationSamplingStrategies{
+			DefaultSamplingProbability: 1,
+		},
+		2000,
+	)
+	require.NoError(t, err)
+
+	// Overwrite the sampler with an adaptive sampler
+	remoteSampler.sampler = adaptiveSampler
+
+	var wg sync.WaitGroup
+	defer wg.Wait()
+	wg.Add(2)
+
+	// Start 2 go routines that will simulate simultaneous calls to IsSampled
+	go func() {
+		defer wg.Done()
+		isSampled(t, remoteSampler, numOperations, "a")
+	}()
+	go func() {
+		defer wg.Done()
+		isSampled(t, remoteSampler, numOperations, "b")
+	}()
+}
+
+func isSampled(t *testing.T, remoteSampler *RemotelyControlledSampler, numOperations int, operationNamePrefix string) {
+	for i := 0; i < numOperations; i++ {
+		runtime.Gosched()
+		sampled, _ := remoteSampler.IsSampled(TraceID{}, fmt.Sprintf("%s%d", operationNamePrefix, i))
+		assert.True(t, sampled)
+	}
 }

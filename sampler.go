@@ -275,6 +275,8 @@ func (s *GuaranteedThroughputProbabilisticSampler) update(lowerBound, samplingRa
 // -----------------------
 
 type adaptiveSampler struct {
+	sync.RWMutex
+
 	samplers       map[string]*GuaranteedThroughputProbabilisticSampler
 	defaultSampler *ProbabilisticSampler
 	lowerBound     float64
@@ -309,23 +311,36 @@ func NewAdaptiveSampler(strategies *sampling.PerOperationSamplingStrategies, max
 }
 
 func (s *adaptiveSampler) IsSampled(id TraceID, operation string) (bool, []Tag) {
+	s.RLock()
 	sampler, ok := s.samplers[operation]
-	if !ok {
-		if len(s.samplers) >= s.maxOperations {
-			// Store only up to maxOperations of unique ops.
-			return s.defaultSampler.IsSampled(id, operation)
-		}
-		sampler, err := NewGuaranteedThroughputProbabilisticSampler(s.lowerBound, s.defaultSampler.SamplingRate())
-		if err != nil {
-			return false, nil
-		}
-		s.samplers[operation] = sampler
+	if ok {
+		defer s.RUnlock()
 		return sampler.IsSampled(id, operation)
 	}
-	return sampler.IsSampled(id, operation)
+	s.RUnlock()
+	s.Lock()
+	defer s.Unlock()
+
+	// Check if sampler has already been created
+	sampler, ok = s.samplers[operation]
+	if ok {
+		return sampler.IsSampled(id, operation)
+	}
+	// Store only up to maxOperations of unique ops.
+	if len(s.samplers) >= s.maxOperations {
+		return s.defaultSampler.IsSampled(id, operation)
+	}
+	newSampler, err := NewGuaranteedThroughputProbabilisticSampler(s.lowerBound, s.defaultSampler.SamplingRate())
+	if err != nil {
+		return false, nil
+	}
+	s.samplers[operation] = newSampler
+	return newSampler.IsSampled(id, operation)
 }
 
 func (s *adaptiveSampler) Close() {
+	s.Lock()
+	defer s.Unlock()
 	for _, sampler := range s.samplers {
 		sampler.Close()
 	}
@@ -342,6 +357,8 @@ func (s *adaptiveSampler) Equal(other Sampler) bool {
 
 // this function should only be called while holding a Write lock
 func (s *adaptiveSampler) update(strategies *sampling.PerOperationSamplingStrategies) error {
+	s.Lock()
+	defer s.Unlock()
 	for _, strategy := range strategies.PerOperationStrategies {
 		operation := strategy.Operation
 		samplingRate := strategy.ProbabilisticSampling.SamplingRate
