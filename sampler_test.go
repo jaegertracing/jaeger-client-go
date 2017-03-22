@@ -273,11 +273,9 @@ func TestAdaptiveSamplerUpdate(t *testing.T) {
 		PerOperationStrategies:           newSamplingRates,
 	}
 
-	s, err = NewAdaptiveSampler(strategies, testDefaultMaxOperations)
+	err = sampler.update(strategies)
 	assert.NoError(t, err)
 
-	sampler, ok = s.(*adaptiveSampler)
-	assert.True(t, ok)
 	assert.Equal(t, newLowerBound, sampler.lowerBound)
 	assert.Equal(t, newDefaultSamplingProbability, sampler.defaultSampler.SamplingRate())
 	assert.Len(t, sampler.samplers, 2)
@@ -559,6 +557,16 @@ func TestRemotelyControlledSampler_updateSamplerFromAdaptiveSampler(t *testing.T
 
 	// Sampler should have been updated to ratelimiting
 	_, ok = remoteSampler.sampler.(*rateLimitingSampler)
+	require.True(t, ok)
+
+	// Overwrite the sampler with an adaptive sampler
+	remoteSampler.sampler = adaptiveSampler
+
+	// Update existing adaptive sampler
+	agent.AddSamplingStrategy("client app", &sampling.SamplingStrategyResponse{OperationSampling: strategies})
+	remoteSampler.updateSampler()
+
+	_, ok = remoteSampler.sampler.(*adaptiveSampler)
 	require.True(t, ok)
 }
 
