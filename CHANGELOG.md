@@ -4,7 +4,7 @@ Changes by Version
 2.4.1 (unreleased)
 ------------------
 
-- Nothing yet
+- Split request latency metric by success/failure [#123](https://github.com/uber/jaeger-client-go/pull/123)
 
 
 2.4.0 (2017-03-21)
