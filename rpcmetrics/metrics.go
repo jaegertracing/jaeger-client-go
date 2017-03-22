@@ -34,14 +34,17 @@ const (
 // Metrics is a collection of metrics for an endpoint describing
 // throughput, success, errors, and performance.
 type Metrics struct {
-	// Success is a counter of the total number of successes.
-	Success metrics.Counter `metric:"requests" tags:"error=false"`
+	// RequestCountSuccess is a counter of the total number of successes.
+	RequestCountSuccess metrics.Counter `metric:"requests" tags:"error=false"`
 
-	// Failures is a counter of the number of times any failure has been observed.
-	Failures metrics.Counter `metric:"requests" tags:"error=true"`
+	// RequestCountFailures is a counter of the number of times any failure has been observed.
+	RequestCountFailures metrics.Counter `metric:"requests" tags:"error=true"`
 
-	// RequestLatency is a histogram of the latency of requests.
-	RequestLatency metrics.Timer `metric:"request_latency"`
+	// RequestLatencySuccess is a latency histogram of succesful requests.
+	RequestLatencySuccess metrics.Timer `metric:"request_latency" tags:"error=false"`
+
+	// RequestLatencyFailures is a latency histogram of failed requests.
+	RequestLatencyFailures metrics.Timer `metric:"request_latency" tags:"error=true"`
 
 	// HTTPStatusCode2xx is a counter of the total number of requests with HTTP status code 200-299
 	HTTPStatusCode2xx metrics.Counter `metric:"http_requests" tags:"status_code=2xx"`
