@@ -30,10 +30,13 @@ import (
 	"github.com/uber/jaeger-lib/metrics"
 	mTestutils "github.com/uber/jaeger-lib/metrics/testutils"
 
+	"fmt"
 	"github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-client-go/testutils"
 	"github.com/uber/jaeger-client-go/thrift-gen/sampling"
 	"github.com/uber/jaeger-client-go/utils"
+	"math/rand"
+	"sync"
 )
 
 const (
@@ -574,4 +577,107 @@ func TestRemotelyControlledSampler_updateSamplerFromAdaptiveSampler(t *testing.T
 	// Sampler should have been updated to ratelimiting
 	_, ok = remoteSampler.sampler.(*rateLimitingSampler)
 	require.True(t, ok)
+}
+
+func TestAdaptiveSampler_lockRaceCondition(t *testing.T) {
+	agent, remoteSampler, _ := initAgent(t)
+	defer agent.Close()
+	remoteSampler.Close() // stop timer-based updates, we want to call them manually
+
+	numOperations := 100
+	strategiesA := generatePerOperationStrategies(numOperations, "a")
+	strategiesB := generatePerOperationStrategies(numOperations, "b")
+	adaptiveSampler, err := NewAdaptiveSampler(strategiesA, 200)
+	require.NoError(t, err)
+
+	// Overwrite the sampler with an adaptive sampler
+	remoteSampler.sampler = adaptiveSampler
+
+	var wg sync.WaitGroup
+	defer wg.Wait()
+	wg.Add(3)
+
+	exit1 := make(chan struct{})
+	exit2 := make(chan struct{})
+	exit3 := make(chan struct{})
+
+	go func() {
+		defer wg.Done()
+		isSampled(t, exit1, remoteSampler, numOperations, "a")
+	}()
+	go func() {
+		defer wg.Done()
+		isSampled(t, exit2, remoteSampler, numOperations, "b")
+	}()
+	go func() {
+		defer wg.Done()
+		updateSampler(
+			exit3,
+			remoteSampler,
+			agent,
+			&sampling.SamplingStrategyResponse{OperationSampling: strategiesA},
+			&sampling.SamplingStrategyResponse{OperationSampling: strategiesB},
+		)
+	}()
+	time.Sleep(10 * time.Second)
+
+	close(exit1)
+	close(exit2)
+	close(exit3)
+}
+
+func isSampled(t *testing.T, exit chan struct{}, remoteSampler *RemotelyControlledSampler, numOperations int, operationNamePrefix string) {
+	for {
+		select {
+		case <-exit:
+			return
+		default:
+			sampled, _ := remoteSampler.IsSampled(TraceID{}, generateRandomOperationName(numOperations, operationNamePrefix))
+			assert.True(t, sampled)
+			time.Sleep(10 * time.Microsecond)
+		}
+	}
+}
+
+func updateSampler(
+	exit chan struct{},
+	remoteSampler *RemotelyControlledSampler,
+	agent *testutils.MockAgent,
+	strategies ...*sampling.SamplingStrategyResponse,
+) {
+	strategyIdx := 0
+	for {
+		select {
+		case <-exit:
+			return
+		default:
+			agent.AddSamplingStrategy("client app", strategies[strategyIdx])
+			// alternate between strategies
+			strategyIdx = (strategyIdx + 1) % len(strategies)
+			remoteSampler.updateSampler()
+			time.Sleep(100 * time.Microsecond)
+		}
+	}
+}
+
+func generateRandomOperationName(numOperations int, operationNamePrefix string) string {
+	return fmt.Sprintf("%s%d", operationNamePrefix, rand.Intn(numOperations))
+}
+
+func generatePerOperationStrategies(numOperations int, operationNamePrefix string) *sampling.PerOperationSamplingStrategies {
+	perOperationStrategies := make([]*sampling.OperationSamplingStrategy, 0, numOperations)
+	for i := 0; i < numOperations; i++ {
+		perOperationStrategies = append(perOperationStrategies,
+			&sampling.OperationSamplingStrategy{
+				Operation: fmt.Sprintf("%s%d", operationNamePrefix, i),
+				ProbabilisticSampling: &sampling.ProbabilisticSamplingStrategy{
+					SamplingRate: 1,
+				},
+			},
+		)
+	}
+	return &sampling.PerOperationSamplingStrategies{
+		DefaultSamplingProbability: 1,
+		PerOperationStrategies:     perOperationStrategies,
+	}
 }
