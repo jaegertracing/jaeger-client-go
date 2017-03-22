@@ -355,7 +355,6 @@ func (s *adaptiveSampler) Equal(other Sampler) bool {
 	return false
 }
 
-// NB: this function should only be called while holding a Write lock
 func (s *adaptiveSampler) update(strategies *sampling.PerOperationSamplingStrategies) error {
 	s.Lock()
 	defer s.Unlock()
