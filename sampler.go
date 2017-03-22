@@ -322,6 +322,10 @@ func (s *adaptiveSampler) IsSampled(id TraceID, operation string) (bool, []Tag) 
 	if ok {
 		return sampler.IsSampled(id, operation)
 	}
+	// Store only up to maxOperations of unique ops.
+	if len(s.samplers) >= s.maxOperations {
+		return s.defaultSampler.IsSampled(id, operation)
+	}
 	newSampler, err := NewGuaranteedThroughputProbabilisticSampler(s.lowerBound, s.defaultSampler.SamplingRate())
 	if err != nil {
 		return false, nil
@@ -336,11 +340,6 @@ func (s *adaptiveSampler) isSampledWithReadLock(id TraceID, operation string) (s
 	sampler, ok := s.samplers[operation]
 	if ok {
 		sampled, tags = sampler.IsSampled(id, operation)
-		return true, sampled, tags
-	}
-	// Store only up to maxOperations of unique ops.
-	if len(s.samplers) >= s.maxOperations {
-		sampled, tags = s.defaultSampler.IsSampled(id, operation)
 		return true, sampled, tags
 	}
 	return false, false, nil

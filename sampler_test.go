@@ -22,6 +22,9 @@ package jaeger
 
 import (
 	"errors"
+	"fmt"
+	"math/rand"
+	"sync"
 	"testing"
 	"time"
 
@@ -30,13 +33,10 @@ import (
 	"github.com/uber/jaeger-lib/metrics"
 	mTestutils "github.com/uber/jaeger-lib/metrics/testutils"
 
-	"fmt"
 	"github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-client-go/testutils"
 	"github.com/uber/jaeger-client-go/thrift-gen/sampling"
 	"github.com/uber/jaeger-client-go/utils"
-	"math/rand"
-	"sync"
 )
 
 const (
