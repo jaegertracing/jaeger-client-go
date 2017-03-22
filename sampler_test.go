@@ -357,6 +357,8 @@ func TestRemotelyControlledSampler(t *testing.T) {
 	_, ok = remoteSampler.sampler.(*ProbabilisticSampler)
 	assert.True(t, ok)
 	assert.NotEqual(t, initSampler, remoteSampler.sampler, "Sampler should have been updated from timer")
+
+	assert.True(t, remoteSampler.Equal(remoteSampler))
 }
 
 func TestUpdateSampler(t *testing.T) {
