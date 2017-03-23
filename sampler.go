@@ -438,12 +438,13 @@ func (s *RemotelyControlledSampler) IsSampled(id TraceID, operation string) (boo
 }
 
 // Close implements Close() of Sampler.
-func (s *RemotelyControlledSampler) Close() {
+func (s *RemotelyControlledSampler) Close() error {
 	s.RLock()
 	s.timer.Stop()
 	s.RUnlock()
 
 	s.pollStopped.Wait()
+	return nil
 }
 
 // Equal implements Equal() of Sampler.

@@ -255,6 +255,11 @@ func TestEmptySpanContextAsParent(t *testing.T) {
 	assert.True(t, ctx.IsValid())
 }
 
+func TestTracerClose(t *testing.T) {
+	_, tc := NewTracer("x", NewRemotelyControlledSampler("svc"), NewNullReporter())
+	tc.Close()
+}
+
 type dummyPropagator struct{}
 type dummyCarrier struct {
 	ok bool

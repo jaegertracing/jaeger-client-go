@@ -265,7 +265,7 @@ func (t *tracer) Extract(
 func (t *tracer) Close() error {
 	t.reporter.Close()
 	if sampler, ok := t.sampler.(io.Closer); ok {
-		sampler.Close()
+		return sampler.Close()
 	}
 	return nil
 }
