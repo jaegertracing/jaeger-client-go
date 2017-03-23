@@ -76,9 +76,6 @@ type Metrics struct {
 
 	// Number of times the Sampler failed to retrieve sampling strategy
 	SamplerQueryFailure metrics.Counter `metric:"sampler" tags:"state=failure,phase=query"`
-
-	// Number of times the Sampler failed to parse retrieved sampling strategy
-	SamplerParsingFailure metrics.Counter `metric:"sampler" tags:"state=failure,phase=parsing"`
 }
 
 // NewMetrics creates a new Metrics struct and initializes it.

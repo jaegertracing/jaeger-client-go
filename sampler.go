@@ -355,7 +355,6 @@ func (s *adaptiveSampler) Equal(other Sampler) bool {
 	return false
 }
 
-// this function should only be called while holding a Write lock
 func (s *adaptiveSampler) update(strategies *sampling.PerOperationSamplingStrategies) error {
 	s.Lock()
 	defer s.Unlock()
@@ -506,60 +505,57 @@ func (s *RemotelyControlledSampler) pollController() {
 }
 
 func (s *RemotelyControlledSampler) updateSampler() {
-	if res, err := s.manager.GetSamplingStrategy(s.serviceName); err == nil {
-		if sampler, strategies, err := s.extractSampler(res); err == nil {
-			s.metrics.SamplerRetrieved.Inc(1)
-			// NB: adaptive sampler always returns false from Equal()
-			if !s.sampler.Equal(sampler) {
-				s.lockAndUpdateSampler(sampler, strategies)
-			}
-		} else {
-			s.metrics.SamplerParsingFailure.Inc(1)
-			s.logger.Infof("Unable to handle sampling strategy response %+v. Got error: %v", res, err)
-		}
-	} else {
+	res, err := s.manager.GetSamplingStrategy(s.serviceName)
+	if err != nil {
 		s.metrics.SamplerQueryFailure.Inc(1)
+		return
 	}
-}
-
-func (s *RemotelyControlledSampler) lockAndUpdateSampler(
-	updateSampler Sampler,
-	strategies *sampling.PerOperationSamplingStrategies,
-) {
 	s.Lock()
 	defer s.Unlock()
-	if adaptiveSampler, ok := s.sampler.(*adaptiveSampler); ok && strategies != nil {
-		if err := adaptiveSampler.update(strategies); err != nil {
-			s.metrics.SamplerUpdateFailure.Inc(1)
-			return
-		}
+
+	s.metrics.SamplerRetrieved.Inc(1)
+	if strategies := res.GetOperationSampling(); strategies != nil {
+		err = s.updateAdaptiveSampler(strategies)
+	} else {
+		err = s.updateRateLimitingOrProbabilisticSampler(res)
 	}
-	s.sampler = updateSampler
+	if err != nil {
+		s.metrics.SamplerUpdateFailure.Inc(1)
+		s.logger.Infof("Unable to handle sampling strategy response %+v. Got error: %v", res, err)
+		return
+	}
 	s.metrics.SamplerUpdated.Inc(1)
 }
 
-func (s *RemotelyControlledSampler) extractSampler(
-	res *sampling.SamplingStrategyResponse,
-) (Sampler, *sampling.PerOperationSamplingStrategies, error) {
-	if strategies := res.GetOperationSampling(); strategies != nil {
-		if sampler, ok := s.sampler.(*adaptiveSampler); ok {
-			return sampler, strategies, nil
-		}
-		sampler, err := NewAdaptiveSampler(strategies, s.maxOperations)
-		if err != nil {
-			return nil, nil, err
-		}
-		return sampler, strategies, nil
+// NB: this function should only be called while holding a Write lock
+func (s *RemotelyControlledSampler) updateAdaptiveSampler(strategies *sampling.PerOperationSamplingStrategies) error {
+	if adaptiveSampler, ok := s.sampler.(*adaptiveSampler); ok {
+		return adaptiveSampler.update(strategies)
 	}
+	sampler, err := NewAdaptiveSampler(strategies, s.maxOperations)
+	if err != nil {
+		return err
+	}
+	s.sampler = sampler
+	return nil
+}
+
+// NB: this function should only be called while holding a Write lock
+func (s *RemotelyControlledSampler) updateRateLimitingOrProbabilisticSampler(res *sampling.SamplingStrategyResponse) error {
+	var newSampler Sampler
 	if probabilistic := res.GetProbabilisticSampling(); probabilistic != nil {
-		sampler, err := NewProbabilisticSampler(probabilistic.SamplingRate)
+		var err error
+		newSampler, err = NewProbabilisticSampler(probabilistic.SamplingRate)
 		if err != nil {
-			return nil, nil, err
+			return err
 		}
-		return sampler, nil, nil
+	} else if rateLimiting := res.GetRateLimitingSampling(); rateLimiting != nil {
+		newSampler = NewRateLimitingSampler(float64(rateLimiting.MaxTracesPerSecond))
+	} else {
+		return fmt.Errorf("Unsupported sampling strategy type %v", res.GetStrategyType())
 	}
-	if rateLimiting := res.GetRateLimitingSampling(); rateLimiting != nil {
-		return NewRateLimitingSampler(float64(rateLimiting.MaxTracesPerSecond)), nil, nil
+	if !s.sampler.Equal(newSampler) {
+		s.sampler = newSampler
 	}
-	return nil, nil, fmt.Errorf("Unsupported sampling strategy type %v", res.GetStrategyType())
+	return nil
 }
