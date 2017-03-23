@@ -426,6 +426,7 @@ func TestUpdateSampler(t *testing.T) {
 	for i, test := range tests {
 		t.Run(fmt.Sprintf("test_%d", i), func(t *testing.T) {
 			agent, sampler, metricsFactory := initAgent(t)
+			defer agent.Close()
 
 			initSampler, ok := sampler.sampler.(*ProbabilisticSampler)
 			assert.True(t, ok)
@@ -537,7 +538,6 @@ func TestRemotelyControlledSampler_updateSamplerFromAdaptiveSampler(t *testing.T
 
 	adaptiveSampler, err := NewAdaptiveSampler(strategies, testDefaultMaxOperations)
 	require.NoError(t, err)
-	defer adaptiveSampler.Close()
 
 	// Overwrite the sampler with an adaptive sampler
 	remoteSampler.sampler = adaptiveSampler
