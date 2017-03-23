@@ -264,7 +264,9 @@ func (t *tracer) Extract(
 // Close releases all resources used by the Tracer and flushes any remaining buffered spans.
 func (t *tracer) Close() error {
 	t.reporter.Close()
-	t.sampler.Close()
+	if sampler, ok := t.sampler.(*RemotelyControlledSampler); ok {
+		sampler.Close()
+	}
 	return nil
 }
 

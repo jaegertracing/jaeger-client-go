@@ -46,10 +46,6 @@ type Sampler interface {
 	// sampler.type and sampler.param, similar to those used in the Configuration
 	IsSampled(id TraceID, operation string) (sampled bool, tags []Tag)
 
-	// Close does a clean shutdown of the sampler, stopping any background
-	// go-routines it may have started.
-	Close()
-
 	// Equal checks if the `other` sampler is functionally equivalent
 	// to this sampler.
 	// TODO remove this function. This function is used to determine if 2 samplers are equivalent
@@ -78,11 +74,6 @@ func NewConstSampler(sample bool) Sampler {
 // IsSampled implements IsSampled() of Sampler.
 func (s *ConstSampler) IsSampled(id TraceID, operation string) (bool, []Tag) {
 	return s.Decision, s.tags
-}
-
-// Close implements Close() of Sampler.
-func (s *ConstSampler) Close() {
-	// nothing to do
 }
 
 // Equal implements Equal() of Sampler.
@@ -135,11 +126,6 @@ func (s *ProbabilisticSampler) IsSampled(id TraceID, operation string) (bool, []
 	return s.samplingBoundary >= id.Low, s.tags
 }
 
-// Close implements Close() of Sampler.
-func (s *ProbabilisticSampler) Close() {
-	// nothing to do
-}
-
 // Equal implements Equal() of Sampler.
 func (s *ProbabilisticSampler) Equal(other Sampler) bool {
 	if o, ok := other.(*ProbabilisticSampler); ok {
@@ -175,10 +161,6 @@ func NewRateLimitingSampler(maxTracesPerSecond float64) Sampler {
 // IsSampled implements IsSampled() of Sampler.
 func (s *rateLimitingSampler) IsSampled(id TraceID, operation string) (bool, []Tag) {
 	return s.rateLimiter.CheckCredit(1.0), s.tags
-}
-
-func (s *rateLimitingSampler) Close() {
-	// nothing to do
 }
 
 func (s *rateLimitingSampler) Equal(other Sampler) bool {
@@ -235,12 +217,6 @@ func (s *GuaranteedThroughputProbabilisticSampler) IsSampled(id TraceID, operati
 	}
 	sampled, _ := s.lowerBoundSampler.IsSampled(id, operation)
 	return sampled, s.tags
-}
-
-// Close implements Close() of Sampler.
-func (s *GuaranteedThroughputProbabilisticSampler) Close() {
-	s.probabilisticSampler.Close()
-	s.lowerBoundSampler.Close()
 }
 
 // Equal implements Equal() of Sampler.
@@ -336,14 +312,6 @@ func (s *adaptiveSampler) IsSampled(id TraceID, operation string) (bool, []Tag) 
 	}
 	s.samplers[operation] = newSampler
 	return newSampler.IsSampled(id, operation)
-}
-
-func (s *adaptiveSampler) Close() {
-	s.Lock()
-	defer s.Unlock()
-	for _, sampler := range s.samplers {
-		sampler.Close()
-	}
 }
 
 func (s *adaptiveSampler) Equal(other Sampler) bool {

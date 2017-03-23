@@ -187,7 +187,6 @@ func TestAdaptiveSampler(t *testing.T) {
 
 	sampler, err := NewAdaptiveSampler(strategies, testDefaultMaxOperations)
 	require.NoError(t, err)
-	defer sampler.Close()
 
 	sampled, tags := sampler.IsSampled(TraceID{Low: testMaxID + 10}, testOperationName)
 	assert.True(t, sampled)
