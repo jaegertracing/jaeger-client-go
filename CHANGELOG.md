@@ -6,6 +6,7 @@ Changes by Version
 
 - Split request latency metric by success/failure [#123](https://github.com/uber/jaeger-client-go/pull/123)
 - Add mutex to adaptive sampler and fix race condition [#124](https://github.com/uber/jaeger-client-go/pull/124)
+- Fix rate limiter panic [#125](https://github.com/uber/jaeger-client-go/pull/125)
 
 
 2.4.0 (2017-03-21)
