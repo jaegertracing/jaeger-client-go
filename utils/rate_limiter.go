@@ -20,7 +20,10 @@
 
 package utils
 
-import "time"
+import (
+	"sync"
+	"time"
+)
 
 // RateLimiter is a filter used to check if a message that is worth itemCost units is within the rate limits.
 type RateLimiter interface {
@@ -28,6 +31,8 @@ type RateLimiter interface {
 }
 
 type rateLimiter struct {
+	sync.Mutex
+
 	creditsPerSecond float64
 	balance          float64
 	maxBalance       float64
@@ -58,6 +63,8 @@ func NewRateLimiter(creditsPerSecond, maxBalance float64) RateLimiter {
 }
 
 func (b *rateLimiter) CheckCredit(itemCost float64) bool {
+	b.Lock()
+	defer b.Unlock()
 	// calculate how much time passed since the last tick, and update current tick
 	currentTime := b.timeNow()
 	elapsedTime := currentTime.Sub(b.lastTick)
