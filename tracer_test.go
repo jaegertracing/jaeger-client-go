@@ -257,7 +257,7 @@ func TestEmptySpanContextAsParent(t *testing.T) {
 
 func TestTracerClose(t *testing.T) {
 	_, tc := NewTracer("x", NewRemotelyControlledSampler("svc"), NewNullReporter())
-	tc.Close()
+	assert.NoError(t, tc.Close())
 }
 
 type dummyPropagator struct{}
