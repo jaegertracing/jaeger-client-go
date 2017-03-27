@@ -37,8 +37,8 @@ type Options struct {
 	observers []jaeger.Observer
 }
 
-// Metrics creates a Option that initializes Metrics in the client,
-// which is used to emit statistics.
+// Metrics creates an Option that initializes Metrics in the tracer,
+// which is used to emit statistics about spans.
 func Metrics(factory metrics.Factory) Option {
 	return func(c *Options) {
 		c.metrics = factory
