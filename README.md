@@ -108,7 +108,18 @@ Baggage can also be programatically set inside your service by doing
 the following
 
 ```go
-span.SetBaggageItem("key", "value")
+if span := opentracing.SpanFromContext(ctx); span != nil {
+    span.SetBaggageItem("key", "value")
+}
+```
+
+Another service downstream of that can retrieve the baggage in a similar way:
+
+```go
+if span := opentracing.SpanFromContext(ctx); span != nil {
+    val := span.BaggageItem("key")
+    println(val)
+}
 ```
 
 ### Debug Traces (Forced Sampling)
