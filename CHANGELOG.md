@@ -4,7 +4,7 @@ Changes by Version
 2.5.1 (unreleased)
 ------------------
 
-- Nothing yet
+- Add config option to initialize RPC Metrics feature
 
 
 2.5.0 (2017-03-23)
