@@ -30,6 +30,7 @@ import (
 	"github.com/opentracing/opentracing-go"
 
 	"github.com/uber/jaeger-client-go"
+	"github.com/uber/jaeger-client-go/rpcmetrics"
 	"github.com/uber/jaeger-client-go/transport"
 	"github.com/uber/jaeger-client-go/transport/udp"
 )
@@ -38,11 +39,10 @@ const defaultSamplingProbability = 0.001
 
 // Configuration configures and creates Jaeger Tracer
 type Configuration struct {
-	ClientOptions
-
-	Disabled bool            `yaml:"disabled"`
-	Sampler  *SamplerConfig  `yaml:"sampler"`
-	Reporter *ReporterConfig `yaml:"reporter"`
+	Disabled   bool            `yaml:"disabled"`
+	Sampler    *SamplerConfig  `yaml:"sampler"`
+	Reporter   *ReporterConfig `yaml:"reporter"`
+	RPCMetrics bool            `yaml:"rpc_metrics"`
 }
 
 // SamplerConfig allows initializing a non-default sampler.  All fields are optional.
@@ -101,19 +101,23 @@ func (*nullCloser) Close() error { return nil }
 // before shutdown.
 func (c Configuration) New(
 	serviceName string,
-	options ...ClientOption,
+	options ...Option,
 ) (opentracing.Tracer, io.Closer, error) {
-	for _, option := range options {
-		option(&c.ClientOptions)
-	}
-	if c.metrics == nil {
-		c.metrics = jaeger.NewNullMetrics()
+	if serviceName == "" {
+		return nil, nil, errors.New("no service name provided")
 	}
 	if c.Disabled {
 		return &opentracing.NoopTracer{}, &nullCloser{}, nil
 	}
-	if serviceName == "" {
-		return nil, nil, errors.New("no service name provided")
+	opts := applyOptions(options...)
+	tracerMetrics := jaeger.NewMetrics(opts.metrics, nil)
+	if c.RPCMetrics {
+		Observer(
+			rpcmetrics.NewObserver(
+				opts.metrics.Namespace("jaeger-rpc", map[string]string{"component": "jaeger"}),
+				rpcmetrics.DefaultNameNormalizer,
+			),
+		)(&opts) // adds to c.observers
 	}
 	if c.Sampler == nil {
 		c.Sampler = &SamplerConfig{
@@ -125,22 +129,26 @@ func (c Configuration) New(
 		c.Reporter = &ReporterConfig{}
 	}
 
-	sampler, err := c.Sampler.NewSampler(serviceName, c.metrics)
+	sampler, err := c.Sampler.NewSampler(serviceName, tracerMetrics)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	reporter, err := c.Reporter.NewReporter(serviceName, c.metrics, c.logger)
-	if err != nil {
-		return nil, nil, err
+	reporter := opts.reporter
+	if reporter == nil {
+		r, err := c.Reporter.NewReporter(serviceName, tracerMetrics, opts.logger)
+		if err != nil {
+			return nil, nil, err
+		}
+		reporter = r
 	}
 
 	tracerOptions := []jaeger.TracerOption{
-		jaeger.TracerOptions.Metrics(c.metrics),
-		jaeger.TracerOptions.Logger(c.logger),
+		jaeger.TracerOptions.Metrics(tracerMetrics),
+		jaeger.TracerOptions.Logger(opts.logger),
 	}
 
-	for _, obs := range c.ClientOptions.observers {
+	for _, obs := range opts.observers {
 		tracerOptions = append(tracerOptions, jaeger.TracerOptions.Observer(obs))
 	}
 
@@ -157,7 +165,7 @@ func (c Configuration) New(
 // It returns a closer func that can be used to flush buffers before shutdown.
 func (c Configuration) InitGlobalTracer(
 	serviceName string,
-	options ...ClientOption,
+	options ...Option,
 ) (io.Closer, error) {
 	if c.Disabled {
 		return &nullCloser{}, nil

@@ -24,8 +24,11 @@ import (
 	"testing"
 
 	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/uber/jaeger-lib/metrics"
+	"github.com/uber/jaeger-lib/metrics/testutils"
 
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/log"
@@ -135,4 +138,45 @@ func TestInitGlobalTracer(t *testing.T) {
 			require.Equal(t, noopTracer, opentracing.GlobalTracer())
 		}
 	}
+}
+
+func TestConfigWithReporter(t *testing.T) {
+	c := Configuration{
+		Sampler: &SamplerConfig{
+			Type:  "const",
+			Param: 1,
+		},
+	}
+	r := jaeger.NewInMemoryReporter()
+	tracer, closer, err := c.New("test", Reporter(r))
+	require.NoError(t, err)
+	defer closer.Close()
+
+	tracer.StartSpan("test").Finish()
+	assert.Len(t, r.GetSpans(), 1)
+}
+
+func TestConfigWithRPCMetrics(t *testing.T) {
+	metrics := metrics.NewLocalFactory(0)
+	c := Configuration{
+		Sampler: &SamplerConfig{
+			Type:  "const",
+			Param: 1,
+		},
+		RPCMetrics: true,
+	}
+	r := jaeger.NewInMemoryReporter()
+	tracer, closer, err := c.New("test", Reporter(r), Metrics(metrics))
+	require.NoError(t, err)
+	defer closer.Close()
+
+	tracer.StartSpan("test", ext.SpanKindRPCServer).Finish()
+
+	testutils.AssertCounterMetrics(t, metrics,
+		testutils.ExpectedMetric{
+			Name:  "jaeger-rpc.requests",
+			Tags:  map[string]string{"component": "jaeger", "endpoint": "test", "error": "false"},
+			Value: 1,
+		},
+	)
 }
