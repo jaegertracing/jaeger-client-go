@@ -56,7 +56,7 @@ type rateLimiter struct {
 func NewRateLimiter(creditsPerSecond, maxBalance float64) RateLimiter {
 	return &rateLimiter{
 		creditsPerSecond: creditsPerSecond,
-		balance:          creditsPerSecond,
+		balance:          maxBalance,
 		maxBalance:       maxBalance,
 		lastTick:         time.Now(),
 		timeNow:          time.Now}

@@ -466,7 +466,11 @@ func TestUpdateSampler(t *testing.T) {
 			assert.NotEqual(t, initSampler, sampler.sampler, "Sampler should have been updated")
 			assert.Equal(t, test.defaultProbability, s.defaultSampler.SamplingRate())
 
+			// First call is always sampled
 			sampled, tags := sampler.IsSampled(TraceID{Low: testMaxID + 10}, testOperationName)
+			assert.True(t, sampled)
+
+			sampled, tags = sampler.IsSampled(TraceID{Low: testMaxID + 10}, testOperationName)
 			assert.False(t, sampled)
 			sampled, tags = sampler.IsSampled(TraceID{Low: testMaxID - 10}, testOperationName)
 			assert.True(t, sampled)
