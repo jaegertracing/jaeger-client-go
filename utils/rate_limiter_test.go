@@ -69,7 +69,8 @@ func TestMaxBalance(t *testing.T) {
 	limiter.(*rateLimiter).timeNow = func() time.Time {
 		return ts
 	}
-	assert.False(t, limiter.CheckCredit(1.0))
+	// on initialization, should have enough credits for 1 message
+	assert.True(t, limiter.CheckCredit(1.0))
 
 	// move time 20s forward, enough to accumulate credits for 2 messages, but it should still be capped at 1
 	limiter.(*rateLimiter).timeNow = func() time.Time {
