@@ -3,7 +3,7 @@
 # Jaeger Bindings for Go OpenTracing API
 
 This is a client side library that implements an
-[OpenTracing](http://opentracing.io) Tracer, 
+[OpenTracing](http://opentracing.io) Tracer,
 with Zipkin-compatible data model.
 
 ## Initialization
@@ -94,7 +94,7 @@ are available:
 
 ### Baggage Injection
 
-The OpenTracing spec allows for [baggage](http://opentracing.io/spec/#baggage),
+The OpenTracing spec allows for [baggage](https://github.com/opentracing/specification/blob/master/specification.md#set-a-baggage-item),
 which are key value pairs that are added to the span context and propagated
 throughout the trace.
 An external process can inject baggage by setting the special
