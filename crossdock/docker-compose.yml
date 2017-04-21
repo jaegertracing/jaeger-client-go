@@ -6,12 +6,11 @@ services:
         links:
             - test_driver
             - go
-            - node
             - java
             - python
 
         environment:
-            - WAIT_FOR=test_driver,go,node,java,python
+            - WAIT_FOR=test_driver,go,java,python
             - WAIT_FOR_TIMEOUT=60s
 
             - CALL_TIMEOUT=60s
@@ -34,11 +33,6 @@ services:
             - REPORT=compact
     go:
         build: .
-        ports:
-            - "8080-8082"
-
-    node:
-        image: jaegertracing/xdock-node
         ports:
             - "8080-8082"
 
