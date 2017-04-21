@@ -4,12 +4,17 @@ services:
     crossdock:
         image: crossdock/crossdock
         links:
+            - test_driver
             - go
+            - node
             - java
             - python
 
         environment:
-            - WAIT_FOR=go,java,python
+            - WAIT_FOR=test_driver,go,node,java,python
+            - WAIT_FOR_TIMEOUT=60s
+
+            - CALL_TIMEOUT=60s
 
             - AXIS_CLIENT=go
             - AXIS_S1NAME=go,java,python
@@ -21,9 +26,19 @@ services:
 
             - BEHAVIOR_TRACE=client,s1name,sampled,s2name,s2transport,s3name,s3transport
 
+            - AXIS_TESTDRIVER=test_driver
+            - AXIS_SERVICES=go,node,java,python
+
+            - BEHAVIOR_ENDTOEND=testdriver,services
+
             - REPORT=compact
     go:
         build: .
+        ports:
+            - "8080-8082"
+
+    node:
+        image: jaegertracing/xdock-node
         ports:
             - "8080-8082"
 
@@ -36,6 +51,18 @@ services:
         image: jaegertracing/xdock-py
         ports:
             - "8080:8082"
+
+    cassandra:
+        image: "cassandra:3.9"
+
+    test_driver:
+        image: jaegertracing/test-driver
+        links:
+            - cassandra
+        depends_on:
+            - cassandra
+        ports:
+            - "8080"
 
 #    node:
 #        image: yarpc/yarpc-node

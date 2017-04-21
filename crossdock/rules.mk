@@ -12,7 +12,6 @@ crossdock: crossdock-linux-bin
 	docker-compose -f $(XDOCK_YAML) run crossdock 2>&1 | tee run-crossdock.log
 	grep 'Tests passed!' run-crossdock.log
 
-
 .PHONY: crossdock-fresh
 crossdock-fresh: crossdock-linux-bin
 	docker-compose -f $(XDOCK_YAML) kill

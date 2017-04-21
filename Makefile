@@ -70,11 +70,6 @@ cover:
 test-examples:
 	make -C examples
 
-
-.PHONY: bins
-bins:
-	CGO_ENABLED=0 GOOS=linux time go build -a -installsuffix cgo -o crossdock/crossdock ./crossdock
-
 # TODO at the moment we're not generating tchan_*.go files
 thrift: idl-submodule thrift-image
 	$(THRIFT) -o /data --gen go:$(THRIFT_GO_ARGS) --out /data/$(THRIFT_GEN_DIR) /data/idl/thrift/agent.thrift
