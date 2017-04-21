@@ -27,7 +27,7 @@ services:
             - BEHAVIOR_TRACE=client,s1name,sampled,s2name,s2transport,s3name,s3transport
 
             - AXIS_TESTDRIVER=test_driver
-            - AXIS_SERVICES=go,node,java,python
+            - AXIS_SERVICES=go
 
             - BEHAVIOR_ENDTOEND=testdriver,services
 
