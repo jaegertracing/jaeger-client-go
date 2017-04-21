@@ -2,8 +2,17 @@ sudo: required
 
 language: go
 
-go:
-  - 1.7
+dist: trusty
+
+matrix:
+  include:
+  - go: 1.7
+    env:
+    - TESTS=true
+    - COVERAGE=true
+  - go: 1.7
+    env:
+    - CROSSDOCK=true
 
 services:
   - docker
@@ -18,32 +27,14 @@ env:
     - secure: tlWX/wnfuyvTTEBG6UwIrAugCLKKYuEZvcwrOYgaO27Q0SQmHOevGhsCOVDDJ2e01no60IR6Cu67O+JlRrZqOuZIkl9uvnf60SZWDbqCMhZraVh5b0iZD1li0XHXo56zj+ptDXc3fOmnUTT2PYnZ+4+sR76jBw2PnZKE/u6NNSm3KkKvEQGfFkFdId/17z6Lob++BwXqmIw1n2DG7Ts+VxyCVf5HBfe8RfDPWDlXfqQUE5x9hbl+VbwCR+4LDAAJmh9h7JTItX7nvNG91EzEGedKea8IWn7fkLcQSZWuMalpGADqMx0nsPyJk8fzc0X17w595P54ktatwcWWgVv+ZhzozoO3FPWOom7c35gx+WAlMeIBtpxYQtixP2xPpK1i4HJXjW4KS+zjTEkoqeGQrFXcIKHUM0YXQvRIp5rfRky/INDzm2AYTReGoLX+ZQ7O/tSVDaBfdvTd96hRP6M1t4zCGULaglQGdE7/RLQrz7S6j2ys0fhF5gFBmOSodGt5gG+YFjzKiu+5FYMICwpUaOO+h4mLTsP0t63vFKGfXt79eWFJ+pRaMyWb68geZqB5u+P64sTnEIa8LjP/Lhrgnh0vab0O0m2KgnRMKBVlc4modKLiTXbYn1KZUyk0dfKYR2lCQHxAZW94nBOXzynDu8qZE0nXemVokFkEETm1FB0=
     - secure: aR7jrdGh3cXncHlIJ6FgVf5jqMiUHSWiGON3tocCUIAB3GyRoT4lFsHg4y86c4qDkpiTrFZT2mY7Iyqs/Y+Hi64V2pGP2FouN9cZK8b5IuBDboa//9nebAvTVuzsuUBLmRwtaQ2qvpS+Jg7ApXyLjF+Cdvfh4WRm4IcwxbvmMr/+zVxkPbEBNnnALx7h1kNiAtQVrCjiHJ1Q+p2RzER+OSTtdvJRqMzkwI741ttj7pvxElbexdPwiU+9lLC9IoW/lSOSwx29Ph8WAK2aF2VrxxrUbNiTd8o2U11Zc2ic44FhOadTrGk6bJBLHOerFnDt9ieoGpbocinviZJ2OGvSoXWaI9XNPaxCNSuA3woRRX4+j9SK/AFunSxUtC2gyUhCvMKLcz1WbVtto9kAXZKq+N1zBrA5zeFCArbKCLOidTdrv1iY5eC/mV6RPhvy2knpDRzFtk6UP/7oiTiUu1yI1CGDRrWRQaaguRcLdhSKFKfgjfRNksfO1QQ6rokZWZdc5kUchLEcb2QtCRWOAShfuvyr+j38l8Rgx5DwBAnd7zov0H4cXUZ1oBOzbHmejHQF7KMs6cnGgCvDT2mQYEwvMc9cueD8S3qWrkaLIm78pQesKLuKarYHeAF8pWivQPr9hwSSPnY944E9YT0odMbNmNrWruwF2YuyFKTMdIVhy3Q=
 
-before_install:
-  - docker version
-  - sudo rm -f /usr/local/bin/docker-compose
-  - curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > docker-compose
-  - chmod +x docker-compose
-  - sudo mv docker-compose /usr/local/bin
-  - docker-compose version
-
 install:
   - make install_ci
+  - if [ "$CROSSDOCK" == true ]; then bash ./travis/install-crossdock-deps.sh ; fi
 
 script:
-  - make test_ci
-  - travis_retry goveralls -coverprofile=cover.out -service=travis-ci || true
-  - make crossdock
+  - if [ "$TESTS" == true ]; then make test_ci ; else echo 'skipping tests'; fi
+  - if [ "$COVERAGE" == true ]; then travis_retry goveralls -coverprofile=cover.out -service=travis-ci || true ; else echo 'skipping coverage'; fi
+  - if [ "$CROSSDOCK" == true ]; then bash ./travis/build-crossdock.sh ; else echo 'skipping crossdock'; fi
 
 after_failure:
   - timeout 5 docker-compose -f crossdock/docker-compose.yml logs
-
-after_success:
-  - export REPO=jaegertracing/xdock-go
-  - export BRANCH=$(if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then echo $TRAVIS_BRANCH; else echo $TRAVIS_PULL_REQUEST_BRANCH; fi)
-  - export TAG=`if [ "$BRANCH" == "master" ]; then echo "latest"; else echo $BRANCH; fi`
-  - echo "TRAVIS_BRANCH=$TRAVIS_BRANCH, REPO=$REPO, PR=$PR, BRANCH=$BRANCH, TAG=$TAG"
-  - docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS
-  - docker build -f crossdock/Dockerfile -t $REPO:$COMMIT .
-  - docker tag $REPO:$COMMIT $REPO:$TAG
-  - docker tag $REPO:$COMMIT $REPO:travis-$TRAVIS_BUILD_NUMBER
-  - docker push $REPO
