@@ -36,6 +36,7 @@ const (
 	defaultSamplingServerURL       = "http://localhost:5778/sampling"
 	defaultSamplingRefreshInterval = time.Minute
 	defaultMaxOperations           = 2000
+	defaultMaxSamplesPerSecond     = 2
 )
 
 // Sampler decides whether a new trace should be sampled or not.
@@ -199,31 +200,37 @@ func (s *rateLimitingSampler) Equal(other Sampler) bool {
 
 // GuaranteedThroughputProbabilisticSampler is a sampler that leverages both probabilisticSampler and
 // rateLimitingSampler. The rateLimitingSampler is used as a guaranteed lower bound sampler such that
-// every operation is sampled at least once in a time interval defined by the lowerBound. ie a lowerBound
-// of 1.0 / (60 * 10) will sample an operation at least once every 10 minutes.
+// every operation is sampled at least once in a time interval defined by minSamplesPerSecond. ie a
+// minSamplesPerSecond of 1.0 / (60 * 10) will sample an operation at least once every 10 minutes.
 //
 // The probabilisticSampler is given higher priority when tags are emitted, ie. if IsSampled() for both
 // samplers return true, the tags for probabilisticSampler will be used.
 type GuaranteedThroughputProbabilisticSampler struct {
-	probabilisticSampler *ProbabilisticSampler
-	lowerBoundSampler    Sampler
-	tags                 []Tag
-	samplingRate         float64
-	lowerBound           float64
+	probabilisticSampler  *ProbabilisticSampler
+	lowerBoundSampler     Sampler
+	upperBoundRateLimiter utils.RateLimiter
+	tags                  []Tag
+	samplingRate          float64
+	minSamplesPerSecond   float64
+	maxSamplesPerSecond   float64
 }
 
 // NewGuaranteedThroughputProbabilisticSampler returns a delegating sampler that applies both
 // probabilisticSampler and rateLimitingSampler.
 func NewGuaranteedThroughputProbabilisticSampler(
-	lowerBound, samplingRate float64,
+	minSamplesPerSecond, samplingRate, maxSamplesPerSecond float64,
 ) (*GuaranteedThroughputProbabilisticSampler, error) {
-	return newGuaranteedThroughputProbabilisticSampler(lowerBound, samplingRate), nil
+	return newGuaranteedThroughputProbabilisticSampler(minSamplesPerSecond, samplingRate, maxSamplesPerSecond), nil
 }
 
-func newGuaranteedThroughputProbabilisticSampler(lowerBound, samplingRate float64) *GuaranteedThroughputProbabilisticSampler {
+func newGuaranteedThroughputProbabilisticSampler(
+	minSamplesPerSecond, samplingRate, maxSamplesPerSecond float64,
+) *GuaranteedThroughputProbabilisticSampler {
 	s := &GuaranteedThroughputProbabilisticSampler{
-		lowerBoundSampler: NewRateLimitingSampler(lowerBound),
-		lowerBound:        lowerBound,
+		lowerBoundSampler:     NewRateLimitingSampler(minSamplesPerSecond),
+		upperBoundRateLimiter: utils.NewRateLimiter(maxSamplesPerSecond, maxSamplesPerSecond),
+		minSamplesPerSecond:   minSamplesPerSecond,
+		maxSamplesPerSecond:   maxSamplesPerSecond,
 	}
 	s.setProbabilisticSampler(samplingRate)
 	return s
@@ -241,13 +248,33 @@ func (s *GuaranteedThroughputProbabilisticSampler) setProbabilisticSampler(sampl
 }
 
 // IsSampled implements IsSampled() of Sampler.
+// NB: this function should only be called while holding a Write lock
 func (s *GuaranteedThroughputProbabilisticSampler) IsSampled(id TraceID, operation string) (bool, []Tag) {
 	if sampled, tags := s.probabilisticSampler.IsSampled(id, operation); sampled {
 		s.lowerBoundSampler.IsSampled(id, operation)
+		if !s.upperBoundRateLimiter.CheckCredit(1) {
+			s.reduceSamplingRate()
+		}
 		return true, tags
 	}
 	sampled, _ := s.lowerBoundSampler.IsSampled(id, operation)
 	return sampled, s.tags
+}
+
+// Due to inherent latencies in the adaptive sampling feedback loop, the new probabilities
+// are not calculated and propagated in real time. In the worst case, sampling probabilities
+// can take up to 2 minutes to propagate to the corresponding client. This means that adaptive
+// sampling cannot react to fluctuations in traffic.
+//
+// Under certain conditions, the sampling probability might increase to 100% (imagine having a
+// very low QPS operation). However, every now and then, this operation is hit with a ton of
+// traffic and all the requests are sampled before adaptive sampling can kick in and prevent
+// oversampling.
+//
+// To prevent this, we reduce the sampling probability wherever the upper bound rate limiter
+// is triggered such that clients don't over sample during traffic spikes.
+func (s *GuaranteedThroughputProbabilisticSampler) reduceSamplingRate() {
+	s.setProbabilisticSampler(s.samplingRate / 2.0)
 }
 
 // Close implements Close() of Sampler.
@@ -263,12 +290,16 @@ func (s *GuaranteedThroughputProbabilisticSampler) Equal(other Sampler) bool {
 	return false
 }
 
-// this function should only be called while holding a Write lock
-func (s *GuaranteedThroughputProbabilisticSampler) update(lowerBound, samplingRate float64) {
+// NB: this function should only be called while holding a Write lock
+func (s *GuaranteedThroughputProbabilisticSampler) update(minSamplesPerSecond, samplingRate, maxSamplesPerSecond float64) {
 	s.setProbabilisticSampler(samplingRate)
-	if s.lowerBound != lowerBound {
-		s.lowerBoundSampler = NewRateLimitingSampler(lowerBound)
-		s.lowerBound = lowerBound
+	if s.minSamplesPerSecond != minSamplesPerSecond {
+		s.lowerBoundSampler = NewRateLimitingSampler(minSamplesPerSecond)
+		s.minSamplesPerSecond = minSamplesPerSecond
+	}
+	if s.maxSamplesPerSecond != maxSamplesPerSecond {
+		s.upperBoundRateLimiter = utils.NewRateLimiter(maxSamplesPerSecond, maxSamplesPerSecond)
+		s.maxSamplesPerSecond = maxSamplesPerSecond
 	}
 }
 
@@ -277,10 +308,11 @@ func (s *GuaranteedThroughputProbabilisticSampler) update(lowerBound, samplingRa
 type adaptiveSampler struct {
 	sync.RWMutex
 
-	samplers       map[string]*GuaranteedThroughputProbabilisticSampler
-	defaultSampler *ProbabilisticSampler
-	lowerBound     float64
-	maxOperations  int
+	samplers            map[string]*GuaranteedThroughputProbabilisticSampler
+	defaultSampler      *ProbabilisticSampler
+	minSamplesPerSecond float64
+	maxSamplesPerSecond float64
+	maxOperations       int
 }
 
 // NewAdaptiveSampler returns a delegating sampler that applies both probabilisticSampler and
@@ -293,17 +325,18 @@ func NewAdaptiveSampler(strategies *sampling.PerOperationSamplingStrategies, max
 func newAdaptiveSampler(strategies *sampling.PerOperationSamplingStrategies, maxOperations int) Sampler {
 	samplers := make(map[string]*GuaranteedThroughputProbabilisticSampler)
 	for _, strategy := range strategies.PerOperationStrategies {
-		sampler := newGuaranteedThroughputProbabilisticSampler(
+		samplers[strategy.Operation] = newGuaranteedThroughputProbabilisticSampler(
 			strategies.DefaultLowerBoundTracesPerSecond,
 			strategy.ProbabilisticSampling.SamplingRate,
+			defaultMaxSamplesPerSecond, // TODO (wjang) get the maxSamplesPerSecond from strategy
 		)
-		samplers[strategy.Operation] = sampler
 	}
 	return &adaptiveSampler{
-		samplers:       samplers,
-		defaultSampler: newProbabilisticSampler(strategies.DefaultSamplingProbability),
-		lowerBound:     strategies.DefaultLowerBoundTracesPerSecond,
-		maxOperations:  maxOperations,
+		samplers:            samplers,
+		defaultSampler:      newProbabilisticSampler(strategies.DefaultSamplingProbability),
+		minSamplesPerSecond: strategies.DefaultLowerBoundTracesPerSecond,
+		maxSamplesPerSecond: defaultMaxSamplesPerSecond, // TODO (wjang) get the upperbound from strategy
+		maxOperations:       maxOperations,
 	}
 }
 
@@ -327,9 +360,11 @@ func (s *adaptiveSampler) IsSampled(id TraceID, operation string) (bool, []Tag) 
 	if len(s.samplers) >= s.maxOperations {
 		return s.defaultSampler.IsSampled(id, operation)
 	}
-	newSampler := newGuaranteedThroughputProbabilisticSampler(s.lowerBound, s.defaultSampler.SamplingRate())
-	s.samplers[operation] = newSampler
-	return newSampler.IsSampled(id, operation)
+	s.samplers[operation] = newGuaranteedThroughputProbabilisticSampler(
+		s.minSamplesPerSecond,
+		s.defaultSampler.SamplingRate(),
+		s.maxSamplesPerSecond)
+	return s.samplers[operation].IsSampled(id, operation)
 }
 
 func (s *adaptiveSampler) Close() {
@@ -355,18 +390,19 @@ func (s *adaptiveSampler) update(strategies *sampling.PerOperationSamplingStrate
 	for _, strategy := range strategies.PerOperationStrategies {
 		operation := strategy.Operation
 		samplingRate := strategy.ProbabilisticSampling.SamplingRate
-		lowerBound := strategies.DefaultLowerBoundTracesPerSecond
+		minSamplesPerSecond := strategies.DefaultLowerBoundTracesPerSecond
 		if sampler, ok := s.samplers[operation]; ok {
-			sampler.update(lowerBound, samplingRate)
+			sampler.update(minSamplesPerSecond, samplingRate, defaultMaxSamplesPerSecond)
 		} else {
-			sampler := newGuaranteedThroughputProbabilisticSampler(
-				lowerBound,
+			s.samplers[operation] = newGuaranteedThroughputProbabilisticSampler(
+				minSamplesPerSecond,
 				samplingRate,
+				defaultMaxSamplesPerSecond,
 			)
-			s.samplers[operation] = sampler
 		}
 	}
-	s.lowerBound = strategies.DefaultLowerBoundTracesPerSecond
+	s.minSamplesPerSecond = strategies.DefaultLowerBoundTracesPerSecond
+	s.maxSamplesPerSecond = defaultMaxSamplesPerSecond // TODO (wjang) get this from strategies
 	if s.defaultSampler.SamplingRate() != strategies.DefaultSamplingProbability {
 		s.defaultSampler = newProbabilisticSampler(strategies.DefaultSamplingProbability)
 	}
