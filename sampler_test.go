@@ -148,6 +148,20 @@ func TestRateLimitingSampler(t *testing.T) {
 	assert.True(t, sampler.Equal(sampler2))
 	assert.False(t, sampler.Equal(sampler3))
 	assert.False(t, sampler.Equal(NewConstSampler(false)))
+
+	sampler = NewRateLimitingSampler(2)
+	sampled, _ := sampler.IsSampled(TraceID{}, testOperationName)
+	assert.True(t, sampled)
+	sampled, _ = sampler.IsSampled(TraceID{}, testOperationName)
+	assert.True(t, sampled)
+	sampled, _ = sampler.IsSampled(TraceID{}, testOperationName)
+	assert.False(t, sampled)
+
+	sampler = NewRateLimitingSampler(0.1)
+	sampled, _ = sampler.IsSampled(TraceID{}, testOperationName)
+	assert.True(t, sampled)
+	sampled, _ = sampler.IsSampled(TraceID{}, testOperationName)
+	assert.False(t, sampled)
 }
 
 func TestGuaranteedThroughputProbabilisticSamplerUpdate(t *testing.T) {
