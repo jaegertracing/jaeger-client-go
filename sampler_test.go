@@ -107,12 +107,10 @@ func TestApplySamplerOptions(t *testing.T) {
 }
 
 func TestProbabilisticSamplerErrors(t *testing.T) {
-	sampler, err := NewProbabilisticSampler(-0.1)
-	assert.NoError(t, err)
-	assert.Equal(t, 0.0, sampler.samplingRate)
-	sampler, err = NewProbabilisticSampler(1.1)
-	assert.NoError(t, err)
-	assert.Equal(t, 1.0, sampler.samplingRate)
+	_, err := NewProbabilisticSampler(-0.1)
+	assert.Error(t, err)
+	_, err = NewProbabilisticSampler(1.1)
+	assert.Error(t, err)
 }
 
 func TestProbabilisticSampler(t *testing.T) {

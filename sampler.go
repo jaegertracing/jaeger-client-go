@@ -113,6 +113,9 @@ const maxRandomNumber = ^(uint64(1) << 63) // i.e. 0x7fffffffffffffff
 // without generating a new random number, but simply calculating if traceID < (samplingRate * 2^63).
 // TODO remove the error from this function for next major release
 func NewProbabilisticSampler(samplingRate float64) (*ProbabilisticSampler, error) {
+	if samplingRate < 0.0 || samplingRate > 1.0 {
+		return nil, fmt.Errorf("Sampling Rate must be between 0.0 and 1.0, received %f", samplingRate)
+	}
 	return newProbabilisticSampler(samplingRate), nil
 }
 
