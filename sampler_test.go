@@ -175,15 +175,13 @@ func TestGuaranteedThroughputProbabilisticSamplerUpdate(t *testing.T) {
 
 	newSamplingRate := 0.6
 	newLowerBound := 1.0
-	err = sampler.update(newLowerBound, newSamplingRate)
-	assert.NoError(t, err)
-
+	sampler.update(newLowerBound, newSamplingRate)
 	assert.Equal(t, newLowerBound, sampler.lowerBound)
 	assert.Equal(t, newSamplingRate, sampler.samplingRate)
 
 	newSamplingRate = 1.1
-	err = sampler.update(newLowerBound, newSamplingRate)
-	assert.Error(t, err)
+	sampler.update(newLowerBound, newSamplingRate)
+	assert.Equal(t, 1.0, sampler.samplingRate)
 }
 
 func TestAdaptiveSampler(t *testing.T) {
@@ -221,26 +219,25 @@ func TestAdaptiveSampler(t *testing.T) {
 }
 
 func TestAdaptiveSamplerErrors(t *testing.T) {
-	samplingRate := -0.1
-	lowerBound := 2.0
-	samplingRates := []*sampling.OperationSamplingStrategy{
-		{
-			Operation:             testOperationName,
-			ProbabilisticSampling: &sampling.ProbabilisticSamplingStrategy{SamplingRate: samplingRate},
-		},
-	}
 	strategies := &sampling.PerOperationSamplingStrategies{
 		DefaultSamplingProbability:       testDefaultSamplingProbability,
-		DefaultLowerBoundTracesPerSecond: lowerBound,
-		PerOperationStrategies:           samplingRates,
+		DefaultLowerBoundTracesPerSecond: 2.0,
+		PerOperationStrategies: []*sampling.OperationSamplingStrategy{
+			{
+				Operation:             testOperationName,
+				ProbabilisticSampling: &sampling.ProbabilisticSamplingStrategy{SamplingRate: -0.1},
+			},
+		},
 	}
 
-	_, err := NewAdaptiveSampler(strategies, testDefaultMaxOperations)
-	assert.Error(t, err)
+	sampler, err := NewAdaptiveSampler(strategies, testDefaultMaxOperations)
+	assert.NoError(t, err)
+	assert.Equal(t, 0.0, sampler.(*adaptiveSampler).samplers[testOperationName].samplingRate)
 
-	samplingRates[0].ProbabilisticSampling.SamplingRate = 1.1
-	_, err = NewAdaptiveSampler(strategies, testDefaultMaxOperations)
-	assert.Error(t, err)
+	strategies.PerOperationStrategies[0].ProbabilisticSampling.SamplingRate = 1.1
+	sampler, err = NewAdaptiveSampler(strategies, testDefaultMaxOperations)
+	assert.NoError(t, err)
+	assert.Equal(t, 1.0, sampler.(*adaptiveSampler).samplers[testOperationName].samplingRate)
 }
 
 func TestAdaptiveSamplerUpdate(t *testing.T) {
@@ -287,9 +284,7 @@ func TestAdaptiveSamplerUpdate(t *testing.T) {
 		PerOperationStrategies:           newSamplingRates,
 	}
 
-	err = sampler.update(strategies)
-	assert.NoError(t, err)
-
+	sampler.update(strategies)
 	assert.Equal(t, newLowerBound, sampler.lowerBound)
 	assert.Equal(t, newDefaultSamplingProbability, sampler.defaultSampler.SamplingRate())
 	assert.Len(t, sampler.samplers, 2)
@@ -325,25 +320,10 @@ func TestRemotelyControlledSampler(t *testing.T) {
 	assert.True(t, ok)
 
 	agent.AddSamplingStrategy("client app",
-		getSamplingStrategyResponse(sampling.SamplingStrategyType_PROBABILISTIC, 1.5 /*bad value*/))
-	remoteSampler.updateSampler()
-	mTestutils.AssertCounterMetrics(t, metricsFactory,
-		mTestutils.ExpectedMetric{
-			Name:  "jaeger.sampler",
-			Tags:  map[string]string{"state": "failure", "phase": "updating"},
-			Value: 1,
-		},
-	)
-	_, ok = remoteSampler.sampler.(*ProbabilisticSampler)
-	assert.True(t, ok)
-	assert.Equal(t, initSampler, remoteSampler.sampler, "Sampler should not have been updated")
-
-	agent.AddSamplingStrategy("client app",
 		getSamplingStrategyResponse(sampling.SamplingStrategyType_PROBABILISTIC, testDefaultSamplingProbability))
 	remoteSampler.updateSampler()
 	mTestutils.AssertCounterMetrics(t, metricsFactory, []mTestutils.ExpectedMetric{
-		{Name: "jaeger.sampler", Tags: map[string]string{"state": "failure", "phase": "updating"}, Value: 1},
-		{Name: "jaeger.sampler", Tags: map[string]string{"state": "retrieved"}, Value: 2},
+		{Name: "jaeger.sampler", Tags: map[string]string{"state": "retrieved"}, Value: 1},
 		{Name: "jaeger.sampler", Tags: map[string]string{"state": "updated"}, Value: 1},
 	}...)
 	_, ok = remoteSampler.sampler.(*ProbabilisticSampler)
@@ -375,65 +355,52 @@ func TestRemotelyControlledSampler(t *testing.T) {
 	assert.True(t, remoteSampler.Equal(remoteSampler))
 }
 
-func TestUpdateSampler(t *testing.T) {
+func generateTags(key string, value float64) []Tag {
+	return []Tag{
+		{"sampler.type", key},
+		{"sampler.param", value},
+	}
+}
+
+func TestRemotelyControlledSampler_updateSampler(t *testing.T) {
 	tests := []struct {
-		probabilities      map[string]float64
-		defaultProbability float64
-		statTags           string
-		statCount          int
-		isErr              bool
+		probabilities              map[string]float64
+		defaultProbability         float64
+		expectedDefaultProbability float64
+		expectedTags               []Tag
 	}{
 		{
-			probabilities:      map[string]float64{testOperationName: 1.1},
-			defaultProbability: testDefaultSamplingProbability,
-			statTags:           "|phase=updating|state=failure",
-			statCount:          1,
-			isErr:              true,
+			probabilities:              map[string]float64{testOperationName: 1.1},
+			defaultProbability:         testDefaultSamplingProbability,
+			expectedDefaultProbability: testDefaultSamplingProbability,
+			expectedTags:               generateTags("probabilistic", 1.0),
 		},
 		{
-			probabilities:      map[string]float64{testOperationName: testDefaultSamplingProbability},
-			defaultProbability: testDefaultSamplingProbability,
-			statTags:           "|state=updated",
-			statCount:          1,
-			isErr:              false,
+			probabilities:              map[string]float64{testOperationName: testDefaultSamplingProbability},
+			defaultProbability:         testDefaultSamplingProbability,
+			expectedDefaultProbability: testDefaultSamplingProbability,
+			expectedTags:               testProbabilisticExpectedTags,
 		},
 		{
 			probabilities: map[string]float64{
 				testOperationName:          testDefaultSamplingProbability,
 				testFirstTimeOperationName: testDefaultSamplingProbability,
 			},
-			defaultProbability: testDefaultSamplingProbability,
-			statTags:           "|state=updated",
-			statCount:          1,
-			isErr:              false,
+			defaultProbability:         testDefaultSamplingProbability,
+			expectedDefaultProbability: testDefaultSamplingProbability,
+			expectedTags:               testProbabilisticExpectedTags,
 		},
 		{
-			probabilities:      map[string]float64{testOperationName: 1.1},
-			defaultProbability: testDefaultSamplingProbability,
-			statTags:           "|phase=updating|state=failure",
-			statCount:          1,
-			isErr:              true,
+			probabilities:              map[string]float64{"new op": 1.1},
+			defaultProbability:         testDefaultSamplingProbability,
+			expectedDefaultProbability: testDefaultSamplingProbability,
+			expectedTags:               testProbabilisticExpectedTags,
 		},
 		{
-			probabilities:      map[string]float64{"new op": 1.1},
-			defaultProbability: testDefaultSamplingProbability,
-			statTags:           "|phase=updating|state=failure",
-			statCount:          1,
-			isErr:              true,
-		},
-		{
-			probabilities:      map[string]float64{testOperationName: testDefaultSamplingProbability},
-			defaultProbability: 0.5,
-			statTags:           "|state=updated",
-			statCount:          1,
-			isErr:              false,
-		},
-		{
-			probabilities:      map[string]float64{testOperationName: testDefaultSamplingProbability},
-			defaultProbability: 1.1,
-			statTags:           "|phase=updating|state=failure",
-			statCount:          1,
-			isErr:              true,
+			probabilities:              map[string]float64{"new op": 1.1},
+			defaultProbability:         1.1,
+			expectedDefaultProbability: 1.0,
+			expectedTags:               generateTags("probabilistic", 1.0),
 		},
 	}
 
@@ -468,27 +435,22 @@ func TestUpdateSampler(t *testing.T) {
 
 			mTestutils.AssertCounterMetrics(t, metricsFactory,
 				mTestutils.ExpectedMetric{
-					Name: "jaeger.sampler" + test.statTags, Value: test.statCount,
+					Name: "jaeger.sampler" + "|state=updated", Value: 1,
 				},
 			)
-			if test.isErr {
-				return
-			}
 
 			s, ok := sampler.sampler.(*adaptiveSampler)
 			assert.True(t, ok)
 			assert.NotEqual(t, initSampler, sampler.sampler, "Sampler should have been updated")
-			assert.Equal(t, test.defaultProbability, s.defaultSampler.SamplingRate())
+			assert.Equal(t, test.expectedDefaultProbability, s.defaultSampler.SamplingRate())
 
 			// First call is always sampled
 			sampled, tags := sampler.IsSampled(TraceID{Low: testMaxID + 10}, testOperationName)
 			assert.True(t, sampled)
 
-			sampled, tags = sampler.IsSampled(TraceID{Low: testMaxID + 10}, testOperationName)
-			assert.False(t, sampled)
 			sampled, tags = sampler.IsSampled(TraceID{Low: testMaxID - 10}, testOperationName)
 			assert.True(t, sampled)
-			assert.Equal(t, testProbabilisticExpectedTags, tags)
+			assert.Equal(t, test.expectedTags, tags)
 		})
 	}
 }
@@ -605,6 +567,8 @@ func TestRemotelyControlledSampler_updateRateLimitingOrProbabilisticSampler(t *t
 	require.NoError(t, err)
 	otherProbabilisticSampler, err := NewProbabilisticSampler(0.003)
 	require.NoError(t, err)
+	maxProbabilisticSampler, err := NewProbabilisticSampler(1.0)
+	require.NoError(t, err)
 
 	rateLimitingSampler := NewRateLimitingSampler(2)
 	otherRateLimitingSampler := NewRateLimitingSampler(3)
@@ -620,9 +584,9 @@ func TestRemotelyControlledSampler_updateRateLimitingOrProbabilisticSampler(t *t
 		{
 			res:                  getSamplingStrategyResponse(sampling.SamplingStrategyType_PROBABILISTIC, 1.5),
 			initSampler:          probabilisticSampler,
-			expectedSampler:      probabilisticSampler,
-			shouldErr:            true,
-			referenceEquivalence: true,
+			expectedSampler:      maxProbabilisticSampler,
+			shouldErr:            false,
+			referenceEquivalence: false,
 			caption:              "invalid probabilistic strategy",
 		},
 		{
