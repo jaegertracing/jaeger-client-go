@@ -113,6 +113,10 @@ const maxRandomNumber = ^(uint64(1) << 63) // i.e. 0x7fffffffffffffff
 // without generating a new random number, but simply calculating if traceID < (samplingRate * 2^63).
 // TODO remove the error from this function for next major release
 func NewProbabilisticSampler(samplingRate float64) (*ProbabilisticSampler, error) {
+	return newProbabilisticSampler(samplingRate), nil
+}
+
+func newProbabilisticSampler(samplingRate float64) *ProbabilisticSampler {
 	samplingRate = math.Max(0.0, math.Min(samplingRate, 1.0))
 	tags := []Tag{
 		{key: SamplerTypeTagKey, value: SamplerTypeProbabilistic},
@@ -122,7 +126,7 @@ func NewProbabilisticSampler(samplingRate float64) (*ProbabilisticSampler, error
 		samplingRate:     samplingRate,
 		samplingBoundary: uint64(float64(maxRandomNumber) * samplingRate),
 		tags:             tags,
-	}, nil
+	}
 }
 
 // SamplingRate returns the sampling probability this sampled was constructed with.
@@ -210,24 +214,26 @@ type GuaranteedThroughputProbabilisticSampler struct {
 func NewGuaranteedThroughputProbabilisticSampler(
 	lowerBound, samplingRate float64,
 ) (*GuaranteedThroughputProbabilisticSampler, error) {
+	return newGuaranteedThroughputProbabilisticSampler(lowerBound, samplingRate), nil
+}
+
+func newGuaranteedThroughputProbabilisticSampler(lowerBound, samplingRate float64) *GuaranteedThroughputProbabilisticSampler {
 	s := &GuaranteedThroughputProbabilisticSampler{
 		lowerBoundSampler: NewRateLimitingSampler(lowerBound),
 		lowerBound:        lowerBound,
 	}
-	s.setSamplingRate(samplingRate)
-	return s, nil
+	s.setProbabilisticSampler(samplingRate)
+	return s
 }
 
-func (s *GuaranteedThroughputProbabilisticSampler) setSamplingRate(samplingRate float64) {
+func (s *GuaranteedThroughputProbabilisticSampler) setProbabilisticSampler(samplingRate float64) {
 	if s.probabilisticSampler == nil || s.samplingRate != samplingRate {
-		probabilisticSampler, _ := NewProbabilisticSampler(samplingRate)
-		s.samplingRate = probabilisticSampler.SamplingRate()
-		tags := []Tag{
+		s.probabilisticSampler = newProbabilisticSampler(samplingRate)
+		s.samplingRate = s.probabilisticSampler.SamplingRate()
+		s.tags = []Tag{
 			{key: SamplerTypeTagKey, value: SamplerTypeLowerBound},
 			{key: SamplerParamTagKey, value: s.samplingRate},
 		}
-		s.probabilisticSampler = probabilisticSampler
-		s.tags = tags
 	}
 }
 
@@ -256,7 +262,7 @@ func (s *GuaranteedThroughputProbabilisticSampler) Equal(other Sampler) bool {
 
 // this function should only be called while holding a Write lock
 func (s *GuaranteedThroughputProbabilisticSampler) update(lowerBound, samplingRate float64) {
-	s.setSamplingRate(samplingRate)
+	s.setProbabilisticSampler(samplingRate)
 	if s.lowerBound != lowerBound {
 		s.lowerBoundSampler = NewRateLimitingSampler(lowerBound)
 		s.lowerBound = lowerBound
@@ -278,21 +284,24 @@ type adaptiveSampler struct {
 // rateLimitingSampler via the guaranteedThroughputProbabilisticSampler. This sampler keeps track of all
 // operations and delegates calls to the respective guaranteedThroughputProbabilisticSampler.
 func NewAdaptiveSampler(strategies *sampling.PerOperationSamplingStrategies, maxOperations int) (Sampler, error) {
+	return newAdaptiveSampler(strategies, maxOperations), nil
+}
+
+func newAdaptiveSampler(strategies *sampling.PerOperationSamplingStrategies, maxOperations int) Sampler {
 	samplers := make(map[string]*GuaranteedThroughputProbabilisticSampler)
 	for _, strategy := range strategies.PerOperationStrategies {
-		sampler, _ := NewGuaranteedThroughputProbabilisticSampler(
+		sampler := newGuaranteedThroughputProbabilisticSampler(
 			strategies.DefaultLowerBoundTracesPerSecond,
 			strategy.ProbabilisticSampling.SamplingRate,
 		)
 		samplers[strategy.Operation] = sampler
 	}
-	defaultSampler, _ := NewProbabilisticSampler(strategies.DefaultSamplingProbability)
 	return &adaptiveSampler{
 		samplers:       samplers,
-		defaultSampler: defaultSampler,
+		defaultSampler: newProbabilisticSampler(strategies.DefaultSamplingProbability),
 		lowerBound:     strategies.DefaultLowerBoundTracesPerSecond,
 		maxOperations:  maxOperations,
-	}, nil
+	}
 }
 
 func (s *adaptiveSampler) IsSampled(id TraceID, operation string) (bool, []Tag) {
@@ -315,7 +324,7 @@ func (s *adaptiveSampler) IsSampled(id TraceID, operation string) (bool, []Tag) 
 	if len(s.samplers) >= s.maxOperations {
 		return s.defaultSampler.IsSampled(id, operation)
 	}
-	newSampler, _ := NewGuaranteedThroughputProbabilisticSampler(s.lowerBound, s.defaultSampler.SamplingRate())
+	newSampler := newGuaranteedThroughputProbabilisticSampler(s.lowerBound, s.defaultSampler.SamplingRate())
 	s.samplers[operation] = newSampler
 	return newSampler.IsSampled(id, operation)
 }
@@ -347,7 +356,7 @@ func (s *adaptiveSampler) update(strategies *sampling.PerOperationSamplingStrate
 		if sampler, ok := s.samplers[operation]; ok {
 			sampler.update(lowerBound, samplingRate)
 		} else {
-			sampler, _ := NewGuaranteedThroughputProbabilisticSampler(
+			sampler := newGuaranteedThroughputProbabilisticSampler(
 				lowerBound,
 				samplingRate,
 			)
@@ -356,8 +365,7 @@ func (s *adaptiveSampler) update(strategies *sampling.PerOperationSamplingStrate
 	}
 	s.lowerBound = strategies.DefaultLowerBoundTracesPerSecond
 	if s.defaultSampler.SamplingRate() != strategies.DefaultSamplingProbability {
-		defaultSampler, _ := NewProbabilisticSampler(strategies.DefaultSamplingProbability)
-		s.defaultSampler = defaultSampler
+		s.defaultSampler = newProbabilisticSampler(strategies.DefaultSamplingProbability)
 	}
 }
 
@@ -414,8 +422,7 @@ func applySamplerOptions(opts ...SamplerOption) samplerOptions {
 		option(&options)
 	}
 	if options.sampler == nil {
-		initialSampler, _ := NewProbabilisticSampler(0.001)
-		options.sampler = initialSampler
+		options.sampler = newProbabilisticSampler(0.001)
 	}
 	if options.logger == nil {
 		options.logger = log.NullLogger
@@ -505,8 +512,7 @@ func (s *RemotelyControlledSampler) updateAdaptiveSampler(strategies *sampling.P
 	if adaptiveSampler, ok := s.sampler.(*adaptiveSampler); ok {
 		adaptiveSampler.update(strategies)
 	} else {
-		sampler, _ := NewAdaptiveSampler(strategies, s.maxOperations)
-		s.sampler = sampler
+		s.sampler = newAdaptiveSampler(strategies, s.maxOperations)
 	}
 }
 
@@ -514,7 +520,7 @@ func (s *RemotelyControlledSampler) updateAdaptiveSampler(strategies *sampling.P
 func (s *RemotelyControlledSampler) updateRateLimitingOrProbabilisticSampler(res *sampling.SamplingStrategyResponse) error {
 	var newSampler Sampler
 	if probabilistic := res.GetProbabilisticSampling(); probabilistic != nil {
-		newSampler, _ = NewProbabilisticSampler(probabilistic.SamplingRate)
+		newSampler = newProbabilisticSampler(probabilistic.SamplingRate)
 	} else if rateLimiting := res.GetRateLimitingSampling(); rateLimiting != nil {
 		newSampler = NewRateLimitingSampler(float64(rateLimiting.MaxTracesPerSecond))
 	} else {
