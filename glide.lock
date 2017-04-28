@@ -1,8 +1,8 @@
-hash: 2d065dacbd72b291202f969bf78b2fdd099861b3f63304097d66d94266474d05
-updated: 2017-02-24T10:55:59.429477834-05:00
+hash: e8f6066bf268331c06f1f03068851c3968fb0ff934299a044874dd4db7c71eb6
+updated: 2017-03-19T11:44:45.390231815-07:00
 imports:
 - name: github.com/apache/thrift
-  version: e2bc9727500584e055ce603bf95f00165c657ec2
+  version: 6582757752e62efea3f9786dddf0260efaa1f450
   subpackages:
   - lib/go/thrift
 - name: github.com/codahale/hdrhistogram
@@ -39,7 +39,7 @@ imports:
   - metrics
   - metrics/testutils
 - name: github.com/uber/tchannel-go
-  version: 79387824978f91318be3bfb43ae12e04c38cfe97
+  version: 2feb388c9d0c0303f98481d1621308d634093ffb
   subpackages:
   - atomic
   - internal/argreader
@@ -51,12 +51,13 @@ imports:
   - trand
   - typed
 - name: go.uber.org/atomic
-  version: 0c9e689d64f004564b79d9a663634756df322902
+  version: 3b8db5e93c4c02efbc313e17b2e796b0914a01fb
 - name: go.uber.org/zap
-  version: c55503708841efe770d8fe5ae3817004ce71411f
+  version: 4257c7cf05477d92ec25c31cfd3d60e89575f18a
   subpackages:
   - buffer
   - internal/bufferpool
+  - internal/color
   - internal/exit
   - internal/multierror
   - zapcore

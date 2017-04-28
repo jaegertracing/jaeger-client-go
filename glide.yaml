@@ -13,7 +13,7 @@ import:
   subpackages:
   - context
 - package: github.com/uber/tchannel-go
-  version: ^1.1.0
+  version: ^1
   subpackages:
   - atomic
   - thrift
@@ -31,3 +31,5 @@ import:
 - package: github.com/uber/jaeger-lib
   subpackages:
   - metrics
+- package: go.uber.org/zap
+  version: ^1
