@@ -168,7 +168,7 @@ func TestGuaranteedThroughputProbabilisticSampler_update(t *testing.T) {
 	samplingRate := 0.5
 	minSamplesPerSecond := 2.0
 	maxSamplesPerSecond := 10.0
-	sampler, err := NewGuaranteedThroughputProbabilisticSampler(minSamplesPerSecond, samplingRate, maxSamplesPerSecond)
+	sampler, err := NewGuaranteedThroughputProbabilisticSampler(samplingRate, minSamplesPerSecond, maxSamplesPerSecond)
 	assert.NoError(t, err)
 
 	assert.Equal(t, minSamplesPerSecond, sampler.minSamplesPerSecond)
@@ -178,20 +178,20 @@ func TestGuaranteedThroughputProbabilisticSampler_update(t *testing.T) {
 	newSamplingRate := 0.6
 	newMinSamplesPerSecond := 1.0
 	newMaxSamplesPerSecond := 20.0
-	sampler.update(newMinSamplesPerSecond, newSamplingRate, newMaxSamplesPerSecond)
+	sampler.update(newSamplingRate, newMinSamplesPerSecond, newMaxSamplesPerSecond)
 	assert.Equal(t, newMinSamplesPerSecond, sampler.minSamplesPerSecond)
 	assert.Equal(t, newSamplingRate, sampler.samplingRate)
 	assert.Equal(t, newMaxSamplesPerSecond, sampler.maxSamplesPerSecond)
 
 	newSamplingRate = 1.1
-	sampler.update(newMinSamplesPerSecond, newSamplingRate, newMaxSamplesPerSecond)
+	sampler.update(newSamplingRate, newMinSamplesPerSecond, newMaxSamplesPerSecond)
 	assert.Equal(t, 1.0, sampler.samplingRate)
 }
 
 func TestGuaranteedThroughputProbabilisticSampler_maxSamplesPerSecond(t *testing.T) {
 	minSamplesPerSecond := 0.1
 	maxSamplesPerSecond := 1.0
-	sampler, err := NewGuaranteedThroughputProbabilisticSampler(minSamplesPerSecond, testDefaultSamplingProbability, maxSamplesPerSecond)
+	sampler, err := NewGuaranteedThroughputProbabilisticSampler(testDefaultSamplingProbability, minSamplesPerSecond, maxSamplesPerSecond)
 	assert.NoError(t, err)
 
 	sampled, tags := sampler.IsSampled(TraceID{Low: testMaxID - 20}, testOperationName)
@@ -212,7 +212,7 @@ func TestGuaranteedThroughputProbabilisticSampler_maxSamplesPerSecond(t *testing
 	}, tags)
 
 	// reset the sampling probability and the upperbound rate limiter
-	sampler.update(minSamplesPerSecond, testDefaultSamplingProbability, 10)
+	sampler.update(testDefaultSamplingProbability, minSamplesPerSecond, 10)
 
 	sampled, tags = sampler.IsSampled(TraceID{Low: testMaxID - 20}, testOperationName)
 	assert.True(t, sampled)

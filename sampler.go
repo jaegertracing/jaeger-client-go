@@ -218,13 +218,13 @@ type GuaranteedThroughputProbabilisticSampler struct {
 // NewGuaranteedThroughputProbabilisticSampler returns a delegating sampler that applies both
 // probabilisticSampler and rateLimitingSampler.
 func NewGuaranteedThroughputProbabilisticSampler(
-	minSamplesPerSecond, samplingRate, maxSamplesPerSecond float64,
+	samplingRate, minSamplesPerSecond, maxSamplesPerSecond float64,
 ) (*GuaranteedThroughputProbabilisticSampler, error) {
-	return newGuaranteedThroughputProbabilisticSampler(minSamplesPerSecond, samplingRate, maxSamplesPerSecond), nil
+	return newGuaranteedThroughputProbabilisticSampler(samplingRate, minSamplesPerSecond, maxSamplesPerSecond), nil
 }
 
 func newGuaranteedThroughputProbabilisticSampler(
-	minSamplesPerSecond, samplingRate, maxSamplesPerSecond float64,
+	samplingRate, minSamplesPerSecond, maxSamplesPerSecond float64,
 ) *GuaranteedThroughputProbabilisticSampler {
 	s := &GuaranteedThroughputProbabilisticSampler{
 		lowerBoundSampler:     NewRateLimitingSampler(minSamplesPerSecond),
@@ -291,7 +291,7 @@ func (s *GuaranteedThroughputProbabilisticSampler) Equal(other Sampler) bool {
 }
 
 // NB: this function should only be called while holding a Write lock
-func (s *GuaranteedThroughputProbabilisticSampler) update(minSamplesPerSecond, samplingRate, maxSamplesPerSecond float64) {
+func (s *GuaranteedThroughputProbabilisticSampler) update(samplingRate, minSamplesPerSecond, maxSamplesPerSecond float64) {
 	s.setProbabilisticSampler(samplingRate)
 	if s.minSamplesPerSecond != minSamplesPerSecond {
 		s.lowerBoundSampler = NewRateLimitingSampler(minSamplesPerSecond)
@@ -326,8 +326,8 @@ func newAdaptiveSampler(strategies *sampling.PerOperationSamplingStrategies, max
 	samplers := make(map[string]*GuaranteedThroughputProbabilisticSampler)
 	for _, strategy := range strategies.PerOperationStrategies {
 		samplers[strategy.Operation] = newGuaranteedThroughputProbabilisticSampler(
-			strategies.DefaultLowerBoundTracesPerSecond,
 			strategy.ProbabilisticSampling.SamplingRate,
+			strategies.DefaultLowerBoundTracesPerSecond,
 			defaultMaxSamplesPerSecond, // TODO (wjang) get the maxSamplesPerSecond from strategy
 		)
 	}
@@ -361,8 +361,8 @@ func (s *adaptiveSampler) IsSampled(id TraceID, operation string) (bool, []Tag) 
 		return s.defaultSampler.IsSampled(id, operation)
 	}
 	s.samplers[operation] = newGuaranteedThroughputProbabilisticSampler(
-		s.minSamplesPerSecond,
 		s.defaultSampler.SamplingRate(),
+		s.minSamplesPerSecond,
 		s.maxSamplesPerSecond)
 	return s.samplers[operation].IsSampled(id, operation)
 }
@@ -392,11 +392,11 @@ func (s *adaptiveSampler) update(strategies *sampling.PerOperationSamplingStrate
 		samplingRate := strategy.ProbabilisticSampling.SamplingRate
 		minSamplesPerSecond := strategies.DefaultLowerBoundTracesPerSecond
 		if sampler, ok := s.samplers[operation]; ok {
-			sampler.update(minSamplesPerSecond, samplingRate, defaultMaxSamplesPerSecond)
+			sampler.update(samplingRate, minSamplesPerSecond, defaultMaxSamplesPerSecond)
 		} else {
 			s.samplers[operation] = newGuaranteedThroughputProbabilisticSampler(
-				minSamplesPerSecond,
 				samplingRate,
+				minSamplesPerSecond,
 				defaultMaxSamplesPerSecond,
 			)
 		}
