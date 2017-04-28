@@ -36,7 +36,7 @@ const (
 	defaultSamplingServerURL       = "http://localhost:5778/sampling"
 	defaultSamplingRefreshInterval = time.Minute
 	defaultMaxOperations           = 2000
-	defaultMaxSamplesPerSecond     = 2
+	defaultMaxSamplesPerSecond     = 2.0
 )
 
 // Sampler decides whether a new trace should be sampled or not.
@@ -323,19 +323,23 @@ func NewAdaptiveSampler(strategies *sampling.PerOperationSamplingStrategies, max
 }
 
 func newAdaptiveSampler(strategies *sampling.PerOperationSamplingStrategies, maxOperations int) Sampler {
+	maxSamplesPerSecond := defaultMaxSamplesPerSecond
+	if strategies.DefaultUpperBoundTracesPerSecond != nil {
+		maxSamplesPerSecond = *strategies.DefaultUpperBoundTracesPerSecond
+	}
 	samplers := make(map[string]*GuaranteedThroughputProbabilisticSampler)
 	for _, strategy := range strategies.PerOperationStrategies {
 		samplers[strategy.Operation] = newGuaranteedThroughputProbabilisticSampler(
 			strategy.ProbabilisticSampling.SamplingRate,
 			strategies.DefaultLowerBoundTracesPerSecond,
-			defaultMaxSamplesPerSecond, // TODO (wjang) get the maxSamplesPerSecond from strategy
+			maxSamplesPerSecond,
 		)
 	}
 	return &adaptiveSampler{
 		samplers:            samplers,
 		defaultSampler:      newProbabilisticSampler(strategies.DefaultSamplingProbability),
 		minSamplesPerSecond: strategies.DefaultLowerBoundTracesPerSecond,
-		maxSamplesPerSecond: defaultMaxSamplesPerSecond, // TODO (wjang) get the upperbound from strategy
+		maxSamplesPerSecond: maxSamplesPerSecond,
 		maxOperations:       maxOperations,
 	}
 }
@@ -387,22 +391,26 @@ func (s *adaptiveSampler) Equal(other Sampler) bool {
 func (s *adaptiveSampler) update(strategies *sampling.PerOperationSamplingStrategies) {
 	s.Lock()
 	defer s.Unlock()
+	maxSamplesPerSecond := defaultMaxSamplesPerSecond
+	if strategies.DefaultUpperBoundTracesPerSecond != nil {
+		maxSamplesPerSecond = *strategies.DefaultUpperBoundTracesPerSecond
+	}
 	for _, strategy := range strategies.PerOperationStrategies {
 		operation := strategy.Operation
 		samplingRate := strategy.ProbabilisticSampling.SamplingRate
 		minSamplesPerSecond := strategies.DefaultLowerBoundTracesPerSecond
 		if sampler, ok := s.samplers[operation]; ok {
-			sampler.update(samplingRate, minSamplesPerSecond, defaultMaxSamplesPerSecond)
+			sampler.update(samplingRate, minSamplesPerSecond, maxSamplesPerSecond)
 		} else {
 			s.samplers[operation] = newGuaranteedThroughputProbabilisticSampler(
 				samplingRate,
 				minSamplesPerSecond,
-				defaultMaxSamplesPerSecond,
+				maxSamplesPerSecond,
 			)
 		}
 	}
 	s.minSamplesPerSecond = strategies.DefaultLowerBoundTracesPerSecond
-	s.maxSamplesPerSecond = defaultMaxSamplesPerSecond // TODO (wjang) get this from strategies
+	s.maxSamplesPerSecond = maxSamplesPerSecond
 	if s.defaultSampler.SamplingRate() != strategies.DefaultSamplingProbability {
 		s.defaultSampler = newProbabilisticSampler(strategies.DefaultSamplingProbability)
 	}
