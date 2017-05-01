@@ -267,6 +267,25 @@ func TestBuildTags(t *testing.T) {
 	}
 }
 
+func TestBuildReferences(t *testing.T) {
+	references := []opentracing.SpanReference{
+		{Type: opentracing.ChildOfRef, ReferencedContext: SpanContext{traceID: TraceID{High: 1, Low: 1}, spanID: SpanID(1)}},
+		{Type: opentracing.FollowsFromRef, ReferencedContext: SpanContext{traceID: TraceID{High: 2, Low: 2}, spanID: SpanID(2)}},
+		{Type: opentracing.ChildOfRef, ReferencedContext: nonJaegerSpanContext{}},
+	}
+	spanRefs := buildReferences(references)
+	assert.Len(t, spanRefs, 2)
+	assert.Equal(t, j.SpanRefType_CHILD_OF, spanRefs[0].RefType)
+	assert.EqualValues(t, 1, spanRefs[0].SpanId)
+	assert.EqualValues(t, 1, spanRefs[0].TraceIdHigh)
+	assert.EqualValues(t, 1, spanRefs[0].TraceIdLow)
+
+	assert.Equal(t, j.SpanRefType_FOLLOWS_FROM, spanRefs[1].RefType)
+	assert.EqualValues(t, 2, spanRefs[1].SpanId)
+	assert.EqualValues(t, 2, spanRefs[1].TraceIdHigh)
+	assert.EqualValues(t, 2, spanRefs[1].TraceIdLow)
+}
+
 func getStringPtr(s string) *string {
 	return &s
 }

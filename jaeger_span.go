@@ -44,7 +44,7 @@ func buildJaegerSpan(span *Span) *j.Span {
 		Duration:      duration,
 		Tags:          buildTags(span.tags),
 		Logs:          buildLogs(span.logs),
-		References:    span.references,
+		References:    buildReferences(span.references),
 	}
 	return jaegerSpan
 }
@@ -141,4 +141,29 @@ func buildTag(tag *Tag) *j.Tag {
 		jTag.VType = j.TagType_STRING
 	}
 	return jTag
+}
+
+func buildReferences(references []opentracing.SpanReference) []*j.SpanRef {
+	var retMe []*j.SpanRef
+	for _, ref := range references {
+		ctx, ok := ref.ReferencedContext.(SpanContext)
+		if !ok {
+			continue
+		}
+		if ref.Type == opentracing.ChildOfRef {
+			retMe = append(retMe, spanRef(ctx, j.SpanRefType_CHILD_OF))
+		} else if ref.Type == opentracing.FollowsFromRef {
+			retMe = append(retMe, spanRef(ctx, j.SpanRefType_FOLLOWS_FROM))
+		}
+	}
+	return retMe
+}
+
+func spanRef(ctx SpanContext, refType j.SpanRefType) *j.SpanRef {
+	return &j.SpanRef{
+		RefType:     refType,
+		TraceIdLow:  int64(ctx.traceID.Low),
+		TraceIdHigh: int64(ctx.traceID.High),
+		SpanId:      int64(ctx.spanID),
+	}
 }

@@ -32,7 +32,6 @@ import (
 	"github.com/opentracing/opentracing-go/ext"
 
 	"github.com/uber/jaeger-client-go/log"
-	j "github.com/uber/jaeger-client-go/thrift-gen/jaeger"
 	"github.com/uber/jaeger-client-go/utils"
 )
 
@@ -159,25 +158,21 @@ func (t *tracer) startSpanWithOptions(
 		options.StartTime = t.timeNow()
 	}
 
-	var references []*j.SpanRef
 	var parent SpanContext
 	var hasParent bool // need this because `parent` is a value, not reference
 	for _, ref := range options.References {
-		ctx, ok := ref.ReferencedContext.(SpanContext)
-		if !ok {
-			t.logger.Error(fmt.Sprintf(
-				"Reference contains invalid type of SpanReference: %s",
-				reflect.ValueOf(ref.ReferencedContext)))
-			continue
-		}
 		if ref.Type == opentracing.ChildOfRef {
-			references = append(references, spanRef(ctx, j.SpanRefType_CHILD_OF))
-			if (ctx.IsValid() || ctx.isDebugIDContainerOnly() || len(ctx.baggage) != 0) && !hasParent {
-				parent = ctx
-				hasParent = true
+			if p, ok := ref.ReferencedContext.(SpanContext); ok {
+				if p.IsValid() || p.isDebugIDContainerOnly() || len(p.baggage) != 0 {
+					parent = p
+					hasParent = true
+					break
+				}
+			} else {
+				t.logger.Error(fmt.Sprintf(
+					"Reference contains invalid type of SpanReference: %s",
+					reflect.ValueOf(ref.ReferencedContext)))
 			}
-		} else if ref.Type == opentracing.FollowsFromRef {
-			references = append(references, spanRef(ctx, j.SpanRefType_FOLLOWS_FROM))
 		} else {
 			// TODO support other types of span references
 		}
@@ -240,7 +235,7 @@ func (t *tracer) startSpanWithOptions(
 		options.Tags,
 		newTrace,
 		rpcServer,
-		references,
+		options.References,
 	)
 }
 
@@ -296,7 +291,7 @@ func (t *tracer) startSpanInternal(
 	tags opentracing.Tags,
 	newTrace bool,
 	rpcServer bool,
-	references []*j.SpanRef,
+	references []opentracing.SpanReference,
 ) *Span {
 	sp.tracer = t
 	sp.operationName = operationName
@@ -361,13 +356,4 @@ func (t *tracer) randomID() uint64 {
 		val = t.randomNumber()
 	}
 	return val
-}
-
-func spanRef(ctx SpanContext, refType j.SpanRefType) *j.SpanRef {
-	return &j.SpanRef{
-		RefType:     refType,
-		TraceIdLow:  int64(ctx.traceID.Low),
-		TraceIdHigh: int64(ctx.traceID.High),
-		SpanId:      int64(ctx.spanID),
-	}
 }

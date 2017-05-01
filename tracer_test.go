@@ -155,7 +155,7 @@ func (s *tracerSuite) TestStartSpanWithMultipleReferences() {
 		{Name: "jaeger.spans", Tags: map[string]string{"group": "lifecycle", "state": "started"}, Value: 4},
 		{Name: "jaeger.spans", Tags: map[string]string{"group": "lifecycle", "state": "finished"}, Value: 4},
 	}...)
-	assert.Len(s.T(), sp4.(*Span).references, 3)
+	assert.Len(s.T(), sp4.(*Span).references, 4)
 }
 
 func (s *tracerSuite) TestTraceStartedOrJoinedMetrics() {
