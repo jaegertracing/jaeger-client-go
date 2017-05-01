@@ -268,10 +268,9 @@ func TestBuildTags(t *testing.T) {
 }
 
 func TestBuildReferences(t *testing.T) {
-	references := []opentracing.SpanReference{
-		{Type: opentracing.ChildOfRef, ReferencedContext: SpanContext{traceID: TraceID{High: 1, Low: 1}, spanID: SpanID(1)}},
-		{Type: opentracing.FollowsFromRef, ReferencedContext: SpanContext{traceID: TraceID{High: 2, Low: 2}, spanID: SpanID(2)}},
-		{Type: opentracing.ChildOfRef, ReferencedContext: nonJaegerSpanContext{}},
+	references := []Reference{
+		{Type: opentracing.ChildOfRef, Context: SpanContext{traceID: TraceID{High: 1, Low: 1}, spanID: SpanID(1)}},
+		{Type: opentracing.FollowsFromRef, Context: SpanContext{traceID: TraceID{High: 2, Low: 2}, spanID: SpanID(2)}},
 	}
 	spanRefs := buildReferences(references)
 	assert.Len(t, spanRefs, 2)

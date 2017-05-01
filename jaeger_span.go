@@ -143,17 +143,13 @@ func buildTag(tag *Tag) *j.Tag {
 	return jTag
 }
 
-func buildReferences(references []opentracing.SpanReference) []*j.SpanRef {
-	var retMe []*j.SpanRef
+func buildReferences(references []Reference) []*j.SpanRef {
+	retMe := make([]*j.SpanRef, 0, len(references))
 	for _, ref := range references {
-		ctx, ok := ref.ReferencedContext.(SpanContext)
-		if !ok {
-			continue
-		}
 		if ref.Type == opentracing.ChildOfRef {
-			retMe = append(retMe, spanRef(ctx, j.SpanRefType_CHILD_OF))
+			retMe = append(retMe, spanRef(ref.Context, j.SpanRefType_CHILD_OF))
 		} else if ref.Type == opentracing.FollowsFromRef {
-			retMe = append(retMe, spanRef(ctx, j.SpanRefType_FOLLOWS_FROM))
+			retMe = append(retMe, spanRef(ref.Context, j.SpanRefType_FOLLOWS_FROM))
 		}
 	}
 	return retMe

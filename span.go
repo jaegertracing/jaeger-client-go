@@ -75,7 +75,7 @@ type Span struct {
 	logs []opentracing.LogRecord
 
 	// references for this span
-	references []opentracing.SpanReference
+	references []Reference
 
 	observer SpanObserver
 }

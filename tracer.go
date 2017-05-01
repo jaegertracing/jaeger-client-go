@@ -158,24 +158,38 @@ func (t *tracer) startSpanWithOptions(
 		options.StartTime = t.timeNow()
 	}
 
+	var references []Reference
 	var parent SpanContext
 	var hasParent bool // need this because `parent` is a value, not reference
+	var followsFromContext SpanContext
 	for _, ref := range options.References {
-		if ref.Type == opentracing.ChildOfRef {
-			if p, ok := ref.ReferencedContext.(SpanContext); ok {
-				if p.IsValid() || p.isDebugIDContainerOnly() || len(p.baggage) != 0 {
-					parent = p
-					hasParent = true
-					break
-				}
-			} else {
-				t.logger.Error(fmt.Sprintf(
-					"ChildOf reference contains invalid type of SpanReference: %s",
-					reflect.ValueOf(ref.ReferencedContext)))
-			}
-		} else {
-			// TODO support other types of span references
+		ctx, ok := ref.ReferencedContext.(SpanContext)
+		if !ok {
+			t.logger.Error(fmt.Sprintf(
+				"Reference contains invalid type of SpanReference: %s",
+				reflect.ValueOf(ref.ReferencedContext)))
+			continue
 		}
+		if ref.Type == opentracing.ChildOfRef {
+			references = append(references, Reference{Type: opentracing.ChildOfRef, Context: ctx})
+			if (ctx.IsValid() || ctx.isDebugIDContainerOnly() || len(ctx.baggage) != 0) && !hasParent {
+				parent = ctx
+				hasParent = true
+			}
+		} else if ref.Type == opentracing.FollowsFromRef {
+			references = append(references, Reference{Type: opentracing.FollowsFromRef, Context: ctx})
+			if (ctx.IsValid() || ctx.isDebugIDContainerOnly() || len(ctx.baggage) != 0) && !followsFromContext.IsValid() {
+				// Keep track of the first valid FollowsFrom reference in case there was no
+				// parent span
+				followsFromContext = ctx
+			}
+		}
+	}
+	if !hasParent && followsFromContext.IsValid() {
+		// If ChildOfRef wasn't found but a FollowFromRef exists, use the context from
+		// the FollowFromRef as the parent
+		hasParent = true
+		parent = followsFromContext
 	}
 
 	rpcServer := false
@@ -235,7 +249,7 @@ func (t *tracer) startSpanWithOptions(
 		options.Tags,
 		newTrace,
 		rpcServer,
-		options.References,
+		references,
 	)
 }
 
@@ -291,7 +305,7 @@ func (t *tracer) startSpanInternal(
 	tags opentracing.Tags,
 	newTrace bool,
 	rpcServer bool,
-	references []opentracing.SpanReference,
+	references []Reference,
 ) *Span {
 	sp.tracer = t
 	sp.operationName = operationName
