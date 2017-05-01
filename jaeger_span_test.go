@@ -30,6 +30,7 @@ import (
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
 	"github.com/stretchr/testify/assert"
+
 	j "github.com/uber/jaeger-client-go/thrift-gen/jaeger"
 	"github.com/uber/jaeger-client-go/utils"
 )
@@ -50,8 +51,8 @@ func TestBuildJaegerSpan(t *testing.T) {
 		NewNullReporter())
 	defer closer.Close()
 
-	sp1 := tracer.StartSpan("sp1").(*span)
-	sp2 := tracer.StartSpan("sp2", opentracing.ChildOf(sp1.Context())).(*span)
+	sp1 := tracer.StartSpan("sp1").(*Span)
+	sp2 := tracer.StartSpan("sp2", opentracing.ChildOf(sp1.Context())).(*Span)
 	sp2.Finish()
 	sp1.Finish()
 
@@ -217,7 +218,7 @@ func TestBuildLogs(t *testing.T) {
 		} else if test.field != (log.Field{}) {
 			sp.LogFields(test.field)
 		}
-		jaegerSpan := buildJaegerSpan(sp.(*span))
+		jaegerSpan := buildJaegerSpan(sp.(*Span))
 		if test.disableSampling {
 			assert.Equal(t, 0, len(jaegerSpan.Logs), testName)
 			continue
