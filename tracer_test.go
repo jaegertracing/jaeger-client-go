@@ -126,6 +126,38 @@ func (s *tracerSuite) TestStartChildSpan() {
 	}...)
 }
 
+type nonJaegerSpanContext struct{}
+
+func (c nonJaegerSpanContext) ForeachBaggageItem(handler func(k, v string) bool) {}
+
+func (s *tracerSuite) TestStartSpanWithMultipleReferences() {
+	s.metricsFactory.Clear()
+	sp1 := s.tracer.StartSpan("A")
+	sp2 := s.tracer.StartSpan("B")
+	sp3 := s.tracer.StartSpan("C")
+	sp4 := s.tracer.StartSpan(
+		"D",
+		opentracing.ChildOf(sp1.Context()),
+		opentracing.ChildOf(sp2.Context()),
+		opentracing.FollowsFrom(sp3.Context()),
+		opentracing.FollowsFrom(nonJaegerSpanContext{}),
+	)
+	// Should use the first ChildOf ref span as the parent
+	s.Equal(sp1.(*Span).context.spanID, sp4.(*Span).context.parentID)
+	sp4.Finish()
+	s.NotNil(sp4.(*Span).duration)
+	sp3.Finish()
+	sp2.Finish()
+	sp1.Finish()
+	testutils.AssertCounterMetrics(s.T(), s.metricsFactory, []testutils.ExpectedMetric{
+		{Name: "jaeger.spans", Tags: map[string]string{"group": "sampling", "sampled": "y"}, Value: 4},
+		{Name: "jaeger.traces", Tags: map[string]string{"sampled": "y", "state": "started"}, Value: 3},
+		{Name: "jaeger.spans", Tags: map[string]string{"group": "lifecycle", "state": "started"}, Value: 4},
+		{Name: "jaeger.spans", Tags: map[string]string{"group": "lifecycle", "state": "finished"}, Value: 4},
+	}...)
+	assert.Len(s.T(), sp4.(*Span).references, 3)
+}
+
 func (s *tracerSuite) TestTraceStartedOrJoinedMetrics() {
 	tests := []struct {
 		sampled bool

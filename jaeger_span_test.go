@@ -65,6 +65,12 @@ func TestBuildJaegerSpan(t *testing.T) {
 	assert.Len(t, jaegerSpan1.Tags, 4)
 	tag := findTag(jaegerSpan1, SamplerTypeTagKey)
 	assert.Equal(t, SamplerTypeConst, *tag.VStr)
+	assert.Empty(t, jaegerSpan1.References)
+	assert.Len(t, jaegerSpan2.References, 1)
+	assert.Equal(t, j.SpanRefType_CHILD_OF, jaegerSpan2.References[0].RefType)
+	assert.EqualValues(t, jaegerSpan1.TraceIdLow, jaegerSpan2.References[0].TraceIdLow)
+	assert.EqualValues(t, jaegerSpan1.TraceIdHigh, jaegerSpan2.References[0].TraceIdHigh)
+	assert.EqualValues(t, jaegerSpan1.SpanId, jaegerSpan2.References[0].SpanId)
 }
 
 func TestBuildLogs(t *testing.T) {

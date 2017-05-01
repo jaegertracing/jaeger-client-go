@@ -29,6 +29,7 @@ import (
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
 
+	j "github.com/uber/jaeger-client-go/thrift-gen/jaeger"
 	"github.com/uber/jaeger-client-go/utils"
 )
 
@@ -73,6 +74,9 @@ type Span struct {
 
 	// The span's "micro-log"
 	logs []opentracing.LogRecord
+
+	// references for this span
+	references []*j.SpanRef
 
 	observer SpanObserver
 }

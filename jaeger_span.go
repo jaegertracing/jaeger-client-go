@@ -44,8 +44,8 @@ func buildJaegerSpan(span *Span) *j.Span {
 		Duration:      duration,
 		Tags:          buildTags(span.tags),
 		Logs:          buildLogs(span.logs),
+		References:    span.references,
 	}
-	// TODO references
 	return jaegerSpan
 }
 
