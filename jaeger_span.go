@@ -103,6 +103,10 @@ func buildTag(tag *Tag) *j.Tag {
 		vLong := int64(value)
 		jTag.VLong = &vLong
 		jTag.VType = j.TagType_LONG
+	case uint16:
+		vLong := int64(value)
+		jTag.VLong = &vLong
+		jTag.VType = j.TagType_LONG
 	case int32:
 		vLong := int64(value)
 		jTag.VLong = &vLong

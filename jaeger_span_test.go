@@ -242,6 +242,7 @@ func TestBuildTags(t *testing.T) {
 		{tag: Tag{key: "k", value: int8(123)}, expected: &j.Tag{Key: "k", VType: j.TagType_LONG, VLong: &someLong}},
 		{tag: Tag{key: "k", value: uint8(123)}, expected: &j.Tag{Key: "k", VType: j.TagType_LONG, VLong: &someLong}},
 		{tag: Tag{key: "k", value: int16(123)}, expected: &j.Tag{Key: "k", VType: j.TagType_LONG, VLong: &someLong}},
+		{tag: Tag{key: "k", value: uint16(123)}, expected: &j.Tag{Key: "k", VType: j.TagType_LONG, VLong: &someLong}},
 		{tag: Tag{key: "k", value: int32(123)}, expected: &j.Tag{Key: "k", VType: j.TagType_LONG, VLong: &someLong}},
 		{tag: Tag{key: "k", value: uint32(123)}, expected: &j.Tag{Key: "k", VType: j.TagType_LONG, VLong: &someLong}},
 		{tag: Tag{key: "k", value: int64(123)}, expected: &j.Tag{Key: "k", VType: j.TagType_LONG, VLong: &someLong}},
