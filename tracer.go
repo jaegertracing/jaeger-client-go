@@ -170,7 +170,7 @@ func (t *tracer) startSpanWithOptions(
 				}
 			} else {
 				t.logger.Error(fmt.Sprintf(
-					"Reference contains invalid type of SpanReference: %s",
+					"ChildOf reference contains invalid type of SpanReference: %s",
 					reflect.ValueOf(ref.ReferencedContext)))
 			}
 		} else {
