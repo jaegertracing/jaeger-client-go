@@ -175,9 +175,7 @@ func (t *tracer) startSpanWithOptions(
 		references = append(references, Reference{Type: ref.Type, Context: ctx})
 		if !hasParent {
 			parent = ctx
-			if ref.Type == opentracing.ChildOfRef {
-				hasParent = true
-			}
+			hasParent = ref.Type == opentracing.ChildOfRef
 		}
 	}
 	if !hasParent && parent.IsValid() {
