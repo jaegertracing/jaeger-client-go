@@ -65,6 +65,12 @@ func TestBuildJaegerSpan(t *testing.T) {
 	assert.Len(t, jaegerSpan1.Tags, 4)
 	tag := findTag(jaegerSpan1, SamplerTypeTagKey)
 	assert.Equal(t, SamplerTypeConst, *tag.VStr)
+	assert.Empty(t, jaegerSpan1.References)
+	assert.Len(t, jaegerSpan2.References, 1)
+	assert.Equal(t, j.SpanRefType_CHILD_OF, jaegerSpan2.References[0].RefType)
+	assert.EqualValues(t, jaegerSpan1.TraceIdLow, jaegerSpan2.References[0].TraceIdLow)
+	assert.EqualValues(t, jaegerSpan1.TraceIdHigh, jaegerSpan2.References[0].TraceIdHigh)
+	assert.EqualValues(t, jaegerSpan1.SpanId, jaegerSpan2.References[0].SpanId)
 }
 
 func TestBuildLogs(t *testing.T) {
@@ -259,6 +265,24 @@ func TestBuildTags(t *testing.T) {
 		assert.Len(t, actual, 1)
 		compareTags(t, test.expected, actual[0], testName)
 	}
+}
+
+func TestBuildReferences(t *testing.T) {
+	references := []Reference{
+		{Type: opentracing.ChildOfRef, Context: SpanContext{traceID: TraceID{High: 1, Low: 1}, spanID: SpanID(1)}},
+		{Type: opentracing.FollowsFromRef, Context: SpanContext{traceID: TraceID{High: 2, Low: 2}, spanID: SpanID(2)}},
+	}
+	spanRefs := buildReferences(references)
+	assert.Len(t, spanRefs, 2)
+	assert.Equal(t, j.SpanRefType_CHILD_OF, spanRefs[0].RefType)
+	assert.EqualValues(t, 1, spanRefs[0].SpanId)
+	assert.EqualValues(t, 1, spanRefs[0].TraceIdHigh)
+	assert.EqualValues(t, 1, spanRefs[0].TraceIdLow)
+
+	assert.Equal(t, j.SpanRefType_FOLLOWS_FROM, spanRefs[1].RefType)
+	assert.EqualValues(t, 2, spanRefs[1].SpanId)
+	assert.EqualValues(t, 2, spanRefs[1].TraceIdHigh)
+	assert.EqualValues(t, 2, spanRefs[1].TraceIdLow)
 }
 
 func getStringPtr(s string) *string {

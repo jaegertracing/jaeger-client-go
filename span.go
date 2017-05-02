@@ -74,6 +74,9 @@ type Span struct {
 	// The span's "micro-log"
 	logs []opentracing.LogRecord
 
+	// references for this span
+	references []Reference
+
 	observer SpanObserver
 }
 

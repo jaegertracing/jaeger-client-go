@@ -111,6 +111,7 @@ func TestSpanPropagator(t *testing.T) {
 		sp.logs = exp.logs
 		sp.spanKind = exp.spanKind
 		sp.operationName = op
+		sp.references = exp.references
 		// Compare the rest of the fields
 		assert.Equal(t, exp, sp, formatName)
 	}
