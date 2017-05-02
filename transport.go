@@ -18,12 +18,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package transport
+package jaeger
 
 import (
 	"io"
-
-	"github.com/uber/jaeger-client-go/thrift-gen/zipkincore"
 )
 
 // Transport abstracts the method of sending spans out of process.
@@ -35,7 +33,7 @@ type Transport interface {
 	// size, the transport should call Flush() and return the number of spans
 	// flushed, otherwise return 0. If error is returned, the returned number
 	// of spans is treated as failed span, and reported to metrics accordingly.
-	Append(span *zipkincore.Span) (int, error)
+	Append(span *Span) (int, error)
 
 	// Flush submits the internal buffer to the remote server. It returns the
 	// number of spans flushed. If error is returned, the returned number of

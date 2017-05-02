@@ -40,8 +40,8 @@ const (
 	allowPackedNumbers = false
 )
 
-// buildThriftSpan builds thrift span based on internal span.
-func buildThriftSpan(s *Span) *z.Span {
+// BuildThriftSpan builds thrift span based on internal span.
+func BuildThriftSpan(span *Span) *z.Span {
 	span := &zipkinSpan{Span: s}
 	span.handleSpecialTags()
 	parentID := int64(span.context.parentID)

@@ -25,12 +25,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/uber/jaeger-client-go/thrift-gen/sampling"
-	"github.com/uber/jaeger-client-go/thrift-gen/zipkincore"
-	"github.com/uber/jaeger-client-go/utils"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/uber/jaeger-client-go/thrift-gen/jaeger"
+	"github.com/uber/jaeger-client-go/thrift-gen/sampling"
+	"github.com/uber/jaeger-client-go/utils"
 )
 
 func TestMockAgentSpanServer(t *testing.T) {
@@ -42,28 +42,31 @@ func TestMockAgentSpanServer(t *testing.T) {
 	require.NoError(t, err)
 
 	for i := 1; i < 5; i++ {
-		spans := make([]*zipkincore.Span, i, i)
+		batch := &jaeger.Batch{Process: &jaeger.Process{ServiceName: "svc"}}
+		spans := make([]*jaeger.Span, i, i)
 		for j := 0; j < i; j++ {
-			spans[j] = zipkincore.NewSpan()
-			spans[j].Name = fmt.Sprintf("span-%d", j)
+			spans[j] = jaeger.NewSpan()
+			spans[j].OperationName = fmt.Sprintf("span-%d", j)
 		}
+		batch.Spans = spans
 
-		err = client.EmitZipkinBatch(spans)
+		err = client.EmitBatch(batch)
 		assert.NoError(t, err)
 
 		for k := 0; k < 100; k++ {
 			time.Sleep(time.Millisecond)
-			spans = mockAgent.GetZipkinSpans()
-			if len(spans) == i {
+			batches := mockAgent.GetJaegerBatches()
+			if len(batches) > 0 && len(batches[0].Spans) == i {
 				break
 			}
 		}
-		spans = mockAgent.GetZipkinSpans()
-		require.Equal(t, i, len(spans))
+		batches := mockAgent.GetJaegerBatches()
+		require.NotEmpty(t, len(batches))
+		require.Equal(t, i, len(batches[0].Spans))
 		for j := 0; j < i; j++ {
-			assert.Equal(t, fmt.Sprintf("span-%d", j), spans[j].Name)
+			assert.Equal(t, fmt.Sprintf("span-%d", j), batches[0].Spans[j].OperationName)
 		}
-		mockAgent.ResetZipkinSpans()
+		mockAgent.ResetJaegerBatches()
 	}
 }
 

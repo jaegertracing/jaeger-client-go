@@ -31,8 +31,6 @@ import (
 
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/rpcmetrics"
-	"github.com/uber/jaeger-client-go/transport"
-	"github.com/uber/jaeger-client-go/transport/udp"
 )
 
 const defaultSamplingProbability = 0.001
@@ -245,6 +243,6 @@ func (rc *ReporterConfig) NewReporter(
 	return reporter, err
 }
 
-func (rc *ReporterConfig) newTransport() (transport.Transport, error) {
-	return udp.NewUDPTransport(rc.LocalAgentHostPort, 0)
+func (rc *ReporterConfig) newTransport() (jaeger.Transport, error) {
+	return jaeger.NewUDPTransport(rc.LocalAgentHostPort, 0)
 }

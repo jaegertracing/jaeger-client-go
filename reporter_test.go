@@ -21,7 +21,6 @@
 package jaeger
 
 import (
-	"fmt"
 	"io"
 	"sort"
 	"strings"
@@ -34,13 +33,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"github.com/uber/jaeger-client-go/testutils"
-	z "github.com/uber/jaeger-client-go/thrift-gen/zipkincore"
 	"github.com/uber/jaeger-lib/metrics"
 	mTestutils "github.com/uber/jaeger-lib/metrics/testutils"
 
-	"github.com/uber/jaeger-client-go/transport"
-	"github.com/uber/jaeger-client-go/transport/udp"
+	"github.com/uber/jaeger-client-go/testutils"
+	j "github.com/uber/jaeger-client-go/thrift-gen/jaeger"
 )
 
 type reporterSuite struct {
@@ -92,7 +89,7 @@ func (s *reporterSuite) flushReporter() {
 	wg.Wait()
 }
 
-func (s *reporterSuite) TestRootSpanAnnotations() {
+func (s *reporterSuite) TestRootSpanTags() {
 	s.metricsFactory.Clear()
 	sp := s.tracer.StartSpan("get_name")
 	ext.SpanKindRPCServer.Set(sp)
@@ -100,11 +97,9 @@ func (s *reporterSuite) TestRootSpanAnnotations() {
 	sp.Finish()
 	s.flushReporter()
 	s.Equal(1, len(s.collector.Spans()))
-	zSpan := s.collector.Spans()[0]
-	s.NotNil(findAnnotation(zSpan, "sr"), "expecting sr annotation")
-	s.NotNil(findAnnotation(zSpan, "ss"), "expecting ss annotation")
-	s.NotNil(findBinaryAnnotation(zSpan, "ca"), "expecting ca annotation")
-	s.NotNil(findBinaryAnnotation(zSpan, JaegerClientVersionTagKey), "expecting client version tag")
+	span := s.collector.Spans()[0]
+	s.True(span.isRPC())
+	s.NotNil(findDomainTag(span, JaegerClientVersionTagKey), "expecting client version tag")
 
 	mTestutils.AssertCounterMetrics(s.T(), s.metricsFactory,
 		mTestutils.ExpectedMetric{
@@ -115,7 +110,7 @@ func (s *reporterSuite) TestRootSpanAnnotations() {
 	)
 }
 
-func (s *reporterSuite) TestClientSpanAnnotations() {
+func (s *reporterSuite) TestClientSpan() {
 	s.metricsFactory.Clear()
 	sp := s.tracer.StartSpan("get_name")
 	ext.SpanKindRPCServer.Set(sp)
@@ -127,13 +122,9 @@ func (s *reporterSuite) TestClientSpanAnnotations() {
 	sp.Finish()
 	s.flushReporter()
 	s.Equal(2, len(s.collector.Spans()))
-	zSpan := s.collector.Spans()[0] // child span is reported first
-	s.EqualValues(zSpan.ID, sp2.(*Span).context.spanID)
-	s.Equal(2, len(zSpan.Annotations), "expecting two annotations, cs and cr")
-	s.Equal(1, len(zSpan.BinaryAnnotations), "expecting one binary annotation sa")
-	s.NotNil(findAnnotation(zSpan, "cs"), "expecting cs annotation")
-	s.NotNil(findAnnotation(zSpan, "cr"), "expecting cr annotation")
-	s.NotNil(findBinaryAnnotation(zSpan, "sa"), "expecting sa annotation")
+	span := s.collector.Spans()[0] // child span is reported first
+	s.EqualValues(span.context.spanID, sp2.(*Span).context.spanID)
+	s.True(span.isRPCClient())
 
 	mTestutils.AssertCounterMetrics(s.T(), s.metricsFactory,
 		mTestutils.ExpectedMetric{
@@ -151,7 +142,7 @@ func (s *reporterSuite) TestTagsAndEvents() {
 	expected := []string{"long", "ping", "awake", "awake", "one", "two", "three", "bite me",
 		JaegerClientVersionTagKey, TracerHostnameTagKey,
 		SamplerParamTagKey, SamplerTypeTagKey,
-		"lc", "does not compute"}
+		"does not compute"}
 	sp.SetTag("long", strings.Repeat("x", 300))
 	sp.SetTag("ping", "pong")
 	sp.SetTag("awake", true)
@@ -164,39 +155,19 @@ func (s *reporterSuite) TestTagsAndEvents() {
 	sp.Finish()
 	s.flushReporter()
 	s.Equal(1, len(s.collector.Spans()))
-	zSpan := s.collector.Spans()[0]
-	s.Equal(2, len(zSpan.Annotations), "expecting two annotations for events")
-	s.Equal(len(expected), len(zSpan.BinaryAnnotations),
+	span := s.collector.Spans()[0]
+	s.Equal(2, len(span.logs), "expecting two annotations for events")
+	s.Equal(len(expected), len(span.tags),
 		"expecting %d binary annotations", len(expected))
-	binAnnos := []string{}
-	for _, a := range zSpan.BinaryAnnotations {
-		binAnnos = append(binAnnos, string(a.Key))
+	tags := []string{}
+	for _, tag := range span.tags {
+		tags = append(tags, string(tag.key))
 	}
 	sort.Strings(expected)
-	sort.Strings(binAnnos)
-	s.Equal(expected, binAnnos, "expecting %d binary annotations", len(expected))
+	sort.Strings(tags)
+	s.Equal(expected, tags, "expecting %d binary annotations", len(expected))
 
-	s.NotNil(findAnnotation(zSpan, "hello"), "expecting 'hello' annotation: %+v", zSpan.Annotations)
-
-	longEvent := false
-	for _, a := range zSpan.Annotations {
-		if strings.HasPrefix(a.Value, "long event") {
-			longEvent = true
-			s.EqualValues(256, len(a.Value))
-		}
-	}
-	s.True(longEvent, "Must have truncated and saved long event name")
-
-	for i := range expected {
-		s.NotNil(findBinaryAnnotation(zSpan, expected[i]), "expecting annotation '%s'", expected[i])
-	}
-	doesNotCompute := findBinaryAnnotation(zSpan, "does not compute")
-	s.NotNil(doesNotCompute)
-	doesNotComputeStr := fmt.Sprintf("%+v", sp)
-	s.Equal(doesNotComputeStr, string(doesNotCompute.Value))
-
-	longStr := findBinaryAnnotation(zSpan, "long")
-	s.EqualValues(256, len(longStr.Value), "long tag valur must be truncated")
+	s.NotNil(findDomainLog(span, "hello"), "expecting 'hello' annotation: %+v", span.logs)
 }
 
 func TestUDPReporter(t *testing.T) {
@@ -205,18 +176,18 @@ func TestUDPReporter(t *testing.T) {
 	defer agent.Close()
 
 	testRemoteReporter(t,
-		func(m *Metrics) (transport.Transport, error) {
-			return udp.NewUDPTransport(agent.SpanServerAddr(), 0)
+		func(m *Metrics) (Transport, error) {
+			return NewUDPTransport(agent.SpanServerAddr(), 0)
 		},
-		func() []*z.Span {
-			return agent.GetZipkinSpans()
+		func() []*j.Batch {
+			return agent.GetJaegerBatches()
 		})
 }
 
 func testRemoteReporter(
 	t *testing.T,
-	factory func(m *Metrics) (transport.Transport, error),
-	getSpans func() []*z.Span,
+	factory func(m *Metrics) (Transport, error),
+	getBatches func() []*j.Batch,
 ) {
 	metricsFactory := metrics.NewLocalFactory(0)
 	metrics := NewMetrics(metricsFactory, nil)
@@ -239,12 +210,11 @@ func testRemoteReporter(
 	// however, in case of UDP reporter it's fire and forget, so we need to wait a bit
 	time.Sleep(5 * time.Millisecond)
 
-	spans := getSpans()
-	require.Equal(t, 1, len(spans))
-	assert.Equal(t, "leela", spans[0].Name)
-	sa := findBinaryAnnotation(spans[0], z.SERVER_ADDR)
-	require.NotNil(t, sa)
-	assert.Equal(t, "downstream", sa.Host.ServiceName)
+	batches := getBatches()
+	require.Equal(t, 1, len(batches))
+	assert.Equal(t, "leela", batches[0].Spans[0].OperationName)
+	assert.Equal(t, "reporter-test-service", batches[0].Process.ServiceName)
+	// TODO (wjang) test that the "peer.service" tag was set to "downstream"
 
 	mTestutils.AssertCounterMetrics(t, metricsFactory, []mTestutils.ExpectedMetric{
 		{Name: "jaeger.reporter-spans", Tags: map[string]string{"state": "success"}, Value: 1},
@@ -262,11 +232,11 @@ func (s *reporterSuite) TestMemoryReporterReport() {
 }
 
 type fakeSender struct {
-	spans []*z.Span
+	spans []*Span
 	mutex sync.Mutex
 }
 
-func (s *fakeSender) Append(span *z.Span) (int, error) {
+func (s *fakeSender) Append(span *Span) (int, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	s.spans = append(s.spans, span)
@@ -279,10 +249,28 @@ func (s *fakeSender) Flush() (int, error) {
 
 func (s *fakeSender) Close() error { return nil }
 
-func (s *fakeSender) Spans() []*z.Span {
+func (s *fakeSender) Spans() []*Span {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	res := make([]*z.Span, len(s.spans))
+	res := make([]*Span, len(s.spans))
 	copy(res, s.spans)
 	return res
+}
+
+func findDomainLog(span *Span, key string) *opentracing.LogRecord {
+	for _, log := range span.logs {
+		if log.Fields[0].Value().(string) == key {
+			return &log
+		}
+	}
+	return nil
+}
+
+func findDomainTag(span *Span, key string) *Tag {
+	for _, tag := range span.tags {
+		if tag.key == key {
+			return &tag
+		}
+	}
+	return nil
 }

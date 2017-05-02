@@ -25,10 +25,11 @@ import (
 	"io"
 	"net"
 
-	"github.com/uber/jaeger-client-go/thrift-gen/agent"
-	"github.com/uber/jaeger-client-go/thrift-gen/zipkincore"
-
 	"github.com/apache/thrift/lib/go/thrift"
+
+	"github.com/uber/jaeger-client-go/thrift-gen/agent"
+	"github.com/uber/jaeger-client-go/thrift-gen/jaeger"
+	"github.com/uber/jaeger-client-go/thrift-gen/zipkincore"
 )
 
 // UDPPacketMaxLength is the max size of UDP packet we want to send, synced with jaeger-agent
@@ -78,14 +79,19 @@ func NewAgentClientUDP(hostPort string, maxPacketSize int) (*AgentClientUDP, err
 
 // EmitZipkinBatch implements EmitZipkinBatch() of Agent interface
 func (a *AgentClientUDP) EmitZipkinBatch(spans []*zipkincore.Span) error {
+	return nil
+}
+
+// EmitBatch implements EmitBatch() of Agent interface
+func (a *AgentClientUDP) EmitBatch(batch *jaeger.Batch) error {
 	a.thriftBuffer.Reset()
 	a.client.SeqId = 0 // we have no need for distinct SeqIds for our one-way UDP messages
-	if err := a.client.EmitZipkinBatch(spans); err != nil {
+	if err := a.client.EmitBatch(batch); err != nil {
 		return err
 	}
 	if a.thriftBuffer.Len() > a.maxPacketSize {
 		return fmt.Errorf("Data does not fit within one UDP packet; size %d, max %d, spans %d",
-			a.thriftBuffer.Len(), a.maxPacketSize, len(spans))
+			a.thriftBuffer.Len(), a.maxPacketSize, len(batch.Spans))
 	}
 	_, err := a.connUDP.Write(a.thriftBuffer.Bytes())
 	return err

@@ -35,7 +35,6 @@ import (
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-client-go/thrift-gen/zipkincore"
-	"github.com/uber/jaeger-client-go/transport"
 )
 
 // Default timeout for http request in seconds
@@ -74,7 +73,7 @@ func HTTPBatchSize(n int) HTTPOption {
 // NewHTTPTransport returns a new HTTP-backend transport. url should be an http
 // url to handle post request, typically something like:
 //     http://hostname:9411/api/v1/spans
-func NewHTTPTransport(url string, options ...HTTPOption) (transport.Transport, error) {
+func NewHTTPTransport(url string, options ...HTTPOption) (*HTTPTransport, error) {
 	c := &HTTPTransport{
 		logger:    log.NullLogger,
 		url:       url,
@@ -90,8 +89,9 @@ func NewHTTPTransport(url string, options ...HTTPOption) (transport.Transport, e
 }
 
 // Append implements Transport.
-func (c *HTTPTransport) Append(s *zipkincore.Span) (int, error) {
-	c.batch = append(c.batch, s)
+func (c *HTTPTransport) Append(span *jaeger.Span) (int, error) {
+	zSpan := jaeger.BuildThriftSpan(span)
+	c.batch = append(c.batch, zSpan)
 	if len(c.batch) >= c.batchSize {
 		return c.Flush()
 	}

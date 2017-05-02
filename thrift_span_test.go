@@ -61,7 +61,7 @@ func TestThriftFirstInProcessSpan(t *testing.T) {
 		} else {
 			check = assert.Nil
 		}
-		thriftSpan := buildThriftSpan(test.span)
+		thriftSpan := BuildThriftSpan(test.span)
 		version := findBinaryAnnotation(thriftSpan, JaegerClientVersionTagKey)
 		hostname := findBinaryAnnotation(thriftSpan, TracerHostnameTagKey)
 		check(t, version)
@@ -79,7 +79,7 @@ func TestThriftForceSampled(t *testing.T) {
 	ext.SamplingPriority.Set(sp, 1)
 	assert.True(t, sp.context.IsSampled())
 	assert.True(t, sp.context.IsDebug())
-	thriftSpan := buildThriftSpan(sp)
+	thriftSpan := BuildThriftSpan(sp)
 	assert.True(t, thriftSpan.Debug)
 }
 
@@ -227,7 +227,7 @@ func TestThriftSpanLogs(t *testing.T) {
 		} else if len(test.fields) > 0 {
 			sp.LogFields(test.fields...)
 		}
-		thriftSpan := buildThriftSpan(sp.(*Span))
+		thriftSpan := BuildThriftSpan(sp.(*Span))
 		if test.disableSampling {
 			assert.Equal(t, 0, len(thriftSpan.Annotations), testName)
 			continue
@@ -260,7 +260,7 @@ func TestThriftLocalComponentSpan(t *testing.T) {
 			ext.Component.Set(sp, "c1")
 		}
 		sp.Finish()
-		thriftSpan := buildThriftSpan(sp)
+		thriftSpan := BuildThriftSpan(sp)
 
 		anno := findBinaryAnnotation(thriftSpan, "lc")
 		assert.NotNil(t, anno)
