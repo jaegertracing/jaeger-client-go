@@ -141,6 +141,7 @@ func (s *tracerSuite) TestStartSpanWithMultipleReferences() {
 		opentracing.ChildOf(sp2.Context()),
 		opentracing.FollowsFrom(sp3.Context()),
 		opentracing.FollowsFrom(nonJaegerSpanContext{}),
+		opentracing.FollowsFrom(SpanContext{}), // Empty span context should be excluded
 	)
 	// Should use the first ChildOf ref span as the parent
 	s.Equal(sp1.(*Span).context.spanID, sp4.(*Span).context.parentID)

@@ -161,7 +161,6 @@ func (t *tracer) startSpanWithOptions(
 	var references []Reference
 	var parent SpanContext
 	var hasParent bool // need this because `parent` is a value, not reference
-	var followsFromContext SpanContext
 	for _, ref := range options.References {
 		ctx, ok := ref.ReferencedContext.(SpanContext)
 		if !ok {
@@ -170,26 +169,21 @@ func (t *tracer) startSpanWithOptions(
 				reflect.ValueOf(ref.ReferencedContext)))
 			continue
 		}
-		if ref.Type == opentracing.ChildOfRef {
-			references = append(references, Reference{Type: opentracing.ChildOfRef, Context: ctx})
-			if (ctx.IsValid() || ctx.isDebugIDContainerOnly() || len(ctx.baggage) != 0) && !hasParent {
-				parent = ctx
+		if !(ctx.IsValid() || ctx.isDebugIDContainerOnly() || len(ctx.baggage) != 0) {
+			continue
+		}
+		references = append(references, Reference{Type: ref.Type, Context: ctx})
+		if !hasParent {
+			parent = ctx
+			if ref.Type == opentracing.ChildOfRef {
 				hasParent = true
-			}
-		} else if ref.Type == opentracing.FollowsFromRef {
-			references = append(references, Reference{Type: opentracing.FollowsFromRef, Context: ctx})
-			if (ctx.IsValid() || ctx.isDebugIDContainerOnly() || len(ctx.baggage) != 0) && !followsFromContext.IsValid() {
-				// Keep track of the first valid FollowsFrom reference in case there was no
-				// parent span
-				followsFromContext = ctx
 			}
 		}
 	}
-	if !hasParent && followsFromContext.IsValid() {
+	if !hasParent && parent.IsValid() {
 		// If ChildOfRef wasn't found but a FollowFromRef exists, use the context from
 		// the FollowFromRef as the parent
 		hasParent = true
-		parent = followsFromContext
 	}
 
 	rpcServer := false
