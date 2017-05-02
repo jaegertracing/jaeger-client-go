@@ -37,7 +37,7 @@ import (
 // in the batch, because the length of the list is encoded as varint32, as well as SeqId.
 const emitBatchOverhead = 30
 
-const defaultUDPSpanServerHostPort = "localhost:5775"
+const defaultUDPSpanServerHostPort = "localhost:6831"
 
 var errSpanTooLarge = errors.New("Span is too large")
 
