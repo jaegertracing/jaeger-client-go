@@ -28,8 +28,6 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
-
-	"github.com/uber/jaeger-client-go/utils"
 )
 
 // Span implements opentracing.Span
@@ -49,24 +47,12 @@ type Span struct {
 	// and the ingress spans when the process joins another trace.
 	firstInProcess bool
 
-	// used to distinguish local vs. RPC Server vs. RPC Client spans
-	spanKind string
-
 	// startTime is the timestamp indicating when the span began, with microseconds precision.
 	startTime time.Time
 
 	// duration returns duration of the span with microseconds precision.
 	// Zero value means duration is unknown.
 	duration time.Duration
-
-	// peer points to the peer service participating in this span,
-	// e.g. the Client if this span is a server span,
-	// or Server if this span is a client span
-	peer struct {
-		Ipv4        int32
-		Port        int16
-		ServiceName string
-	}
 
 	// tags attached to this span
 	tags []Tag
@@ -100,7 +86,7 @@ func (s *Span) SetOperationName(operationName string) opentracing.Span {
 // SetTag implements SetTag() of opentracing.Span
 func (s *Span) SetTag(key string, value interface{}) opentracing.Span {
 	s.observer.OnSetTag(key, value)
-	if key == string(ext.SamplingPriority) && setSamplingPriority(s, key, value) {
+	if key == string(ext.SamplingPriority) && setSamplingPriority(s, value) {
 		return s
 	}
 	s.Lock()
@@ -112,13 +98,7 @@ func (s *Span) SetTag(key string, value interface{}) opentracing.Span {
 }
 
 func (s *Span) setTagNoLocking(key string, value interface{}) {
-	handled := false
-	if handler, ok := specialTagHandlers[key]; ok {
-		handled = handler(s, key, value)
-	}
-	if !handled {
-		s.tags = append(s.tags, Tag{key: key, value: value})
-	}
+	s.tags = append(s.tags, Tag{key: key, value: value})
 }
 
 func (s *Span) setTracerTags(tags []Tag) {
@@ -254,86 +234,7 @@ func (s *Span) OperationName() string {
 	return s.operationName
 }
 
-func (s *Span) peerDefined() bool {
-	return s.peer.ServiceName != "" || s.peer.Ipv4 != 0 || s.peer.Port != 0
-}
-
-func (s *Span) isRPC() bool {
-	s.RLock()
-	defer s.RUnlock()
-	return s.spanKind == string(ext.SpanKindRPCClientEnum) || s.spanKind == string(ext.SpanKindRPCServerEnum)
-}
-
-func (s *Span) isRPCClient() bool {
-	s.RLock()
-	defer s.RUnlock()
-	return s.spanKind == string(ext.SpanKindRPCClientEnum)
-}
-
-var specialTagHandlers = map[string]func(*Span, string, interface{}) bool{
-	string(ext.SpanKind):     setSpanKind,
-	string(ext.PeerHostIPv4): setPeerIPv4,
-	string(ext.PeerPort):     setPeerPort,
-	string(ext.PeerService):  setPeerService,
-}
-
-func setSpanKind(s *Span, key string, value interface{}) bool {
-	if val, ok := value.(string); ok {
-		s.spanKind = val
-		return true
-	}
-	if val, ok := value.(ext.SpanKindEnum); ok {
-		s.spanKind = string(val)
-		return true
-	}
-	return false
-}
-
-func setPeerIPv4(s *Span, key string, value interface{}) bool {
-	if val, ok := value.(string); ok {
-		if ip, err := utils.ParseIPToUint32(val); err == nil {
-			s.peer.Ipv4 = int32(ip)
-			return true
-		}
-	}
-	if val, ok := value.(uint32); ok {
-		s.peer.Ipv4 = int32(val)
-		return true
-	}
-	if val, ok := value.(int32); ok {
-		s.peer.Ipv4 = val
-		return true
-	}
-	return false
-}
-
-func setPeerPort(s *Span, key string, value interface{}) bool {
-	if val, ok := value.(string); ok {
-		if port, err := utils.ParsePort(val); err == nil {
-			s.peer.Port = int16(port)
-			return true
-		}
-	}
-	if val, ok := value.(uint16); ok {
-		s.peer.Port = int16(val)
-		return true
-	}
-	if val, ok := value.(int); ok {
-		s.peer.Port = int16(val)
-		return true
-	}
-	return false
-}
-
-func setPeerService(s *Span, key string, value interface{}) bool {
-	if val, ok := value.(string); ok {
-		s.peer.ServiceName = val
-		return true
-	}
-	return false
-}
-
-func setSamplingPriority(s *Span, key string, value interface{}) bool {
+func setSamplingPriority(s *Span, value interface{}) bool {
 	s.Lock()
 	defer s.Unlock()
 	if val, ok := value.(uint16); ok {

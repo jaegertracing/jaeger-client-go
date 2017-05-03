@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/opentracing/opentracing-go/ext"
+
 	"github.com/uber/jaeger-client-go/internal/spanlog"
 	z "github.com/uber/jaeger-client-go/thrift-gen/zipkincore"
 	"github.com/uber/jaeger-client-go/utils"
@@ -40,7 +41,9 @@ const (
 )
 
 // buildThriftSpan builds thrift span based on internal span.
-func buildThriftSpan(span *Span) *z.Span {
+func buildThriftSpan(s *Span) *z.Span {
+	span := &zipkinSpan{Span: s}
+	span.handleSpecialTags()
 	parentID := int64(span.context.parentID)
 	var ptrParentID *int64
 	if parentID != 0 {
@@ -64,7 +67,7 @@ func buildThriftSpan(span *Span) *z.Span {
 	return thriftSpan
 }
 
-func buildAnnotations(span *Span, endpoint *z.Endpoint) []*z.Annotation {
+func buildAnnotations(span *zipkinSpan, endpoint *z.Endpoint) []*z.Annotation {
 	// automatically adding 2 Zipkin CoreAnnotations
 	annotations := make([]*z.Annotation, 0, 2+len(span.logs))
 	var startLabel, endLabel string
@@ -102,7 +105,7 @@ func buildAnnotations(span *Span, endpoint *z.Endpoint) []*z.Annotation {
 	return annotations
 }
 
-func buildBinaryAnnotations(span *Span, endpoint *z.Endpoint) []*z.BinaryAnnotation {
+func buildBinaryAnnotations(span *zipkinSpan, endpoint *z.Endpoint) []*z.BinaryAnnotation {
 	// automatically adding local component or server/client address tag, and client version
 	annotations := make([]*z.BinaryAnnotation, 0, 2+len(span.tags))
 
@@ -212,4 +215,105 @@ func int64ToBytes(i int64) []byte {
 	buf := make([]byte, 8)
 	binary.BigEndian.PutUint64(buf, uint64(i))
 	return buf
+}
+
+type zipkinSpan struct {
+	*Span
+
+	// peer points to the peer service participating in this span,
+	// e.g. the Client if this span is a server span,
+	// or Server if this span is a client span
+	peer struct {
+		Ipv4        int32
+		Port        int16
+		ServiceName string
+	}
+
+	// used to distinguish local vs. RPC Server vs. RPC Client spans
+	spanKind string
+}
+
+var specialTagHandlers = map[string]func(*zipkinSpan, interface{}){
+	string(ext.SpanKind):     setSpanKind,
+	string(ext.PeerHostIPv4): setPeerIPv4,
+	string(ext.PeerPort):     setPeerPort,
+	string(ext.PeerService):  setPeerService,
+}
+
+func (s *zipkinSpan) handleSpecialTags() {
+	s.Lock()
+	defer s.Unlock()
+	filteredTags := make([]Tag, 0, len(s.tags))
+	for _, tag := range s.tags {
+		if handler, ok := specialTagHandlers[tag.key]; ok {
+			handler(s, tag.value)
+		} else {
+			filteredTags = append(filteredTags, tag)
+		}
+	}
+	s.tags = filteredTags
+}
+
+func setSpanKind(s *zipkinSpan, value interface{}) {
+	if val, ok := value.(string); ok {
+		s.spanKind = val
+		return
+	}
+	if val, ok := value.(ext.SpanKindEnum); ok {
+		s.spanKind = string(val)
+	}
+}
+
+func setPeerIPv4(s *zipkinSpan, value interface{}) {
+	if val, ok := value.(string); ok {
+		if ip, err := utils.ParseIPToUint32(val); err == nil {
+			s.peer.Ipv4 = int32(ip)
+			return
+		}
+	}
+	if val, ok := value.(uint32); ok {
+		s.peer.Ipv4 = int32(val)
+		return
+	}
+	if val, ok := value.(int32); ok {
+		s.peer.Ipv4 = val
+	}
+}
+
+func setPeerPort(s *zipkinSpan, value interface{}) {
+	if val, ok := value.(string); ok {
+		if port, err := utils.ParsePort(val); err == nil {
+			s.peer.Port = int16(port)
+			return
+		}
+	}
+	if val, ok := value.(uint16); ok {
+		s.peer.Port = int16(val)
+		return
+	}
+	if val, ok := value.(int); ok {
+		s.peer.Port = int16(val)
+	}
+}
+
+func setPeerService(s *zipkinSpan, value interface{}) {
+	if val, ok := value.(string); ok {
+		s.peer.ServiceName = val
+	}
+}
+
+func (s *zipkinSpan) peerDefined() bool {
+	return s.peer.ServiceName != "" || s.peer.Ipv4 != 0 || s.peer.Port != 0
+}
+
+func (s *zipkinSpan) isRPC() bool {
+	s.RLock()
+	defer s.RUnlock()
+	return s.spanKind == string(ext.SpanKindRPCClientEnum) || s.spanKind == string(ext.SpanKindRPCServerEnum)
+}
+
+func (s *zipkinSpan) isRPCClient() bool {
+	s.RLock()
+	defer s.RUnlock()
+	return s.spanKind == string(ext.SpanKindRPCClientEnum)
 }

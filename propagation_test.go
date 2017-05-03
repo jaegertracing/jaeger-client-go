@@ -102,14 +102,13 @@ func TestSpanPropagator(t *testing.T) {
 			sp.duration, sp.startTime = exp.duration, exp.startTime
 		}
 		assert.Equal(t, exp.context, sp.context, formatName)
-		assert.Equal(t, expTags, sp.tags, formatName)
+		assert.Equal(t, "span.kind", sp.tags[0].key)
+		assert.Equal(t, expTags, sp.tags[1:] /*skip span.kind tag*/, formatName)
 		assert.Equal(t, exp.logs, sp.logs, formatName)
-		assert.EqualValues(t, "server", sp.spanKind, formatName)
 		// Override collections to avoid tripping comparison on different pointers
 		sp.context = exp.context
 		sp.tags = exp.tags
 		sp.logs = exp.logs
-		sp.spanKind = exp.spanKind
 		sp.operationName = op
 		sp.references = exp.references
 		// Compare the rest of the fields

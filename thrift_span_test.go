@@ -268,6 +268,37 @@ func TestThriftLocalComponentSpan(t *testing.T) {
 	}
 }
 
+func TestSpecialTags(t *testing.T) {
+	tracer, closer := NewTracer("DOOP",
+		NewConstSampler(true),
+		NewNullReporter())
+	defer closer.Close()
+
+	sp := tracer.StartSpan("s1").(*Span)
+	ext.SpanKindRPCServer.Set(sp)
+	ext.PeerService.Set(sp, "peer")
+	ext.PeerPort.Set(sp, 80)
+	ext.PeerHostIPv4.Set(sp, 2130706433)
+	sp.Finish()
+
+	thriftSpan := buildThriftSpan(sp)
+	// Special tags should not be copied over to binary annotations
+	assert.Nil(t, findBinaryAnnotation(thriftSpan, "span.kind"))
+	assert.Nil(t, findBinaryAnnotation(thriftSpan, "peer.service"))
+	assert.Nil(t, findBinaryAnnotation(thriftSpan, "peer.port"))
+	assert.Nil(t, findBinaryAnnotation(thriftSpan, "peer.ipv4"))
+
+	anno := findBinaryAnnotation(thriftSpan, "ca")
+	assert.NotNil(t, anno)
+	assert.NotNil(t, anno.Host)
+	assert.EqualValues(t, 80, anno.Host.Port)
+	assert.EqualValues(t, 2130706433, anno.Host.Ipv4)
+	assert.EqualValues(t, "peer", anno.Host.ServiceName)
+
+	assert.NotNil(t, findAnnotation(thriftSpan, "sr"))
+	assert.NotNil(t, findAnnotation(thriftSpan, "ss"))
+}
+
 func findAnnotation(span *zipkincore.Span, name string) *zipkincore.Annotation {
 	for _, a := range span.Annotations {
 		if a.Value == name {
