@@ -204,7 +204,6 @@ func testRemoteReporter(
 
 	span := tracer.StartSpan("leela")
 	ext.SpanKindRPCClient.Set(span)
-	ext.PeerService.Set(span, "downstream")
 	span.Finish()
 	closer.Close() // close the tracer, which also closes and flushes the reporter
 	// however, in case of UDP reporter it's fire and forget, so we need to wait a bit
@@ -214,7 +213,6 @@ func testRemoteReporter(
 	require.Equal(t, 1, len(batches))
 	assert.Equal(t, "leela", batches[0].Spans[0].OperationName)
 	assert.Equal(t, "reporter-test-service", batches[0].Process.ServiceName)
-	// TODO (wjang) test that the "peer.service" tag was set to "downstream"
 
 	mTestutils.AssertCounterMetrics(t, metricsFactory, []mTestutils.ExpectedMetric{
 		{Name: "jaeger.reporter-spans", Tags: map[string]string{"state": "success"}, Value: 1},
