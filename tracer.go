@@ -310,7 +310,7 @@ func (t *tracer) startSpanInternal(
 		copy(sp.tags, internalTags)
 		for k, v := range tags {
 			sp.observer.OnSetTag(k, v)
-			if k == string(ext.SamplingPriority) && setSamplingPriority(sp, k, v) {
+			if k == string(ext.SamplingPriority) && setSamplingPriority(sp, v) {
 				continue
 			}
 			sp.setTagNoLocking(k, v)

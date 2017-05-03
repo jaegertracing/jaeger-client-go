@@ -82,8 +82,9 @@ func (s *tracerSuite) TestBeginRootSpan() {
 	ss := sp.(*Span)
 	s.NotNil(ss.tracer, "Tracer must be referenced from span")
 	s.Equal("get_name", ss.operationName)
-	s.Equal("server", ss.spanKind, "Span must be server-side")
-	s.Equal("peer-service", ss.peer.ServiceName, "Client is 'peer-service'")
+	s.Len(ss.tags, 4, "Span should have 2 sampler tags, span.kind tag and peer.service tag")
+	s.EqualValues(Tag{key: "span.kind", value: ext.SpanKindRPCServerEnum}, ss.tags[2], "Span must be server-side")
+	s.EqualValues(Tag{key: "peer.service", value: "peer-service"}, ss.tags[3], "Client is 'peer-service'")
 
 	s.EqualValues(someID, ss.context.traceID.Low)
 	s.EqualValues(0, ss.context.parentID)
@@ -106,7 +107,6 @@ func (s *tracerSuite) TestStartRootSpanWithOptions() {
 	sp := s.tracer.StartSpan("get_address", opentracing.StartTime(ts))
 	ss := sp.(*Span)
 	s.Equal("get_address", ss.operationName)
-	s.Equal("", ss.spanKind, "Span must not be RPC")
 	s.Equal(ts, ss.startTime)
 }
 

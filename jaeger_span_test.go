@@ -52,7 +52,10 @@ func TestBuildJaegerSpan(t *testing.T) {
 	defer closer.Close()
 
 	sp1 := tracer.StartSpan("sp1").(*Span)
+	ext.SpanKindRPCServer.Set(sp1)
+	ext.PeerService.Set(sp1, "svc")
 	sp2 := tracer.StartSpan("sp2", opentracing.ChildOf(sp1.Context())).(*Span)
+	ext.SpanKindRPCClient.Set(sp2)
 	sp2.Finish()
 	sp1.Finish()
 
@@ -62,15 +65,22 @@ func TestBuildJaegerSpan(t *testing.T) {
 	assert.Equal(t, "sp2", jaegerSpan2.OperationName)
 	assert.EqualValues(t, 0, jaegerSpan1.ParentSpanId)
 	assert.Equal(t, jaegerSpan1.SpanId, jaegerSpan2.ParentSpanId)
-	assert.Len(t, jaegerSpan1.Tags, 4)
+	assert.Len(t, jaegerSpan1.Tags, 6)
 	tag := findTag(jaegerSpan1, SamplerTypeTagKey)
 	assert.Equal(t, SamplerTypeConst, *tag.VStr)
+	tag = findTag(jaegerSpan1, string(ext.SpanKind))
+	assert.Equal(t, string(ext.SpanKindRPCServerEnum), *tag.VStr)
+	tag = findTag(jaegerSpan1, string(ext.PeerService))
+	assert.Equal(t, "svc", *tag.VStr)
 	assert.Empty(t, jaegerSpan1.References)
+
 	assert.Len(t, jaegerSpan2.References, 1)
 	assert.Equal(t, j.SpanRefType_CHILD_OF, jaegerSpan2.References[0].RefType)
 	assert.EqualValues(t, jaegerSpan1.TraceIdLow, jaegerSpan2.References[0].TraceIdLow)
 	assert.EqualValues(t, jaegerSpan1.TraceIdHigh, jaegerSpan2.References[0].TraceIdHigh)
 	assert.EqualValues(t, jaegerSpan1.SpanId, jaegerSpan2.References[0].SpanId)
+	tag = findTag(jaegerSpan2, string(ext.SpanKind))
+	assert.Equal(t, string(ext.SpanKindRPCClientEnum), *tag.VStr)
 }
 
 func TestBuildLogs(t *testing.T) {
