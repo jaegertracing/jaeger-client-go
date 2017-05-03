@@ -281,7 +281,7 @@ func TestSpecialTags(t *testing.T) {
 	ext.PeerHostIPv4.Set(sp, 2130706433)
 	sp.Finish()
 
-	thriftSpan := buildThriftSpan(sp)
+	thriftSpan := BuildThriftSpan(sp)
 	// Special tags should not be copied over to binary annotations
 	assert.Nil(t, findBinaryAnnotation(thriftSpan, "span.kind"))
 	assert.Nil(t, findBinaryAnnotation(thriftSpan, "peer.service"))

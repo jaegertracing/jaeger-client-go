@@ -40,6 +40,15 @@ const (
 	allowPackedNumbers = false
 )
 
+var (
+	specialTagsMap = map[string]struct{}{
+		string(ext.SpanKind):     {},
+		string(ext.PeerHostIPv4): {},
+		string(ext.PeerPort):     {},
+		string(ext.PeerService):  {},
+	}
+)
+
 // BuildThriftSpan builds thrift span based on internal span.
 func BuildThriftSpan(span *Span) *z.Span {
 	span := &zipkinSpan{Span: s}
@@ -142,6 +151,9 @@ func buildBinaryAnnotations(span *zipkinSpan, endpoint *z.Endpoint) []*z.BinaryA
 	}
 	for _, tag := range span.tags {
 		if anno := buildBinaryAnnotation(tag.key, tag.value, nil); anno != nil {
+			if _, ok := specialTagsMap[tag.key]; ok {
+				continue
+			}
 			annotations = append(annotations, anno)
 		}
 	}
