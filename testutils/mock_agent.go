@@ -22,6 +22,7 @@ package testutils
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -116,7 +117,7 @@ func (s *MockAgent) serve(started *sync.WaitGroup) {
 
 // EmitZipkinBatch implements EmitZipkinBatch() of TChanSamplingManagerServer
 func (s *MockAgent) EmitZipkinBatch(spans []*zipkincore.Span) (err error) {
-	return nil
+	return errors.New("Not implemented")
 }
 
 // EmitBatch implements EmitBatch() of TChanSamplingManagerServer
