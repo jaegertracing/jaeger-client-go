@@ -75,12 +75,12 @@ func TestEmitBatchOverhead(t *testing.T) {
 	for i, n := range tests {
 		transport.Reset()
 		batch := make([]*j.Span, n)
-		tags := make([]*j.Tag, n)
+		processTags := make([]*j.Tag, n)
 		for x := 0; x < n; x++ {
 			batch[x] = BuildJaegerThrift(span)
-			tags[x] = &j.Tag{}
+			processTags[x] = &j.Tag{}
 		}
-		process := &j.Process{ServiceName: "svcName", Tags: tags}
+		process := &j.Process{ServiceName: "svcName", Tags: processTags}
 		client.SeqId = -2 // this causes the longest encoding of varint32 as 5 bytes
 		err := client.EmitBatch(&j.Batch{Process: process, Spans: batch})
 		processSize := getThriftProcessByteLength(t, process)
@@ -88,6 +88,7 @@ func TestEmitBatchOverhead(t *testing.T) {
 		overhead := transport.Len() - n*spanSize - processSize
 		assert.True(t, overhead <= emitBatchOverhead,
 			"test %d, n=%d, expected overhead %d <= %d", i, n, overhead, emitBatchOverhead)
+		t.Logf("span count: %d, overhead: %d", n, overhead)
 	}
 }
 
@@ -133,6 +134,7 @@ func TestUDPSenderFlush(t *testing.T) {
 	}
 	batches := agent.GetJaegerBatches()
 	require.Equal(t, 1, len(batches), "agent should have received the batch")
+	require.Equal(t, 1, len(batches[0].Spans))
 	assert.Equal(t, span.operationName, batches[0].Spans[0].OperationName)
 }
 
@@ -146,16 +148,18 @@ func TestUDPSenderAppend(t *testing.T) {
 	processSize := getThriftProcessByteLengthFromTracer(t, jaegerTracer)
 
 	tests := []struct {
-		bufferSizeOffset    int
-		expectFlush         bool
-		expectSpansFlushed  int
-		manualFlush         bool
-		expectSpansFlushed2 int
-		description         string
+		bufferSizeOffset      int
+		expectFlush           bool
+		expectSpansFlushed    int
+		expectBatchesFlushed  int
+		manualFlush           bool
+		expectSpansFlushed2   int
+		expectBatchesFlushed2 int
+		description           string
 	}{
-		{1, false, 0, true, 5, "in test: buffer bigger than 5 spans"},
-		{0, true, 5, false, 0, "in test: buffer fits exactly 5 spans"},
-		{-1, true, 4, true, 1, "in test: buffer smaller than 5 spans"},
+		{1, false, 0, 0, true, 5, 1, "in test: buffer bigger than 5 spans"},
+		{0, true, 5, 1, false, 0, 0, "in test: buffer fits exactly 5 spans"},
+		{-1, true, 4, 1, true, 1, 1, "in test: buffer smaller than 5 spans"},
 	}
 
 	for _, test := range tests {
@@ -177,12 +181,14 @@ func TestUDPSenderAppend(t *testing.T) {
 			time.Sleep(5 * time.Millisecond)
 		}
 		batches := agent.GetJaegerBatches()
-		if test.expectSpansFlushed > 0 {
-			require.NotEmpty(t, batches)
-			require.Equal(t, test.expectSpansFlushed, len(batches[0].Spans), test.description)
+		require.Equal(t, test.expectBatchesFlushed, len(batches), test.description)
+		var spans []*j.Span
+		if test.expectBatchesFlushed > 0 {
+			spans = batches[0].Spans
 		}
+		require.Equal(t, test.expectSpansFlushed, len(spans), test.description)
 		for i := 0; i < test.expectSpansFlushed; i++ {
-			assert.Equal(t, span.operationName, batches[0].Spans[i].OperationName, test.description)
+			assert.Equal(t, span.operationName, spans[i].OperationName, test.description)
 		}
 
 		if test.manualFlush {
@@ -193,12 +199,14 @@ func TestUDPSenderAppend(t *testing.T) {
 
 			time.Sleep(5 * time.Millisecond)
 			batches = agent.GetJaegerBatches()
-			if test.expectSpansFlushed2 > 0 {
-				require.NotEmpty(t, batches)
-				require.Equal(t, test.expectSpansFlushed2, len(batches[0].Spans), test.description)
+			require.Equal(t, test.expectBatchesFlushed2, len(batches), test.description)
+			spans = []*j.Span{}
+			if test.expectBatchesFlushed2 > 0 {
+				spans = batches[0].Spans
 			}
+			require.Equal(t, test.expectSpansFlushed2, len(spans), test.description)
 			for i := 0; i < test.expectSpansFlushed2; i++ {
-				assert.Equal(t, span.operationName, batches[0].Spans[i].OperationName, test.description)
+				assert.Equal(t, span.operationName, spans[i].OperationName, test.description)
 			}
 		}
 
