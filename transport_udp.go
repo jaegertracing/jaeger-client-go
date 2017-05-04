@@ -96,7 +96,7 @@ func (s *udpSender) Append(span *Span) (int, error) {
 		s.processByteSize = s.calcSizeOfSerializedThrift(s.process)
 		s.byteBufferSize += s.processByteSize
 	}
-	jSpan := BuildJaegerSpan(span)
+	jSpan := BuildJaegerThrift(span)
 	spanSize := s.calcSizeOfSerializedThrift(jSpan)
 	if spanSize > s.maxSpanBytes {
 		return 1, errSpanTooLarge

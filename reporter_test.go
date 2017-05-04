@@ -98,7 +98,8 @@ func (s *reporterSuite) TestRootSpanTags() {
 	s.flushReporter()
 	s.Equal(1, len(s.collector.Spans()))
 	span := s.collector.Spans()[0]
-	s.True(span.isRPC())
+	s.Len(span.tags, 6)
+	s.EqualValues("server", span.tags[2].value, "span.kind should be server")
 	s.NotNil(findDomainTag(span, JaegerClientVersionTagKey), "expecting client version tag")
 
 	mTestutils.AssertCounterMetrics(s.T(), s.metricsFactory,
@@ -124,7 +125,8 @@ func (s *reporterSuite) TestClientSpan() {
 	s.Equal(2, len(s.collector.Spans()))
 	span := s.collector.Spans()[0] // child span is reported first
 	s.EqualValues(span.context.spanID, sp2.(*Span).context.spanID)
-	s.True(span.isRPCClient())
+	s.Len(span.tags, 2)
+	s.EqualValues("client", span.tags[0].value, "span.kind should be client")
 
 	mTestutils.AssertCounterMetrics(s.T(), s.metricsFactory,
 		mTestutils.ExpectedMetric{
@@ -156,18 +158,18 @@ func (s *reporterSuite) TestTagsAndEvents() {
 	s.flushReporter()
 	s.Equal(1, len(s.collector.Spans()))
 	span := s.collector.Spans()[0]
-	s.Equal(2, len(span.logs), "expecting two annotations for events")
+	s.Equal(2, len(span.logs), "expecting two logs")
 	s.Equal(len(expected), len(span.tags),
-		"expecting %d binary annotations", len(expected))
+		"expecting %d tags", len(expected))
 	tags := []string{}
 	for _, tag := range span.tags {
 		tags = append(tags, string(tag.key))
 	}
 	sort.Strings(expected)
 	sort.Strings(tags)
-	s.Equal(expected, tags, "expecting %d binary annotations", len(expected))
+	s.Equal(expected, tags, "expecting %d tags", len(expected))
 
-	s.NotNil(findDomainLog(span, "hello"), "expecting 'hello' annotation: %+v", span.logs)
+	s.NotNil(findDomainLog(span, "hello"), "expecting 'hello' log: %+v", span.logs)
 }
 
 func TestUDPReporter(t *testing.T) {
@@ -204,6 +206,7 @@ func testRemoteReporter(
 
 	span := tracer.StartSpan("leela")
 	ext.SpanKindRPCClient.Set(span)
+	ext.PeerService.Set(span, "downstream")
 	span.Finish()
 	closer.Close() // close the tracer, which also closes and flushes the reporter
 	// however, in case of UDP reporter it's fire and forget, so we need to wait a bit
@@ -211,8 +214,12 @@ func testRemoteReporter(
 
 	batches := getBatches()
 	require.Equal(t, 1, len(batches))
+	require.Equal(t, 1, len(batches[0].Spans))
 	assert.Equal(t, "leela", batches[0].Spans[0].OperationName)
 	assert.Equal(t, "reporter-test-service", batches[0].Process.ServiceName)
+	tag := findJaegerTag("peer.service", batches[0].Spans[0].Tags)
+	assert.NotNil(t, tag)
+	assert.Equal(t, "downstream", *tag.VStr)
 
 	mTestutils.AssertCounterMetrics(t, metricsFactory, []mTestutils.ExpectedMetric{
 		{Name: "jaeger.reporter-spans", Tags: map[string]string{"state": "success"}, Value: 1},

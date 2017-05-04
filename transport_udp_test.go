@@ -39,7 +39,7 @@ var (
 )
 
 func getThriftSpanByteLength(t *testing.T, span *Span) int {
-	jSpan := BuildJaegerSpan(span)
+	jSpan := BuildJaegerThrift(span)
 	transport := thrift.NewTMemoryBufferLen(1000)
 	protocolFactory := thrift.NewTCompactProtocolFactory()
 	err := jSpan.Write(protocolFactory.GetProtocol(transport))
@@ -77,7 +77,7 @@ func TestEmitBatchOverhead(t *testing.T) {
 		batch := make([]*j.Span, n)
 		tags := make([]*j.Tag, n)
 		for x := 0; x < n; x++ {
-			batch[x] = BuildJaegerSpan(span)
+			batch[x] = BuildJaegerThrift(span)
 			tags[x] = &j.Tag{}
 		}
 		process := &j.Process{ServiceName: "svcName", Tags: tags}
@@ -115,7 +115,7 @@ func TestUDPSenderFlush(t *testing.T) {
 	assert.Equal(t, 0, n, "span should be in buffer, not flushed")
 	buffer := udpSender.spanBuffer
 	require.Equal(t, 1, len(buffer), "span should be in buffer, not flushed")
-	assert.Equal(t, BuildJaegerSpan(span), buffer[0], "span should be in buffer, not flushed")
+	assert.Equal(t, BuildJaegerThrift(span), buffer[0], "span should be in buffer, not flushed")
 
 	n, err = sender.Flush()
 	require.NoError(t, err)

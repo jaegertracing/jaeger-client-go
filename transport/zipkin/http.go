@@ -90,7 +90,7 @@ func NewHTTPTransport(url string, options ...HTTPOption) (*HTTPTransport, error)
 
 // Append implements Transport.
 func (c *HTTPTransport) Append(span *jaeger.Span) (int, error) {
-	zSpan := jaeger.BuildThriftSpan(span)
+	zSpan := jaeger.BuildZipkinThrift(span)
 	c.batch = append(c.batch, zSpan)
 	if len(c.batch) >= c.batchSize {
 		return c.Flush()

@@ -21,6 +21,7 @@
 package utils
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -79,7 +80,7 @@ func NewAgentClientUDP(hostPort string, maxPacketSize int) (*AgentClientUDP, err
 
 // EmitZipkinBatch implements EmitZipkinBatch() of Agent interface
 func (a *AgentClientUDP) EmitZipkinBatch(spans []*zipkincore.Span) error {
-	return nil
+	return errors.New("Not implemented")
 }
 
 // EmitBatch implements EmitBatch() of Agent interface

@@ -49,8 +49,8 @@ var (
 	}
 )
 
-// BuildThriftSpan builds thrift span based on internal span.
-func BuildThriftSpan(span *Span) *z.Span {
+// BuildZipkinThrift builds thrift span based on internal span.
+func BuildZipkinThrift(s *Span) *z.Span {
 	span := &zipkinSpan{Span: s}
 	span.handleSpecialTags()
 	parentID := int64(span.context.parentID)
