@@ -174,8 +174,8 @@ func TestConfigWithRPCMetrics(t *testing.T) {
 
 	testutils.AssertCounterMetrics(t, metrics,
 		testutils.ExpectedMetric{
-			Name:  "jaeger-rpc.requests",
-			Tags:  map[string]string{"component": "jaeger", "endpoint": "test", "error": "false"},
+			Name:  "jaeger.requests",
+			Tags:  map[string]string{"component": "jaeger", "operation": "test", "error": "false"},
 			Value: 1,
 		},
 	)

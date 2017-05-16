@@ -32,20 +32,20 @@ import (
 	jaeger "github.com/uber/jaeger-client-go"
 )
 
-const defaultMaxNumberOfEndpoints = 200
+const defaultMaxNumberOfOperations = 200
 
 // Observer is an observer that can emit RPC metrics.
 type Observer struct {
-	metricsByEndpoint *MetricsByEndpoint
+	metricsByOperation *MetricsByOperation
 }
 
 // NewObserver creates a new observer that can emit RPC metrics.
 func NewObserver(metricsFactory metrics.Factory, normalizer NameNormalizer) *Observer {
 	return &Observer{
-		metricsByEndpoint: newMetricsByEndpoint(
+		metricsByOperation: newMetricsByOperation(
 			metricsFactory,
 			normalizer,
-			defaultMaxNumberOfEndpoints,
+			defaultMaxNumberOfOperations,
 		),
 	}
 }
@@ -55,7 +55,7 @@ func (o *Observer) OnStartSpan(
 	operationName string,
 	options opentracing.StartSpanOptions,
 ) jaeger.SpanObserver {
-	return NewSpanObserver(o.metricsByEndpoint, operationName, options)
+	return NewSpanObserver(o.metricsByOperation, operationName, options)
 }
 
 // SpanKind identifies the span as inboud, outbound, or internal
@@ -72,25 +72,25 @@ const (
 
 // SpanObserver collects RPC metrics
 type SpanObserver struct {
-	metricsByEndpoint *MetricsByEndpoint
-	operationName     string
-	startTime         time.Time
-	mux               sync.Mutex
-	kind              SpanKind
-	httpStatusCode    uint16
-	err               bool
+	metricsByOperation *MetricsByOperation
+	operationName      string
+	startTime          time.Time
+	mux                sync.Mutex
+	kind               SpanKind
+	httpStatusCode     uint16
+	err                bool
 }
 
 // NewSpanObserver creates a new SpanObserver that can emit RPC metrics.
 func NewSpanObserver(
-	metricsByEndpoint *MetricsByEndpoint,
+	metricsByOperation *MetricsByOperation,
 	operationName string,
 	options opentracing.StartSpanOptions,
 ) *SpanObserver {
 	so := &SpanObserver{
-		metricsByEndpoint: metricsByEndpoint,
-		operationName:     operationName,
-		startTime:         options.StartTime,
+		metricsByOperation: metricsByOperation,
+		operationName:      operationName,
+		startTime:          options.StartTime,
 	}
 	for k, v := range options.Tags {
 		so.handleTagInLock(k, v)
@@ -150,7 +150,7 @@ func (so *SpanObserver) OnFinish(options opentracing.FinishOptions) {
 		return
 	}
 
-	mets := so.metricsByEndpoint.get(so.operationName)
+	mets := so.metricsByOperation.get(so.operationName)
 	latency := options.FinishTime.Sub(so.startTime)
 	if so.err {
 		mets.RequestCountFailures.Inc(1)
