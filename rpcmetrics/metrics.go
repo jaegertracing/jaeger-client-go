@@ -27,11 +27,11 @@ import (
 )
 
 const (
-	otherEndpointsPlaceholder = "other"
-	endpointNameMetricTag     = "endpoint"
+	otherOperationsPlaceholder = "other"
+	operationNameMetricTag     = "operation"
 )
 
-// Metrics is a collection of metrics for an endpoint describing
+// Metrics is a collection of metrics for an operation describing
 // throughput, success, errors, and performance.
 type Metrics struct {
 	// RequestCountSuccess is a counter of the total number of successes.
@@ -71,35 +71,35 @@ func (m *Metrics) recordHTTPStatusCode(statusCode uint16) {
 	}
 }
 
-// MetricsByEndpoint is a registry/cache of metrics for each unique endpoint name.
-// Only maxNumberOfEndpoints Metrics are stored, all other endpoint names are mapped
-// to a generic endpoint name "other".
-type MetricsByEndpoint struct {
-	metricsFactory    metrics.Factory
-	endpoints         *normalizedEndpoints
-	metricsByEndpoint map[string]*Metrics
-	mux               sync.RWMutex
+// MetricsByOperation is a registry/cache of metrics for each unique operation name.
+// Only maxNumberOfOperations Metrics are stored, all other operation names are mapped
+// to a generic operation name "other".
+type MetricsByOperation struct {
+	metricsFactory     metrics.Factory
+	operations         *normalizedOperations
+	metricsByOperation map[string]*Metrics
+	mux                sync.RWMutex
 }
 
-func newMetricsByEndpoint(
+func newMetricsByOperation(
 	metricsFactory metrics.Factory,
 	normalizer NameNormalizer,
-	maxNumberOfEndpoints int,
-) *MetricsByEndpoint {
-	return &MetricsByEndpoint{
-		metricsFactory:    metricsFactory,
-		endpoints:         newNormalizedEndpoints(maxNumberOfEndpoints, normalizer),
-		metricsByEndpoint: make(map[string]*Metrics, maxNumberOfEndpoints+1), // +1 for "other"
+	maxNumberOfOperations int,
+) *MetricsByOperation {
+	return &MetricsByOperation{
+		metricsFactory:     metricsFactory,
+		operations:         newNormalizedOperations(maxNumberOfOperations, normalizer),
+		metricsByOperation: make(map[string]*Metrics, maxNumberOfOperations+1), // +1 for "other"
 	}
 }
 
-func (m *MetricsByEndpoint) get(endpoint string) *Metrics {
-	safeName := m.endpoints.normalize(endpoint)
+func (m *MetricsByOperation) get(operation string) *Metrics {
+	safeName := m.operations.normalize(operation)
 	if safeName == "" {
-		safeName = otherEndpointsPlaceholder
+		safeName = otherOperationsPlaceholder
 	}
 	m.mux.RLock()
-	met := m.metricsByEndpoint[safeName]
+	met := m.metricsByOperation[safeName]
 	m.mux.RUnlock()
 	if met != nil {
 		return met
@@ -109,22 +109,22 @@ func (m *MetricsByEndpoint) get(endpoint string) *Metrics {
 }
 
 // split to make easier to test
-func (m *MetricsByEndpoint) getWithWriteLock(safeName string) *Metrics {
+func (m *MetricsByOperation) getWithWriteLock(safeName string) *Metrics {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
 	// it is possible that the name has been already registered after we released
 	// the read lock and before we grabbed the write lock, so check for that.
-	if met, ok := m.metricsByEndpoint[safeName]; ok {
+	if met, ok := m.metricsByOperation[safeName]; ok {
 		return met
 	}
 
 	// it would be nice to create the struct before locking, since Init() is somewhat
 	// expensive, however some metrics backends (e.g. expvar) may not like duplicate metrics.
 	met := &Metrics{}
-	tags := map[string]string{endpointNameMetricTag: safeName}
+	tags := map[string]string{operationNameMetricTag: safeName}
 	metrics.Init(met, m.metricsFactory, tags)
 
-	m.metricsByEndpoint[safeName] = met
+	m.metricsByOperation[safeName] = met
 	return met
 }

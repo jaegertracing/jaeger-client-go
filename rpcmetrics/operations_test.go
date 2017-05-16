@@ -26,8 +26,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNormalizedEndpoints(t *testing.T) {
-	n := newNormalizedEndpoints(1, DefaultNameNormalizer)
+func TestNormalizedOperations(t *testing.T) {
+	n := newNormalizedOperations(1, DefaultNameNormalizer)
 
 	assertLen := func(l int) {
 		n.mux.RLock()
@@ -42,8 +42,8 @@ func TestNormalizedEndpoints(t *testing.T) {
 	assertLen(1)
 }
 
-func TestNormalizedEndpointsDoubleLocking(t *testing.T) {
-	n := newNormalizedEndpoints(1, DefaultNameNormalizer)
+func TestNormalizedOperationsDoubleLocking(t *testing.T) {
+	n := newNormalizedOperations(1, DefaultNameNormalizer)
 	assert.Equal(t, "ab-cd", n.normalize("ab^cd"), "fill out the cache")
 	assert.Equal(t, "", n.normalizeWithLock("xys"), "cache overflow")
 }
