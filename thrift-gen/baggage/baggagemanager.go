@@ -14,13 +14,13 @@ var _ = thrift.ZERO
 var _ = fmt.Printf
 var _ = bytes.Equal
 
-type Baggage interface {
+type BaggageManager interface {
 	// Parameters:
 	//  - ServiceName
 	GetBaggageRules(serviceName string) (r []*BaggageRule, err error)
 }
 
-type BaggageClient struct {
+type BaggageManagerClient struct {
 	Transport       thrift.TTransport
 	ProtocolFactory thrift.TProtocolFactory
 	InputProtocol   thrift.TProtocol
@@ -28,8 +28,8 @@ type BaggageClient struct {
 	SeqId           int32
 }
 
-func NewBaggageClientFactory(t thrift.TTransport, f thrift.TProtocolFactory) *BaggageClient {
-	return &BaggageClient{Transport: t,
+func NewBaggageManagerClientFactory(t thrift.TTransport, f thrift.TProtocolFactory) *BaggageManagerClient {
+	return &BaggageManagerClient{Transport: t,
 		ProtocolFactory: f,
 		InputProtocol:   f.GetProtocol(t),
 		OutputProtocol:  f.GetProtocol(t),
@@ -37,8 +37,8 @@ func NewBaggageClientFactory(t thrift.TTransport, f thrift.TProtocolFactory) *Ba
 	}
 }
 
-func NewBaggageClientProtocol(t thrift.TTransport, iprot thrift.TProtocol, oprot thrift.TProtocol) *BaggageClient {
-	return &BaggageClient{Transport: t,
+func NewBaggageManagerClientProtocol(t thrift.TTransport, iprot thrift.TProtocol, oprot thrift.TProtocol) *BaggageManagerClient {
+	return &BaggageManagerClient{Transport: t,
 		ProtocolFactory: nil,
 		InputProtocol:   iprot,
 		OutputProtocol:  oprot,
@@ -48,14 +48,14 @@ func NewBaggageClientProtocol(t thrift.TTransport, iprot thrift.TProtocol, oprot
 
 // Parameters:
 //  - ServiceName
-func (p *BaggageClient) GetBaggageRules(serviceName string) (r []*BaggageRule, err error) {
+func (p *BaggageManagerClient) GetBaggageRules(serviceName string) (r []*BaggageRule, err error) {
 	if err = p.sendGetBaggageRules(serviceName); err != nil {
 		return
 	}
 	return p.recvGetBaggageRules()
 }
 
-func (p *BaggageClient) sendGetBaggageRules(serviceName string) (err error) {
+func (p *BaggageManagerClient) sendGetBaggageRules(serviceName string) (err error) {
 	oprot := p.OutputProtocol
 	if oprot == nil {
 		oprot = p.ProtocolFactory.GetProtocol(p.Transport)
@@ -65,7 +65,7 @@ func (p *BaggageClient) sendGetBaggageRules(serviceName string) (err error) {
 	if err = oprot.WriteMessageBegin("getBaggageRules", thrift.CALL, p.SeqId); err != nil {
 		return
 	}
-	args := BaggageGetBaggageRulesArgs{
+	args := BaggageManagerGetBaggageRulesArgs{
 		ServiceName: serviceName,
 	}
 	if err = args.Write(oprot); err != nil {
@@ -77,7 +77,7 @@ func (p *BaggageClient) sendGetBaggageRules(serviceName string) (err error) {
 	return oprot.Flush()
 }
 
-func (p *BaggageClient) recvGetBaggageRules() (value []*BaggageRule, err error) {
+func (p *BaggageManagerClient) recvGetBaggageRules() (value []*BaggageRule, err error) {
 	iprot := p.InputProtocol
 	if iprot == nil {
 		iprot = p.ProtocolFactory.GetProtocol(p.Transport)
@@ -112,7 +112,7 @@ func (p *BaggageClient) recvGetBaggageRules() (value []*BaggageRule, err error) 
 		err = thrift.NewTApplicationException(thrift.INVALID_MESSAGE_TYPE_EXCEPTION, "getBaggageRules failed: invalid message type")
 		return
 	}
-	result := BaggageGetBaggageRulesResult{}
+	result := BaggageManagerGetBaggageRulesResult{}
 	if err = result.Read(iprot); err != nil {
 		return
 	}
@@ -123,32 +123,32 @@ func (p *BaggageClient) recvGetBaggageRules() (value []*BaggageRule, err error) 
 	return
 }
 
-type BaggageProcessor struct {
+type BaggageManagerProcessor struct {
 	processorMap map[string]thrift.TProcessorFunction
-	handler      Baggage
+	handler      BaggageManager
 }
 
-func (p *BaggageProcessor) AddToProcessorMap(key string, processor thrift.TProcessorFunction) {
+func (p *BaggageManagerProcessor) AddToProcessorMap(key string, processor thrift.TProcessorFunction) {
 	p.processorMap[key] = processor
 }
 
-func (p *BaggageProcessor) GetProcessorFunction(key string) (processor thrift.TProcessorFunction, ok bool) {
+func (p *BaggageManagerProcessor) GetProcessorFunction(key string) (processor thrift.TProcessorFunction, ok bool) {
 	processor, ok = p.processorMap[key]
 	return processor, ok
 }
 
-func (p *BaggageProcessor) ProcessorMap() map[string]thrift.TProcessorFunction {
+func (p *BaggageManagerProcessor) ProcessorMap() map[string]thrift.TProcessorFunction {
 	return p.processorMap
 }
 
-func NewBaggageProcessor(handler Baggage) *BaggageProcessor {
+func NewBaggageManagerProcessor(handler BaggageManager) *BaggageManagerProcessor {
 
-	self2 := &BaggageProcessor{handler: handler, processorMap: make(map[string]thrift.TProcessorFunction)}
-	self2.processorMap["getBaggageRules"] = &baggageProcessorGetBaggageRules{handler: handler}
+	self2 := &BaggageManagerProcessor{handler: handler, processorMap: make(map[string]thrift.TProcessorFunction)}
+	self2.processorMap["getBaggageRules"] = &baggageManagerProcessorGetBaggageRules{handler: handler}
 	return self2
 }
 
-func (p *BaggageProcessor) Process(iprot, oprot thrift.TProtocol) (success bool, err thrift.TException) {
+func (p *BaggageManagerProcessor) Process(iprot, oprot thrift.TProtocol) (success bool, err thrift.TException) {
 	name, _, seqId, err := iprot.ReadMessageBegin()
 	if err != nil {
 		return false, err
@@ -167,12 +167,12 @@ func (p *BaggageProcessor) Process(iprot, oprot thrift.TProtocol) (success bool,
 
 }
 
-type baggageProcessorGetBaggageRules struct {
-	handler Baggage
+type baggageManagerProcessorGetBaggageRules struct {
+	handler BaggageManager
 }
 
-func (p *baggageProcessorGetBaggageRules) Process(seqId int32, iprot, oprot thrift.TProtocol) (success bool, err thrift.TException) {
-	args := BaggageGetBaggageRulesArgs{}
+func (p *baggageManagerProcessorGetBaggageRules) Process(seqId int32, iprot, oprot thrift.TProtocol) (success bool, err thrift.TException) {
+	args := BaggageManagerGetBaggageRulesArgs{}
 	if err = args.Read(iprot); err != nil {
 		iprot.ReadMessageEnd()
 		x := thrift.NewTApplicationException(thrift.PROTOCOL_ERROR, err.Error())
@@ -184,7 +184,7 @@ func (p *baggageProcessorGetBaggageRules) Process(seqId int32, iprot, oprot thri
 	}
 
 	iprot.ReadMessageEnd()
-	result := BaggageGetBaggageRulesResult{}
+	result := BaggageManagerGetBaggageRulesResult{}
 	var retval []*BaggageRule
 	var err2 error
 	if retval, err2 = p.handler.GetBaggageRules(args.ServiceName); err2 != nil {
@@ -219,18 +219,18 @@ func (p *baggageProcessorGetBaggageRules) Process(seqId int32, iprot, oprot thri
 
 // Attributes:
 //  - ServiceName
-type BaggageGetBaggageRulesArgs struct {
+type BaggageManagerGetBaggageRulesArgs struct {
 	ServiceName string `thrift:"serviceName,1" json:"serviceName"`
 }
 
-func NewBaggageGetBaggageRulesArgs() *BaggageGetBaggageRulesArgs {
-	return &BaggageGetBaggageRulesArgs{}
+func NewBaggageManagerGetBaggageRulesArgs() *BaggageManagerGetBaggageRulesArgs {
+	return &BaggageManagerGetBaggageRulesArgs{}
 }
 
-func (p *BaggageGetBaggageRulesArgs) GetServiceName() string {
+func (p *BaggageManagerGetBaggageRulesArgs) GetServiceName() string {
 	return p.ServiceName
 }
-func (p *BaggageGetBaggageRulesArgs) Read(iprot thrift.TProtocol) error {
+func (p *BaggageManagerGetBaggageRulesArgs) Read(iprot thrift.TProtocol) error {
 	if _, err := iprot.ReadStructBegin(); err != nil {
 		return thrift.PrependError(fmt.Sprintf("%T read error: ", p), err)
 	}
@@ -263,7 +263,7 @@ func (p *BaggageGetBaggageRulesArgs) Read(iprot thrift.TProtocol) error {
 	return nil
 }
 
-func (p *BaggageGetBaggageRulesArgs) readField1(iprot thrift.TProtocol) error {
+func (p *BaggageManagerGetBaggageRulesArgs) readField1(iprot thrift.TProtocol) error {
 	if v, err := iprot.ReadString(); err != nil {
 		return thrift.PrependError("error reading field 1: ", err)
 	} else {
@@ -272,7 +272,7 @@ func (p *BaggageGetBaggageRulesArgs) readField1(iprot thrift.TProtocol) error {
 	return nil
 }
 
-func (p *BaggageGetBaggageRulesArgs) Write(oprot thrift.TProtocol) error {
+func (p *BaggageManagerGetBaggageRulesArgs) Write(oprot thrift.TProtocol) error {
 	if err := oprot.WriteStructBegin("getBaggageRules_args"); err != nil {
 		return thrift.PrependError(fmt.Sprintf("%T write struct begin error: ", p), err)
 	}
@@ -288,7 +288,7 @@ func (p *BaggageGetBaggageRulesArgs) Write(oprot thrift.TProtocol) error {
 	return nil
 }
 
-func (p *BaggageGetBaggageRulesArgs) writeField1(oprot thrift.TProtocol) (err error) {
+func (p *BaggageManagerGetBaggageRulesArgs) writeField1(oprot thrift.TProtocol) (err error) {
 	if err := oprot.WriteFieldBegin("serviceName", thrift.STRING, 1); err != nil {
 		return thrift.PrependError(fmt.Sprintf("%T write field begin error 1:serviceName: ", p), err)
 	}
@@ -301,33 +301,33 @@ func (p *BaggageGetBaggageRulesArgs) writeField1(oprot thrift.TProtocol) (err er
 	return err
 }
 
-func (p *BaggageGetBaggageRulesArgs) String() string {
+func (p *BaggageManagerGetBaggageRulesArgs) String() string {
 	if p == nil {
 		return "<nil>"
 	}
-	return fmt.Sprintf("BaggageGetBaggageRulesArgs(%+v)", *p)
+	return fmt.Sprintf("BaggageManagerGetBaggageRulesArgs(%+v)", *p)
 }
 
 // Attributes:
 //  - Success
-type BaggageGetBaggageRulesResult struct {
+type BaggageManagerGetBaggageRulesResult struct {
 	Success []*BaggageRule `thrift:"success,0" json:"success,omitempty"`
 }
 
-func NewBaggageGetBaggageRulesResult() *BaggageGetBaggageRulesResult {
-	return &BaggageGetBaggageRulesResult{}
+func NewBaggageManagerGetBaggageRulesResult() *BaggageManagerGetBaggageRulesResult {
+	return &BaggageManagerGetBaggageRulesResult{}
 }
 
-var BaggageGetBaggageRulesResult_Success_DEFAULT []*BaggageRule
+var BaggageManagerGetBaggageRulesResult_Success_DEFAULT []*BaggageRule
 
-func (p *BaggageGetBaggageRulesResult) GetSuccess() []*BaggageRule {
+func (p *BaggageManagerGetBaggageRulesResult) GetSuccess() []*BaggageRule {
 	return p.Success
 }
-func (p *BaggageGetBaggageRulesResult) IsSetSuccess() bool {
+func (p *BaggageManagerGetBaggageRulesResult) IsSetSuccess() bool {
 	return p.Success != nil
 }
 
-func (p *BaggageGetBaggageRulesResult) Read(iprot thrift.TProtocol) error {
+func (p *BaggageManagerGetBaggageRulesResult) Read(iprot thrift.TProtocol) error {
 	if _, err := iprot.ReadStructBegin(); err != nil {
 		return thrift.PrependError(fmt.Sprintf("%T read error: ", p), err)
 	}
@@ -360,7 +360,7 @@ func (p *BaggageGetBaggageRulesResult) Read(iprot thrift.TProtocol) error {
 	return nil
 }
 
-func (p *BaggageGetBaggageRulesResult) readField0(iprot thrift.TProtocol) error {
+func (p *BaggageManagerGetBaggageRulesResult) readField0(iprot thrift.TProtocol) error {
 	_, size, err := iprot.ReadListBegin()
 	if err != nil {
 		return thrift.PrependError("error reading list begin: ", err)
@@ -380,7 +380,7 @@ func (p *BaggageGetBaggageRulesResult) readField0(iprot thrift.TProtocol) error 
 	return nil
 }
 
-func (p *BaggageGetBaggageRulesResult) Write(oprot thrift.TProtocol) error {
+func (p *BaggageManagerGetBaggageRulesResult) Write(oprot thrift.TProtocol) error {
 	if err := oprot.WriteStructBegin("getBaggageRules_result"); err != nil {
 		return thrift.PrependError(fmt.Sprintf("%T write struct begin error: ", p), err)
 	}
@@ -396,7 +396,7 @@ func (p *BaggageGetBaggageRulesResult) Write(oprot thrift.TProtocol) error {
 	return nil
 }
 
-func (p *BaggageGetBaggageRulesResult) writeField0(oprot thrift.TProtocol) (err error) {
+func (p *BaggageManagerGetBaggageRulesResult) writeField0(oprot thrift.TProtocol) (err error) {
 	if p.IsSetSuccess() {
 		if err := oprot.WriteFieldBegin("success", thrift.LIST, 0); err != nil {
 			return thrift.PrependError(fmt.Sprintf("%T write field begin error 0:success: ", p), err)
@@ -419,9 +419,9 @@ func (p *BaggageGetBaggageRulesResult) writeField0(oprot thrift.TProtocol) (err 
 	return err
 }
 
-func (p *BaggageGetBaggageRulesResult) String() string {
+func (p *BaggageManagerGetBaggageRulesResult) String() string {
 	if p == nil {
 		return "<nil>"
 	}
-	return fmt.Sprintf("BaggageGetBaggageRulesResult(%+v)", *p)
+	return fmt.Sprintf("BaggageManagerGetBaggageRulesResult(%+v)", *p)
 }
