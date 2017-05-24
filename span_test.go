@@ -57,7 +57,7 @@ func assertBaggageRecords(t *testing.T, sp *Span, expected map[string]string) {
 		value := logRecord.Fields[2].Value().(string)
 
 		require.Contains(t, expected, key)
-		assert.Equal(t, value, expected[key])
+		assert.Equal(t, expected[key], value)
 	}
 }
 
