@@ -25,10 +25,12 @@ import (
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBaggageIterator(t *testing.T) {
-	tracer, closer := NewTracer("DOOP", NewConstSampler(true), NewNullReporter())
+	service := "DOOP"
+	tracer, closer := NewTracer(service, NewConstSampler(true), NewNullReporter())
 	defer closer.Close()
 
 	sp1 := tracer.StartSpan("s1").(*Span)
@@ -36,12 +38,27 @@ func TestBaggageIterator(t *testing.T) {
 	sp1.SetBaggageItem("Some-other-key", "42")
 	expectedBaggage := map[string]string{"some-key": "12345", "some-other-key": "42"}
 	assertBaggage(t, sp1, expectedBaggage)
+	assertBaggageRecords(t, sp1, expectedBaggage)
 
 	b := extractBaggage(sp1, false) // break out early
 	assert.Equal(t, 1, len(b), "only one baggage item should be extracted")
 
-	sp2 := tracer.StartSpan("s2", opentracing.ChildOf(sp1.Context()))
+	sp2 := tracer.StartSpan("s2", opentracing.ChildOf(sp1.Context())).(*Span)
 	assertBaggage(t, sp2, expectedBaggage) // child inherits the same baggage
+	require.Len(t, sp2.logs, 0)            // child doesn't inherit the baggage logs
+}
+
+func assertBaggageRecords(t *testing.T, sp *Span, expected map[string]string) {
+	require.Len(t, sp.logs, len(expected))
+	for _, logRecord := range sp.logs {
+		require.Len(t, logRecord.Fields, 3)
+		require.Equal(t, "event:baggage", logRecord.Fields[0].String())
+		key := logRecord.Fields[1].Value().(string)
+		value := logRecord.Fields[2].Value().(string)
+
+		require.Contains(t, expected, key)
+		assert.Equal(t, expected[key], value)
+	}
 }
 
 func assertBaggage(t *testing.T, sp opentracing.Span, expected map[string]string) {

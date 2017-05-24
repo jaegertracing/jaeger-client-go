@@ -66,7 +66,7 @@ type Span struct {
 	observer SpanObserver
 }
 
-// Tag a simple key value wrapper
+// Tag is a simple key value wrapper
 type Tag struct {
 	key   string
 	value interface{}
@@ -116,6 +116,11 @@ func (s *Span) LogFields(fields ...log.Field) {
 	if !s.context.IsSampled() {
 		return
 	}
+	s.logFieldsNoLocking(fields...)
+}
+
+// this function should only be called while holding a Write lock
+func (s *Span) logFieldsNoLocking(fields ...log.Field) {
 	lr := opentracing.LogRecord{
 		Fields:    fields,
 		Timestamp: time.Now(),
@@ -173,6 +178,14 @@ func (s *Span) SetBaggageItem(key, value string) opentracing.Span {
 	s.Lock()
 	defer s.Unlock()
 	s.context = s.context.WithBaggageItem(key, value)
+	if s.context.IsSampled() {
+		// If sampled, record the baggage in the span
+		s.logFieldsNoLocking(
+			log.String("event", "baggage"),
+			log.String("key", key),
+			log.String("value", value),
+		)
+	}
 	return s
 }
 

@@ -30,6 +30,7 @@ import (
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	j "github.com/uber/jaeger-client-go/thrift-gen/jaeger"
 	"github.com/uber/jaeger-client-go/utils"
@@ -293,6 +294,32 @@ func TestBuildReferences(t *testing.T) {
 	assert.EqualValues(t, 2, spanRefs[1].SpanId)
 	assert.EqualValues(t, 2, spanRefs[1].TraceIdHigh)
 	assert.EqualValues(t, 2, spanRefs[1].TraceIdLow)
+}
+
+func TestJaegerSpanBaggageLogs(t *testing.T) {
+	tracer, closer := NewTracer("DOOP",
+		NewConstSampler(true),
+		NewNullReporter())
+	defer closer.Close()
+
+	sp := tracer.StartSpan("s1").(*Span)
+	sp.SetBaggageItem("auth.token", "token")
+	ext.SpanKindRPCServer.Set(sp)
+	sp.Finish()
+
+	jaegerSpan := buildJaegerSpan(sp)
+	require.Len(t, jaegerSpan.Logs, 1)
+	fields := jaegerSpan.Logs[0].Fields
+	require.Len(t, fields, 3)
+	assertJaegerTag(t, fields, "event", "baggage")
+	assertJaegerTag(t, fields, "key", "auth.token")
+	assertJaegerTag(t, fields, "value", "token")
+}
+
+func assertJaegerTag(t *testing.T, tags []*j.Tag, key string, value string) {
+	tag := findJaegerTag(key, tags)
+	require.NotNil(t, tag)
+	assert.Equal(t, value, tag.GetVStr())
 }
 
 func getStringPtr(s string) *string {
