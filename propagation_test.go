@@ -86,6 +86,15 @@ func TestSpanPropagator(t *testing.T) {
 	exp, spans := spans[len(spans)-1], spans[:len(spans)-1]
 	exp.duration = time.Duration(123)
 	exp.startTime = time.Time{}.Add(1)
+	require.Len(t, exp.logs, 1) // The parent span should have baggage logs
+	fields := exp.logs[0].Fields
+	require.Len(t, fields, 3)
+	require.Equal(t, "event", fields[0].Key())
+	require.Equal(t, "baggage", fields[0].Value().(string))
+	require.Equal(t, "key", fields[1].Key())
+	require.Equal(t, "foo", fields[1].Value().(string))
+	require.Equal(t, "value", fields[2].Key())
+	require.Equal(t, "bar", fields[2].Value().(string))
 
 	if exp.context.ParentID() != 0 {
 		t.Fatalf("Root span's ParentID %d is not 0", exp.context.ParentID())
@@ -104,7 +113,7 @@ func TestSpanPropagator(t *testing.T) {
 		assert.Equal(t, exp.context, sp.context, formatName)
 		assert.Equal(t, "span.kind", sp.tags[0].key)
 		assert.Equal(t, expTags, sp.tags[1:] /*skip span.kind tag*/, formatName)
-		assert.NotEqual(t, exp.logs, sp.logs, formatName) // Only the parent span should have baggage logs
+		assert.Empty(t, sp.logs, formatName)
 		// Override collections to avoid tripping comparison on different pointers
 		sp.context = exp.context
 		sp.tags = exp.tags
