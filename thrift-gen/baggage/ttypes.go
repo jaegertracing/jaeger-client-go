@@ -17,31 +17,31 @@ var _ = bytes.Equal
 var GoUnusedProtection__ int
 
 // Attributes:
-//  - Key
-//  - Size
-type BaggageRule struct {
-	Key  string `thrift:"key,1,required" json:"key"`
-	Size int32  `thrift:"size,2,required" json:"size"`
+//  - BaggageKey
+//  - MaxValueLength
+type BaggageRestriction struct {
+	BaggageKey     string `thrift:"baggageKey,1,required" json:"baggageKey"`
+	MaxValueLength int32  `thrift:"maxValueLength,2,required" json:"maxValueLength"`
 }
 
-func NewBaggageRule() *BaggageRule {
-	return &BaggageRule{}
+func NewBaggageRestriction() *BaggageRestriction {
+	return &BaggageRestriction{}
 }
 
-func (p *BaggageRule) GetKey() string {
-	return p.Key
+func (p *BaggageRestriction) GetBaggageKey() string {
+	return p.BaggageKey
 }
 
-func (p *BaggageRule) GetSize() int32 {
-	return p.Size
+func (p *BaggageRestriction) GetMaxValueLength() int32 {
+	return p.MaxValueLength
 }
-func (p *BaggageRule) Read(iprot thrift.TProtocol) error {
+func (p *BaggageRestriction) Read(iprot thrift.TProtocol) error {
 	if _, err := iprot.ReadStructBegin(); err != nil {
 		return thrift.PrependError(fmt.Sprintf("%T read error: ", p), err)
 	}
 
-	var issetKey bool = false
-	var issetSize bool = false
+	var issetBaggageKey bool = false
+	var issetMaxValueLength bool = false
 
 	for {
 		_, fieldTypeId, fieldId, err := iprot.ReadFieldBegin()
@@ -56,12 +56,12 @@ func (p *BaggageRule) Read(iprot thrift.TProtocol) error {
 			if err := p.readField1(iprot); err != nil {
 				return err
 			}
-			issetKey = true
+			issetBaggageKey = true
 		case 2:
 			if err := p.readField2(iprot); err != nil {
 				return err
 			}
-			issetSize = true
+			issetMaxValueLength = true
 		default:
 			if err := iprot.Skip(fieldTypeId); err != nil {
 				return err
@@ -74,35 +74,35 @@ func (p *BaggageRule) Read(iprot thrift.TProtocol) error {
 	if err := iprot.ReadStructEnd(); err != nil {
 		return thrift.PrependError(fmt.Sprintf("%T read struct end error: ", p), err)
 	}
-	if !issetKey {
-		return thrift.NewTProtocolExceptionWithType(thrift.INVALID_DATA, fmt.Errorf("Required field Key is not set"))
+	if !issetBaggageKey {
+		return thrift.NewTProtocolExceptionWithType(thrift.INVALID_DATA, fmt.Errorf("Required field BaggageKey is not set"))
 	}
-	if !issetSize {
-		return thrift.NewTProtocolExceptionWithType(thrift.INVALID_DATA, fmt.Errorf("Required field Size is not set"))
+	if !issetMaxValueLength {
+		return thrift.NewTProtocolExceptionWithType(thrift.INVALID_DATA, fmt.Errorf("Required field MaxValueLength is not set"))
 	}
 	return nil
 }
 
-func (p *BaggageRule) readField1(iprot thrift.TProtocol) error {
+func (p *BaggageRestriction) readField1(iprot thrift.TProtocol) error {
 	if v, err := iprot.ReadString(); err != nil {
 		return thrift.PrependError("error reading field 1: ", err)
 	} else {
-		p.Key = v
+		p.BaggageKey = v
 	}
 	return nil
 }
 
-func (p *BaggageRule) readField2(iprot thrift.TProtocol) error {
+func (p *BaggageRestriction) readField2(iprot thrift.TProtocol) error {
 	if v, err := iprot.ReadI32(); err != nil {
 		return thrift.PrependError("error reading field 2: ", err)
 	} else {
-		p.Size = v
+		p.MaxValueLength = v
 	}
 	return nil
 }
 
-func (p *BaggageRule) Write(oprot thrift.TProtocol) error {
-	if err := oprot.WriteStructBegin("BaggageRule"); err != nil {
+func (p *BaggageRestriction) Write(oprot thrift.TProtocol) error {
+	if err := oprot.WriteStructBegin("BaggageRestriction"); err != nil {
 		return thrift.PrependError(fmt.Sprintf("%T write struct begin error: ", p), err)
 	}
 	if err := p.writeField1(oprot); err != nil {
@@ -120,35 +120,35 @@ func (p *BaggageRule) Write(oprot thrift.TProtocol) error {
 	return nil
 }
 
-func (p *BaggageRule) writeField1(oprot thrift.TProtocol) (err error) {
-	if err := oprot.WriteFieldBegin("key", thrift.STRING, 1); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T write field begin error 1:key: ", p), err)
+func (p *BaggageRestriction) writeField1(oprot thrift.TProtocol) (err error) {
+	if err := oprot.WriteFieldBegin("baggageKey", thrift.STRING, 1); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T write field begin error 1:baggageKey: ", p), err)
 	}
-	if err := oprot.WriteString(string(p.Key)); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T.key (1) field write error: ", p), err)
+	if err := oprot.WriteString(string(p.BaggageKey)); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T.baggageKey (1) field write error: ", p), err)
 	}
 	if err := oprot.WriteFieldEnd(); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T write field end error 1:key: ", p), err)
+		return thrift.PrependError(fmt.Sprintf("%T write field end error 1:baggageKey: ", p), err)
 	}
 	return err
 }
 
-func (p *BaggageRule) writeField2(oprot thrift.TProtocol) (err error) {
-	if err := oprot.WriteFieldBegin("size", thrift.I32, 2); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T write field begin error 2:size: ", p), err)
+func (p *BaggageRestriction) writeField2(oprot thrift.TProtocol) (err error) {
+	if err := oprot.WriteFieldBegin("maxValueLength", thrift.I32, 2); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T write field begin error 2:maxValueLength: ", p), err)
 	}
-	if err := oprot.WriteI32(int32(p.Size)); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T.size (2) field write error: ", p), err)
+	if err := oprot.WriteI32(int32(p.MaxValueLength)); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T.maxValueLength (2) field write error: ", p), err)
 	}
 	if err := oprot.WriteFieldEnd(); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T write field end error 2:size: ", p), err)
+		return thrift.PrependError(fmt.Sprintf("%T write field end error 2:maxValueLength: ", p), err)
 	}
 	return err
 }
 
-func (p *BaggageRule) String() string {
+func (p *BaggageRestriction) String() string {
 	if p == nil {
 		return "<nil>"
 	}
-	return fmt.Sprintf("BaggageRule(%+v)", *p)
+	return fmt.Sprintf("BaggageRestriction(%+v)", *p)
 }
