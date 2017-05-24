@@ -299,6 +299,21 @@ func TestSpecialTags(t *testing.T) {
 	assert.NotNil(t, findAnnotation(thriftSpan, "ss"))
 }
 
+func TestBaggageLogs(t *testing.T) {
+	tracer, closer := NewTracer("DOOP",
+		NewConstSampler(true),
+		NewNullReporter())
+	defer closer.Close()
+
+	sp := tracer.StartSpan("s1").(*Span)
+	sp.SetBaggageItem("auth.token", "token")
+	ext.SpanKindRPCServer.Set(sp)
+	sp.Finish()
+
+	thriftSpan := buildThriftSpan(sp)
+	assert.NotNil(t, findAnnotation(thriftSpan, `{"event":"baggage","key":"auth.token","value":"token"}`))
+}
+
 func findAnnotation(span *zipkincore.Span, name string) *zipkincore.Annotation {
 	for _, a := range span.Annotations {
 		if a.Value == name {

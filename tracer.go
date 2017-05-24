@@ -286,7 +286,6 @@ func (t *tracer) newSpan() *Span {
 	sp.tracer = nil
 	sp.tags = nil
 	sp.logs = nil
-	sp.baggageRecords = nil
 	return sp
 }
 

@@ -104,14 +104,13 @@ func TestSpanPropagator(t *testing.T) {
 		assert.Equal(t, exp.context, sp.context, formatName)
 		assert.Equal(t, "span.kind", sp.tags[0].key)
 		assert.Equal(t, expTags, sp.tags[1:] /*skip span.kind tag*/, formatName)
-		assert.Equal(t, exp.logs, sp.logs, formatName)
+		assert.NotEqual(t, exp.logs, sp.logs, formatName) // Only the parent span should have baggage logs
 		// Override collections to avoid tripping comparison on different pointers
 		sp.context = exp.context
 		sp.tags = exp.tags
 		sp.logs = exp.logs
 		sp.operationName = op
 		sp.references = exp.references
-		sp.baggageRecords = exp.baggageRecords
 		// Compare the rest of the fields
 		assert.Equal(t, exp, sp, formatName)
 	}

@@ -38,21 +38,26 @@ func TestBaggageIterator(t *testing.T) {
 	sp1.SetBaggageItem("Some-other-key", "42")
 	expectedBaggage := map[string]string{"some-key": "12345", "some-other-key": "42"}
 	assertBaggage(t, sp1, expectedBaggage)
-	assertBaggageRecords(t, sp1, expectedBaggage, service)
+	assertBaggageRecords(t, sp1, expectedBaggage)
 
 	b := extractBaggage(sp1, false) // break out early
 	assert.Equal(t, 1, len(b), "only one baggage item should be extracted")
 
 	sp2 := tracer.StartSpan("s2", opentracing.ChildOf(sp1.Context())).(*Span)
 	assertBaggage(t, sp2, expectedBaggage) // child inherits the same baggage
-	require.Len(t, sp2.baggageRecords, 0)  // child doesn't inherit the baggage records
+	require.Len(t, sp2.logs, 0)            // child doesn't inherit the baggage logs
 }
 
-func assertBaggageRecords(t *testing.T, sp *Span, expected map[string]string, service string) {
-	assert.Len(t, sp.baggageRecords, len(expected))
-	for _, record := range sp.baggageRecords {
-		require.Contains(t, expected, record.key)
-		assert.Equal(t, expected[record.key], record.value)
+func assertBaggageRecords(t *testing.T, sp *Span, expected map[string]string) {
+	require.Len(t, sp.logs, len(expected))
+	for _, logRecord := range sp.logs {
+		require.Len(t, logRecord.Fields, 3)
+		require.Equal(t, "event:baggage", logRecord.Fields[0].String())
+		key := logRecord.Fields[1].Value().(string)
+		value := logRecord.Fields[2].Value().(string)
+
+		require.Contains(t, expected, key)
+		assert.Equal(t, value, expected[key])
 	}
 }
 

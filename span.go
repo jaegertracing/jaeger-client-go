@@ -63,9 +63,6 @@ type Span struct {
 	// references for this span
 	references []Reference
 
-	// baggageRecords keeps track of the baggage items set during the lifetime of this span.
-	baggageRecords []BaggageRecord
-
 	observer SpanObserver
 }
 
@@ -73,15 +70,6 @@ type Span struct {
 type Tag struct {
 	key   string
 	value interface{}
-}
-
-// BaggageRecord is used to record the baggage item set during the lifetime of a span.
-type BaggageRecord struct {
-	key   string
-	value string
-
-	// timestamp is the timestamp indicating when the baggage item was set.
-	timestamp time.Time
 }
 
 // SetOperationName sets or changes the operation name.
@@ -128,6 +116,11 @@ func (s *Span) LogFields(fields ...log.Field) {
 	if !s.context.IsSampled() {
 		return
 	}
+	s.logFieldsWithLock(fields...)
+}
+
+// this function should only be called while holding a Write lock
+func (s *Span) logFieldsWithLock(fields ...log.Field) {
 	lr := opentracing.LogRecord{
 		Fields:    fields,
 		Timestamp: time.Now(),
@@ -189,12 +182,11 @@ func (s *Span) SetBaggageItem(key, value string) opentracing.Span {
 		return s
 	}
 	// If sampled, record the baggage in the span
-	record := BaggageRecord{
-		key:       key,
-		value:     value,
-		timestamp: time.Now(),
-	}
-	s.baggageRecords = append(s.baggageRecords, record)
+	s.logFieldsWithLock(
+		log.String("event", "baggage"),
+		log.String("key", key),
+		log.String("value", value),
+	)
 	return s
 }
 

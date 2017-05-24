@@ -50,8 +50,14 @@ func TestMockAgentSpanServer(t *testing.T) {
 
 		err = client.EmitZipkinBatch(spans)
 		assert.NoError(t, err)
-		time.Sleep(5 * time.Millisecond)
 
+		for k := 0; k < 100; k++ {
+			time.Sleep(time.Millisecond)
+			spans = mockAgent.GetZipkinSpans()
+			if len(spans) == i {
+				break
+			}
+		}
 		spans = mockAgent.GetZipkinSpans()
 		require.Equal(t, i, len(spans))
 		for j := 0; j < i; j++ {
