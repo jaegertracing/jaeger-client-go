@@ -31,42 +31,43 @@ const (
 	defaultRefreshInterval = time.Minute
 )
 
-type BaggageRulesManager interface {
+type BaggageRestrictionManager interface {
 	IsValidBaggageKey(key string) (bool, int32)
 }
 
-type baggageRulesManager struct {
+type baggageRestrictionManager struct {
 	sync.RWMutex
 
 	serviceName string
-	baggageSize map[string]int32
+	restrictionsMap map[string]int32
 	timer       *time.Ticker
-	manager     baggage.BaggageManager
+	manager     baggage.BaggageRestrictionManager
 	pollStopped sync.WaitGroup
 }
 
-func NewBaggageRulesManager(serviceName string, manager baggage.BaggageManager) BaggageRulesManager {
-	m := &baggageRulesManager{
+func NewBaggageRestrictionManager(serviceName string, manager baggage.BaggageRestrictionManager) BaggageRestrictionManager {
+	m := &baggageRestrictionManager{
 		serviceName: serviceName,
-		baggageSize: make(map[string]int32),
+		restrictionsMap: make(map[string]int32),
 		timer:       time.NewTicker(defaultRefreshInterval),
 		manager:     manager,
 	}
+	m.updateRestrictions()
 	go m.pollManager()
 	return m
 }
 
-func (m *baggageRulesManager) IsValidBaggageKey(key string) (bool, int32) {
+func (m *baggageRestrictionManager) IsValidBaggageKey(key string) (bool, int32) {
 	m.RLock()
 	defer m.RUnlock()
-	if size, ok := m.baggageSize[key]; ok {
-		return true, size
+	if maxValueLength, ok := m.restrictionsMap[key]; ok {
+		return true, maxValueLength
 	}
 	return false, 0
 }
 
 // Close implements Close() of Sampler.
-func (m *baggageRulesManager) Close() {
+func (m *baggageRestrictionManager) Close() {
 	m.Lock()
 	m.timer.Stop()
 	m.Unlock()
@@ -74,7 +75,7 @@ func (m *baggageRulesManager) Close() {
 	m.pollStopped.Wait()
 }
 
-func (m *baggageRulesManager) pollManager() {
+func (m *baggageRestrictionManager) pollManager() {
 	m.pollStopped.Add(1)
 	defer m.pollStopped.Done()
 
@@ -84,28 +85,28 @@ func (m *baggageRulesManager) pollManager() {
 	m.Unlock()
 
 	for range timer.C {
-		m.updateRules()
+		m.updateRestrictions()
 	}
 }
 
-func (m *baggageRulesManager) updateRules() {
-	rules, err := m.manager.GetBaggageRules(m.serviceName)
+func (m *baggageRestrictionManager) updateRestrictions() {
+	restrictions, err := m.manager.GetBaggageRestrictions(m.serviceName)
 	if err != nil {
 		// TODO update failure metric
 		// TODO this is pretty serious, almost retry worthy
 		return
 	}
-	rulesMap := convertRulesToMap(rules)
+	restrictionsMap := convertRestrictionsToMap(restrictions)
 	m.Lock()
 	defer m.Unlock()
-	m.baggageSize = rulesMap
+	m.restrictionsMap = restrictionsMap
 	// TODO update metrics
 }
 
-func convertRulesToMap(rules []*baggage.BaggageRule) map[string]int32 {
-	rulesMap := make(map[string]int32, len(rules))
-	for _, rule := range rules {
-		rulesMap[rule.Key] = rule.Size
+func convertRestrictionsToMap(restrictions []*baggage.BaggageRestriction) map[string]int32 {
+	restrictionsMap := make(map[string]int32, len(restrictions))
+	for _, restriction := range restrictions {
+		restrictionsMap[restriction.BaggageKey] = restriction.MaxValueLength
 	}
-	return rulesMap
+	return restrictionsMap
 }

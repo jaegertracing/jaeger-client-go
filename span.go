@@ -63,6 +63,8 @@ type Span struct {
 	// references for this span
 	references []Reference
 
+	baggageRestrictionManager BaggageRestrictionManager
+
 	observer SpanObserver
 }
 
@@ -167,6 +169,11 @@ func (s *Span) appendLog(lr opentracing.LogRecord) {
 // SetBaggageItem implements SetBaggageItem() of opentracing.SpanContext
 func (s *Span) SetBaggageItem(key, value string) opentracing.Span {
 	key = normalizeBaggageKey(key)
+	valid, maxValueLength := s.baggageRestrictionManager.IsValidBaggageKey(key)
+	if !valid {
+		return s
+	}
+	value = truncateBaggageValue(value, maxValueLength)
 	s.Lock()
 	defer s.Unlock()
 	s.context = s.context.WithBaggageItem(key, value)
@@ -181,8 +188,19 @@ func (s *Span) SetBaggageItem(key, value string) opentracing.Span {
 	return s
 }
 
+func truncateBaggageValue(value string, length int32) string {
+	if len(value) > length {
+		return value[:length]
+	}
+	return value
+}
+
 // BaggageItem implements BaggageItem() of opentracing.SpanContext
 func (s *Span) BaggageItem(key string) string {
+	valid, _ := s.baggageRestrictionManager.IsValidBaggageKey(key)
+	if !valid {
+		return ""
+	}
 	key = normalizeBaggageKey(key)
 	s.RLock()
 	defer s.RUnlock()

@@ -28,6 +28,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type BaggageRestrictionManager interface {
+	IsValidBaggageKey(key string) (bool, int32)
+}
+
 func TestBaggageIterator(t *testing.T) {
 	service := "DOOP"
 	tracer, closer := NewTracer(service, NewConstSampler(true), NewNullReporter())
