@@ -301,7 +301,7 @@ func initAgent(t *testing.T) (*testutils.MockAgent, *RemotelyControlledSampler, 
 	sampler := NewRemotelyControlledSampler(
 		"client app",
 		SamplerOptions.Metrics(metrics),
-		SamplerOptions.SamplingServerURL("http://"+agent.SamplingServerAddr()),
+		SamplerOptions.SamplingServerURL("http://"+agent.AgentServerAddr()),
 		SamplerOptions.MaxOperations(testDefaultMaxOperations),
 		SamplerOptions.InitialSampler(initialSampler),
 		SamplerOptions.Logger(log.NullLogger),

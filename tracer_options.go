@@ -105,3 +105,9 @@ func (tracerOptions) ZipkinSharedRPCSpan(zipkinSharedRPCSpan bool) TracerOption 
 		tracer.options.zipkinSharedRPCSpan = zipkinSharedRPCSpan
 	}
 }
+
+func (tracerOptions) BaggageRestrictionManager(manager BaggageRestrictionManager) TracerOption {
+	return func(tracer *tracer) {
+		tracer.baggageRestrictionManager = manager
+	}
+}

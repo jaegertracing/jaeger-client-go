@@ -21,38 +21,77 @@
 package jaeger
 
 import (
+	"fmt"
+	"net/url"
 	"sync"
 	"time"
 
 	"github.com/uber/jaeger-client-go/thrift-gen/baggage"
+	"github.com/uber/jaeger-client-go/utils"
 )
 
 const (
-	defaultRefreshInterval = time.Minute
+	defaultMaxValueLength = 2048
 )
 
+// BaggageRestrictionManager keeps track of valid baggage keys and their size restrictions.
 type BaggageRestrictionManager interface {
+	// IsValidBaggageKey returns whether the baggage key is valid given the restrictions
+	// and the max baggage value length
 	IsValidBaggageKey(key string) (bool, int32)
 }
 
-type baggageRestrictionManager struct {
-	sync.RWMutex
+// DefaultBaggageRestrictionManager allows any baggage key.
+type DefaultBaggageRestrictionManager struct{}
 
-	serviceName string
-	restrictionsMap map[string]int32
-	timer       *time.Ticker
-	manager     baggage.BaggageRestrictionManager
-	pollStopped sync.WaitGroup
+// IsValidBaggageKey implements BaggageRestrictionManager#IsValidBaggageKey
+func (m DefaultBaggageRestrictionManager) IsValidBaggageKey(key string) (bool, int32) {
+	return true, defaultMaxValueLength
 }
 
-func NewBaggageRestrictionManager(serviceName string, manager baggage.BaggageRestrictionManager) BaggageRestrictionManager {
+type httpBaggageRestrictionsManager struct {
+	serverURL string
+}
+
+func (s *httpBaggageRestrictionsManager) GetBaggageRestrictions(serviceName string) ([]*baggage.BaggageRestriction, error) {
+	var out []*baggage.BaggageRestriction
+	v := url.Values{}
+	v.Set("service", serviceName)
+	if err := utils.GetJSON(s.serverURL+"/baggage?"+v.Encode(), &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+type baggageRestrictionManager struct {
+	baggageRestrictionManagerOptions
+	sync.RWMutex
+
+	serviceName     string
+	restrictionsMap map[string]int32
+	timer           *time.Ticker
+	manager         baggage.BaggageRestrictionManager
+	pollStopped     sync.WaitGroup
+	stopPoll        chan struct{}
+}
+
+// NewBaggageRestrictionManager returns a BaggageRestrictionManager that polls the agent for the latest
+// baggage restrictions.
+func NewBaggageRestrictionManager(
+	serviceName string,
+	options ...BaggageRestrictionManagerOption,
+) BaggageRestrictionManager {
+	opts := applyOptions(options...)
 	m := &baggageRestrictionManager{
-		serviceName: serviceName,
-		restrictionsMap: make(map[string]int32),
-		timer:       time.NewTicker(defaultRefreshInterval),
-		manager:     manager,
+		serviceName:                      serviceName,
+		baggageRestrictionManagerOptions: opts,
+		restrictionsMap:                  make(map[string]int32),
+		timer:                            time.NewTicker(opts.refreshInterval),
+		manager:                          &httpBaggageRestrictionsManager{serverURL: opts.baggageRestrictionManagerServerURL},
+		stopPoll:                         make(chan struct{}),
 	}
 	m.updateRestrictions()
+	m.pollStopped.Add(1)
 	go m.pollManager()
 	return m
 }
@@ -68,39 +107,42 @@ func (m *baggageRestrictionManager) IsValidBaggageKey(key string) (bool, int32) 
 
 // Close implements Close() of Sampler.
 func (m *baggageRestrictionManager) Close() {
-	m.Lock()
-	m.timer.Stop()
-	m.Unlock()
-
+	close(m.stopPoll)
 	m.pollStopped.Wait()
 }
 
 func (m *baggageRestrictionManager) pollManager() {
-	m.pollStopped.Add(1)
 	defer m.pollStopped.Done()
+	defer m.timer.Stop()
 
 	// in unit tests we re-assign the timer Ticker, so need to lock to avoid data races
 	m.Lock()
 	timer := m.timer
 	m.Unlock()
 
-	for range timer.C {
-		m.updateRestrictions()
+	for {
+		select {
+		case <-timer.C:
+			m.updateRestrictions()
+		case <-m.stopPoll:
+			return
+		}
 	}
 }
 
 func (m *baggageRestrictionManager) updateRestrictions() {
 	restrictions, err := m.manager.GetBaggageRestrictions(m.serviceName)
 	if err != nil {
-		// TODO update failure metric
 		// TODO this is pretty serious, almost retry worthy
+		m.metrics.BaggageManagerUpdateFailure.Inc(1)
+		m.logger.Error(fmt.Sprintf("Failed to update baggage restrictions: %s", err.Error()))
 		return
 	}
 	restrictionsMap := convertRestrictionsToMap(restrictions)
+	m.metrics.BaggageManagerUpdateSuccess.Inc(1)
 	m.Lock()
 	defer m.Unlock()
 	m.restrictionsMap = restrictionsMap
-	// TODO update metrics
 }
 
 func convertRestrictionsToMap(restrictions []*baggage.BaggageRestriction) map[string]int32 {

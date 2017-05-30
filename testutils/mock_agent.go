@@ -23,7 +23,6 @@ package testutils
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -32,6 +31,7 @@ import (
 	"github.com/apache/thrift/lib/go/thrift"
 
 	"github.com/uber/jaeger-client-go/thrift-gen/agent"
+	"github.com/uber/jaeger-client-go/thrift-gen/baggage"
 	"github.com/uber/jaeger-client-go/thrift-gen/jaeger"
 	"github.com/uber/jaeger-client-go/thrift-gen/sampling"
 	"github.com/uber/jaeger-client-go/thrift-gen/zipkincore"
@@ -47,13 +47,15 @@ func StartMockAgent() (*MockAgent, error) {
 	}
 
 	samplingManager := newSamplingManager()
-	samplingHandler := &samplingHandler{manager: samplingManager}
-	samplingServer := httptest.NewServer(samplingHandler)
+	baggageManager := newBaggageRestrictionManager()
+	agentHandler := &agentHandler{samplingManager: samplingManager, baggageRestrictionManager: baggageManager}
+	agentServer := httptest.NewServer(agentHandler)
 
 	agent := &MockAgent{
 		transport:   transport,
 		samplingMgr: samplingManager,
-		samplingSrv: samplingServer,
+		baggageMgr:  baggageManager,
+		agentSrv:    agentServer,
 	}
 
 	var started sync.WaitGroup
@@ -68,7 +70,7 @@ func StartMockAgent() (*MockAgent, error) {
 func (s *MockAgent) Close() {
 	atomic.StoreUint32(&s.serving, 0)
 	s.transport.Close()
-	s.samplingSrv.Close()
+	s.agentSrv.Close()
 }
 
 // MockAgent is a mock representation of Jaeger Agent.
@@ -79,7 +81,8 @@ type MockAgent struct {
 	mutex         sync.Mutex
 	serving       uint32
 	samplingMgr   *samplingManager
-	samplingSrv   *httptest.Server
+	baggageMgr    *baggageRestrictionManager
+	agentSrv      *httptest.Server
 }
 
 // SpanServerAddr returns the UDP host:port where MockAgent listens for spans
@@ -92,9 +95,9 @@ func (s *MockAgent) SpanServerClient() (agent.Agent, error) {
 	return utils.NewAgentClientUDP(s.SpanServerAddr(), 0)
 }
 
-// SamplingServerAddr returns the host:port of HTTP server exposing sampling strategy endpoint
-func (s *MockAgent) SamplingServerAddr() string {
-	return s.samplingSrv.Listener.Addr().String()
+// AgentServerAddr returns the host:port of HTTP server exposing all agent endpoints
+func (s *MockAgent) AgentServerAddr() string {
+	return s.agentSrv.Listener.Addr().String()
 }
 
 func (s *MockAgent) serve(started *sync.WaitGroup) {
@@ -157,6 +160,11 @@ func (s *MockAgent) GetJaegerBatches() []*jaeger.Batch {
 	return batches
 }
 
+// AddBaggageRestrictions registers a baggage restriction for a service
+func (s *MockAgent) AddBaggageRestrictions(service string, restrictions []*baggage.BaggageRestriction) {
+	s.baggageMgr.AddBaggageRestrictions(service, restrictions)
+}
+
 // ResetJaegerBatches discards accumulated Jaeger batches
 func (s *MockAgent) ResetJaegerBatches() {
 	s.mutex.Lock()
@@ -164,11 +172,13 @@ func (s *MockAgent) ResetJaegerBatches() {
 	s.jaegerBatches = nil
 }
 
-type samplingHandler struct {
-	manager *samplingManager
+type agentHandler struct {
+	samplingManager           *samplingManager
+	baggageRestrictionManager *baggageRestrictionManager
 }
 
-func (h *samplingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *agentHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.EscapedPath()
 	services := r.URL.Query()["service"]
 	if len(services) == 0 {
 		http.Error(w, "'service' parameter is empty", http.StatusBadRequest)
@@ -178,10 +188,11 @@ func (h *samplingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "'service' parameter must occur only once", http.StatusBadRequest)
 		return
 	}
-	resp, err := h.manager.GetSamplingStrategy(services[0])
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Error retrieving strategy: %+v", err), http.StatusInternalServerError)
-		return
+	var resp interface{}
+	if path == "/baggage" {
+		resp, _ = h.baggageRestrictionManager.GetBaggageRestrictions(services[0])
+	} else {
+		resp, _ = h.samplingManager.GetSamplingStrategy(services[0])
 	}
 	json, err := json.Marshal(resp)
 	if err != nil {

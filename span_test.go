@@ -28,8 +28,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type BaggageRestrictionManager interface {
-	IsValidBaggageKey(key string) (bool, int32)
+type fakeBaggageRestrictionManager struct {
+	restrictionsMap map[string]int32
+}
+
+func (m *fakeBaggageRestrictionManager) IsValidBaggageKey(key string) (bool, int32) {
+	if maxValueLength, ok := m.restrictionsMap[key]; ok {
+		return true, maxValueLength
+	}
+	return false, 0
 }
 
 func TestBaggageIterator(t *testing.T) {
@@ -50,6 +57,23 @@ func TestBaggageIterator(t *testing.T) {
 	sp2 := tracer.StartSpan("s2", opentracing.ChildOf(sp1.Context())).(*Span)
 	assertBaggage(t, sp2, expectedBaggage) // child inherits the same baggage
 	require.Len(t, sp2.logs, 0)            // child doesn't inherit the baggage logs
+}
+
+func TestBaggageRestrictionManager(t *testing.T) {
+	service := "DOOP"
+	tracer, closer := NewTracer(service, NewConstSampler(true), NewNullReporter())
+	defer closer.Close()
+
+	sp1 := tracer.StartSpan("s1").(*Span)
+	sp1.baggageRestrictionManager = &fakeBaggageRestrictionManager{
+		restrictionsMap: map[string]int32{"some-key": 2, "some-other-key": 1},
+	}
+	sp1.SetBaggageItem("Some_Key", "12345")
+	sp1.SetBaggageItem("Some-other-key", "42")
+	sp1.SetBaggageItem("invalid-key", "moot")
+	expectedBaggage := map[string]string{"some-key": "12", "some-other-key": "4"}
+	assertBaggage(t, sp1, expectedBaggage)
+	assertBaggageRecords(t, sp1, expectedBaggage)
 }
 
 func assertBaggageRecords(t *testing.T, sp *Span, expected map[string]string) {

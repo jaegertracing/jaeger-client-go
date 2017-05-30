@@ -28,6 +28,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/uber/jaeger-client-go/thrift-gen/baggage"
 	"github.com/uber/jaeger-client-go/thrift-gen/jaeger"
 	"github.com/uber/jaeger-client-go/thrift-gen/sampling"
 	"github.com/uber/jaeger-client-go/utils"
@@ -75,13 +76,13 @@ func TestMockAgentSamplingManager(t *testing.T) {
 	require.NoError(t, err)
 	defer mockAgent.Close()
 
-	err = utils.GetJSON("http://"+mockAgent.SamplingServerAddr()+"/", nil)
+	err = utils.GetJSON("http://"+mockAgent.AgentServerAddr()+"/", nil)
 	require.Error(t, err, "no 'service' parameter")
-	err = utils.GetJSON("http://"+mockAgent.SamplingServerAddr()+"/?service=a&service=b", nil)
+	err = utils.GetJSON("http://"+mockAgent.AgentServerAddr()+"/?service=a&service=b", nil)
 	require.Error(t, err, "Too many 'service' parameters")
 
 	var resp sampling.SamplingStrategyResponse
-	err = utils.GetJSON("http://"+mockAgent.SamplingServerAddr()+"/?service=something", &resp)
+	err = utils.GetJSON("http://"+mockAgent.AgentServerAddr()+"/?service=something", &resp)
 	require.NoError(t, err)
 	assert.Equal(t, sampling.SamplingStrategyType_PROBABILISTIC, resp.StrategyType)
 
@@ -91,9 +92,23 @@ func TestMockAgentSamplingManager(t *testing.T) {
 			MaxTracesPerSecond: 123,
 		},
 	})
-	err = utils.GetJSON("http://"+mockAgent.SamplingServerAddr()+"/?service=service123", &resp)
+	err = utils.GetJSON("http://"+mockAgent.AgentServerAddr()+"/?service=service123", &resp)
 	require.NoError(t, err)
 	assert.Equal(t, sampling.SamplingStrategyType_RATE_LIMITING, resp.StrategyType)
 	require.NotNil(t, resp.RateLimitingSampling)
 	assert.EqualValues(t, 123, resp.RateLimitingSampling.MaxTracesPerSecond)
+
+	mockAgent.AddBaggageRestrictions("service123", []*baggage.BaggageRestriction{
+		{
+			BaggageKey:     "key",
+			MaxValueLength: 10,
+		},
+	})
+
+	var baggageResp []*baggage.BaggageRestriction
+	err = utils.GetJSON("http://"+mockAgent.AgentServerAddr()+"/baggage?service=service123", &baggageResp)
+	require.NoError(t, err)
+	require.Len(t, baggageResp, 1)
+	assert.Equal(t, "key", baggageResp[0].BaggageKey)
+	assert.EqualValues(t, 10, baggageResp[0].MaxValueLength)
 }

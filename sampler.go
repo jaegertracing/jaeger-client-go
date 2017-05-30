@@ -455,6 +455,7 @@ func (s *RemotelyControlledSampler) IsSampled(id TraceID, operation string) (boo
 // Close implements Close() of Sampler.
 func (s *RemotelyControlledSampler) Close() {
 	s.RLock()
+	// TODO (wjang) timer stop doesn't actually kill pollController(), look at baggage_restriction_handler.Close()
 	s.timer.Stop()
 	s.RUnlock()
 

@@ -173,7 +173,7 @@ func (s *Span) SetBaggageItem(key, value string) opentracing.Span {
 	if !valid {
 		return s
 	}
-	value = truncateBaggageValue(value, maxValueLength)
+	value = truncateBaggageValue(value, int(maxValueLength))
 	s.Lock()
 	defer s.Unlock()
 	s.context = s.context.WithBaggageItem(key, value)
@@ -188,7 +188,7 @@ func (s *Span) SetBaggageItem(key, value string) opentracing.Span {
 	return s
 }
 
-func truncateBaggageValue(value string, length int32) string {
+func truncateBaggageValue(value string, length int) string {
 	if len(value) > length {
 		return value[:length]
 	}
@@ -197,10 +197,6 @@ func truncateBaggageValue(value string, length int32) string {
 
 // BaggageItem implements BaggageItem() of opentracing.SpanContext
 func (s *Span) BaggageItem(key string) string {
-	valid, _ := s.baggageRestrictionManager.IsValidBaggageKey(key)
-	if !valid {
-		return ""
-	}
 	key = normalizeBaggageKey(key)
 	s.RLock()
 	defer s.RUnlock()
