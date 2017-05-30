@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/uber/jaeger-client-go/thrift-gen/baggage"
 )
@@ -44,7 +45,7 @@ func TestNewBaggageRestrictionManager(t *testing.T) {
 	mgr := NewBaggageRestrictionManager(
 		service,
 		BaggageRestrictionManagerOptions.RefreshInterval(10*time.Millisecond),
-		BaggageRestrictionManagerOptions.BaggageRestrictionManagerServerURL("http://"+agent.AgentServerAddr()),
+		BaggageRestrictionManagerOptions.BaggageRestrictionManagerServerURL("http://"+agent.AgentServerAddr() + "/baggage"),
 	)
 	defer mgr.(*baggageRestrictionManager).Close()
 
@@ -57,5 +58,9 @@ func TestNewBaggageRestrictionManager(t *testing.T) {
 	}
 	valid, size := mgr.IsValidBaggageKey(expectedKey)
 	require.True(t, valid)
-	require.Equal(t, expectedSize, size)
+	assert.Equal(t, expectedSize, size)
+
+	valid, size = mgr.IsValidBaggageKey("bad-key")
+	assert.False(t, valid)
+	assert.EqualValues(t, 0, size)
 }

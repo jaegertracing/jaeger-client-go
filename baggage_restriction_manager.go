@@ -57,7 +57,7 @@ func (s *httpBaggageRestrictionsManager) GetBaggageRestrictions(serviceName stri
 	var out []*baggage.BaggageRestriction
 	v := url.Values{}
 	v.Set("service", serviceName)
-	if err := utils.GetJSON(s.serverURL+"/baggage?"+v.Encode(), &out); err != nil {
+	if err := utils.GetJSON(s.serverURL+"?"+v.Encode(), &out); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -115,14 +115,9 @@ func (m *baggageRestrictionManager) pollManager() {
 	defer m.pollStopped.Done()
 	defer m.timer.Stop()
 
-	// in unit tests we re-assign the timer Ticker, so need to lock to avoid data races
-	m.Lock()
-	timer := m.timer
-	m.Unlock()
-
 	for {
 		select {
-		case <-timer.C:
+		case <-m.timer.C:
 			m.updateRestrictions()
 		case <-m.stopPoll:
 			return
