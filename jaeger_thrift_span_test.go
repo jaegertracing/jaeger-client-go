@@ -46,7 +46,7 @@ var (
 	someSliceString = "[a]"
 )
 
-func TestBuildJaegerSpan(t *testing.T) {
+func TestBuildJaegerThrift(t *testing.T) {
 	tracer, closer := NewTracer("DOOP",
 		NewConstSampler(true),
 		NewNullReporter())
@@ -60,8 +60,8 @@ func TestBuildJaegerSpan(t *testing.T) {
 	sp2.Finish()
 	sp1.Finish()
 
-	jaegerSpan1 := buildJaegerSpan(sp1)
-	jaegerSpan2 := buildJaegerSpan(sp2)
+	jaegerSpan1 := BuildJaegerThrift(sp1)
+	jaegerSpan2 := BuildJaegerThrift(sp2)
 	assert.Equal(t, "sp1", jaegerSpan1.OperationName)
 	assert.Equal(t, "sp2", jaegerSpan2.OperationName)
 	assert.EqualValues(t, 0, jaegerSpan1.ParentSpanId)
@@ -235,7 +235,7 @@ func TestBuildLogs(t *testing.T) {
 		} else if test.field != (log.Field{}) {
 			sp.LogFields(test.field)
 		}
-		jaegerSpan := buildJaegerSpan(sp.(*Span))
+		jaegerSpan := BuildJaegerThrift(sp.(*Span))
 		if test.disableSampling {
 			assert.Equal(t, 0, len(jaegerSpan.Logs), testName)
 			continue
@@ -307,7 +307,7 @@ func TestJaegerSpanBaggageLogs(t *testing.T) {
 	ext.SpanKindRPCServer.Set(sp)
 	sp.Finish()
 
-	jaegerSpan := buildJaegerSpan(sp)
+	jaegerSpan := BuildJaegerThrift(sp)
 	require.Len(t, jaegerSpan.Logs, 1)
 	fields := jaegerSpan.Logs[0].Fields
 	require.Len(t, fields, 3)

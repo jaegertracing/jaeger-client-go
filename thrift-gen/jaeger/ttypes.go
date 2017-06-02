@@ -1739,3 +1739,100 @@ func (p *Batch) String() string {
 	}
 	return fmt.Sprintf("Batch(%+v)", *p)
 }
+
+// Attributes:
+//  - Ok
+type BatchSubmitResponse struct {
+	Ok bool `thrift:"ok,1,required" json:"ok"`
+}
+
+func NewBatchSubmitResponse() *BatchSubmitResponse {
+	return &BatchSubmitResponse{}
+}
+
+func (p *BatchSubmitResponse) GetOk() bool {
+	return p.Ok
+}
+func (p *BatchSubmitResponse) Read(iprot thrift.TProtocol) error {
+	if _, err := iprot.ReadStructBegin(); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T read error: ", p), err)
+	}
+
+	var issetOk bool = false
+
+	for {
+		_, fieldTypeId, fieldId, err := iprot.ReadFieldBegin()
+		if err != nil {
+			return thrift.PrependError(fmt.Sprintf("%T field %d read error: ", p, fieldId), err)
+		}
+		if fieldTypeId == thrift.STOP {
+			break
+		}
+		switch fieldId {
+		case 1:
+			if err := p.readField1(iprot); err != nil {
+				return err
+			}
+			issetOk = true
+		default:
+			if err := iprot.Skip(fieldTypeId); err != nil {
+				return err
+			}
+		}
+		if err := iprot.ReadFieldEnd(); err != nil {
+			return err
+		}
+	}
+	if err := iprot.ReadStructEnd(); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T read struct end error: ", p), err)
+	}
+	if !issetOk {
+		return thrift.NewTProtocolExceptionWithType(thrift.INVALID_DATA, fmt.Errorf("Required field Ok is not set"))
+	}
+	return nil
+}
+
+func (p *BatchSubmitResponse) readField1(iprot thrift.TProtocol) error {
+	if v, err := iprot.ReadBool(); err != nil {
+		return thrift.PrependError("error reading field 1: ", err)
+	} else {
+		p.Ok = v
+	}
+	return nil
+}
+
+func (p *BatchSubmitResponse) Write(oprot thrift.TProtocol) error {
+	if err := oprot.WriteStructBegin("BatchSubmitResponse"); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T write struct begin error: ", p), err)
+	}
+	if err := p.writeField1(oprot); err != nil {
+		return err
+	}
+	if err := oprot.WriteFieldStop(); err != nil {
+		return thrift.PrependError("write field stop error: ", err)
+	}
+	if err := oprot.WriteStructEnd(); err != nil {
+		return thrift.PrependError("write struct stop error: ", err)
+	}
+	return nil
+}
+
+func (p *BatchSubmitResponse) writeField1(oprot thrift.TProtocol) (err error) {
+	if err := oprot.WriteFieldBegin("ok", thrift.BOOL, 1); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T write field begin error 1:ok: ", p), err)
+	}
+	if err := oprot.WriteBool(bool(p.Ok)); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T.ok (1) field write error: ", p), err)
+	}
+	if err := oprot.WriteFieldEnd(); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T write field end error 1:ok: ", p), err)
+	}
+	return err
+}
+
+func (p *BatchSubmitResponse) String() string {
+	if p == nil {
+		return "<nil>"
+	}
+	return fmt.Sprintf("BatchSubmitResponse(%+v)", *p)
+}

@@ -29,8 +29,8 @@ import (
 	"github.com/uber/jaeger-client-go/utils"
 )
 
-// buildJaegerSpan builds jaeger span based on internal span.
-func buildJaegerSpan(span *Span) *j.Span {
+// BuildJaegerThrift builds jaeger span based on internal span.
+func BuildJaegerThrift(span *Span) *j.Span {
 	startTime := utils.TimeToMicrosecondsSinceEpochInt64(span.startTime)
 	duration := span.duration.Nanoseconds() / int64(time.Microsecond)
 	jaegerSpan := &j.Span{

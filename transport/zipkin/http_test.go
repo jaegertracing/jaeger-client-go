@@ -88,9 +88,9 @@ func TestHTTPOptions(t *testing.T) {
 		HTTPTimeout(123*time.Millisecond),
 	)
 	require.NoError(t, err)
-	assert.Equal(t, log.StdLogger, sender.(*HTTPTransport).logger)
-	assert.Equal(t, 123, sender.(*HTTPTransport).batchSize)
-	assert.Equal(t, 123*time.Millisecond, sender.(*HTTPTransport).client.Timeout)
+	assert.Equal(t, log.StdLogger, sender.logger)
+	assert.Equal(t, 123, sender.batchSize)
+	assert.Equal(t, 123*time.Millisecond, sender.client.Timeout)
 }
 
 type httpServer struct {

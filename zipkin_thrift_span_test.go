@@ -61,7 +61,7 @@ func TestThriftFirstInProcessSpan(t *testing.T) {
 		} else {
 			check = assert.Nil
 		}
-		thriftSpan := buildThriftSpan(test.span)
+		thriftSpan := BuildZipkinThrift(test.span)
 		version := findBinaryAnnotation(thriftSpan, JaegerClientVersionTagKey)
 		hostname := findBinaryAnnotation(thriftSpan, TracerHostnameTagKey)
 		check(t, version)
@@ -79,7 +79,7 @@ func TestThriftForceSampled(t *testing.T) {
 	ext.SamplingPriority.Set(sp, 1)
 	assert.True(t, sp.context.IsSampled())
 	assert.True(t, sp.context.IsDebug())
-	thriftSpan := buildThriftSpan(sp)
+	thriftSpan := BuildZipkinThrift(sp)
 	assert.True(t, thriftSpan.Debug)
 }
 
@@ -227,7 +227,7 @@ func TestThriftSpanLogs(t *testing.T) {
 		} else if len(test.fields) > 0 {
 			sp.LogFields(test.fields...)
 		}
-		thriftSpan := buildThriftSpan(sp.(*Span))
+		thriftSpan := BuildZipkinThrift(sp.(*Span))
 		if test.disableSampling {
 			assert.Equal(t, 0, len(thriftSpan.Annotations), testName)
 			continue
@@ -260,7 +260,7 @@ func TestThriftLocalComponentSpan(t *testing.T) {
 			ext.Component.Set(sp, "c1")
 		}
 		sp.Finish()
-		thriftSpan := buildThriftSpan(sp)
+		thriftSpan := BuildZipkinThrift(sp)
 
 		anno := findBinaryAnnotation(thriftSpan, "lc")
 		assert.NotNil(t, anno)
@@ -281,7 +281,7 @@ func TestSpecialTags(t *testing.T) {
 	ext.PeerHostIPv4.Set(sp, 2130706433)
 	sp.Finish()
 
-	thriftSpan := buildThriftSpan(sp)
+	thriftSpan := BuildZipkinThrift(sp)
 	// Special tags should not be copied over to binary annotations
 	assert.Nil(t, findBinaryAnnotation(thriftSpan, "span.kind"))
 	assert.Nil(t, findBinaryAnnotation(thriftSpan, "peer.service"))
@@ -310,7 +310,7 @@ func TestBaggageLogs(t *testing.T) {
 	ext.SpanKindRPCServer.Set(sp)
 	sp.Finish()
 
-	thriftSpan := buildThriftSpan(sp)
+	thriftSpan := BuildZipkinThrift(sp)
 	assert.NotNil(t, findAnnotation(thriftSpan, `{"event":"baggage","key":"auth.token","value":"token"}`))
 }
 

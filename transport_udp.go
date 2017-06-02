@@ -18,41 +18,43 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package udp
+package jaeger
 
 import (
 	"errors"
 
 	"github.com/apache/thrift/lib/go/thrift"
 
-	"github.com/uber/jaeger-client-go/thrift-gen/zipkincore"
-	"github.com/uber/jaeger-client-go/transport"
+	j "github.com/uber/jaeger-client-go/thrift-gen/jaeger"
 	"github.com/uber/jaeger-client-go/utils"
 )
 
 // Empirically obtained constant for how many bytes in the message are used for envelope.
-// The total datagram size is sizeof(Span) * numSpans + emitSpanBatchOverhead <= maxPacketSize
-// There is a unit test `TestEmitSpanBatchOverhead` that validates this number.
+// The total datagram size is:
+// sizeof(Span) * numSpans + processByteSize + emitBatchOverhead <= maxPacketSize
+// There is a unit test `TestEmitBatchOverhead` that validates this number.
 // Note that due to the use of Compact Thrift protocol, overhead grows with the number of spans
 // in the batch, because the length of the list is encoded as varint32, as well as SeqId.
-const emitSpanBatchOverhead = 30
+const emitBatchOverhead = 30
 
-const defaultUDPSpanServerHostPort = "localhost:5775"
+const defaultUDPSpanServerHostPort = "localhost:6831"
 
 var errSpanTooLarge = errors.New("Span is too large")
 
 type udpSender struct {
-	client         *utils.AgentClientUDP
-	maxPacketSize  int                   // max size of datagram in bytes
-	maxSpanBytes   int                   // max number of bytes to record spans (excluding envelope) in the datagram
-	byteBufferSize int                   // current number of span bytes accumulated in the buffer
-	spanBuffer     []*zipkincore.Span    // spans buffered before a flush
-	thriftBuffer   *thrift.TMemoryBuffer // buffer used to calculate byte size of a span
-	thriftProtocol thrift.TProtocol
+	client          *utils.AgentClientUDP
+	maxPacketSize   int                   // max size of datagram in bytes
+	maxSpanBytes    int                   // max number of bytes to record spans (excluding envelope) in the datagram
+	byteBufferSize  int                   // current number of span bytes accumulated in the buffer
+	spanBuffer      []*j.Span             // spans buffered before a flush
+	thriftBuffer    *thrift.TMemoryBuffer // buffer used to calculate byte size of a span
+	thriftProtocol  thrift.TProtocol
+	process         *j.Process
+	processByteSize int
 }
 
 // NewUDPTransport creates a reporter that submits spans to jaeger-agent
-func NewUDPTransport(hostPort string, maxPacketSize int) (transport.Transport, error) {
+func NewUDPTransport(hostPort string, maxPacketSize int) (Transport, error) {
 	if len(hostPort) == 0 {
 		hostPort = defaultUDPSpanServerHostPort
 	}
@@ -73,33 +75,36 @@ func NewUDPTransport(hostPort string, maxPacketSize int) (transport.Transport, e
 
 	sender := &udpSender{
 		client:         client,
-		maxSpanBytes:   maxPacketSize - emitSpanBatchOverhead,
+		maxSpanBytes:   maxPacketSize - emitBatchOverhead,
 		thriftBuffer:   thriftBuffer,
 		thriftProtocol: thriftProtocol}
 	return sender, nil
 }
 
-func (s *udpSender) calcSpanSize(span *zipkincore.Span) (int, error) {
+func (s *udpSender) calcSizeOfSerializedThrift(thriftStruct thrift.TStruct) int {
 	s.thriftBuffer.Reset()
-	if err := span.Write(s.thriftProtocol); err != nil {
-		return 0, err
-	}
-	return s.thriftBuffer.Len(), nil
+	thriftStruct.Write(s.thriftProtocol)
+	return s.thriftBuffer.Len()
 }
 
-func (s *udpSender) Append(span *zipkincore.Span) (int, error) {
-	spanSize, err := s.calcSpanSize(span)
-	if err != nil {
-		// should not be getting this error from in-memory transport - ¯\_(ツ)_/¯
-		return 1, err
+func (s *udpSender) Append(span *Span) (int, error) {
+	if s.process == nil {
+		s.process = &j.Process{
+			ServiceName: span.tracer.serviceName,
+			Tags:        buildTags(span.tracer.tags),
+		}
+		s.processByteSize = s.calcSizeOfSerializedThrift(s.process)
+		s.byteBufferSize += s.processByteSize
 	}
+	jSpan := BuildJaegerThrift(span)
+	spanSize := s.calcSizeOfSerializedThrift(jSpan)
 	if spanSize > s.maxSpanBytes {
 		return 1, errSpanTooLarge
 	}
 
 	s.byteBufferSize += spanSize
 	if s.byteBufferSize <= s.maxSpanBytes {
-		s.spanBuffer = append(s.spanBuffer, span)
+		s.spanBuffer = append(s.spanBuffer, jSpan)
 		if s.byteBufferSize < s.maxSpanBytes {
 			return 0, nil
 		}
@@ -107,8 +112,8 @@ func (s *udpSender) Append(span *zipkincore.Span) (int, error) {
 	}
 	// the latest span did not fit in the buffer
 	n, err := s.Flush()
-	s.spanBuffer = append(s.spanBuffer, span)
-	s.byteBufferSize = spanSize
+	s.spanBuffer = append(s.spanBuffer, jSpan)
+	s.byteBufferSize = spanSize + s.processByteSize
 	return n, err
 }
 
@@ -117,7 +122,7 @@ func (s *udpSender) Flush() (int, error) {
 	if n == 0 {
 		return 0, nil
 	}
-	err := s.client.EmitZipkinBatch(s.spanBuffer)
+	err := s.client.EmitBatch(&j.Batch{Process: s.process, Spans: s.spanBuffer})
 	s.resetBuffers()
 
 	return n, err
@@ -132,5 +137,5 @@ func (s *udpSender) resetBuffers() {
 		s.spanBuffer[i] = nil
 	}
 	s.spanBuffer = s.spanBuffer[:0]
-	s.byteBufferSize = 0
+	s.byteBufferSize = s.processByteSize
 }

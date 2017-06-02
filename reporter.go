@@ -28,8 +28,6 @@ import (
 	"github.com/opentracing/opentracing-go"
 
 	"github.com/uber/jaeger-client-go/log"
-	"github.com/uber/jaeger-client-go/thrift-gen/zipkincore"
-	"github.com/uber/jaeger-client-go/transport"
 )
 
 // Reporter is called by the tracer when a span is completed to report the span to the tracing collector.
@@ -166,15 +164,15 @@ const (
 
 type remoteReporter struct {
 	reporterOptions
-	sender       transport.Transport
-	queue        chan *zipkincore.Span
+	sender       Transport
+	queue        chan *Span
 	queueLength  int64 // signed because metric's gauge is signed
 	queueDrained sync.WaitGroup
 	flushSignal  chan *sync.WaitGroup
 }
 
 // NewRemoteReporter creates a new reporter that sends spans out of process by means of Sender
-func NewRemoteReporter(sender transport.Transport, opts ...ReporterOption) Reporter {
+func NewRemoteReporter(sender Transport, opts ...ReporterOption) Reporter {
 	options := reporterOptions{}
 	for _, option := range opts {
 		option(&options)
@@ -195,7 +193,7 @@ func NewRemoteReporter(sender transport.Transport, opts ...ReporterOption) Repor
 		reporterOptions: options,
 		sender:          sender,
 		flushSignal:     make(chan *sync.WaitGroup),
-		queue:           make(chan *zipkincore.Span, options.queueSize),
+		queue:           make(chan *Span, options.queueSize),
 	}
 	go reporter.processQueue()
 	return reporter
@@ -204,9 +202,8 @@ func NewRemoteReporter(sender transport.Transport, opts ...ReporterOption) Repor
 // Report implements Report() method of Reporter.
 // It passes the span to a background go-routine for submission to Jaeger.
 func (r *remoteReporter) Report(span *Span) {
-	thriftSpan := buildThriftSpan(span)
 	select {
-	case r.queue <- thriftSpan:
+	case r.queue <- span:
 		atomic.AddInt64(&r.queueLength, 1)
 	default:
 		r.metrics.ReporterDropped.Inc(1)

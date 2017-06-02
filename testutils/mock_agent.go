@@ -22,18 +22,20 @@ package testutils
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"sync"
 	"sync/atomic"
 
+	"github.com/apache/thrift/lib/go/thrift"
+
 	"github.com/uber/jaeger-client-go/thrift-gen/agent"
+	"github.com/uber/jaeger-client-go/thrift-gen/jaeger"
 	"github.com/uber/jaeger-client-go/thrift-gen/sampling"
 	"github.com/uber/jaeger-client-go/thrift-gen/zipkincore"
 	"github.com/uber/jaeger-client-go/utils"
-
-	"github.com/apache/thrift/lib/go/thrift"
 )
 
 // StartMockAgent runs a mock representation of jaeger-agent.
@@ -72,12 +74,12 @@ func (s *MockAgent) Close() {
 // MockAgent is a mock representation of Jaeger Agent.
 // It receives spans over UDP, and has an HTTP endpoint for sampling strategies.
 type MockAgent struct {
-	transport   *TUDPTransport
-	zipkinSpans []*zipkincore.Span
-	mutex       sync.Mutex
-	serving     uint32
-	samplingMgr *samplingManager
-	samplingSrv *httptest.Server
+	transport     *TUDPTransport
+	jaegerBatches []*jaeger.Batch
+	mutex         sync.Mutex
+	serving       uint32
+	samplingMgr   *samplingManager
+	samplingSrv   *httptest.Server
 }
 
 // SpanServerAddr returns the UDP host:port where MockAgent listens for spans
@@ -115,9 +117,14 @@ func (s *MockAgent) serve(started *sync.WaitGroup) {
 
 // EmitZipkinBatch implements EmitZipkinBatch() of TChanSamplingManagerServer
 func (s *MockAgent) EmitZipkinBatch(spans []*zipkincore.Span) (err error) {
+	return errors.New("Not implemented")
+}
+
+// EmitBatch implements EmitBatch() of TChanSamplingManagerServer
+func (s *MockAgent) EmitBatch(batch *jaeger.Batch) (err error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	s.zipkinSpans = append(s.zipkinSpans, spans...)
+	s.jaegerBatches = append(s.jaegerBatches, batch)
 	return err
 }
 
@@ -131,21 +138,21 @@ func (s *MockAgent) AddSamplingStrategy(service string, strategy *sampling.Sampl
 	s.samplingMgr.AddSamplingStrategy(service, strategy)
 }
 
-// GetZipkinSpans returns accumulated Zipkin spans
-func (s *MockAgent) GetZipkinSpans() []*zipkincore.Span {
+// GetJaegerBatches returns accumulated Jaeger batches
+func (s *MockAgent) GetJaegerBatches() []*jaeger.Batch {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	n := len(s.zipkinSpans)
-	spans := make([]*zipkincore.Span, n, n)
-	copy(spans, s.zipkinSpans)
-	return spans
+	n := len(s.jaegerBatches)
+	batches := make([]*jaeger.Batch, n, n)
+	copy(batches, s.jaegerBatches)
+	return batches
 }
 
-// ResetZipkinSpans discards accumulated Zipkin spans
-func (s *MockAgent) ResetZipkinSpans() {
+// ResetJaegerBatches discards accumulated Jaeger batches
+func (s *MockAgent) ResetJaegerBatches() {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	s.zipkinSpans = nil
+	s.jaegerBatches = nil
 }
 
 type samplingHandler struct {
