@@ -40,14 +40,12 @@ const (
 	allowPackedNumbers = false
 )
 
-var (
-	specialTagsMap = map[string]struct{}{
-		string(ext.SpanKind):     {},
-		string(ext.PeerHostIPv4): {},
-		string(ext.PeerPort):     {},
-		string(ext.PeerService):  {},
-	}
-)
+var specialTagHandlers = map[string]func(*zipkinSpan, interface{}){
+	string(ext.SpanKind):     setSpanKind,
+	string(ext.PeerHostIPv4): setPeerIPv4,
+	string(ext.PeerPort):     setPeerPort,
+	string(ext.PeerService):  setPeerService,
+}
 
 // BuildZipkinThrift builds thrift span based on internal span.
 func BuildZipkinThrift(s *Span) *z.Span {
@@ -150,10 +148,12 @@ func buildBinaryAnnotations(span *zipkinSpan, endpoint *z.Endpoint) []*z.BinaryA
 		annotations = append(annotations, local)
 	}
 	for _, tag := range span.tags {
+		// "Special tags" are already handled by this point, we'd be double reporting the
+		// tags if we don't skip here
+		if _, ok := specialTagHandlers[tag.key]; ok {
+			continue
+		}
 		if anno := buildBinaryAnnotation(tag.key, tag.value, nil); anno != nil {
-			if _, ok := specialTagsMap[tag.key]; ok {
-				continue
-			}
 			annotations = append(annotations, anno)
 		}
 	}
@@ -243,13 +243,6 @@ type zipkinSpan struct {
 
 	// used to distinguish local vs. RPC Server vs. RPC Client spans
 	spanKind string
-}
-
-var specialTagHandlers = map[string]func(*zipkinSpan, interface{}){
-	string(ext.SpanKind):     setSpanKind,
-	string(ext.PeerHostIPv4): setPeerIPv4,
-	string(ext.PeerPort):     setPeerPort,
-	string(ext.PeerService):  setPeerService,
 }
 
 func (s *zipkinSpan) handleSpecialTags() {

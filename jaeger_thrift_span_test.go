@@ -307,7 +307,7 @@ func TestJaegerSpanBaggageLogs(t *testing.T) {
 	ext.SpanKindRPCServer.Set(sp)
 	sp.Finish()
 
-	jaegerSpan := buildJaegerSpan(sp)
+	jaegerSpan := BuildJaegerThrift(sp)
 	require.Len(t, jaegerSpan.Logs, 1)
 	fields := jaegerSpan.Logs[0].Fields
 	require.Len(t, fields, 3)

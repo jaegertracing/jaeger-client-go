@@ -310,7 +310,7 @@ func TestBaggageLogs(t *testing.T) {
 	ext.SpanKindRPCServer.Set(sp)
 	sp.Finish()
 
-	thriftSpan := buildThriftSpan(sp)
+	thriftSpan := BuildZipkinThrift(sp)
 	assert.NotNil(t, findAnnotation(thriftSpan, `{"event":"baggage","key":"auth.token","value":"token"}`))
 }
 
