@@ -60,6 +60,8 @@ type tracer struct {
 
 	observer observer
 
+	zipkinSharedRPCSpan bool
+
 	tags []Tag
 }
 
@@ -210,7 +212,7 @@ func (t *tracer) startSpanWithOptions(
 		}
 	} else {
 		ctx.traceID = parent.traceID
-		if rpcServer {
+		if rpcServer && t.zipkinSharedRPCSpan {
 			// Support Zipkin's one-span-per-RPC model
 			ctx.spanID = parent.spanID
 			ctx.parentID = parent.parentID

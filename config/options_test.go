@@ -37,10 +37,12 @@ func TestApplyOptions(t *testing.T) {
 		Metrics(metricsFactory),
 		Logger(jaeger.StdLogger),
 		Observer(observer),
+		ZipkinSharedRPCSpan(true),
 	)
 	assert.Equal(t, jaeger.StdLogger, opts.logger)
 	assert.Equal(t, metricsFactory, opts.metrics)
 	assert.Equal(t, []jaeger.Observer{observer}, opts.observers)
+	assert.True(t, opts.zipkinSharedRPCSpan)
 }
 
 func TestApplyOptionsDefaults(t *testing.T) {
