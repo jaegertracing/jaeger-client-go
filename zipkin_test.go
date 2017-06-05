@@ -28,7 +28,7 @@ import (
 )
 
 func TestZipkinPropagator(t *testing.T) {
-	tracer, tCloser := NewTracer("x", NewConstSampler(true), NewNullReporter())
+	tracer, tCloser := NewTracer("x", NewConstSampler(true), NewNullReporter(), TracerOptions.ZipkinSharedRPCSpan(true))
 	defer tCloser.Close()
 
 	carrier := &TestZipkinSpan{}

@@ -53,7 +53,9 @@ func (s *tracerSuite) SetupTest() {
 		NewConstSampler(true),
 		NewNullReporter(),
 		TracerOptions.Metrics(metrics),
-		TracerOptions.HostIPv4(IP))
+		TracerOptions.HostIPv4(IP),
+		TracerOptions.ZipkinSharedRPCSpan(true),
+	)
 	s.NotNil(s.tracer)
 }
 
@@ -307,6 +309,28 @@ func TestEmptySpanContextAsParent(t *testing.T) {
 	ctx := span.Context().(SpanContext)
 	assert.True(t, ctx.traceID.IsValid())
 	assert.True(t, ctx.IsValid())
+}
+
+func TestZipkinSharedRPCSpan(t *testing.T) {
+	tracer, tc := NewTracer("x", NewConstSampler(true), NewNullReporter(), TracerOptions.ZipkinSharedRPCSpan(false))
+
+	sp1 := tracer.StartSpan("client", ext.SpanKindRPCClient)
+	sp2 := tracer.StartSpan("server", opentracing.ChildOf(sp1.Context()), ext.SpanKindRPCServer)
+	assert.Equal(t, sp1.(*Span).context.spanID, sp2.(*Span).context.parentID)
+	assert.NotEqual(t, sp1.(*Span).context.spanID, sp2.(*Span).context.spanID)
+	sp2.Finish()
+	sp1.Finish()
+	tc.Close()
+
+	tracer, tc = NewTracer("x", NewConstSampler(true), NewNullReporter(), TracerOptions.ZipkinSharedRPCSpan(true))
+
+	sp1 = tracer.StartSpan("client", ext.SpanKindRPCClient)
+	sp2 = tracer.StartSpan("server", opentracing.ChildOf(sp1.Context()), ext.SpanKindRPCServer)
+	assert.Equal(t, sp1.(*Span).context.spanID, sp2.(*Span).context.spanID)
+	assert.Equal(t, sp1.(*Span).context.parentID, sp2.(*Span).context.parentID)
+	sp2.Finish()
+	sp1.Finish()
+	tc.Close()
 }
 
 type dummyPropagator struct{}
