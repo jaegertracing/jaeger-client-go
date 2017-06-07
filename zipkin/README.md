@@ -17,6 +17,9 @@ func main() {
 	zipkinPropagator := zipkin.NewZipkinB3HTTPHeaderPropagator()
 	injector := jaeger.TracerOptions.Injector(opentracing.HTTPHeaders, zipkinPropagator)
 	extractor := jaeger.TracerOptions.Extractor(opentracing.HTTPHeaders, zipkinPropagator)
+	
+	// Zipkin shares span ID between client and server spans; it must be enabled via the following option.
+	zipkinSharedRPCSpan := jaeger.TracerOptions.ZipkinSharedRPCSpan(true)
 
 	// create Jaeger tracer
 	tracer, closer := jaeger.NewTracer(
@@ -25,6 +28,7 @@ func main() {
 		myReporter // as usual
 		injector,
 		extractor,
+		zipkinSharedRPCSpan,
 	)
 }
 ```
