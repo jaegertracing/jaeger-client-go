@@ -101,6 +101,6 @@ func (tracerOptions) Observer(observer Observer) TracerOption {
 
 func (tracerOptions) ZipkinSharedRPCSpan(zipkinSharedRPCSpan bool) TracerOption {
 	return func(tracer *tracer) {
-		tracer.zipkinSharedRPCSpan = zipkinSharedRPCSpan
+		tracer.options.zipkinSharedRPCSpan = zipkinSharedRPCSpan
 	}
 }
