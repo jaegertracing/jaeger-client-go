@@ -48,8 +48,9 @@ type tracer struct {
 	randomNumber func() uint64
 
 	options struct {
-		poolSpans bool
-		gen128Bit bool // whether to generate 128bit trace IDs
+		poolSpans           bool
+		gen128Bit           bool // whether to generate 128bit trace IDs
+		zipkinSharedRPCSpan bool
 		// more options to come
 	}
 	// pool for Span objects
@@ -210,7 +211,7 @@ func (t *tracer) startSpanWithOptions(
 		}
 	} else {
 		ctx.traceID = parent.traceID
-		if rpcServer {
+		if rpcServer && t.options.zipkinSharedRPCSpan {
 			// Support Zipkin's one-span-per-RPC model
 			ctx.spanID = parent.spanID
 			ctx.parentID = parent.parentID

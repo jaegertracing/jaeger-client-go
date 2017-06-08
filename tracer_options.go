@@ -98,3 +98,9 @@ func (tracerOptions) Observer(observer Observer) TracerOption {
 		tracer.observer.append(observer)
 	}
 }
+
+func (tracerOptions) ZipkinSharedRPCSpan(zipkinSharedRPCSpan bool) TracerOption {
+	return func(tracer *tracer) {
+		tracer.options.zipkinSharedRPCSpan = zipkinSharedRPCSpan
+	}
+}

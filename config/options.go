@@ -31,10 +31,11 @@ type Option func(c *Options)
 
 // Options control behavior of the client.
 type Options struct {
-	metrics   metrics.Factory
-	logger    jaeger.Logger
-	reporter  jaeger.Reporter
-	observers []jaeger.Observer
+	metrics             metrics.Factory
+	logger              jaeger.Logger
+	reporter            jaeger.Reporter
+	observers           []jaeger.Observer
+	zipkinSharedRPCSpan bool
 }
 
 // Metrics creates an Option that initializes Metrics in the tracer,
@@ -65,6 +66,15 @@ func Reporter(reporter jaeger.Reporter) Option {
 func Observer(observer jaeger.Observer) Option {
 	return func(c *Options) {
 		c.observers = append(c.observers, observer)
+	}
+}
+
+// ZipkinSharedRPCSpan creates an option that enables sharing span ID between client
+// and server spans a la zipkin. If false, client and server spans will be assigned
+// different IDs.
+func ZipkinSharedRPCSpan(zipkinSharedRPCSpan bool) Option {
+	return func(c *Options) {
+		c.zipkinSharedRPCSpan = zipkinSharedRPCSpan
 	}
 }
 

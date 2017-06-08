@@ -144,6 +144,7 @@ func (c Configuration) New(
 	tracerOptions := []jaeger.TracerOption{
 		jaeger.TracerOptions.Metrics(tracerMetrics),
 		jaeger.TracerOptions.Logger(opts.logger),
+		jaeger.TracerOptions.ZipkinSharedRPCSpan(opts.zipkinSharedRPCSpan),
 	}
 
 	for _, obs := range opts.observers {

@@ -43,7 +43,7 @@ func TestSpanPropagator(t *testing.T) {
 	const op = "test"
 	reporter := NewInMemoryReporter()
 	metricsFactory, metrics := initMetrics()
-	tracer, closer := NewTracer("x", NewConstSampler(true), reporter, TracerOptions.Metrics(metrics))
+	tracer, closer := NewTracer("x", NewConstSampler(true), reporter, TracerOptions.Metrics(metrics), TracerOptions.ZipkinSharedRPCSpan(true))
 
 	mapc := opentracing.TextMapCarrier(make(map[string]string))
 	httpc := opentracing.HTTPHeadersCarrier(http.Header{})
