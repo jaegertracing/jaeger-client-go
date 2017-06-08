@@ -163,10 +163,13 @@ const (
 )
 
 type remoteReporter struct {
+	// must be first in the struct because `sync/atomic` expects 64-bit alignment.
+	// Cf. https://github.com/uber/jaeger-client-go/issues/155, https://goo.gl/zW7dgq
+	queueLength int64
+
 	reporterOptions
 	sender       Transport
 	queue        chan *Span
-	queueLength  int64 // signed because metric's gauge is signed
 	queueDrained sync.WaitGroup
 	flushSignal  chan *sync.WaitGroup
 }
