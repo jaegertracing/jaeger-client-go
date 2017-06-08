@@ -4,7 +4,7 @@ Changes by Version
 2.6.1 (unreleased)
 ------------------
 
-- Nothing yet
+- Move reporter.queueLength to the top of the struct to guarantee 64bit alignment [#158](https://github.com/uber/jaeger-client-go/pull/158)
 
 
 2.6.0 (2017-03-28)
