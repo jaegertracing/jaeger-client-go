@@ -163,10 +163,12 @@ const (
 )
 
 type remoteReporter struct {
+	// NB. queueLength HAS to be at the top of the struct or it will SIGSEV for certain architectures.
+	// See https://github.com/golang/go/issues/13868
+	queueLength int64 // signed because metric's gauge is signed
 	reporterOptions
 	sender       Transport
 	queue        chan *Span
-	queueLength  int64 // signed because metric's gauge is signed
 	queueDrained sync.WaitGroup
 	flushSignal  chan *sync.WaitGroup
 }
