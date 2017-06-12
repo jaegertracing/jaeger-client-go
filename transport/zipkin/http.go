@@ -42,11 +42,18 @@ const defaultHTTPTimeout = time.Second * 5
 
 // HTTPTransport implements Transport by forwarding spans to a http server.
 type HTTPTransport struct {
-	logger    jaeger.Logger
-	url       string
-	client    *http.Client
-	batchSize int
-	batch     []*zipkincore.Span
+	logger          jaeger.Logger
+	url             string
+	client          *http.Client
+	batchSize       int
+	batch           []*zipkincore.Span
+	httpCredentials *HTTPBasicAuthCredentials
+}
+
+// HTTPBasicAuthCredentials stores credentials for HTTP basic auth.
+type HTTPBasicAuthCredentials struct {
+	username string
+	password string
 }
 
 // HTTPOption sets a parameter for the HttpCollector
@@ -68,6 +75,13 @@ func HTTPTimeout(duration time.Duration) HTTPOption {
 // triggered. The default batch size is 100 spans.
 func HTTPBatchSize(n int) HTTPOption {
 	return func(c *HTTPTransport) { c.batchSize = n }
+}
+
+// HTTPBasicAuth sets the credentials required to perform HTTP basic auth
+func HTTPBasicAuth(username string, password string) HTTPOption {
+	return func(c *HTTPTransport) {
+		c.httpCredentials = &HTTPBasicAuthCredentials{username: username, password: password}
+	}
 }
 
 // NewHTTPTransport returns a new HTTP-backend transport. url should be an http
@@ -141,6 +155,10 @@ func (c *HTTPTransport) send(spans []*zipkincore.Span) error {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/x-thrift")
+
+	if c.httpCredentials != nil {
+		req.SetBasicAuth(c.httpCredentials.username, c.httpCredentials.password)
+	}
 
 	_, err = c.client.Do(req)
 
