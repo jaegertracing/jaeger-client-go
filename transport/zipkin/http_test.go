@@ -43,7 +43,9 @@ import (
 
 func TestHttpTransport(t *testing.T) {
 	server := newHTTPServer(t)
-	sender, err := NewHTTPTransport("http://localhost:10000/api/v1/spans")
+	httpUsername := "Aphex"
+	httpPassword := "Twin"
+	sender, err := NewHTTPTransport("http://localhost:10000/api/v1/spans", HTTPBasicAuth(httpUsername, httpPassword))
 	require.NoError(t, err)
 
 	tracer, closer := jaeger.NewTracer(
@@ -78,6 +80,7 @@ func TestHttpTransport(t *testing.T) {
 	assert.Equal(t, "root", gotSpan.Name)
 	assert.EqualValues(t, srcSpanCtx.TraceID().Low, gotSpan.TraceID)
 	assert.EqualValues(t, srcSpanCtx.SpanID(), gotSpan.ID)
+	assert.Equal(t, &HTTPBasicAuthCredentials{username: httpUsername, password: httpPassword}, server.authCredentials[0])
 }
 
 func TestHTTPOptions(t *testing.T) {
@@ -86,17 +89,21 @@ func TestHTTPOptions(t *testing.T) {
 		HTTPLogger(log.StdLogger),
 		HTTPBatchSize(123),
 		HTTPTimeout(123*time.Millisecond),
+		HTTPBasicAuth("urundai", "kuzhambu"),
 	)
 	require.NoError(t, err)
 	assert.Equal(t, log.StdLogger, sender.logger)
 	assert.Equal(t, 123, sender.batchSize)
 	assert.Equal(t, 123*time.Millisecond, sender.client.Timeout)
+	assert.Equal(t, "urundai", sender.httpCredentials.username)
+	assert.Equal(t, "kuzhambu", sender.httpCredentials.password)
 }
 
 type httpServer struct {
-	t           *testing.T
-	zipkinSpans []*zipkincore.Span
-	mutex       sync.RWMutex
+	t               *testing.T
+	zipkinSpans     []*zipkincore.Span
+	authCredentials []*HTTPBasicAuthCredentials
+	mutex           sync.RWMutex
 }
 
 func (s *httpServer) spans() []*zipkincore.Span {
@@ -105,11 +112,18 @@ func (s *httpServer) spans() []*zipkincore.Span {
 	return s.zipkinSpans
 }
 
+func (s *httpServer) credentials() []*HTTPBasicAuthCredentials {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	return s.authCredentials
+}
+
 func newHTTPServer(t *testing.T) *httpServer {
 	server := &httpServer{
-		t:           t,
-		zipkinSpans: make([]*zipkincore.Span, 0),
-		mutex:       sync.RWMutex{},
+		t:               t,
+		zipkinSpans:     make([]*zipkincore.Span, 0),
+		authCredentials: make([]*HTTPBasicAuthCredentials, 0),
+		mutex:           sync.RWMutex{},
 	}
 	http.HandleFunc("/api/v1/spans", func(w http.ResponseWriter, r *http.Request) {
 		contextType := r.Header.Get("Content-Type")
@@ -152,6 +166,8 @@ func newHTTPServer(t *testing.T) *httpServer {
 		server.mutex.Lock()
 		defer server.mutex.Unlock()
 		server.zipkinSpans = append(server.zipkinSpans, spans...)
+		u, p, _ := r.BasicAuth()
+		server.authCredentials = append(server.authCredentials, &HTTPBasicAuthCredentials{username: u, password: p})
 	})
 
 	go func() {
