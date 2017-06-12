@@ -91,7 +91,7 @@ type testSpanObserver struct {
 	finished      bool
 }
 
-func (o testObserver) OnStartSpan(operationName string, options opentracing.StartSpanOptions) SpanObserver {
+func (o testObserver) OnStartSpan(sp opentracing.Span, operationName string, options opentracing.StartSpanOptions) SpanObserver {
 	tags := make(map[string]interface{})
 	for k, v := range options.Tags {
 		tags[k] = v

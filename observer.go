@@ -24,7 +24,7 @@ import opentracing "github.com/opentracing/opentracing-go"
 
 // Observer can be registered with the Tracer to receive notifications about new Spans.
 type Observer interface {
-	OnStartSpan(operationName string, options opentracing.StartSpanOptions) SpanObserver
+	OnStartSpan(sp opentracing.Span, operationName string, options opentracing.StartSpanOptions) SpanObserver
 }
 
 // SpanObserver is created by the Observer and receives notifications about other Span events.
@@ -52,10 +52,10 @@ func (o *observer) append(observer Observer) {
 	o.observers = append(o.observers, observer)
 }
 
-func (o observer) OnStartSpan(operationName string, options opentracing.StartSpanOptions) SpanObserver {
+func (o observer) OnStartSpan(sp opentracing.Span, operationName string, options opentracing.StartSpanOptions) SpanObserver {
 	var spanObservers []SpanObserver
 	for _, obs := range o.observers {
-		spanObs := obs.OnStartSpan(operationName, options)
+		spanObs := obs.OnStartSpan(sp, operationName, options)
 		if spanObs != nil {
 			if spanObservers == nil {
 				spanObservers = make([]SpanObserver, 0, len(o.observers))
