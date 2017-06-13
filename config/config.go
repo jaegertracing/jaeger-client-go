@@ -155,6 +155,10 @@ func (c Configuration) New(
 		tracerOptions = append(tracerOptions, jaeger.TracerOptions.Tag(tag.Key, tag.Value))
 	}
 
+	for _, cobs := range opts.contribObservers {
+		tracerOptions = append(tracerOptions, jaeger.TracerOptions.ContribObserver(cobs))
+	}
+
 	tracer, closer := jaeger.NewTracer(
 		serviceName,
 		sampler,

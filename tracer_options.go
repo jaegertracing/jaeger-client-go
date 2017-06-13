@@ -22,6 +22,8 @@ package jaeger
 
 import (
 	"time"
+
+	otobserver "github.com/opentracing-contrib/go-observer"
 )
 
 // TracerOption is a function that sets some option on the tracer
@@ -97,6 +99,12 @@ func (tracerOptions) Extractor(format interface{}, extractor Extractor) TracerOp
 func (tracerOptions) Observer(observer Observer) TracerOption {
 	return func(tracer *Tracer) {
 		tracer.observer.append(observer)
+	}
+}
+
+func (tracerOptions) ContribObserver(observer otobserver.Observer) TracerOption {
+	return func(tracer *tracer) {
+		tracer.contribObserver.append(observer)
 	}
 }
 

@@ -62,6 +62,6 @@ func TestApplyOptionsDefaults(t *testing.T) {
 
 type fakeObserver struct{}
 
-func (o fakeObserver) OnStartSpan(sp opentracing.Span, operationName string, options opentracing.StartSpanOptions) jaeger.SpanObserver {
+func (o fakeObserver) OnStartSpan(operationName string, options opentracing.StartSpanOptions) jaeger.SpanObserver {
 	return nil
 }

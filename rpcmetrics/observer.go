@@ -52,7 +52,6 @@ func NewObserver(metricsFactory metrics.Factory, normalizer NameNormalizer) *Obs
 
 // OnStartSpan creates a new Observer for the span.
 func (o *Observer) OnStartSpan(
-	sp opentracing.Span,
 	operationName string,
 	options opentracing.StartSpanOptions,
 ) jaeger.SpanObserver {

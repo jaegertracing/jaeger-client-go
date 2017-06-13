@@ -28,6 +28,8 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
+
+	otobserver "github.com/opentracing-contrib/go-observer"
 )
 
 // Span implements opentracing.Span
@@ -64,6 +66,7 @@ type Span struct {
 	references []Reference
 
 	observer SpanObserver
+	contribObserver otobserver.SpanObserver
 }
 
 // Tag is a simple key value wrapper.
@@ -81,12 +84,14 @@ func (s *Span) SetOperationName(operationName string) opentracing.Span {
 		s.operationName = operationName
 	}
 	s.observer.OnSetOperationName(operationName)
+	s.contribObserver.OnSetOperationName(operationName)
 	return s
 }
 
 // SetTag implements SetTag() of opentracing.Span
 func (s *Span) SetTag(key string, value interface{}) opentracing.Span {
 	s.observer.OnSetTag(key, value)
+	s.contribObserver.OnSetTag(key, value)
 	if key == string(ext.SamplingPriority) && setSamplingPriority(s, value) {
 		return s
 	}
@@ -201,6 +206,7 @@ func (s *Span) FinishWithOptions(options opentracing.FinishOptions) {
 		options.FinishTime = s.tracer.timeNow()
 	}
 	s.observer.OnFinish(options)
+	s.contribObserver.OnFinish(options)
 	s.Lock()
 	if s.context.IsSampled() {
 		s.duration = options.FinishTime.Sub(s.startTime)

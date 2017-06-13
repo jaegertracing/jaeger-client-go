@@ -33,6 +33,8 @@ import (
 
 	"github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-client-go/utils"
+
+//	otobserver "github.com/opentracing-contrib/go-observer"
 )
 
 // Tracer implements opentracing.Tracer.
@@ -61,6 +63,7 @@ type Tracer struct {
 	extractors map[interface{}]Extractor
 
 	observer observer
+	contribObserver contribObserver
 
 	tags []Tag
 }
@@ -233,7 +236,8 @@ func (t *Tracer) startSpanWithOptions(
 
 	sp := t.newSpan()
 	sp.context = ctx
-	sp.observer = t.observer.OnStartSpan(sp, operationName, options)
+	sp.observer = t.observer.OnStartSpan(operationName, options)
+	sp.contribObserver = t.contribObserver.OnStartSpan(sp, operationName, options)
 	return t.startSpanInternal(
 		sp,
 		operationName,
@@ -320,6 +324,7 @@ func (t *Tracer) startSpanInternal(
 		copy(sp.tags, internalTags)
 		for k, v := range tags {
 			sp.observer.OnSetTag(k, v)
+			sp.contribObserver.OnSetTag(k, v)
 			if k == string(ext.SamplingPriority) && setSamplingPriority(sp, v) {
 				continue
 			}

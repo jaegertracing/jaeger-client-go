@@ -22,12 +22,16 @@ package jaeger
 
 import opentracing "github.com/opentracing/opentracing-go"
 
-// Observer can be registered with the Tracer to receive notifications about new Spans.
+// Observer can be registered with the Tracer to receive notifications about
+// new Spans. Note that this interface is now Deprecated, see:
+// github.com/opentracing-contrib/go-observer.
 type Observer interface {
-	OnStartSpan(sp opentracing.Span, operationName string, options opentracing.StartSpanOptions) SpanObserver
+	OnStartSpan(operationName string, options opentracing.StartSpanOptions) SpanObserver
 }
 
-// SpanObserver is created by the Observer and receives notifications about other Span events.
+// SpanObserver is created by the Observer and receives notifications about
+// other Span events. Note that this interface is now Deprecated, see:
+// github.com/opentracing-contrib/go-observer.
 type SpanObserver interface {
 	OnSetOperationName(operationName string)
 	OnSetTag(key string, value interface{})
@@ -52,10 +56,10 @@ func (o *observer) append(observer Observer) {
 	o.observers = append(o.observers, observer)
 }
 
-func (o observer) OnStartSpan(sp opentracing.Span, operationName string, options opentracing.StartSpanOptions) SpanObserver {
+func (o observer) OnStartSpan(operationName string, options opentracing.StartSpanOptions) SpanObserver {
 	var spanObservers []SpanObserver
 	for _, obs := range o.observers {
-		spanObs := obs.OnStartSpan(sp, operationName, options)
+		spanObs := obs.OnStartSpan(operationName, options)
 		if spanObs != nil {
 			if spanObservers == nil {
 				spanObservers = make([]SpanObserver, 0, len(o.observers))
