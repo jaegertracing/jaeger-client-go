@@ -49,6 +49,14 @@ func BuildJaegerThrift(span *Span) *j.Span {
 	return jaegerSpan
 }
 
+// BuildJaegerProcessThrift creates a thrift Process type.
+func BuildJaegerProcessThrift(span *Span) *j.Process {
+	return &j.Process{
+		ServiceName: span.tracer.serviceName,
+		Tags:        buildTags(span.tracer.tags),
+	}
+}
+
 func buildTags(tags []Tag) []*j.Tag {
 	jTags := make([]*j.Tag, 0, len(tags))
 	for _, tag := range tags {

@@ -89,10 +89,7 @@ func (s *udpSender) calcSizeOfSerializedThrift(thriftStruct thrift.TStruct) int 
 
 func (s *udpSender) Append(span *Span) (int, error) {
 	if s.process == nil {
-		s.process = &j.Process{
-			ServiceName: span.tracer.serviceName,
-			Tags:        buildTags(span.tracer.tags),
-		}
+		s.process = BuildJaegerProcessThrift(span)
 		s.processByteSize = s.calcSizeOfSerializedThrift(s.process)
 		s.byteBufferSize += s.processByteSize
 	}
