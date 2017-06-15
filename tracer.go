@@ -136,6 +136,9 @@ func NewTracer(
 	if hostname, err := os.Hostname(); err == nil {
 		t.tags = append(t.tags, Tag{key: TracerHostnameTagKey, value: hostname})
 	}
+	if t.hostIPv4 != 0 {
+		t.tags = append(t.tags, Tag{key: TracerIPTagKey, value: t.hostIPv4})
+	}
 
 	return t, t
 }

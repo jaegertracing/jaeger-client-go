@@ -44,12 +44,14 @@ var (
 	someBinary      = []byte("hello")
 	someSlice       = []string{"a"}
 	someSliceString = "[a]"
+	someIP          = uint32(171263293)
 )
 
 func TestBuildJaegerThrift(t *testing.T) {
 	tracer, closer := NewTracer("DOOP",
 		NewConstSampler(true),
-		NewNullReporter())
+		NewNullReporter(),
+		TracerOptions.HostIPv4(someIP))
 	defer closer.Close()
 
 	sp1 := tracer.StartSpan("sp1").(*Span)
@@ -66,13 +68,15 @@ func TestBuildJaegerThrift(t *testing.T) {
 	assert.Equal(t, "sp2", jaegerSpan2.OperationName)
 	assert.EqualValues(t, 0, jaegerSpan1.ParentSpanId)
 	assert.Equal(t, jaegerSpan1.SpanId, jaegerSpan2.ParentSpanId)
-	assert.Len(t, jaegerSpan1.Tags, 6)
+	assert.Len(t, jaegerSpan1.Tags, 7)
 	tag := findTag(jaegerSpan1, SamplerTypeTagKey)
 	assert.Equal(t, SamplerTypeConst, *tag.VStr)
 	tag = findTag(jaegerSpan1, string(ext.SpanKind))
 	assert.Equal(t, string(ext.SpanKindRPCServerEnum), *tag.VStr)
 	tag = findTag(jaegerSpan1, string(ext.PeerService))
 	assert.Equal(t, "svc", *tag.VStr)
+	tag = findTag(jaegerSpan1, TracerIPTagKey)
+	assert.EqualValues(t, someIP, *tag.VLong)
 	assert.Empty(t, jaegerSpan1.References)
 
 	assert.Len(t, jaegerSpan2.References, 1)

@@ -287,6 +287,7 @@ func TestSpecialTags(t *testing.T) {
 	assert.Nil(t, findBinaryAnnotation(thriftSpan, "peer.service"))
 	assert.Nil(t, findBinaryAnnotation(thriftSpan, "peer.port"))
 	assert.Nil(t, findBinaryAnnotation(thriftSpan, "peer.ipv4"))
+	assert.Nil(t, findBinaryAnnotation(thriftSpan, "ip"))
 
 	anno := findBinaryAnnotation(thriftSpan, "ca")
 	assert.NotNil(t, anno)

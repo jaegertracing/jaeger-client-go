@@ -45,6 +45,7 @@ var specialTagHandlers = map[string]func(*zipkinSpan, interface{}){
 	string(ext.PeerHostIPv4): setPeerIPv4,
 	string(ext.PeerPort):     setPeerPort,
 	string(ext.PeerService):  setPeerService,
+	TracerIPTagKey:           removeProcessIP,
 }
 
 // BuildZipkinThrift builds thrift span based on internal span.
@@ -306,6 +307,8 @@ func setPeerService(s *zipkinSpan, value interface{}) {
 		s.peer.ServiceName = val
 	}
 }
+
+func removeProcessIP(s *zipkinSpan, value interface{}) {}
 
 func (s *zipkinSpan) peerDefined() bool {
 	return s.peer.ServiceName != "" || s.peer.Ipv4 != 0 || s.peer.Port != 0

@@ -41,6 +41,9 @@ const (
 	// TracerHostnameTagKey used to report host name of the process.
 	TracerHostnameTagKey = "jaeger.hostname"
 
+	// TracerIPTagKey used to report ip of the process.
+	TracerIPTagKey = "ip"
+
 	// SamplerTypeTagKey reports which sampler was used on the root span.
 	SamplerTypeTagKey = "sampler.type"
 
