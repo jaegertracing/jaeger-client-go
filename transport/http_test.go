@@ -29,7 +29,6 @@ import (
 
 	"github.com/apache/thrift/lib/go/thrift"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/uber/jaeger-client-go"
 	j "github.com/uber/jaeger-client-go/thrift-gen/jaeger"
@@ -39,12 +38,11 @@ func TestHTTPTransport(t *testing.T) {
 	server := newHTTPServer(t)
 	httpUsername := "Bender"
 	httpPassword := "Rodriguez"
-	sender, err := NewHTTPTransport(
+	sender := NewHTTPTransport(
 		"http://localhost:10000/api/v1/spans",
 		HTTPBatchSize(1),
 		HTTPBasicAuth(httpUsername, httpPassword),
 	)
-	require.NoError(t, err)
 
 	tracer, closer := jaeger.NewTracer(
 		"test",
@@ -88,12 +86,11 @@ func TestHTTPTransport(t *testing.T) {
 }
 
 func TestHTTPOptions(t *testing.T) {
-	sender, err := NewHTTPTransport(
+	sender := NewHTTPTransport(
 		"some url",
 		HTTPBatchSize(123),
 		HTTPTimeout(123*time.Millisecond),
 	)
-	require.NoError(t, err)
 	assert.Equal(t, 123, sender.batchSize)
 	assert.Equal(t, 123*time.Millisecond, sender.client.Timeout)
 }
