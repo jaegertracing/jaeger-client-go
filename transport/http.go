@@ -22,6 +22,9 @@ package transport
 
 import (
 	"bytes"
+	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"time"
 
@@ -136,8 +139,16 @@ func (c *HTTPTransport) send(spans []*j.Span) error {
 		req.SetBasicAuth(c.httpCredentials.username, c.httpCredentials.password)
 	}
 
-	_, err = c.client.Do(req)
-	return err
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return err
+	}
+	io.Copy(ioutil.Discard, resp.Body)
+	resp.Body.Close()
+	if resp.StatusCode >= http.StatusBadRequest {
+		return fmt.Errorf("error from collector: %d", resp.StatusCode)
+	}
+	return nil
 }
 
 func serializeThrift(obj thrift.TStruct) (*bytes.Buffer, error) {
