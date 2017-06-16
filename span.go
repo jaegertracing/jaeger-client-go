@@ -101,14 +101,6 @@ func (s *Span) setTagNoLocking(key string, value interface{}) {
 	s.tags = append(s.tags, Tag{key: key, value: value})
 }
 
-func (s *Span) setTracerTags(tags []Tag) {
-	s.Lock()
-	for _, tag := range tags {
-		s.tags = append(s.tags, tag)
-	}
-	s.Unlock()
-}
-
 // LogFields implements opentracing.Span API
 func (s *Span) LogFields(fields ...log.Field) {
 	s.Lock()
