@@ -176,3 +176,17 @@ func newHTTPServer(t *testing.T) *httpServer {
 
 	return server
 }
+
+func TestHTTP404(t *testing.T) {
+	sender, err := NewHTTPTransport("http://localhost:10000/api/maps", HTTPBatchSize(1))
+	require.NoError(t, err)
+
+	tracer, _ := jaeger.NewTracer("DOOP", jaeger.NewConstSampler(true), jaeger.NewNullReporter())
+
+	span := tracer.StartSpan("root")
+	span.Finish()
+
+	c, err := sender.Append(span.(*jaeger.Span))
+	assert.Equal(t, 0, c)
+	assert.EqualError(t, err, "Unsuccessful HTTP status: 404, Body: 404 page not found\n")
+}

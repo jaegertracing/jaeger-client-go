@@ -27,6 +27,8 @@ package zipkin
 
 import (
 	"bytes"
+	"fmt"
+	"io/ioutil"
 	"net/http"
 	"time"
 
@@ -119,8 +121,11 @@ func (c *HTTPTransport) Flush() (int, error) {
 		return 0, nil
 	}
 	err := c.send(c.batch)
+	if err != nil {
+		return 0, err
+	}
 	c.batch = c.batch[:0]
-	return count, err
+	return count, nil
 }
 
 // Close implements Transport.
@@ -160,7 +165,17 @@ func (c *HTTPTransport) send(spans []*zipkincore.Span) error {
 		req.SetBasicAuth(c.httpCredentials.username, c.httpCredentials.password)
 	}
 
-	_, err = c.client.Do(req)
+	resp, err := c.client.Do(req)
+
+	if resp != nil && resp.StatusCode >= http.StatusBadRequest {
+		body := ""
+		if resp.Body != nil {
+			bodyBytes, _ := ioutil.ReadAll(resp.Body)
+			body = string(bodyBytes)
+			resp.Body.Close()
+		}
+		return fmt.Errorf("Unsuccessful HTTP status: %d, Body: %s", resp.StatusCode, body)
+	}
 
 	return err
 }
