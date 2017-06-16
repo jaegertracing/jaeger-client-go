@@ -43,8 +43,6 @@ type tracerSuite struct {
 	metricsFactory *metrics.LocalFactory
 }
 
-var IP = "192.0.2.1"
-
 func (s *tracerSuite) SetupTest() {
 	s.metricsFactory = metrics.NewLocalFactory(0)
 	metrics := NewMetrics(s.metricsFactory, nil)
