@@ -121,11 +121,8 @@ func (c *HTTPTransport) Flush() (int, error) {
 		return 0, nil
 	}
 	err := c.send(c.batch)
-	if err != nil {
-		return 0, err
-	}
 	c.batch = c.batch[:0]
-	return count, nil
+	return count, err
 }
 
 // Close implements Transport.

@@ -187,6 +187,6 @@ func TestHTTP404(t *testing.T) {
 	span.Finish()
 
 	c, err := sender.Append(span.(*jaeger.Span))
-	assert.Equal(t, 0, c)
+	assert.Equal(t, 1, c)
 	assert.EqualError(t, err, "Unsuccessful HTTP status: 404, Body: 404 page not found\n")
 }
