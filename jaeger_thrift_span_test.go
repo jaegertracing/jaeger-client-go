@@ -66,7 +66,7 @@ func TestBuildJaegerThrift(t *testing.T) {
 	assert.Equal(t, "sp2", jaegerSpan2.OperationName)
 	assert.EqualValues(t, 0, jaegerSpan1.ParentSpanId)
 	assert.Equal(t, jaegerSpan1.SpanId, jaegerSpan2.ParentSpanId)
-	assert.Len(t, jaegerSpan1.Tags, 6)
+	assert.Len(t, jaegerSpan1.Tags, 4)
 	tag := findTag(jaegerSpan1, SamplerTypeTagKey)
 	assert.Equal(t, SamplerTypeConst, *tag.VStr)
 	tag = findTag(jaegerSpan1, string(ext.SpanKind))
@@ -82,6 +82,23 @@ func TestBuildJaegerThrift(t *testing.T) {
 	assert.EqualValues(t, jaegerSpan1.SpanId, jaegerSpan2.References[0].SpanId)
 	tag = findTag(jaegerSpan2, string(ext.SpanKind))
 	assert.Equal(t, string(ext.SpanKindRPCClientEnum), *tag.VStr)
+}
+
+func TestBuildJaegerProcessThrift(t *testing.T) {
+	tracer, closer := NewTracer("DOOP",
+		NewConstSampler(true),
+		NewNullReporter())
+	defer closer.Close()
+
+	sp := tracer.StartSpan("sp1").(*Span)
+	sp.Finish()
+
+	process := BuildJaegerProcessThrift(sp)
+	assert.Equal(t, process.ServiceName, "DOOP")
+	require.Len(t, process.Tags, 3)
+	assert.NotNil(t, findJaegerTag(JaegerClientVersionTagKey, process.Tags))
+	assert.NotNil(t, findJaegerTag(TracerHostnameTagKey, process.Tags))
+	assert.NotNil(t, findJaegerTag(TracerIPTagKey, process.Tags))
 }
 
 func TestBuildLogs(t *testing.T) {

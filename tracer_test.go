@@ -43,8 +43,6 @@ type tracerSuite struct {
 	metricsFactory *metrics.LocalFactory
 }
 
-var IP uint32 = 1<<24 | 2<<16 | 3<<8 | 4
-
 func (s *tracerSuite) SetupTest() {
 	s.metricsFactory = metrics.NewLocalFactory(0)
 	metrics := NewMetrics(s.metricsFactory, nil)
@@ -53,7 +51,6 @@ func (s *tracerSuite) SetupTest() {
 		NewConstSampler(true),
 		NewNullReporter(),
 		TracerOptions.Metrics(metrics),
-		TracerOptions.HostIPv4(IP),
 		TracerOptions.ZipkinSharedRPCSpan(true),
 	)
 	s.NotNil(s.tracer)

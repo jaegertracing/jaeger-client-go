@@ -30,6 +30,7 @@ import (
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/uber/jaeger-client-go/thrift-gen/zipkincore"
 	"github.com/uber/jaeger-client-go/utils"
@@ -263,7 +264,7 @@ func TestThriftLocalComponentSpan(t *testing.T) {
 		thriftSpan := BuildZipkinThrift(sp)
 
 		anno := findBinaryAnnotation(thriftSpan, "lc")
-		assert.NotNil(t, anno)
+		require.NotNil(t, anno)
 		assert.EqualValues(t, test.wantAnnotation, anno.Value)
 	}
 }
@@ -287,6 +288,7 @@ func TestSpecialTags(t *testing.T) {
 	assert.Nil(t, findBinaryAnnotation(thriftSpan, "peer.service"))
 	assert.Nil(t, findBinaryAnnotation(thriftSpan, "peer.port"))
 	assert.Nil(t, findBinaryAnnotation(thriftSpan, "peer.ipv4"))
+	assert.Nil(t, findBinaryAnnotation(thriftSpan, "ip"))
 
 	anno := findBinaryAnnotation(thriftSpan, "ca")
 	assert.NotNil(t, anno)

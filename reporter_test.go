@@ -98,9 +98,8 @@ func (s *reporterSuite) TestRootSpanTags() {
 	s.flushReporter()
 	s.Equal(1, len(s.collector.Spans()))
 	span := s.collector.Spans()[0]
-	s.Len(span.tags, 6)
+	s.Len(span.tags, 4)
 	s.EqualValues("server", span.tags[2].value, "span.kind should be server")
-	s.NotNil(findDomainTag(span, JaegerClientVersionTagKey), "expecting client version tag")
 
 	mTestutils.AssertCounterMetrics(s.T(), s.metricsFactory,
 		mTestutils.ExpectedMetric{
@@ -142,9 +141,7 @@ func (s *reporterSuite) TestTagsAndEvents() {
 	sp.LogEvent("hello")
 	sp.LogEvent(strings.Repeat("long event ", 30))
 	expected := []string{"long", "ping", "awake", "awake", "one", "two", "three", "bite me",
-		JaegerClientVersionTagKey, TracerHostnameTagKey,
-		SamplerParamTagKey, SamplerTypeTagKey,
-		"does not compute"}
+		SamplerParamTagKey, SamplerTypeTagKey, "does not compute"}
 	sp.SetTag("long", strings.Repeat("x", 300))
 	sp.SetTag("ping", "pong")
 	sp.SetTag("awake", true)

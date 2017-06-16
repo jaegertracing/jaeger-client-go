@@ -39,7 +39,7 @@ func TestHTTPTransport(t *testing.T) {
 	httpUsername := "Bender"
 	httpPassword := "Rodriguez"
 	sender := NewHTTPTransport(
-		"http://localhost:10000/api/v1/spans",
+		"http://localhost:10001/api/v1/spans",
 		HTTPBatchSize(1),
 		HTTPBasicAuth(httpUsername, httpPassword),
 	)
@@ -114,6 +114,7 @@ func (s *httpServer) credentials() []*HTTPBasicAuthCredentials {
 	return s.authCredentials
 }
 
+// TODO this function and zipkin/http_test.go#newHTTPServer look like twins lost at birth
 func newHTTPServer(t *testing.T) *httpServer {
 	server := &httpServer{
 		t:               t,
@@ -154,7 +155,7 @@ func newHTTPServer(t *testing.T) *httpServer {
 	})
 
 	go func() {
-		http.ListenAndServe(":10000", nil)
+		http.ListenAndServe(":10001", nil)
 	}()
 
 	return server
