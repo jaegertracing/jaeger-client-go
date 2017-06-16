@@ -266,8 +266,6 @@ func TestThriftLocalComponentSpan(t *testing.T) {
 		anno := findBinaryAnnotation(thriftSpan, "lc")
 		require.NotNil(t, anno)
 		assert.EqualValues(t, test.wantAnnotation, anno.Value)
-		require.NotNil(t, anno.Host)
-		assert.NotEqual(t, 0, anno.Host.Ipv4)
 	}
 }
 
