@@ -44,14 +44,13 @@ var (
 	someBinary      = []byte("hello")
 	someSlice       = []string{"a"}
 	someSliceString = "[a]"
-	someIP          = uint32(171263293)
+	someIP          = "2001:db8::68"
 )
 
 func TestBuildJaegerThrift(t *testing.T) {
 	tracer, closer := NewTracer("DOOP",
 		NewConstSampler(true),
-		NewNullReporter(),
-		TracerOptions.HostIPv4(someIP))
+		NewNullReporter())
 	defer closer.Close()
 
 	sp1 := tracer.StartSpan("sp1").(*Span)
@@ -68,15 +67,13 @@ func TestBuildJaegerThrift(t *testing.T) {
 	assert.Equal(t, "sp2", jaegerSpan2.OperationName)
 	assert.EqualValues(t, 0, jaegerSpan1.ParentSpanId)
 	assert.Equal(t, jaegerSpan1.SpanId, jaegerSpan2.ParentSpanId)
-	assert.Len(t, jaegerSpan1.Tags, 7)
+	assert.Len(t, jaegerSpan1.Tags, 4)
 	tag := findTag(jaegerSpan1, SamplerTypeTagKey)
 	assert.Equal(t, SamplerTypeConst, *tag.VStr)
 	tag = findTag(jaegerSpan1, string(ext.SpanKind))
 	assert.Equal(t, string(ext.SpanKindRPCServerEnum), *tag.VStr)
 	tag = findTag(jaegerSpan1, string(ext.PeerService))
 	assert.Equal(t, "svc", *tag.VStr)
-	tag = findTag(jaegerSpan1, TracerIPTagKey)
-	assert.EqualValues(t, someIP, *tag.VLong)
 	assert.Empty(t, jaegerSpan1.References)
 
 	assert.Len(t, jaegerSpan2.References, 1)
@@ -86,6 +83,26 @@ func TestBuildJaegerThrift(t *testing.T) {
 	assert.EqualValues(t, jaegerSpan1.SpanId, jaegerSpan2.References[0].SpanId)
 	tag = findTag(jaegerSpan2, string(ext.SpanKind))
 	assert.Equal(t, string(ext.SpanKindRPCClientEnum), *tag.VStr)
+}
+
+func TestBuildJaegerProcessThrift(t *testing.T) {
+	tracer, closer := NewTracer("DOOP",
+		NewConstSampler(true),
+		NewNullReporter(),
+		TracerOptions.HostIP(someIP))
+	defer closer.Close()
+
+	sp := tracer.StartSpan("sp1").(*Span)
+	sp.Finish()
+
+	process := BuildJaegerProcessThrift(sp)
+	assert.Equal(t, process.ServiceName, "DOOP")
+	require.Len(t, process.Tags, 3)
+	assert.NotNil(t, findJaegerTag(JaegerClientVersionTagKey, process.Tags))
+	assert.NotNil(t, findJaegerTag(TracerHostnameTagKey, process.Tags))
+	ipTag := findJaegerTag(TracerIPTagKey, process.Tags)
+	require.NotNil(t, ipTag)
+	assert.Equal(t, someIP, *ipTag.VStr)
 }
 
 func TestBuildLogs(t *testing.T) {

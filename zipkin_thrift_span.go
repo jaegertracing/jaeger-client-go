@@ -45,7 +45,6 @@ var specialTagHandlers = map[string]func(*zipkinSpan, interface{}){
 	string(ext.PeerHostIPv4): setPeerIPv4,
 	string(ext.PeerPort):     setPeerPort,
 	string(ext.PeerService):  setPeerService,
-	TracerIPTagKey:           removeProcessIP,
 }
 
 // BuildZipkinThrift builds thrift span based on internal span.
@@ -59,9 +58,10 @@ func BuildZipkinThrift(s *Span) *z.Span {
 	}
 	timestamp := utils.TimeToMicrosecondsSinceEpochInt64(span.startTime)
 	duration := span.duration.Nanoseconds() / int64(time.Microsecond)
+	ip, _ := utils.ParseIPToUint32(span.tracer.hostIP.To4().String())
 	endpoint := &z.Endpoint{
 		ServiceName: span.tracer.serviceName,
-		Ipv4:        int32(span.tracer.hostIPv4)}
+		Ipv4:        int32(ip)}
 	thriftSpan := &z.Span{
 		TraceID:           int64(span.context.traceID.Low), // TODO upgrade zipkin thrift and use TraceIdHigh
 		ID:                int64(span.context.spanID),
@@ -249,6 +249,10 @@ type zipkinSpan struct {
 func (s *zipkinSpan) handleSpecialTags() {
 	s.Lock()
 	defer s.Unlock()
+	if s.firstInProcess {
+		// append the process tags
+		s.tags = append(s.tags, s.tracer.tags...)
+	}
 	filteredTags := make([]Tag, 0, len(s.tags))
 	for _, tag := range s.tags {
 		if handler, ok := specialTagHandlers[tag.key]; ok {
@@ -307,8 +311,6 @@ func setPeerService(s *zipkinSpan, value interface{}) {
 		s.peer.ServiceName = val
 	}
 }
-
-func removeProcessIP(s *zipkinSpan, value interface{}) {}
 
 func (s *zipkinSpan) peerDefined() bool {
 	return s.peer.ServiceName != "" || s.peer.Ipv4 != 0 || s.peer.Port != 0

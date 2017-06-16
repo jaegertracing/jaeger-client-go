@@ -51,10 +51,18 @@ func BuildJaegerThrift(span *Span) *j.Span {
 
 // BuildJaegerProcessThrift creates a thrift Process type.
 func BuildJaegerProcessThrift(span *Span) *j.Process {
-	return &j.Process{
-		ServiceName: span.tracer.serviceName,
-		Tags:        buildTags(span.tracer.tags),
+	return buildJaegerProcessThrift(span.tracer)
+}
+
+func buildJaegerProcessThrift(tracer *tracer) *j.Process {
+	process := &j.Process{
+		ServiceName: tracer.serviceName,
+		Tags:        buildTags(tracer.tags),
 	}
+	if tracer.hostIP != nil {
+		process.Tags = append(process.Tags, buildTag(&Tag{key: TracerIPTagKey, value: tracer.hostIP.String()}))
+	}
+	return process
 }
 
 func buildTags(tags []Tag) []*j.Tag {

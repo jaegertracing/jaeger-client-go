@@ -43,7 +43,7 @@ type tracerSuite struct {
 	metricsFactory *metrics.LocalFactory
 }
 
-var IP uint32 = 1<<24 | 2<<16 | 3<<8 | 4
+var IP = "192.0.2.1"
 
 func (s *tracerSuite) SetupTest() {
 	s.metricsFactory = metrics.NewLocalFactory(0)
@@ -53,7 +53,7 @@ func (s *tracerSuite) SetupTest() {
 		NewConstSampler(true),
 		NewNullReporter(),
 		TracerOptions.Metrics(metrics),
-		TracerOptions.HostIPv4(IP),
+		TracerOptions.HostIP(IP),
 		TracerOptions.ZipkinSharedRPCSpan(true),
 	)
 	s.NotNil(s.tracer)
@@ -331,6 +331,16 @@ func TestZipkinSharedRPCSpan(t *testing.T) {
 	sp2.Finish()
 	sp1.Finish()
 	tc.Close()
+}
+
+func TestInitializeHostIP(t *testing.T) {
+	tracer := &tracer{hostIPString: ""}
+	tracer.initializeHostIP()
+	assert.NotNil(t, tracer.hostIP)
+
+	tracer.hostIPString = "127.0.0.1"
+	tracer.initializeHostIP()
+	assert.Equal(t, tracer.hostIPString, tracer.hostIP.String())
 }
 
 type dummyPropagator struct{}

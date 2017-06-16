@@ -23,6 +23,7 @@ package jaeger
 import (
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"reflect"
 	"sync"
@@ -36,8 +37,10 @@ import (
 )
 
 type tracer struct {
-	serviceName string
-	hostIPv4    uint32
+	serviceName  string
+	hostIPv4     uint32
+	hostIPString string
+	hostIP       net.IP
 
 	sampler  Sampler
 	reporter Reporter
@@ -123,24 +126,25 @@ func NewTracer(
 	if t.logger == nil {
 		t.logger = log.NullLogger
 	}
-	// TODO once on the new data model, support both v4 and v6 IPs
-	if t.hostIPv4 == 0 {
-		if ip, err := utils.HostIP(); err == nil {
-			t.hostIPv4 = utils.PackIPAsUint32(ip)
-		} else {
-			t.logger.Error("Unable to determine this host's IP address: " + err.Error())
-		}
-	}
+	t.initializeHostIP()
 	// Set tracer-level tags
 	t.tags = append(t.tags, Tag{key: JaegerClientVersionTagKey, value: JaegerClientVersion})
 	if hostname, err := os.Hostname(); err == nil {
 		t.tags = append(t.tags, Tag{key: TracerHostnameTagKey, value: hostname})
 	}
-	if t.hostIPv4 != 0 {
-		t.tags = append(t.tags, Tag{key: TracerIPTagKey, value: t.hostIPv4})
-	}
 
 	return t, t
+}
+
+func (t *tracer) initializeHostIP() {
+	t.hostIP = net.ParseIP(t.hostIPString)
+	if t.hostIP == nil {
+		if ip, err := utils.HostIP(); err == nil {
+			t.hostIP = ip
+		} else {
+			t.logger.Error("Unable to determine this host's IP address: " + err.Error())
+		}
+	}
 }
 
 func (t *tracer) StartSpan(
@@ -347,10 +351,6 @@ func (t *tracer) startSpanInternal(
 func (t *tracer) reportSpan(sp *Span) {
 	t.metrics.SpansFinished.Inc(1)
 	if sp.context.IsSampled() {
-		if sp.firstInProcess {
-			// TODO when migrating to new data model, this can be optimized
-			sp.setTracerTags(t.tags)
-		}
 		t.reporter.Report(sp)
 	}
 	if t.options.poolSpans {
