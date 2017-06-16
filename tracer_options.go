@@ -73,9 +73,13 @@ func (tracerOptions) PoolSpans(poolSpans bool) TracerOption {
 	}
 }
 
-// Deprecated: We no longer see reason for exposing this option to the user.
+// Deprecated: HostIPv4 creates a TracerOption that identifies the current service/process.
+// If not set, the factory method will obtain the current IP address.
+// The TracerOption is deprecated; the tracer will attempt to automatically detect the IP.
 func (tracerOptions) HostIPv4(hostIPv4 uint32) TracerOption {
-	return func(tracer *tracer) {}
+	return func(tracer *tracer) {
+		tracer.hostIPv4 = hostIPv4
+	}
 }
 
 func (tracerOptions) Injector(format interface{}, injector Injector) TracerOption {
