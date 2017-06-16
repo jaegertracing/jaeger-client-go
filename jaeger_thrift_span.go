@@ -59,9 +59,6 @@ func buildJaegerProcessThrift(tracer *tracer) *j.Process {
 		ServiceName: tracer.serviceName,
 		Tags:        buildTags(tracer.tags),
 	}
-	if tracer.hostIP != nil {
-		process.Tags = append(process.Tags, buildTag(&Tag{key: TracerIPTagKey, value: tracer.hostIP.String()}))
-	}
 	return process
 }
 

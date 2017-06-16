@@ -23,7 +23,6 @@ package jaeger
 import (
 	"fmt"
 	"io"
-	"net"
 	"os"
 	"reflect"
 	"sync"
@@ -37,10 +36,8 @@ import (
 )
 
 type tracer struct {
-	serviceName  string
-	hostIPv4     uint32
-	hostIPString string
-	hostIP       net.IP
+	serviceName string
+	hostIPv4    uint32 // this is for zipkin endpoint conversion
 
 	sampler  Sampler
 	reporter Reporter
@@ -126,25 +123,19 @@ func NewTracer(
 	if t.logger == nil {
 		t.logger = log.NullLogger
 	}
-	t.initializeHostIP()
 	// Set tracer-level tags
 	t.tags = append(t.tags, Tag{key: JaegerClientVersionTagKey, value: JaegerClientVersion})
 	if hostname, err := os.Hostname(); err == nil {
 		t.tags = append(t.tags, Tag{key: TracerHostnameTagKey, value: hostname})
 	}
+	if ip, err := utils.HostIP(); err == nil {
+		t.tags = append(t.tags, Tag{key: TracerIPTagKey, value: ip.String()})
+		t.hostIPv4 = utils.PackIPAsUint32(ip)
+	} else {
+		t.logger.Error("Unable to determine this host's IP address: " + err.Error())
+	}
 
 	return t, t
-}
-
-func (t *tracer) initializeHostIP() {
-	t.hostIP = net.ParseIP(t.hostIPString)
-	if t.hostIP == nil {
-		if ip, err := utils.HostIP(); err == nil {
-			t.hostIP = ip
-		} else {
-			t.logger.Error("Unable to determine this host's IP address: " + err.Error())
-		}
-	}
 }
 
 func (t *tracer) StartSpan(

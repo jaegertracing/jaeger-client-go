@@ -44,7 +44,6 @@ var (
 	someBinary      = []byte("hello")
 	someSlice       = []string{"a"}
 	someSliceString = "[a]"
-	someIP          = "2001:db8::68"
 )
 
 func TestBuildJaegerThrift(t *testing.T) {
@@ -88,8 +87,7 @@ func TestBuildJaegerThrift(t *testing.T) {
 func TestBuildJaegerProcessThrift(t *testing.T) {
 	tracer, closer := NewTracer("DOOP",
 		NewConstSampler(true),
-		NewNullReporter(),
-		TracerOptions.HostIP(someIP))
+		NewNullReporter())
 	defer closer.Close()
 
 	sp := tracer.StartSpan("sp1").(*Span)
@@ -100,9 +98,7 @@ func TestBuildJaegerProcessThrift(t *testing.T) {
 	require.Len(t, process.Tags, 3)
 	assert.NotNil(t, findJaegerTag(JaegerClientVersionTagKey, process.Tags))
 	assert.NotNil(t, findJaegerTag(TracerHostnameTagKey, process.Tags))
-	ipTag := findJaegerTag(TracerIPTagKey, process.Tags)
-	require.NotNil(t, ipTag)
-	assert.Equal(t, someIP, *ipTag.VStr)
+	assert.NotNil(t, findJaegerTag(TracerIPTagKey, process.Tags))
 }
 
 func TestBuildLogs(t *testing.T) {
