@@ -52,8 +52,8 @@ func ExampleObserver() {
 	span.Finish()
 
 	c, _ := metricsFactory.Snapshot()
-	fmt.Printf("requests (success): %d\n", c["requests|error=false|operation=test"])
-	fmt.Printf("requests (failure): %d\n", c["requests|error=true|operation=test"])
+	fmt.Printf("requests (success): %d\n", c["requests|endpoint=test|error=false"])
+	fmt.Printf("requests (failure): %d\n", c["requests|endpoint=test|error=true"])
 	// Output:
 	// requests (success): 1
 	// requests (failure): 0
@@ -118,18 +118,17 @@ func TestObserver(t *testing.T) {
 
 		u.AssertCounterMetrics(t,
 			testTracer.metrics,
-			u.ExpectedMetric{Name: "requests", Tags: operationTags("local-span", "error", "false"), Value: 0},
-			u.ExpectedMetric{Name: "requests", Tags: operationTags("get-user", "error", "false"), Value: 1},
-			u.ExpectedMetric{Name: "requests", Tags: operationTags("get-user", "error", "true"), Value: 1},
-			u.ExpectedMetric{Name: "requests", Tags: operationTags("get-user-override", "error", "false"), Value: 1},
-			u.ExpectedMetric{Name: "requests", Tags: operationTags("get-user-client", "error", "false"), Value: 0},
+			u.ExpectedMetric{Name: "requests", Tags: endpointTags("local-span", "error", "false"), Value: 0},
+			u.ExpectedMetric{Name: "requests", Tags: endpointTags("get-user", "error", "false"), Value: 1},
+			u.ExpectedMetric{Name: "requests", Tags: endpointTags("get-user", "error", "true"), Value: 1},
+			u.ExpectedMetric{Name: "requests", Tags: endpointTags("get-user-override", "error", "false"), Value: 1},
+			u.ExpectedMetric{Name: "requests", Tags: endpointTags("get-user-client", "error", "false"), Value: 0},
 		)
 		// TODO something wrong with string generation, .P99 should not be appended to the tag
 		// as a result we cannot use u.AssertGaugeMetrics
 		_, g := testTracer.metrics.Snapshot()
-		t.Log(g)
-		assert.EqualValues(t, 51, g["request_latency|error=false|operation=get-user.P99"])
-		assert.EqualValues(t, 51, g["request_latency|error=true|operation=get-user.P99"])
+		assert.EqualValues(t, 51, g["request_latency|endpoint=get-user|error=false.P99"])
+		assert.EqualValues(t, 51, g["request_latency|endpoint=get-user|error=true.P99"])
 	})
 }
 
@@ -170,7 +169,7 @@ func TestTags(t *testing.T) {
 	for _, tc := range testCases {
 		testCase := tc // capture loop var
 		for i := range testCase.metrics {
-			testCase.metrics[i].Tags["operation"] = "span"
+			testCase.metrics[i].Tags["endpoint"] = "span"
 		}
 		t.Run(fmt.Sprintf("%s-%v", testCase.key, testCase.value), func(t *testing.T) {
 			withTestTracer(func(testTracer *testTracer) {

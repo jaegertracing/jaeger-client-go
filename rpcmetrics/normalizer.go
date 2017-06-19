@@ -20,13 +20,13 @@
 
 package rpcmetrics
 
-// NameNormalizer is used to convert the operation names to strings
+// NameNormalizer is used to convert the endpoint names to strings
 // that can be safely used as tags in the metrics.
 type NameNormalizer interface {
 	Normalize(name string) string
 }
 
-// DefaultNameNormalizer converts operation names so that they contain only characters
+// DefaultNameNormalizer converts endpoint names so that they contain only characters
 // from the safe charset [a-zA-Z0-9-./_]. All other characters are replaced with '-'.
 var DefaultNameNormalizer = &SimpleNameNormalizer{
 	SafeSets: []SafeCharacterSet{

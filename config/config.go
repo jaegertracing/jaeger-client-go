@@ -112,7 +112,7 @@ func (c Configuration) New(
 	if c.RPCMetrics {
 		Observer(
 			rpcmetrics.NewObserver(
-				opts.metrics.Namespace("jaeger", map[string]string{"component": "jaeger"}),
+				opts.metrics.Namespace("jaeger-rpc", map[string]string{"component": "jaeger"}),
 				rpcmetrics.DefaultNameNormalizer,
 			),
 		)(&opts) // adds to c.observers
