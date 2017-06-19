@@ -1,10 +1,15 @@
 Changes by Version
 ==================
 
-2.6.1 (unreleased)
+2.7.0 (2017-06-19)
 ------------------
 
+- Fix rate limiter balance [#135](https://github.com/uber/jaeger-client-go/pull/135) [#140](https://github.com/uber/jaeger-client-go/pull/140)
+- Default client to send Jaeger.thrift [#147](https://github.com/uber/jaeger-client-go/pull/147)
+- Rename endpoint to operation for RPC metrics [#150](https://github.com/uber/jaeger-client-go/pull/150)
+- Save baggage in span [#153](https://github.com/uber/jaeger-client-go/pull/153)
 - Move reporter.queueLength to the top of the struct to guarantee 64bit alignment [#158](https://github.com/uber/jaeger-client-go/pull/158)
+- Support HTTP transport with jaeger.thrift [#161](https://github.com/uber/jaeger-client-go/pull/161)
 
 
 2.6.0 (2017-03-28)
