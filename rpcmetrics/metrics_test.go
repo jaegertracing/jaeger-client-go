@@ -37,13 +37,13 @@ func tags(kv ...string) map[string]string {
 	return m
 }
 
-func operationTags(operation string, kv ...string) map[string]string {
-	return tags(append([]string{"operation", operation}, kv...)...)
+func endpointTags(endpoint string, kv ...string) map[string]string {
+	return tags(append([]string{"endpoint", endpoint}, kv...)...)
 }
 
-func TestMetricsByOperation(t *testing.T) {
+func TestMetricsByEndpoint(t *testing.T) {
 	met := metrics.NewLocalFactory(0)
-	mbe := newMetricsByOperation(met, DefaultNameNormalizer, 2)
+	mbe := newMetricsByEndpoint(met, DefaultNameNormalizer, 2)
 
 	m1 := mbe.get("abc1")
 	m2 := mbe.get("abc1")               // from cache
@@ -60,8 +60,8 @@ func TestMetricsByOperation(t *testing.T) {
 	}
 
 	testutils.AssertCounterMetrics(t, met,
-		testutils.ExpectedMetric{Name: "requests", Tags: operationTags("abc1", "error", "false"), Value: 3},
-		testutils.ExpectedMetric{Name: "requests", Tags: operationTags("abc3", "error", "false"), Value: 1},
-		testutils.ExpectedMetric{Name: "requests", Tags: operationTags("other", "error", "false"), Value: 2},
+		testutils.ExpectedMetric{Name: "requests", Tags: endpointTags("abc1", "error", "false"), Value: 3},
+		testutils.ExpectedMetric{Name: "requests", Tags: endpointTags("abc3", "error", "false"), Value: 1},
+		testutils.ExpectedMetric{Name: "requests", Tags: endpointTags("other", "error", "false"), Value: 2},
 	)
 }
