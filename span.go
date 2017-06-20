@@ -65,7 +65,6 @@ type Span struct {
 	// references for this span
 	references []Reference
 
-	observer SpanObserver
 	contribObserver otobserver.SpanObserver
 }
 
@@ -83,14 +82,12 @@ func (s *Span) SetOperationName(operationName string) opentracing.Span {
 	if s.context.IsSampled() {
 		s.operationName = operationName
 	}
-	s.observer.OnSetOperationName(operationName)
 	s.contribObserver.OnSetOperationName(operationName)
 	return s
 }
 
 // SetTag implements SetTag() of opentracing.Span
 func (s *Span) SetTag(key string, value interface{}) opentracing.Span {
-	s.observer.OnSetTag(key, value)
 	s.contribObserver.OnSetTag(key, value)
 	if key == string(ext.SamplingPriority) && setSamplingPriority(s, value) {
 		return s
@@ -205,7 +202,6 @@ func (s *Span) FinishWithOptions(options opentracing.FinishOptions) {
 	if options.FinishTime.IsZero() {
 		options.FinishTime = s.tracer.timeNow()
 	}
-	s.observer.OnFinish(options)
 	s.contribObserver.OnFinish(options)
 	s.Lock()
 	if s.context.IsSampled() {

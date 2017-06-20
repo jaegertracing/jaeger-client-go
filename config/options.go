@@ -37,7 +37,6 @@ type Options struct {
 	metrics             metrics.Factory
 	logger              jaeger.Logger
 	reporter            jaeger.Reporter
-	observers           []jaeger.Observer
 	contribObservers    []otobserver.Observer
 	zipkinSharedRPCSpan bool
 	tags                []opentracing.Tag
@@ -69,8 +68,10 @@ func Reporter(reporter jaeger.Reporter) Option {
 
 // Observer can be registered with the Tracer to receive notifications about new Spans.
 func Observer(observer jaeger.Observer) Option {
+	old := jaeger.OldObserver{Obs: observer}
+
 	return func(c *Options) {
-		c.observers = append(c.observers, observer)
+		c.contribObservers = append(c.contribObservers, old)
 	}
 }
 

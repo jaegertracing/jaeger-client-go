@@ -27,6 +27,15 @@ import (
 	otobserver "github.com/opentracing-contrib/go-observer"
 )
 
+// wrapper observer for the old observers (see observer.go)
+type OldObserver struct {
+	Obs Observer
+}
+
+func (o OldObserver) OnStartSpan(sp opentracing.Span, operationName string, options opentracing.StartSpanOptions) otobserver.SpanObserver {
+	return o.Obs.OnStartSpan(operationName, options)
+}
+
 // contribObserver is a dispatcher to other observers
 type contribObserver struct {
 	observers []otobserver.Observer
