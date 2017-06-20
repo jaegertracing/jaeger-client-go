@@ -160,7 +160,7 @@ func (c Configuration) New(
 	return tracer, closer, nil
 }
 
-// InitGlobalTracer creates a new Jaeger Tracer, and sets is as global OpenTracing Tracer.
+// InitGlobalTracer creates a new Jaeger Tracer, and sets it as global OpenTracing Tracer.
 // It returns a closer func that can be used to flush buffers before shutdown.
 func (c Configuration) InitGlobalTracer(
 	serviceName string,
