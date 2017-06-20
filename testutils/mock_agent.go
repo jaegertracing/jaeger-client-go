@@ -115,10 +115,19 @@ func (s *MockAgent) serve(started *sync.WaitGroup) {
 	}
 }
 
-// EmitZipkinBatch implements EmitZipkinBatch() of TChanSamplingManagerServer
+// EmitZipkinBatch is deprecated, use EmitBatch
 func (s *MockAgent) EmitZipkinBatch(spans []*zipkincore.Span) (err error) {
+	// TODO remove this for 3.0.0
 	return errors.New("Not implemented")
 }
+
+// GetZipkinSpans is deprecated use GetJaegerBatches
+func (s *MockAgent) GetZipkinSpans() []*zipkincore.Span {
+	return nil
+}
+
+// ResetZipkinSpans is deprecated use ResetJaegerBatches
+func (s *MockAgent) ResetZipkinSpans() {}
 
 // EmitBatch implements EmitBatch() of TChanSamplingManagerServer
 func (s *MockAgent) EmitBatch(batch *jaeger.Batch) (err error) {
