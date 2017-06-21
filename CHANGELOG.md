@@ -1,7 +1,7 @@
 Changes by Version
 ==================
 
-2.7.0 (2017-06-19)
+2.7.0 (2017-06-21)
 ------------------
 
 - Fix rate limiter balance [#135](https://github.com/uber/jaeger-client-go/pull/135) [#140](https://github.com/uber/jaeger-client-go/pull/140)
