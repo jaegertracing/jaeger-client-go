@@ -233,7 +233,7 @@ func (t *Tracer) startSpanWithOptions(
 
 	sp := t.newSpan()
 	sp.context = ctx
-	sp.contribObserver = t.contribObserver.OnStartSpan(sp, operationName, options)
+	sp.observer, _ = t.contribObserver.OnStartSpan(sp, operationName, options)
 	return t.startSpanInternal(
 		sp,
 		operationName,
@@ -319,7 +319,7 @@ func (t *Tracer) startSpanInternal(
 		sp.tags = make([]Tag, len(internalTags), len(tags)+len(internalTags))
 		copy(sp.tags, internalTags)
 		for k, v := range tags {
-			sp.contribObserver.OnSetTag(k, v)
+			sp.observer.OnSetTag(k, v)
 			if k == string(ext.SamplingPriority) && setSamplingPriority(sp, v) {
 				continue
 			}

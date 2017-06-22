@@ -27,7 +27,7 @@ import (
 // ContribObserver can be registered with the Tracer to receive notifications
 // about new Spans. Modelled after github.com/opentracing-contrib/go-observer.
 type ContribObserver interface {
-	OnStartSpan(sp opentracing.Span, operationName string, options opentracing.StartSpanOptions) ContribSpanObserver
+	OnStartSpan(sp opentracing.Span, operationName string, options opentracing.StartSpanOptions) (ContribSpanObserver, bool)
 }
 
 // ContribSpanObserver is created by the Observer and receives notifications
@@ -43,8 +43,8 @@ type oldObserver struct {
 	obs Observer
 }
 
-func (o oldObserver) OnStartSpan(sp opentracing.Span, operationName string, options opentracing.StartSpanOptions) ContribSpanObserver {
-	return o.obs.OnStartSpan(operationName, options)
+func (o oldObserver) OnStartSpan(sp opentracing.Span, operationName string, options opentracing.StartSpanOptions) (ContribSpanObserver, bool) {
+	return o.obs.OnStartSpan(operationName, options), true
 }
 
 // contribObserver is a dispatcher to other observers
@@ -65,11 +65,11 @@ func (o *contribObserver) append(contribObserver ContribObserver) {
 	o.observers = append(o.observers, contribObserver)
 }
 
-func (o contribObserver) OnStartSpan(sp opentracing.Span, operationName string, options opentracing.StartSpanOptions) ContribSpanObserver {
+func (o contribObserver) OnStartSpan(sp opentracing.Span, operationName string, options opentracing.StartSpanOptions) (ContribSpanObserver, bool) {
 	var spanObservers []ContribSpanObserver
 	for _, obs := range o.observers {
-		spanObs := obs.OnStartSpan(sp, operationName, options)
-		if spanObs != nil {
+		spanObs, ok := obs.OnStartSpan(sp, operationName, options)
+		if ok {
 			if spanObservers == nil {
 				spanObservers = make([]ContribSpanObserver, 0, len(o.observers))
 			}
@@ -77,9 +77,9 @@ func (o contribObserver) OnStartSpan(sp opentracing.Span, operationName string, 
 		}
 	}
 	if len(spanObservers) == 0 {
-		return noopContribSpanObserver
+		return noopContribSpanObserver, false
 	}
-	return contribSpanObserver{observers: spanObservers}
+	return contribSpanObserver{observers: spanObservers}, true
 }
 
 func (o contribSpanObserver) OnSetOperationName(operationName string) {
