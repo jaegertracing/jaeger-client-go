@@ -28,8 +28,6 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
-
-	otobserver "github.com/opentracing-contrib/go-observer"
 )
 
 // Span implements opentracing.Span
@@ -65,7 +63,7 @@ type Span struct {
 	// references for this span
 	references []Reference
 
-	contribObserver otobserver.SpanObserver
+	contribObserver ContribSpanObserver
 }
 
 // Tag is a simple key value wrapper.

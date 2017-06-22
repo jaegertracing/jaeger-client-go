@@ -22,44 +22,56 @@ package jaeger
 
 import (
 	opentracing "github.com/opentracing/opentracing-go"
-
-	otobserver "github.com/opentracing-contrib/go-observer"
 )
 
-// wrapper observer for the old observers (see observer.go)
-type OldObserver struct {
-	Obs Observer
+// ContribObserver can be registered with the Tracer to receive notifications
+// about new Spans. Modelled after github.com/opentracing-contrib/go-observer.
+type ContribObserver interface {
+	OnStartSpan(sp opentracing.Span, operationName string, options opentracing.StartSpanOptions) ContribSpanObserver
 }
 
-func (o OldObserver) OnStartSpan(sp opentracing.Span, operationName string, options opentracing.StartSpanOptions) otobserver.SpanObserver {
-	return o.Obs.OnStartSpan(operationName, options)
+// ContribSpanObserver is created by the Observer and receives notifications
+// about other Span events.
+type ContribSpanObserver interface {
+	OnSetOperationName(operationName string)
+	OnSetTag(key string, value interface{})
+	OnFinish(options opentracing.FinishOptions)
+}
+
+// wrapper observer for the old observers (see observer.go)
+type oldObserver struct {
+	obs Observer
+}
+
+func (o oldObserver) OnStartSpan(sp opentracing.Span, operationName string, options opentracing.StartSpanOptions) ContribSpanObserver {
+	return o.obs.OnStartSpan(operationName, options)
 }
 
 // contribObserver is a dispatcher to other observers
 type contribObserver struct {
-	observers []otobserver.Observer
+	observers []ContribObserver
 }
 
 // contribSpanObserver is a dispatcher to other span observers
 type contribSpanObserver struct {
-	observers []otobserver.SpanObserver
+	observers []ContribSpanObserver
 }
 
 // noopContribSpanObserver is used when there are no observers registered
 // on the Tracer or none of them returns span observers from OnStartSpan.
 var noopContribSpanObserver = contribSpanObserver{}
 
-func (o *contribObserver) append(contribObserver otobserver.Observer) {
+func (o *contribObserver) append(contribObserver ContribObserver) {
 	o.observers = append(o.observers, contribObserver)
 }
 
-func (o contribObserver) OnStartSpan(sp opentracing.Span, operationName string, options opentracing.StartSpanOptions) otobserver.SpanObserver {
-	var spanObservers []otobserver.SpanObserver
+func (o contribObserver) OnStartSpan(sp opentracing.Span, operationName string, options opentracing.StartSpanOptions) ContribSpanObserver {
+	var spanObservers []ContribSpanObserver
 	for _, obs := range o.observers {
 		spanObs := obs.OnStartSpan(sp, operationName, options)
 		if spanObs != nil {
 			if spanObservers == nil {
-				spanObservers = make([]otobserver.SpanObserver, 0, len(o.observers))
+				spanObservers = make([]ContribSpanObserver, 0, len(o.observers))
 			}
 			spanObservers = append(spanObservers, spanObs)
 		}

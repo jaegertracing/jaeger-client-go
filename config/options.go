@@ -25,8 +25,6 @@ import (
 	"github.com/uber/jaeger-lib/metrics"
 
 	"github.com/uber/jaeger-client-go"
-
-	otobserver "github.com/opentracing-contrib/go-observer"
 )
 
 // Option is a function that sets some option on the client.
@@ -37,7 +35,8 @@ type Options struct {
 	metrics             metrics.Factory
 	logger              jaeger.Logger
 	reporter            jaeger.Reporter
-	contribObservers    []otobserver.Observer
+	contribObservers    []jaeger.ContribObserver
+	observers           []jaeger.Observer
 	zipkinSharedRPCSpan bool
 	tags                []opentracing.Tag
 }
@@ -68,16 +67,14 @@ func Reporter(reporter jaeger.Reporter) Option {
 
 // Observer can be registered with the Tracer to receive notifications about new Spans.
 func Observer(observer jaeger.Observer) Option {
-	old := jaeger.OldObserver{Obs: observer}
-
 	return func(c *Options) {
-		c.contribObservers = append(c.contribObservers, old)
+		c.observers = append(c.observers, observer)
 	}
 }
 
 // ContribObserver can be registered with the Tracer to recieve notifications
 // about new spans.
-func ContribObserver(observer otobserver.Observer) Option {
+func ContribObserver(observer jaeger.ContribObserver) Option {
 	return func(c * Options) {
 		c.contribObservers = append(c.contribObservers, observer)
 	}
