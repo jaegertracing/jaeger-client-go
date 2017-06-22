@@ -27,6 +27,18 @@ import (
 // ContribObserver can be registered with the Tracer to receive notifications
 // about new Spans. Modelled after github.com/opentracing-contrib/go-observer.
 type ContribObserver interface {
+	// Create and return a span observer. Called when a span starts.
+	// If the Observer is not interested in the given span, it must return (nil, false).
+	// E.g :
+	//     func StartSpan(opName string, opts ...opentracing.StartSpanOption) {
+	//         var sp opentracing.Span
+	//         sso := opentracing.StartSpanOptions{}
+	//         spanObserver, ok := Observer.OnStartSpan(span, opName, sso);
+	//         if ok {
+	//             // we have a valid SpanObserver
+	//         }
+	//         ...
+	//     }
 	OnStartSpan(sp opentracing.Span, operationName string, options opentracing.StartSpanOptions) (ContribSpanObserver, bool)
 }
 
