@@ -141,6 +141,11 @@ func (s *Span) LogEvent(event string) {
 	s.Log(opentracing.LogData{Event: event})
 }
 
+// Logs returns the Span logs
+func (s *Span) Logs() []opentracing.LogRecord {
+	return s.logs
+}
+
 // LogEventWithPayload implements opentracing.Span API
 func (s *Span) LogEventWithPayload(event string, payload interface{}) {
 	s.Log(opentracing.LogData{Event: event, Payload: payload})
