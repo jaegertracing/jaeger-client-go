@@ -33,8 +33,7 @@ type ContribObserver interface {
 	//     func StartSpan(opName string, opts ...opentracing.StartSpanOption) {
 	//         var sp opentracing.Span
 	//         sso := opentracing.StartSpanOptions{}
-	//         spanObserver, ok := Observer.OnStartSpan(span, opName, sso);
-	//         if ok {
+	//         if spanObserver, ok := Observer.OnStartSpan(span, opName, sso); ok {
 	//             // we have a valid SpanObserver
 	//         }
 	//         ...
@@ -43,7 +42,9 @@ type ContribObserver interface {
 }
 
 // ContribSpanObserver is created by the Observer and receives notifications
-// about other Span events.
+// about other Span events. This interface is meant to match
+// github.com/opentracing-contrib/go-observer, via duck typing, without
+// directly importing the go-observer package.
 type ContribSpanObserver interface {
 	OnSetOperationName(operationName string)
 	OnSetTag(key string, value interface{})
