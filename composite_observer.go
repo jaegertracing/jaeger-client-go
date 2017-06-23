@@ -24,9 +24,9 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 )
 
-// ContribObserver can be registered with the Tracer to receive notifications
+// CompositeObserver can be registered with the Tracer to receive notifications
 // about new Spans. Modelled after github.com/opentracing-contrib/go-observer.
-type ContribObserver interface {
+type CompositeObserver interface {
 	// Create and return a span observer. Called when a span starts.
 	// If the Observer is not interested in the given span, it must return (nil, false).
 	// E.g :
@@ -38,14 +38,14 @@ type ContribObserver interface {
 	//         }
 	//         ...
 	//     }
-	OnStartSpan(sp opentracing.Span, operationName string, options opentracing.StartSpanOptions) (ContribSpanObserver, bool)
+	OnStartSpan(sp opentracing.Span, operationName string, options opentracing.StartSpanOptions) (CompositeSpanObserver, bool)
 }
 
-// ContribSpanObserver is created by the Observer and receives notifications
+// CompositeSpanObserver is created by the Observer and receives notifications
 // about other Span events. This interface is meant to match
 // github.com/opentracing-contrib/go-observer, via duck typing, without
 // directly importing the go-observer package.
-type ContribSpanObserver interface {
+type CompositeSpanObserver interface {
 	OnSetOperationName(operationName string)
 	OnSetTag(key string, value interface{})
 	OnFinish(options opentracing.FinishOptions)
@@ -56,58 +56,58 @@ type oldObserver struct {
 	obs Observer
 }
 
-func (o oldObserver) OnStartSpan(sp opentracing.Span, operationName string, options opentracing.StartSpanOptions) (ContribSpanObserver, bool) {
+func (o oldObserver) OnStartSpan(sp opentracing.Span, operationName string, options opentracing.StartSpanOptions) (CompositeSpanObserver, bool) {
 	return o.obs.OnStartSpan(operationName, options), true
 }
 
-// contribObserver is a dispatcher to other observers
-type contribObserver struct {
-	observers []ContribObserver
+// compositeObserver is a dispatcher to other observers
+type compositeObserver struct {
+	observers []CompositeObserver
 }
 
-// contribSpanObserver is a dispatcher to other span observers
-type contribSpanObserver struct {
-	observers []ContribSpanObserver
+// compositeSpanObserver is a dispatcher to other span observers
+type compositeSpanObserver struct {
+	observers []CompositeSpanObserver
 }
 
-// noopContribSpanObserver is used when there are no observers registered
+// noopCompositeSpanObserver is used when there are no observers registered
 // on the Tracer or none of them returns span observers from OnStartSpan.
-var noopContribSpanObserver = contribSpanObserver{}
+var noopCompositeSpanObserver = compositeSpanObserver{}
 
-func (o *contribObserver) append(contribObserver ContribObserver) {
-	o.observers = append(o.observers, contribObserver)
+func (o *compositeObserver) append(compositeObserver CompositeObserver) {
+	o.observers = append(o.observers, compositeObserver)
 }
 
-func (o contribObserver) OnStartSpan(sp opentracing.Span, operationName string, options opentracing.StartSpanOptions) (ContribSpanObserver, bool) {
-	var spanObservers []ContribSpanObserver
+func (o compositeObserver) OnStartSpan(sp opentracing.Span, operationName string, options opentracing.StartSpanOptions) (CompositeSpanObserver, bool) {
+	var spanObservers []CompositeSpanObserver
 	for _, obs := range o.observers {
 		spanObs, ok := obs.OnStartSpan(sp, operationName, options)
 		if ok {
 			if spanObservers == nil {
-				spanObservers = make([]ContribSpanObserver, 0, len(o.observers))
+				spanObservers = make([]CompositeSpanObserver, 0, len(o.observers))
 			}
 			spanObservers = append(spanObservers, spanObs)
 		}
 	}
 	if len(spanObservers) == 0 {
-		return noopContribSpanObserver, false
+		return noopCompositeSpanObserver, false
 	}
-	return contribSpanObserver{observers: spanObservers}, true
+	return compositeSpanObserver{observers: spanObservers}, true
 }
 
-func (o contribSpanObserver) OnSetOperationName(operationName string) {
+func (o compositeSpanObserver) OnSetOperationName(operationName string) {
 	for _, obs := range o.observers {
 		obs.OnSetOperationName(operationName)
 	}
 }
 
-func (o contribSpanObserver) OnSetTag(key string, value interface{}) {
+func (o compositeSpanObserver) OnSetTag(key string, value interface{}) {
 	for _, obs := range o.observers {
 		obs.OnSetTag(key, value)
 	}
 }
 
-func (o contribSpanObserver) OnFinish(options opentracing.FinishOptions) {
+func (o compositeSpanObserver) OnFinish(options opentracing.FinishOptions) {
 	for _, obs := range o.observers {
 		obs.OnFinish(options)
 	}

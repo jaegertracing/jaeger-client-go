@@ -63,7 +63,7 @@ type Span struct {
 	// references for this span
 	references []Reference
 
-	observer ContribSpanObserver
+	observer CompositeSpanObserver
 }
 
 // Tag is a simple key value wrapper.

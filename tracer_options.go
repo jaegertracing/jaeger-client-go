@@ -102,9 +102,9 @@ func (tracerOptions) Observer(observer Observer) TracerOption {
 	}
 }
 
-func (tracerOptions) ContribObserver(observer ContribObserver) TracerOption {
+func (tracerOptions) CompositeObserver(observer CompositeObserver) TracerOption {
 	return func(tracer *tracer) {
-		tracer.contribObserver.append(observer)
+		tracer.observer.append(observer)
 	}
 }
 

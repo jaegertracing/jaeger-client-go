@@ -60,7 +60,7 @@ type Tracer struct {
 	injectors  map[interface{}]Injector
 	extractors map[interface{}]Extractor
 
-	contribObserver contribObserver
+	observer compositeObserver
 
 	tags []Tag
 }
@@ -233,7 +233,7 @@ func (t *Tracer) startSpanWithOptions(
 
 	sp := t.newSpan()
 	sp.context = ctx
-	sp.observer, _ = t.contribObserver.OnStartSpan(sp, operationName, options)
+	sp.observer, _ = t.observer.OnStartSpan(sp, operationName, options)
 	return t.startSpanInternal(
 		sp,
 		operationName,
