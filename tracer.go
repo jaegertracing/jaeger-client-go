@@ -233,7 +233,7 @@ func (t *Tracer) startSpanWithOptions(
 
 	sp := t.newSpan()
 	sp.context = ctx
-	sp.observer, _ = t.observer.OnStartSpan(sp, operationName, options)
+	sp.observer = t.observer.OnStartSpan(sp, operationName, options)
 	return t.startSpanInternal(
 		sp,
 		operationName,

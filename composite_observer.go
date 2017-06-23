@@ -78,7 +78,7 @@ func (o *compositeObserver) append(compositeObserver CompositeObserver) {
 	o.observers = append(o.observers, compositeObserver)
 }
 
-func (o compositeObserver) OnStartSpan(sp opentracing.Span, operationName string, options opentracing.StartSpanOptions) (CompositeSpanObserver, bool) {
+func (o compositeObserver) OnStartSpan(sp opentracing.Span, operationName string, options opentracing.StartSpanOptions) CompositeSpanObserver {
 	var spanObservers []CompositeSpanObserver
 	for _, obs := range o.observers {
 		spanObs, ok := obs.OnStartSpan(sp, operationName, options)
@@ -90,9 +90,9 @@ func (o compositeObserver) OnStartSpan(sp opentracing.Span, operationName string
 		}
 	}
 	if len(spanObservers) == 0 {
-		return noopCompositeSpanObserver, false
+		return noopCompositeSpanObserver
 	}
-	return compositeSpanObserver{observers: spanObservers}, true
+	return compositeSpanObserver{observers: spanObservers}
 }
 
 func (o compositeSpanObserver) OnSetOperationName(operationName string) {
