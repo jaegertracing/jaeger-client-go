@@ -43,26 +43,21 @@ type observer struct {
 	observers []Observer
 }
 
-// spanObserver is a dispatcher to other span observers
-type spanObserver struct {
-	observers []SpanObserver
-}
-
 // noopSpanObserver is used when there are no observers registered on the Tracer
 // or none of them returns span observers from OnStartSpan.
-var noopSpanObserver = spanObserver{}
+var noopSpanObserver = compositeSpanObserver{}
 
 func (o *observer) append(observer Observer) {
 	o.observers = append(o.observers, observer)
 }
 
 func (o observer) OnStartSpan(operationName string, options opentracing.StartSpanOptions) SpanObserver {
-	var spanObservers []SpanObserver
+	var spanObservers []CompositeSpanObserver
 	for _, obs := range o.observers {
 		spanObs := obs.OnStartSpan(operationName, options)
 		if spanObs != nil {
 			if spanObservers == nil {
-				spanObservers = make([]SpanObserver, 0, len(o.observers))
+				spanObservers = make([]CompositeSpanObserver, 0, len(o.observers))
 			}
 			spanObservers = append(spanObservers, spanObs)
 		}
@@ -70,23 +65,5 @@ func (o observer) OnStartSpan(operationName string, options opentracing.StartSpa
 	if len(spanObservers) == 0 {
 		return noopSpanObserver
 	}
-	return spanObserver{observers: spanObservers}
-}
-
-func (o spanObserver) OnSetOperationName(operationName string) {
-	for _, obs := range o.observers {
-		obs.OnSetOperationName(operationName)
-	}
-}
-
-func (o spanObserver) OnSetTag(key string, value interface{}) {
-	for _, obs := range o.observers {
-		obs.OnSetTag(key, value)
-	}
-}
-
-func (o spanObserver) OnFinish(options opentracing.FinishOptions) {
-	for _, obs := range o.observers {
-		obs.OnFinish(options)
-	}
+	return compositeSpanObserver{observers: spanObservers}
 }
