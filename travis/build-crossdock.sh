@@ -10,7 +10,7 @@ export TAG=`if [ "$BRANCH" == "master" ]; then echo "latest"; else echo "${BRANC
 echo "TRAVIS_BRANCH=$TRAVIS_BRANCH, REPO=$REPO, PR=$PR, BRANCH=$BRANCH, TAG=$TAG"
 
 # Only push the docker container to Docker Hub for master branch
-if [ "$BRANCH" == "master" ]; then echo 'upload to Docker Hub'; else echo 'skip docker upload for PR'; exit 0; fi
+if [[ "$BRANCH" == "master" && "$TRAVIS_SECURE_ENV_VARS" == "true" ]]; then echo 'upload to Docker Hub'; else echo 'skip docker upload for PR'; exit 0; fi
 
 docker login -u $DOCKER_USER -p $DOCKER_PASS
 
