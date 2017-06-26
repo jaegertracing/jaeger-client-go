@@ -21,6 +21,7 @@
 package jaeger
 
 import (
+	"sync"
 	"testing"
 	"time"
 
@@ -42,11 +43,12 @@ func TestNewBaggageRestrictionManager(t *testing.T) {
 		{BaggageKey: expectedKey, MaxValueLength: expectedSize},
 	})
 
-	mgr := NewBaggageRestrictionManager(
+	mgr, err := NewBaggageRestrictionManager(
 		service,
 		BaggageRestrictionManagerOptions.RefreshInterval(10*time.Millisecond),
 		BaggageRestrictionManagerOptions.BaggageRestrictionManagerServerURL("http://"+agent.AgentServerAddr()+"/baggage"),
 	)
+	require.NoError(t, err)
 	defer mgr.(*baggageRestrictionManager).Close()
 
 	for i := 0; i < 100; i++ {
@@ -63,4 +65,58 @@ func TestNewBaggageRestrictionManager(t *testing.T) {
 	valid, size = mgr.IsValidBaggageKey("bad-key")
 	assert.False(t, valid)
 	assert.EqualValues(t, 0, size)
+}
+
+type errCounterLogger struct {
+	sync.RWMutex
+
+	errCounter int64
+}
+
+func (l *errCounterLogger) Infof(msg string, args ...interface{}) {}
+
+func (l *errCounterLogger) Error(msg string) {
+	l.Lock()
+	defer l.Unlock()
+	l.errCounter++
+}
+
+func (l *errCounterLogger) getErrCounter() int64 {
+	l.RLock()
+	defer l.RUnlock()
+	return l.errCounter
+}
+
+func TestConstructorError(t *testing.T) {
+	_, err := NewBaggageRestrictionManager(
+		"test",
+		BaggageRestrictionManagerOptions.RefreshInterval(10*time.Millisecond),
+	)
+	assert.Error(t, err)
+}
+
+func TestPollManagerError(t *testing.T) {
+	logger := &errCounterLogger{}
+
+	m := &baggageRestrictionManager{
+		serviceName:   "test",
+		timer:         time.NewTicker(time.Millisecond),
+		thriftManager: &httpBaggageRestrictionsManager{serverURL: ""},
+		stopPoll:      make(chan struct{}),
+		baggageRestrictionManagerOptions: baggageRestrictionManagerOptions{
+			logger:  logger,
+			metrics: NewNullMetrics(),
+		},
+	}
+	m.pollStopped.Add(1)
+	defer m.Close()
+	go m.pollManager()
+
+	for i := 0; i < 100; i++ {
+		if logger.getErrCounter() > 0 {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	assert.True(t, logger.getErrCounter() > 0)
 }

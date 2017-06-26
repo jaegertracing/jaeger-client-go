@@ -70,7 +70,7 @@ type baggageRestrictionManager struct {
 	serviceName     string
 	restrictionsMap map[string]int32
 	timer           *time.Ticker
-	manager         baggage.BaggageRestrictionManager
+	thriftManager   baggage.BaggageRestrictionManager
 	pollStopped     sync.WaitGroup
 	stopPoll        chan struct{}
 }
@@ -80,20 +80,22 @@ type baggageRestrictionManager struct {
 func NewBaggageRestrictionManager(
 	serviceName string,
 	options ...BaggageRestrictionManagerOption,
-) BaggageRestrictionManager {
+) (BaggageRestrictionManager, error) {
 	opts := applyOptions(options...)
 	m := &baggageRestrictionManager{
 		serviceName:                      serviceName,
 		baggageRestrictionManagerOptions: opts,
 		restrictionsMap:                  make(map[string]int32),
 		timer:                            time.NewTicker(opts.refreshInterval),
-		manager:                          &httpBaggageRestrictionsManager{serverURL: opts.baggageRestrictionManagerServerURL},
+		thriftManager:                    &httpBaggageRestrictionsManager{serverURL: opts.baggageRestrictionManagerServerURL},
 		stopPoll:                         make(chan struct{}),
 	}
-	m.updateRestrictions()
+	if err := m.updateRestrictions(); err != nil {
+		return nil, fmt.Errorf("Failed to initialize baggage restrictions: %s", err.Error())
+	}
 	m.pollStopped.Add(1)
 	go m.pollManager()
-	return m
+	return m, nil
 }
 
 func (m *baggageRestrictionManager) IsValidBaggageKey(key string) (bool, int32) {
@@ -118,26 +120,28 @@ func (m *baggageRestrictionManager) pollManager() {
 	for {
 		select {
 		case <-m.timer.C:
-			m.updateRestrictions()
+			if err := m.updateRestrictions(); err != nil {
+				m.logger.Error(fmt.Sprintf("Failed to update baggage restrictions: %s", err.Error()))
+			}
 		case <-m.stopPoll:
 			return
 		}
 	}
 }
 
-func (m *baggageRestrictionManager) updateRestrictions() {
-	restrictions, err := m.manager.GetBaggageRestrictions(m.serviceName)
+func (m *baggageRestrictionManager) updateRestrictions() error {
+	restrictions, err := m.thriftManager.GetBaggageRestrictions(m.serviceName)
 	if err != nil {
 		// TODO this is pretty serious, almost retry worthy
 		m.metrics.BaggageManagerUpdateFailure.Inc(1)
-		m.logger.Error(fmt.Sprintf("Failed to update baggage restrictions: %s", err.Error()))
-		return
+		return err
 	}
 	restrictionsMap := convertRestrictionsToMap(restrictions)
 	m.metrics.BaggageManagerUpdateSuccess.Inc(1)
 	m.Lock()
 	defer m.Unlock()
 	m.restrictionsMap = restrictionsMap
+	return nil
 }
 
 func convertRestrictionsToMap(restrictions []*baggage.BaggageRestriction) map[string]int32 {
