@@ -30,6 +30,10 @@ import (
 	"github.com/uber/jaeger-client-go/utils"
 )
 
+const (
+	defaultMaxValueLength = 2048
+)
+
 type httpRestrictionProxy struct {
 	serverURL string
 }
@@ -54,11 +58,14 @@ type RemoteRestrictionManager struct {
 	thriftProxy     thrift.BaggageRestrictionManager
 	pollStopped     sync.WaitGroup
 	stopPoll        chan struct{}
+
+	// Determines if the manager has successfully retrieved baggage restrictions from agent
+	initialized bool
 }
 
 // NewRemoteRestrictionManager returns a BaggageRestrictionManager that polls the agent for the latest
 // baggage restrictions.
-func NewRemoteRestrictionManager(serviceName string, options ...Option) (*RemoteRestrictionManager, error) {
+func NewRemoteRestrictionManager(serviceName string, options ...Option) *RemoteRestrictionManager {
 	// TODO there is a developing use case where a single tracer can generate traces on behalf of many services.
 	// restrictionsMap will need to exist per service
 	opts := applyOptions(options...)
@@ -70,17 +77,25 @@ func NewRemoteRestrictionManager(serviceName string, options ...Option) (*Remote
 		stopPoll:        make(chan struct{}),
 	}
 	if err := m.updateRestrictions(); err != nil {
-		return nil, fmt.Errorf("Failed to initialize baggage restrictions: %s", err.Error())
+		m.logger.Error(fmt.Sprintf("Failed to initialize baggage restrictions: %s", err.Error()))
+	} else {
+		m.initialized = true
 	}
 	m.pollStopped.Add(1)
 	go m.pollManager()
-	return m, nil
+	return m
 }
 
 // IsValidBaggageKey implements BaggageRestrictionManager#IsValidBaggageKey
 func (m *RemoteRestrictionManager) IsValidBaggageKey(key string) (bool, int) {
 	m.mux.RLock()
 	defer m.mux.RUnlock()
+	if !m.initialized {
+		if m.failClosed {
+			return false, 0
+		}
+		return true, defaultMaxValueLength
+	}
 	if maxValueLength, ok := m.restrictionsMap[key]; ok {
 		return true, maxValueLength
 	}
@@ -120,6 +135,7 @@ func (m *RemoteRestrictionManager) updateRestrictions() error {
 	m.metrics.BaggageRestrictionsUpdateSuccess.Inc(1)
 	m.mux.Lock()
 	defer m.mux.Unlock()
+	m.initialized = true
 	m.restrictionsMap = restrictionsMap
 	return nil
 }

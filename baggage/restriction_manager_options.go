@@ -38,10 +38,22 @@ type Option func(options *options)
 var Options options
 
 type options struct {
+	failClosed      bool
 	metrics         *jaeger.Metrics
 	logger          jaeger.Logger
 	serverURL       string
 	refreshInterval time.Duration
+}
+
+// FailClosed creates an Option that determines the startup failure mode of RemoteRestrictionManager.
+// If FailClosed is true, RemoteRestrictionManager will not allow any baggage to be written until baggage
+// restrictions have been retrieved from agent.
+// If FailClosed is false (ie FailOpen), RemoteRestrictionManager will allow any baggage to be written
+// until baggage restrictions have been retrieved from agent.
+func (options) FailClosed(b bool) Option {
+	return func(o *options) {
+		o.failClosed = b
+	}
 }
 
 // Metrics creates an Option that initializes Metrics on the RemoteRestrictionManager, which is used to emit statistics.

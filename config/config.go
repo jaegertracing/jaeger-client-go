@@ -145,15 +145,11 @@ func (c Configuration) New(
 
 	var baggageRestrictionManager jaeger.BaggageRestrictionManager
 	if c.BaggageRestrictions {
-		var err error
-		baggageRestrictionManager, err = baggage.NewRemoteRestrictionManager(
+		baggageRestrictionManager = baggage.NewRemoteRestrictionManager(
 			serviceName,
 			baggage.Options.Metrics(tracerMetrics),
 			baggage.Options.Logger(opts.logger),
 		)
-		if err != nil {
-			return nil, nil, err
-		}
 	} else {
 		baggageRestrictionManager = jaeger.DefaultBaggageRestrictionManager{}
 	}

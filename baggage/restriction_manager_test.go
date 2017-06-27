@@ -21,37 +21,47 @@
 package baggage
 
 import (
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/testutils"
 	"github.com/uber/jaeger-client-go/thrift-gen/baggage"
 )
 
-func TestNewRemoteRestrictionManager(t *testing.T) {
+const (
+	service      = "svc"
+	expectedKey  = "key"
+	expectedSize = int32(10)
+)
+
+func startMockAgent(t *testing.T) *testutils.MockAgent {
 	agent, err := testutils.StartMockAgent()
 	require.NoError(t, err)
-	defer agent.Close()
-
-	service := "svc"
-	expectedKey := "key"
-	expectedSize := int32(10)
 
 	agent.AddBaggageRestrictions(service, []*baggage.BaggageRestriction{
 		{BaggageKey: expectedKey, MaxValueLength: expectedSize},
 	})
+	return agent
+}
 
-	mgr, err := NewRemoteRestrictionManager(
+func restartManager(mgr *RemoteRestrictionManager, agent *testutils.MockAgent) {
+	mgr.thriftProxy = &httpRestrictionProxy{serverURL: "http://" + agent.ServerAddr() + "/baggageRestrictions"}
+	mgr.stopPoll = make(chan struct{})
+	mgr.pollStopped.Add(1)
+}
+
+func TestNewRemoteRestrictionManager(t *testing.T) {
+	agent := startMockAgent(t)
+	defer agent.Close()
+
+	mgr := NewRemoteRestrictionManager(
 		service,
 		Options.RefreshInterval(10*time.Millisecond),
 		Options.ServerURL("http://"+agent.ServerAddr()+"/baggageRestrictions"),
 	)
-	require.NoError(t, err)
 	defer mgr.Close()
 
 	for i := 0; i < 100; i++ {
@@ -70,56 +80,64 @@ func TestNewRemoteRestrictionManager(t *testing.T) {
 	assert.EqualValues(t, 0, size)
 }
 
-type errCounterLogger struct {
-	sync.RWMutex
-
-	errCounter int64
-}
-
-func (l *errCounterLogger) Infof(msg string, args ...interface{}) {}
-
-func (l *errCounterLogger) Error(msg string) {
-	l.Lock()
-	defer l.Unlock()
-	l.errCounter++
-}
-
-func (l *errCounterLogger) getErrCounter() int64 {
-	l.RLock()
-	defer l.RUnlock()
-	return l.errCounter
-}
-
-func TestConstructorError(t *testing.T) {
-	_, err := NewRemoteRestrictionManager(
-		"test",
-		Options.RefreshInterval(10*time.Millisecond),
+func TestFailClosed(t *testing.T) {
+	mgr := NewRemoteRestrictionManager(
+		service,
+		Options.ServerURL(""),
+		Options.FailClosed(true),
+		Options.RefreshInterval(time.Millisecond),
 	)
-	assert.Error(t, err)
-}
 
-func TestPollManagerError(t *testing.T) {
-	logger := &errCounterLogger{}
+	valid, _ := mgr.IsValidBaggageKey(expectedKey)
+	assert.False(t, valid)
+	mgr.Close()
 
-	m := &RemoteRestrictionManager{
-		serviceName: "test",
-		thriftProxy: &httpRestrictionProxy{serverURL: ""},
-		stopPoll:    make(chan struct{}),
-		options: options{
-			logger:          logger,
-			metrics:         jaeger.NewNullMetrics(),
-			refreshInterval: time.Millisecond,
-		},
-	}
-	m.pollStopped.Add(1)
-	defer m.Close()
-	go m.pollManager()
+	agent := startMockAgent(t)
+	defer agent.Close()
+
+	restartManager(mgr, agent)
+	go mgr.pollManager()
+	defer mgr.Close()
 
 	for i := 0; i < 100; i++ {
-		if logger.getErrCounter() > 0 {
+		valid, _ := mgr.IsValidBaggageKey(expectedKey)
+		if valid {
 			break
 		}
 		time.Sleep(time.Millisecond)
 	}
-	assert.True(t, logger.getErrCounter() > 0)
+	valid, size := mgr.IsValidBaggageKey(expectedKey)
+	require.True(t, valid)
+	assert.EqualValues(t, expectedSize, size)
+}
+
+func TestFailOpen(t *testing.T) {
+	mgr := NewRemoteRestrictionManager(
+		service,
+		Options.ServerURL(""),
+		Options.RefreshInterval(time.Millisecond),
+	)
+
+	valid, size := mgr.IsValidBaggageKey(expectedKey)
+	assert.True(t, valid)
+	assert.Equal(t, 2048, size)
+	mgr.Close()
+
+	agent := startMockAgent(t)
+	defer agent.Close()
+
+	restartManager(mgr, agent)
+	go mgr.pollManager()
+	defer mgr.Close()
+
+	for i := 0; i < 100; i++ {
+		valid, size := mgr.IsValidBaggageKey(expectedKey)
+		if valid && size == int(expectedSize) {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	valid, size = mgr.IsValidBaggageKey(expectedKey)
+	require.True(t, valid)
+	assert.EqualValues(t, expectedSize, size)
 }
