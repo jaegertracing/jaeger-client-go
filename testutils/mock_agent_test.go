@@ -76,13 +76,13 @@ func TestMockAgentSamplingManager(t *testing.T) {
 	require.NoError(t, err)
 	defer mockAgent.Close()
 
-	err = utils.GetJSON("http://"+mockAgent.AgentServerAddr()+"/", nil)
+	err = utils.GetJSON("http://"+mockAgent.ServerAddr()+"/", nil)
 	require.Error(t, err, "no 'service' parameter")
-	err = utils.GetJSON("http://"+mockAgent.AgentServerAddr()+"/?service=a&service=b", nil)
+	err = utils.GetJSON("http://"+mockAgent.ServerAddr()+"/?service=a&service=b", nil)
 	require.Error(t, err, "Too many 'service' parameters")
 
 	var resp sampling.SamplingStrategyResponse
-	err = utils.GetJSON("http://"+mockAgent.AgentServerAddr()+"/?service=something", &resp)
+	err = utils.GetJSON("http://"+mockAgent.ServerAddr()+"/?service=something", &resp)
 	require.NoError(t, err)
 	assert.Equal(t, sampling.SamplingStrategyType_PROBABILISTIC, resp.StrategyType)
 
@@ -92,7 +92,7 @@ func TestMockAgentSamplingManager(t *testing.T) {
 			MaxTracesPerSecond: 123,
 		},
 	})
-	err = utils.GetJSON("http://"+mockAgent.AgentServerAddr()+"/?service=service123", &resp)
+	err = utils.GetJSON("http://"+mockAgent.ServerAddr()+"/?service=service123", &resp)
 	require.NoError(t, err)
 	assert.Equal(t, sampling.SamplingStrategyType_RATE_LIMITING, resp.StrategyType)
 	require.NotNil(t, resp.RateLimitingSampling)
@@ -106,7 +106,7 @@ func TestMockAgentSamplingManager(t *testing.T) {
 	})
 
 	var baggageResp []*baggage.BaggageRestriction
-	err = utils.GetJSON("http://"+mockAgent.AgentServerAddr()+"/baggage?service=service123", &baggageResp)
+	err = utils.GetJSON("http://"+mockAgent.ServerAddr()+"/baggageRestrictions?service=service123", &baggageResp)
 	require.NoError(t, err)
 	require.Len(t, baggageResp, 1)
 	assert.Equal(t, "key", baggageResp[0].BaggageKey)

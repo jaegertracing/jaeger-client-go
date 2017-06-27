@@ -18,38 +18,23 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package testutils
+package jaeger
 
-import (
-	"sync"
-
-	"github.com/uber/jaeger-client-go/thrift-gen/baggage"
+const (
+	defaultMaxValueLength = 2048
 )
 
-func newBaggageRestrictionManager() *baggageRestrictionManager {
-	return &baggageRestrictionManager{
-		restrictions: make(map[string][]*baggage.BaggageRestriction),
-	}
+// BaggageRestrictionManager keeps track of valid baggage keys and their size restrictions.
+type BaggageRestrictionManager interface {
+	// IsValidBaggageKey returns whether the baggage key is valid given the restrictions
+	// and the max baggage value length
+	IsValidBaggageKey(key string) (bool, int)
 }
 
-type baggageRestrictionManager struct {
-	restrictions map[string][]*baggage.BaggageRestriction
-	mux          sync.Mutex
-}
+// DefaultBaggageRestrictionManager allows any baggage key.
+type DefaultBaggageRestrictionManager struct{}
 
-// GetBaggageRestrictions implements handler method of baggage.BaggageRestrictionManager
-func (m *baggageRestrictionManager) GetBaggageRestrictions(serviceName string) ([]*baggage.BaggageRestriction, error) {
-	m.mux.Lock()
-	defer m.mux.Unlock()
-	if restrictions, ok := m.restrictions[serviceName]; ok {
-		return restrictions, nil
-	}
-	return nil, nil
-}
-
-// AddBaggageRestrictions registers baggage restrictions for a service
-func (m *baggageRestrictionManager) AddBaggageRestrictions(service string, restrictions []*baggage.BaggageRestriction) {
-	m.mux.Lock()
-	defer m.mux.Unlock()
-	m.restrictions[service] = restrictions
+// IsValidBaggageKey implements BaggageRestrictionManager#IsValidBaggageKey
+func (m DefaultBaggageRestrictionManager) IsValidBaggageKey(key string) (bool, int) {
+	return true, defaultMaxValueLength
 }

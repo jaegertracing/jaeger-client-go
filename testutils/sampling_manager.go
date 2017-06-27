@@ -33,15 +33,14 @@ func newSamplingManager() *samplingManager {
 }
 
 type samplingManager struct {
-	sync.Mutex
-
 	sampling map[string]*sampling.SamplingStrategyResponse
+	mutex    sync.Mutex
 }
 
 // GetSamplingStrategy implements handler method of sampling.SamplingManager
 func (s *samplingManager) GetSamplingStrategy(serviceName string) (*sampling.SamplingStrategyResponse, error) {
-	s.Lock()
-	defer s.Unlock()
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	if strategy, ok := s.sampling[serviceName]; ok {
 		return strategy, nil
 	}
@@ -54,7 +53,7 @@ func (s *samplingManager) GetSamplingStrategy(serviceName string) (*sampling.Sam
 
 // AddSamplingStrategy registers a sampling strategy for a service
 func (s *samplingManager) AddSamplingStrategy(service string, strategy *sampling.SamplingStrategyResponse) {
-	s.Lock()
-	defer s.Unlock()
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	s.sampling[service] = strategy
 }

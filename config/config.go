@@ -30,6 +30,7 @@ import (
 	"github.com/opentracing/opentracing-go"
 
 	"github.com/uber/jaeger-client-go"
+	"github.com/uber/jaeger-client-go/baggage"
 	"github.com/uber/jaeger-client-go/rpcmetrics"
 )
 
@@ -145,10 +146,10 @@ func (c Configuration) New(
 	var baggageRestrictionManager jaeger.BaggageRestrictionManager
 	if c.BaggageRestrictions {
 		var err error
-		baggageRestrictionManager, err = jaeger.NewBaggageRestrictionManager(
+		baggageRestrictionManager, err = baggage.NewRemoteRestrictionManager(
 			serviceName,
-			jaeger.BaggageRestrictionManagerOptions.Metrics(tracerMetrics),
-			jaeger.BaggageRestrictionManagerOptions.Logger(opts.logger),
+			baggage.Options.Metrics(tracerMetrics),
+			baggage.Options.Logger(opts.logger),
 		)
 		if err != nil {
 			return nil, nil, err

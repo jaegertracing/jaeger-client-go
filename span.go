@@ -171,28 +171,36 @@ func (s *Span) SetBaggageItem(key, value string) opentracing.Span {
 	key = normalizeBaggageKey(key)
 	valid, maxValueLength := s.baggageRestrictionManager.IsValidBaggageKey(key)
 	if !valid {
+		s.tracer.metrics.BaggageUpdateFailure.Inc(1)
 		return s
 	}
-	value = truncateBaggageValue(value, int(maxValueLength))
+	value, truncated := s.truncateBaggageValue(value, maxValueLength)
 	s.Lock()
 	defer s.Unlock()
 	s.context = s.context.WithBaggageItem(key, value)
 	if s.context.IsSampled() {
-		// If sampled, record the baggage in the span
-		s.logFieldsNoLocking(
+		fields := []log.Field{
 			log.String("event", "baggage"),
 			log.String("key", key),
 			log.String("value", value),
-		)
+		}
+		if truncated {
+			fields = append(fields, log.String("trucated", "true"))
+		}
+		// If sampled, record the baggage in the span
+		s.logFieldsNoLocking(fields...)
 	}
+	s.tracer.metrics.BaggageUpdateSuccess.Inc(1)
 	return s
 }
 
-func truncateBaggageValue(value string, length int) string {
+// truncateBaggageValue truncates the baggage value; if truncated, the function will return true.
+func (s *Span) truncateBaggageValue(value string, length int) (string, bool) {
 	if len(value) > length {
-		return value[:length]
+		s.tracer.metrics.BaggageTruncate.Inc(1)
+		return value[:length], true
 	}
-	return value
+	return value, false
 }
 
 // BaggageItem implements BaggageItem() of opentracing.SpanContext

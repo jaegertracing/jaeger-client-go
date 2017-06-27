@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package jaeger
+package baggage
 
 import (
 	"sync"
@@ -28,11 +28,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/uber/jaeger-client-go"
+	"github.com/uber/jaeger-client-go/testutils"
 	"github.com/uber/jaeger-client-go/thrift-gen/baggage"
 )
 
-func TestNewBaggageRestrictionManager(t *testing.T) {
-	agent, _, _ := initAgent(t)
+func TestNewRemoteRestrictionManager(t *testing.T) {
+	agent, err := testutils.StartMockAgent()
+	require.NoError(t, err)
 	defer agent.Close()
 
 	service := "svc"
@@ -43,13 +46,13 @@ func TestNewBaggageRestrictionManager(t *testing.T) {
 		{BaggageKey: expectedKey, MaxValueLength: expectedSize},
 	})
 
-	mgr, err := NewBaggageRestrictionManager(
+	mgr, err := NewRemoteRestrictionManager(
 		service,
-		BaggageRestrictionManagerOptions.RefreshInterval(10*time.Millisecond),
-		BaggageRestrictionManagerOptions.BaggageRestrictionManagerServerURL("http://"+agent.AgentServerAddr()+"/baggage"),
+		Options.RefreshInterval(10*time.Millisecond),
+		Options.ServerURL("http://"+agent.ServerAddr()+"/baggageRestrictions"),
 	)
 	require.NoError(t, err)
-	defer mgr.(*baggageRestrictionManager).Close()
+	defer mgr.Close()
 
 	for i := 0; i < 100; i++ {
 		valid, _ := mgr.IsValidBaggageKey(expectedKey)
@@ -60,7 +63,7 @@ func TestNewBaggageRestrictionManager(t *testing.T) {
 	}
 	valid, size := mgr.IsValidBaggageKey(expectedKey)
 	require.True(t, valid)
-	assert.Equal(t, expectedSize, size)
+	assert.EqualValues(t, expectedSize, size)
 
 	valid, size = mgr.IsValidBaggageKey("bad-key")
 	assert.False(t, valid)
@@ -88,9 +91,9 @@ func (l *errCounterLogger) getErrCounter() int64 {
 }
 
 func TestConstructorError(t *testing.T) {
-	_, err := NewBaggageRestrictionManager(
+	_, err := NewRemoteRestrictionManager(
 		"test",
-		BaggageRestrictionManagerOptions.RefreshInterval(10*time.Millisecond),
+		Options.RefreshInterval(10*time.Millisecond),
 	)
 	assert.Error(t, err)
 }
@@ -98,14 +101,14 @@ func TestConstructorError(t *testing.T) {
 func TestPollManagerError(t *testing.T) {
 	logger := &errCounterLogger{}
 
-	m := &baggageRestrictionManager{
-		serviceName:   "test",
-		timer:         time.NewTicker(time.Millisecond),
-		thriftManager: &httpBaggageRestrictionsManager{serverURL: ""},
-		stopPoll:      make(chan struct{}),
-		baggageRestrictionManagerOptions: baggageRestrictionManagerOptions{
-			logger:  logger,
-			metrics: NewNullMetrics(),
+	m := &RemoteRestrictionManager{
+		serviceName: "test",
+		thriftProxy: &httpRestrictionProxy{serverURL: ""},
+		stopPoll:    make(chan struct{}),
+		options: options{
+			logger:          logger,
+			metrics:         jaeger.NewNullMetrics(),
+			refreshInterval: time.Millisecond,
 		},
 	}
 	m.pollStopped.Add(1)

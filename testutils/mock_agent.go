@@ -49,13 +49,16 @@ func StartMockAgent() (*MockAgent, error) {
 	samplingManager := newSamplingManager()
 	baggageManager := newBaggageRestrictionManager()
 	agentHandler := &agentHandler{samplingManager: samplingManager, baggageRestrictionManager: baggageManager}
-	agentServer := httptest.NewServer(agentHandler)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/baggageRestrictions", agentHandler.getBaggageRestrictions)
+	mux.HandleFunc("/", agentHandler.getSamplingStrategy)
+	agentServer := httptest.NewServer(mux)
 
 	agent := &MockAgent{
 		transport:   transport,
 		samplingMgr: samplingManager,
 		baggageMgr:  baggageManager,
-		agentSrv:    agentServer,
+		server:      agentServer,
 	}
 
 	var started sync.WaitGroup
@@ -70,7 +73,7 @@ func StartMockAgent() (*MockAgent, error) {
 func (s *MockAgent) Close() {
 	atomic.StoreUint32(&s.serving, 0)
 	s.transport.Close()
-	s.agentSrv.Close()
+	s.server.Close()
 }
 
 // MockAgent is a mock representation of Jaeger Agent.
@@ -82,7 +85,7 @@ type MockAgent struct {
 	serving       uint32
 	samplingMgr   *samplingManager
 	baggageMgr    *baggageRestrictionManager
-	agentSrv      *httptest.Server
+	server        *httptest.Server
 }
 
 // SpanServerAddr returns the UDP host:port where MockAgent listens for spans
@@ -95,9 +98,9 @@ func (s *MockAgent) SpanServerClient() (agent.Agent, error) {
 	return utils.NewAgentClientUDP(s.SpanServerAddr(), 0)
 }
 
-// AgentServerAddr returns the host:port of HTTP server exposing all agent endpoints
-func (s *MockAgent) AgentServerAddr() string {
-	return s.agentSrv.Listener.Addr().String()
+// ServerAddr returns the host:port of HTTP server exposing all agent endpoints
+func (s *MockAgent) ServerAddr() string {
+	return s.server.Listener.Addr().String()
 }
 
 func (s *MockAgent) serve(started *sync.WaitGroup) {
@@ -177,30 +180,45 @@ type agentHandler struct {
 	baggageRestrictionManager *baggageRestrictionManager
 }
 
-func (h *agentHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	path := r.URL.EscapedPath()
+func getService(r *http.Request) (string, error) {
 	services := r.URL.Query()["service"]
 	if len(services) == 0 {
-		http.Error(w, "'service' parameter is empty", http.StatusBadRequest)
-		return
+		return "", errors.New("'service' parameter is empty")
 	}
 	if len(services) > 1 {
-		http.Error(w, "'service' parameter must occur only once", http.StatusBadRequest)
-		return
+		return "", errors.New("'service' parameter must occur only once")
 	}
-	var resp interface{}
-	if path == "/baggage" {
-		resp, _ = h.baggageRestrictionManager.GetBaggageRestrictions(services[0])
-	} else {
-		resp, _ = h.samplingManager.GetSamplingStrategy(services[0])
-	}
-	json, err := json.Marshal(resp)
+	return services[0], nil
+}
+
+func sendResponse(w http.ResponseWriter, resp interface{}) {
+	bytes, err := json.Marshal(resp)
 	if err != nil {
 		http.Error(w, "Cannot marshall Thrift to JSON", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Add("Content-Type", "application/json")
-	if _, err := w.Write(json); err != nil {
+	if _, err := w.Write(bytes); err != nil {
 		return
 	}
+}
+
+func (h *agentHandler) getBaggageRestrictions(w http.ResponseWriter, r *http.Request) {
+	service, err := getService(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	resp, _ := h.baggageRestrictionManager.GetBaggageRestrictions(service)
+	sendResponse(w, resp)
+}
+
+func (h *agentHandler) getSamplingStrategy(w http.ResponseWriter, r *http.Request) {
+	service, err := getService(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	resp, _ := h.samplingManager.GetSamplingStrategy(service)
+	sendResponse(w, resp)
 }
