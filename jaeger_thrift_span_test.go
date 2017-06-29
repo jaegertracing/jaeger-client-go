@@ -96,9 +96,9 @@ func TestBuildJaegerProcessThrift(t *testing.T) {
 	process := BuildJaegerProcessThrift(sp)
 	assert.Equal(t, process.ServiceName, "DOOP")
 	require.Len(t, process.Tags, 3)
-	assert.NotNil(t, findJaegerTag(JaegerClientVersionTagKey, process.Tags))
-	assert.NotNil(t, findJaegerTag(TracerHostnameTagKey, process.Tags))
-	assert.NotNil(t, findJaegerTag(TracerIPTagKey, process.Tags))
+	assert.NotNil(t, findJaegerTag("jaeger.version", process.Tags))
+	assert.NotNil(t, findJaegerTag("hostname", process.Tags))
+	assert.NotNil(t, findJaegerTag("ip", process.Tags))
 }
 
 func TestBuildLogs(t *testing.T) {
