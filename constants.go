@@ -39,7 +39,7 @@ const (
 	JaegerBaggageHeader = "jaeger-baggage"
 
 	// TracerHostnameTagKey used to report host name of the process.
-	TracerHostnameTagKey = "jaeger.hostname"
+	TracerHostnameTagKey = "hostname"
 
 	// TracerIPTagKey used to report ip of the process.
 	TracerIPTagKey = "ip"
