@@ -62,6 +62,8 @@ type tracer struct {
 	observer observer
 
 	tags []Tag
+
+	baggageRestrictionManager BaggageRestrictionManager
 }
 
 // NewTracer creates Tracer implementation that reports tracing to Jaeger.
@@ -109,6 +111,9 @@ func NewTracer(
 
 	for _, option := range options {
 		option(t)
+	}
+	if t.baggageRestrictionManager == nil {
+		t.baggageRestrictionManager = DefaultBaggageRestrictionManager{}
 	}
 
 	if t.randomNumber == nil {
@@ -303,6 +308,7 @@ func (t *tracer) startSpanInternal(
 	sp.startTime = startTime
 	sp.duration = 0
 	sp.references = references
+	sp.baggageRestrictionManager = t.baggageRestrictionManager
 	sp.firstInProcess = rpcServer || sp.context.parentID == 0
 	if len(tags) > 0 || len(internalTags) > 0 {
 		sp.tags = make([]Tag, len(internalTags), len(tags)+len(internalTags))
