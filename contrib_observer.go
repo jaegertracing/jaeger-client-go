@@ -24,9 +24,9 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 )
 
-// CompositeObserver can be registered with the Tracer to receive notifications
+// ContribObserver can be registered with the Tracer to receive notifications
 // about new Spans. Modelled after github.com/opentracing-contrib/go-observer.
-type CompositeObserver interface {
+type ContribObserver interface {
 	// Create and return a span observer. Called when a span starts.
 	// If the Observer is not interested in the given span, it must return (nil, false).
 	// E.g :
@@ -38,14 +38,14 @@ type CompositeObserver interface {
 	//         }
 	//         ...
 	//     }
-	OnStartSpan(sp opentracing.Span, operationName string, options opentracing.StartSpanOptions) (CompositeSpanObserver, bool)
+	OnStartSpan(sp opentracing.Span, operationName string, options opentracing.StartSpanOptions) (ContribSpanObserver, bool)
 }
 
-// CompositeSpanObserver is created by the Observer and receives notifications
+// ContribSpanObserver is created by the Observer and receives notifications
 // about other Span events. This interface is meant to match
 // github.com/opentracing-contrib/go-observer, via duck typing, without
 // directly importing the go-observer package.
-type CompositeSpanObserver interface {
+type ContribSpanObserver interface {
 	OnSetOperationName(operationName string)
 	OnSetTag(key string, value interface{})
 	OnFinish(options opentracing.FinishOptions)
@@ -56,35 +56,35 @@ type oldObserver struct {
 	obs Observer
 }
 
-func (o oldObserver) OnStartSpan(sp opentracing.Span, operationName string, options opentracing.StartSpanOptions) (CompositeSpanObserver, bool) {
+func (o oldObserver) OnStartSpan(sp opentracing.Span, operationName string, options opentracing.StartSpanOptions) (ContribSpanObserver, bool) {
 	return o.obs.OnStartSpan(operationName, options), true
 }
 
 // compositeObserver is a dispatcher to other observers
 type compositeObserver struct {
-	observers []CompositeObserver
+	observers []ContribObserver
 }
 
 // compositeSpanObserver is a dispatcher to other span observers
 type compositeSpanObserver struct {
-	observers []CompositeSpanObserver
+	observers []ContribSpanObserver
 }
 
 // noopCompositeSpanObserver is used when there are no observers registered
 // on the Tracer or none of them returns span observers from OnStartSpan.
 var noopCompositeSpanObserver = compositeSpanObserver{}
 
-func (o *compositeObserver) append(compositeObserver CompositeObserver) {
-	o.observers = append(o.observers, compositeObserver)
+func (o *compositeObserver) append(contribObserver ContribObserver) {
+	o.observers = append(o.observers, contribObserver)
 }
 
-func (o compositeObserver) OnStartSpan(sp opentracing.Span, operationName string, options opentracing.StartSpanOptions) CompositeSpanObserver {
-	var spanObservers []CompositeSpanObserver
+func (o compositeObserver) OnStartSpan(sp opentracing.Span, operationName string, options opentracing.StartSpanOptions) ContribSpanObserver {
+	var spanObservers []ContribSpanObserver
 	for _, obs := range o.observers {
 		spanObs, ok := obs.OnStartSpan(sp, operationName, options)
 		if ok {
 			if spanObservers == nil {
-				spanObservers = make([]CompositeSpanObserver, 0, len(o.observers))
+				spanObservers = make([]ContribSpanObserver, 0, len(o.observers))
 			}
 			spanObservers = append(spanObservers, spanObs)
 		}

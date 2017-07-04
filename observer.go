@@ -52,12 +52,12 @@ func (o *observer) append(observer Observer) {
 }
 
 func (o observer) OnStartSpan(operationName string, options opentracing.StartSpanOptions) SpanObserver {
-	var spanObservers []CompositeSpanObserver
+	var spanObservers []ContribSpanObserver
 	for _, obs := range o.observers {
 		spanObs := obs.OnStartSpan(operationName, options)
 		if spanObs != nil {
 			if spanObservers == nil {
-				spanObservers = make([]CompositeSpanObserver, 0, len(o.observers))
+				spanObservers = make([]ContribSpanObserver, 0, len(o.observers))
 			}
 			spanObservers = append(spanObservers, spanObs)
 		}

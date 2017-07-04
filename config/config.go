@@ -155,8 +155,8 @@ func (c Configuration) New(
 		tracerOptions = append(tracerOptions, jaeger.TracerOptions.Observer(obs))
 	}
 
-	for _, cobs := range opts.compositeObservers {
-		tracerOptions = append(tracerOptions, jaeger.TracerOptions.CompositeObserver(cobs))
+	for _, cobs := range opts.contribObservers {
+		tracerOptions = append(tracerOptions, jaeger.TracerOptions.ContribObserver(cobs))
 	}
 
 	tracer, closer := jaeger.NewTracer(
