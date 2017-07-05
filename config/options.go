@@ -36,6 +36,7 @@ type Options struct {
 	reporter            jaeger.Reporter
 	observers           []jaeger.Observer
 	zipkinSharedRPCSpan bool
+	tags                map[string]interface{}
 }
 
 // Metrics creates an Option that initializes Metrics in the tracer,
@@ -78,8 +79,17 @@ func ZipkinSharedRPCSpan(zipkinSharedRPCSpan bool) Option {
 	}
 }
 
+// Tag creates an option that adds a tracer-level tag.
+func Tag(key string, value interface{}) Option {
+	return func(c *Options) {
+		c.tags[key] = value
+	}
+}
+
 func applyOptions(options ...Option) Options {
-	opts := Options{}
+	opts := Options{
+		tags: make(map[string]interface{}),
+	}
 	for _, option := range options {
 		option(&opts)
 	}

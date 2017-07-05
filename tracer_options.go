@@ -105,3 +105,9 @@ func (tracerOptions) ZipkinSharedRPCSpan(zipkinSharedRPCSpan bool) TracerOption 
 		tracer.options.zipkinSharedRPCSpan = zipkinSharedRPCSpan
 	}
 }
+
+func (tracerOptions) Tag(key string, value interface{}) TracerOption {
+	return func(tracer *tracer) {
+		tracer.tags = append(tracer.tags, Tag{key: key, value: value})
+	}
+}
