@@ -25,6 +25,7 @@ import (
 
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/uber/jaeger-lib/metrics"
 
 	"github.com/uber/jaeger-client-go"
@@ -43,6 +44,14 @@ func TestApplyOptions(t *testing.T) {
 	assert.Equal(t, metricsFactory, opts.metrics)
 	assert.Equal(t, []jaeger.Observer{observer}, opts.observers)
 	assert.True(t, opts.zipkinSharedRPCSpan)
+}
+
+func TestTraceTagOption(t *testing.T) {
+	c := Configuration{}
+	tracer, closer, err := c.New("test-service", Tag("tag-key", "tag-value"))
+	require.NoError(t, err)
+	defer closer.Close()
+	assert.Equal(t, opentracing.Tag{Key: "tag-key", Value: "tag-value"}, tracer.(*jaeger.Tracer).Tags()[0])
 }
 
 func TestApplyOptionsDefaults(t *testing.T) {

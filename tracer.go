@@ -35,7 +35,8 @@ import (
 	"github.com/uber/jaeger-client-go/utils"
 )
 
-type tracer struct {
+// Tracer implements opentracing.Tracer.
+type Tracer struct {
 	serviceName string
 	hostIPv4    uint32 // this is for zipkin endpoint conversion
 
@@ -73,7 +74,7 @@ func NewTracer(
 	reporter Reporter,
 	options ...TracerOption,
 ) (opentracing.Tracer, io.Closer) {
-	t := &tracer{
+	t := &Tracer{
 		serviceName: serviceName,
 		sampler:     sampler,
 		reporter:    reporter,
@@ -138,7 +139,8 @@ func NewTracer(
 	return t, t
 }
 
-func (t *tracer) StartSpan(
+// StartSpan implements StartSpan() method of opentracing.Tracer.
+func (t *Tracer) StartSpan(
 	operationName string,
 	options ...opentracing.StartSpanOption,
 ) opentracing.Span {
@@ -149,7 +151,7 @@ func (t *tracer) StartSpan(
 	return t.startSpanWithOptions(operationName, sso)
 }
 
-func (t *tracer) startSpanWithOptions(
+func (t *Tracer) startSpanWithOptions(
 	operationName string,
 	options opentracing.StartSpanOptions,
 ) opentracing.Span {
@@ -245,7 +247,7 @@ func (t *tracer) startSpanWithOptions(
 }
 
 // Inject implements Inject() method of opentracing.Tracer
-func (t *tracer) Inject(ctx opentracing.SpanContext, format interface{}, carrier interface{}) error {
+func (t *Tracer) Inject(ctx opentracing.SpanContext, format interface{}, carrier interface{}) error {
 	c, ok := ctx.(SpanContext)
 	if !ok {
 		return opentracing.ErrInvalidSpanContext
@@ -257,7 +259,7 @@ func (t *tracer) Inject(ctx opentracing.SpanContext, format interface{}, carrier
 }
 
 // Extract implements Extract() method of opentracing.Tracer
-func (t *tracer) Extract(
+func (t *Tracer) Extract(
 	format interface{},
 	carrier interface{},
 ) (opentracing.SpanContext, error) {
@@ -268,15 +270,24 @@ func (t *tracer) Extract(
 }
 
 // Close releases all resources used by the Tracer and flushes any remaining buffered spans.
-func (t *tracer) Close() error {
+func (t *Tracer) Close() error {
 	t.reporter.Close()
 	t.sampler.Close()
 	return nil
 }
 
+// Tags returns a slice of tracer-level tags.
+func (t *Tracer) Tags() []opentracing.Tag {
+	tags := make([]opentracing.Tag, len(t.tags))
+	for i, tag := range t.tags {
+		tags[i] = opentracing.Tag{Key: tag.key, Value: tag.value}
+	}
+	return tags
+}
+
 // newSpan returns an instance of a clean Span object.
 // If options.PoolSpans is true, the spans are retrieved from an object pool.
-func (t *tracer) newSpan() *Span {
+func (t *Tracer) newSpan() *Span {
 	if !t.options.poolSpans {
 		return &Span{}
 	}
@@ -288,7 +299,7 @@ func (t *tracer) newSpan() *Span {
 	return sp
 }
 
-func (t *tracer) startSpanInternal(
+func (t *Tracer) startSpanInternal(
 	sp *Span,
 	operationName string,
 	startTime time.Time,
@@ -339,7 +350,7 @@ func (t *tracer) startSpanInternal(
 	return sp
 }
 
-func (t *tracer) reportSpan(sp *Span) {
+func (t *Tracer) reportSpan(sp *Span) {
 	t.metrics.SpansFinished.Inc(1)
 	if sp.context.IsSampled() {
 		t.reporter.Report(sp)
@@ -351,7 +362,7 @@ func (t *tracer) reportSpan(sp *Span) {
 
 // randomID generates a random trace/span ID, using tracer.random() generator.
 // It never returns 0.
-func (t *tracer) randomID() uint64 {
+func (t *Tracer) randomID() uint64 {
 	val := t.randomNumber()
 	for val == 0 {
 		val = t.randomNumber()

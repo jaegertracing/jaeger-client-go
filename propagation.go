@@ -58,12 +58,12 @@ type Extractor interface {
 }
 
 type textMapPropagator struct {
-	tracer      *tracer
+	tracer      *Tracer
 	encodeValue func(string) string
 	decodeValue func(string) string
 }
 
-func newTextMapPropagator(tracer *tracer) *textMapPropagator {
+func newTextMapPropagator(tracer *Tracer) *textMapPropagator {
 	return &textMapPropagator{
 		tracer: tracer,
 		encodeValue: func(val string) string {
@@ -75,7 +75,7 @@ func newTextMapPropagator(tracer *tracer) *textMapPropagator {
 	}
 }
 
-func newHTTPHeaderPropagator(tracer *tracer) *textMapPropagator {
+func newHTTPHeaderPropagator(tracer *Tracer) *textMapPropagator {
 	return &textMapPropagator{
 		tracer: tracer,
 		encodeValue: func(val string) string {
@@ -92,11 +92,11 @@ func newHTTPHeaderPropagator(tracer *tracer) *textMapPropagator {
 }
 
 type binaryPropagator struct {
-	tracer  *tracer
+	tracer  *Tracer
 	buffers sync.Pool
 }
 
-func newBinaryPropagator(tracer *tracer) *binaryPropagator {
+func newBinaryPropagator(tracer *Tracer) *binaryPropagator {
 	return &binaryPropagator{
 		tracer:  tracer,
 		buffers: sync.Pool{New: func() interface{} { return &bytes.Buffer{} }},

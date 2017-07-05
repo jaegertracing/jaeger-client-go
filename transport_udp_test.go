@@ -35,7 +35,7 @@ import (
 
 var (
 	testTracer, _ = NewTracer("svcName", NewConstSampler(false), NewNullReporter())
-	jaegerTracer  = testTracer.(*tracer)
+	jaegerTracer  = testTracer.(*Tracer)
 )
 
 func getThriftSpanByteLength(t *testing.T, span *Span) int {
@@ -47,7 +47,7 @@ func getThriftSpanByteLength(t *testing.T, span *Span) int {
 	return transport.Len()
 }
 
-func getThriftProcessByteLengthFromTracer(t *testing.T, tracer *tracer) int {
+func getThriftProcessByteLengthFromTracer(t *testing.T, tracer *Tracer) int {
 	process := buildJaegerProcessThrift(tracer)
 	return getThriftProcessByteLength(t, process)
 }

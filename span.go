@@ -34,7 +34,7 @@ import (
 type Span struct {
 	sync.RWMutex
 
-	tracer *tracer
+	tracer *Tracer
 
 	context SpanContext
 
@@ -66,7 +66,8 @@ type Span struct {
 	observer SpanObserver
 }
 
-// Tag is a simple key value wrapper
+// Tag is a simple key value wrapper.
+// TODO deprecate in the next major release, use opentracing.Tag instead.
 type Tag struct {
 	key   string
 	value interface{}
