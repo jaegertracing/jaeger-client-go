@@ -276,7 +276,7 @@ func (t *Tracer) Close() error {
 	return nil
 }
 
-// Tags returns a slice of tracer-level tags. Caller must not change the slice.
+// Tags returns a slice of tracer-level tags.
 func (t *Tracer) Tags() []opentracing.Tag {
 	tags := make([]opentracing.Tag, len(t.tags))
 	for i, tag := range t.tags {

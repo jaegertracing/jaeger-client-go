@@ -21,6 +21,7 @@
 package config
 
 import (
+	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/uber/jaeger-lib/metrics"
 
 	"github.com/uber/jaeger-client-go"
@@ -36,7 +37,7 @@ type Options struct {
 	reporter            jaeger.Reporter
 	observers           []jaeger.Observer
 	zipkinSharedRPCSpan bool
-	tags                map[string]interface{}
+	tags                []opentracing.Tag
 }
 
 // Metrics creates an Option that initializes Metrics in the tracer,
@@ -82,14 +83,12 @@ func ZipkinSharedRPCSpan(zipkinSharedRPCSpan bool) Option {
 // Tag creates an option that adds a tracer-level tag.
 func Tag(key string, value interface{}) Option {
 	return func(c *Options) {
-		c.tags[key] = value
+		c.tags = append(c.tags, opentracing.Tag{Key: key, Value: value})
 	}
 }
 
 func applyOptions(options ...Option) Options {
-	opts := Options{
-		tags: make(map[string]interface{}),
-	}
+	opts := Options{}
 	for _, option := range options {
 		option(&opts)
 	}

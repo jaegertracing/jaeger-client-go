@@ -39,13 +39,11 @@ func TestApplyOptions(t *testing.T) {
 		Logger(jaeger.StdLogger),
 		Observer(observer),
 		ZipkinSharedRPCSpan(true),
-		Tag("tag_key", "tag_value"),
 	)
 	assert.Equal(t, jaeger.StdLogger, opts.logger)
 	assert.Equal(t, metricsFactory, opts.metrics)
 	assert.Equal(t, []jaeger.Observer{observer}, opts.observers)
 	assert.True(t, opts.zipkinSharedRPCSpan)
-	assert.Equal(t, map[string]interface{}{"tag_key": "tag_value"}, opts.tags)
 }
 
 func TestTraceTagOption(t *testing.T) {
