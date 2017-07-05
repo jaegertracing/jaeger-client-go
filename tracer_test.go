@@ -272,7 +272,7 @@ func TestTracerOptions(t *testing.T) {
 	assert.Equal(t, uint64(1), tracer.randomNumber())
 	assert.Equal(t, uint64(1), tracer.randomNumber()) // always 1
 	assert.Equal(t, true, tracer.options.poolSpans)
-	assert.Equal(t, Tag{key: "tag_key", value: "tag_value"}, tracer.tags[0])
+	assert.Equal(t, opentracing.Tag{Key: "tag_key", Value: "tag_value"}, tracer.Tags()[0])
 }
 
 func TestInjectorExtractorOptions(t *testing.T) {
