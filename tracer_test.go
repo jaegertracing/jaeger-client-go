@@ -70,9 +70,9 @@ func TestTracerSuite(t *testing.T) {
 func (s *tracerSuite) TestBeginRootSpan() {
 	s.metricsFactory.Clear()
 	startTime := time.Now()
-	s.tracer.(*tracer).timeNow = func() time.Time { return startTime }
+	s.tracer.(*Tracer).timeNow = func() time.Time { return startTime }
 	someID := uint64(12345)
-	s.tracer.(*tracer).randomNumber = func() uint64 { return someID }
+	s.tracer.(*Tracer).randomNumber = func() uint64 { return someID }
 
 	sp := s.tracer.StartSpan("get_name")
 	ext.SpanKindRPCServer.Set(sp)
@@ -189,7 +189,7 @@ func (s *tracerSuite) TestTraceStartedOrJoinedMetrics() {
 	}
 	for _, test := range tests {
 		s.metricsFactory.Clear()
-		s.tracer.(*tracer).sampler = NewConstSampler(test.sampled)
+		s.tracer.(*Tracer).sampler = NewConstSampler(test.sampled)
 		sp1 := s.tracer.StartSpan("parent", ext.RPCServerOption(nil))
 		sp2 := s.tracer.StartSpan("child1", opentracing.ChildOf(sp1.Context()))
 		sp3 := s.tracer.StartSpan("child2", ext.RPCServerOption(sp2.Context()))
@@ -218,12 +218,12 @@ func (s *tracerSuite) TestSetOperationName() {
 }
 
 func (s *tracerSuite) TestSamplerEffects() {
-	s.tracer.(*tracer).sampler = NewConstSampler(true)
+	s.tracer.(*Tracer).sampler = NewConstSampler(true)
 	sp := s.tracer.StartSpan("test")
 	flags := sp.(*Span).context.flags
 	s.EqualValues(flagSampled, flags&flagSampled)
 
-	s.tracer.(*tracer).sampler = NewConstSampler(false)
+	s.tracer.(*Tracer).sampler = NewConstSampler(false)
 	sp = s.tracer.StartSpan("test")
 	flags = sp.(*Span).context.flags
 	s.EqualValues(0, flags&flagSampled)
@@ -231,7 +231,7 @@ func (s *tracerSuite) TestSamplerEffects() {
 
 func (s *tracerSuite) TestRandomIDNotZero() {
 	val := uint64(0)
-	s.tracer.(*tracer).randomNumber = func() (r uint64) {
+	s.tracer.(*Tracer).randomNumber = func() (r uint64) {
 		r = val
 		val++
 		return
@@ -265,7 +265,7 @@ func TestTracerOptions(t *testing.T) {
 	)
 	defer closer.Close()
 
-	tracer := openTracer.(*tracer)
+	tracer := openTracer.(*Tracer)
 	assert.Equal(t, log.StdLogger, tracer.logger)
 	assert.Equal(t, t1, tracer.timeNow())
 	assert.Equal(t, uint64(1), tracer.randomNumber())

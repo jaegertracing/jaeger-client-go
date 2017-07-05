@@ -34,7 +34,7 @@ type formatKey int
 const SpanContextFormat formatKey = iota
 
 type jaegerTraceContextPropagator struct {
-	tracer *tracer
+	tracer *Tracer
 }
 
 func (p *jaegerTraceContextPropagator) Inject(

@@ -25,7 +25,7 @@ import (
 )
 
 // TracerOption is a function that sets some option on the tracer
-type TracerOption func(tracer *tracer)
+type TracerOption func(tracer *Tracer)
 
 // TracerOptions is a factory for all available TracerOption's
 var TracerOptions tracerOptions
@@ -35,14 +35,14 @@ type tracerOptions struct{}
 // Metrics creates a TracerOption that initializes Metrics on the tracer,
 // which is used to emit statistics.
 func (tracerOptions) Metrics(m *Metrics) TracerOption {
-	return func(tracer *tracer) {
+	return func(tracer *Tracer) {
 		tracer.metrics = *m
 	}
 }
 
 // Logger creates a TracerOption that gives the tracer a Logger.
 func (tracerOptions) Logger(logger Logger) TracerOption {
-	return func(tracer *tracer) {
+	return func(tracer *Tracer) {
 		tracer.logger = logger
 	}
 }
@@ -50,7 +50,7 @@ func (tracerOptions) Logger(logger Logger) TracerOption {
 // TimeNow creates a TracerOption that gives the tracer a function
 // used to generate timestamps for spans.
 func (tracerOptions) TimeNow(timeNow func() time.Time) TracerOption {
-	return func(tracer *tracer) {
+	return func(tracer *Tracer) {
 		tracer.timeNow = timeNow
 	}
 }
@@ -58,7 +58,7 @@ func (tracerOptions) TimeNow(timeNow func() time.Time) TracerOption {
 // RandomNumber creates a TracerOption that gives the tracer
 // a thread-safe random number generator function for generating trace IDs.
 func (tracerOptions) RandomNumber(randomNumber func() uint64) TracerOption {
-	return func(tracer *tracer) {
+	return func(tracer *Tracer) {
 		tracer.randomNumber = randomNumber
 	}
 }
@@ -68,7 +68,7 @@ func (tracerOptions) RandomNumber(randomNumber func() uint64) TracerOption {
 // This should be used with care, only if the service is not running any async tasks
 // that can access parent spans after those spans have been finished.
 func (tracerOptions) PoolSpans(poolSpans bool) TracerOption {
-	return func(tracer *tracer) {
+	return func(tracer *Tracer) {
 		tracer.options.poolSpans = poolSpans
 	}
 }
@@ -77,37 +77,37 @@ func (tracerOptions) PoolSpans(poolSpans bool) TracerOption {
 // If not set, the factory method will obtain the current IP address.
 // The TracerOption is deprecated; the tracer will attempt to automatically detect the IP.
 func (tracerOptions) HostIPv4(hostIPv4 uint32) TracerOption {
-	return func(tracer *tracer) {
+	return func(tracer *Tracer) {
 		tracer.hostIPv4 = hostIPv4
 	}
 }
 
 func (tracerOptions) Injector(format interface{}, injector Injector) TracerOption {
-	return func(tracer *tracer) {
+	return func(tracer *Tracer) {
 		tracer.injectors[format] = injector
 	}
 }
 
 func (tracerOptions) Extractor(format interface{}, extractor Extractor) TracerOption {
-	return func(tracer *tracer) {
+	return func(tracer *Tracer) {
 		tracer.extractors[format] = extractor
 	}
 }
 
 func (tracerOptions) Observer(observer Observer) TracerOption {
-	return func(tracer *tracer) {
+	return func(tracer *Tracer) {
 		tracer.observer.append(observer)
 	}
 }
 
 func (tracerOptions) ZipkinSharedRPCSpan(zipkinSharedRPCSpan bool) TracerOption {
-	return func(tracer *tracer) {
+	return func(tracer *Tracer) {
 		tracer.options.zipkinSharedRPCSpan = zipkinSharedRPCSpan
 	}
 }
 
 func (tracerOptions) Tag(key string, value interface{}) TracerOption {
-	return func(tracer *tracer) {
+	return func(tracer *Tracer) {
 		tracer.tags = append(tracer.tags, Tag{key: key, value: value})
 	}
 }

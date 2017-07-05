@@ -46,7 +46,7 @@ type InjectableZipkinSpan interface {
 }
 
 type zipkinPropagator struct {
-	tracer *tracer
+	tracer *Tracer
 }
 
 func (p *zipkinPropagator) Inject(

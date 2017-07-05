@@ -54,7 +54,7 @@ func BuildJaegerProcessThrift(span *Span) *j.Process {
 	return buildJaegerProcessThrift(span.tracer)
 }
 
-func buildJaegerProcessThrift(tracer *tracer) *j.Process {
+func buildJaegerProcessThrift(tracer *Tracer) *j.Process {
 	process := &j.Process{
 		ServiceName: tracer.serviceName,
 		Tags:        buildTags(tracer.tags),
