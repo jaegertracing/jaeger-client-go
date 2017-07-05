@@ -1,10 +1,11 @@
 Changes by Version
 ==================
 
-2.7.1 (unreleased)
+2.8.0 (2017-07-05)
 ------------------
 
 - Drop `jaeger.` prefix from `jaeger.hostname` process-level tag
+- Add options to set tracer tags
 
 
 2.7.0 (2017-06-21)
