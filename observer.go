@@ -23,15 +23,17 @@ package jaeger
 import opentracing "github.com/opentracing/opentracing-go"
 
 // Observer can be registered with the Tracer to receive notifications about
-// new Spans. Note that this interface is now Deprecated, see:
-// github.com/opentracing-contrib/go-observer.
+// new Spans.
+//
+// Deprecated: use jaeger.ContribObserver instead.
 type Observer interface {
 	OnStartSpan(operationName string, options opentracing.StartSpanOptions) SpanObserver
 }
 
 // SpanObserver is created by the Observer and receives notifications about
-// other Span events. Note that this interface is now Deprecated, see:
-// github.com/opentracing-contrib/go-observer.
+// other Span events.
+//
+// Deprecated: use jaeger.ContribSpanObserver instead.
 type SpanObserver interface {
 	OnSetOperationName(operationName string)
 	OnSetTag(key string, value interface{})
