@@ -98,7 +98,7 @@ func (tracerOptions) Observer(observer Observer) TracerOption {
 	old := oldObserver{obs: observer}
 
 	return func(tracer *Tracer) {
-		tracer.observer.append(old)
+		tracer.observer.append(&old)
 	}
 }
 

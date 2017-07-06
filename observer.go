@@ -45,7 +45,7 @@ type observer struct {
 
 // noopSpanObserver is used when there are no observers registered on the Tracer
 // or none of them returns span observers from OnStartSpan.
-var noopSpanObserver = compositeSpanObserver{}
+var noopSpanObserver = &compositeSpanObserver{}
 
 func (o *observer) append(observer Observer) {
 	o.observers = append(o.observers, observer)
@@ -65,5 +65,5 @@ func (o observer) OnStartSpan(operationName string, options opentracing.StartSpa
 	if len(spanObservers) == 0 {
 		return noopSpanObserver
 	}
-	return compositeSpanObserver{observers: spanObservers}
+	return &compositeSpanObserver{observers: spanObservers}
 }
