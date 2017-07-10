@@ -57,42 +57,13 @@ type oldObserver struct {
 }
 
 func (o *oldObserver) OnStartSpan(sp opentracing.Span, operationName string, options opentracing.StartSpanOptions) (ContribSpanObserver, bool) {
-	return o.obs.OnStartSpan(operationName, options), true
-}
-
-// compositeObserver is a dispatcher to other observers
-type compositeObserver struct {
-	observers []ContribObserver
+	spanObserver := o.obs.OnStartSpan(operationName, options)
+	return spanObserver, spanObserver != nil
 }
 
 // compositeSpanObserver is a dispatcher to other span observers
 type compositeSpanObserver struct {
 	observers []ContribSpanObserver
-}
-
-// noopCompositeSpanObserver is used when there are no observers registered
-// on the Tracer or none of them returns span observers from OnStartSpan.
-var noopCompositeSpanObserver = &compositeSpanObserver{}
-
-func (o *compositeObserver) append(contribObserver ContribObserver) {
-	o.observers = append(o.observers, contribObserver)
-}
-
-func (o *compositeObserver) OnStartSpan(sp opentracing.Span, operationName string, options opentracing.StartSpanOptions) ContribSpanObserver {
-	var spanObservers []ContribSpanObserver
-	for _, obs := range o.observers {
-		spanObs, ok := obs.OnStartSpan(sp, operationName, options)
-		if ok {
-			if spanObservers == nil {
-				spanObservers = make([]ContribSpanObserver, 0, len(o.observers))
-			}
-			spanObservers = append(spanObservers, spanObs)
-		}
-	}
-	if len(spanObservers) == 0 {
-		return noopCompositeSpanObserver
-	}
-	return &compositeSpanObserver{observers: spanObservers}
 }
 
 func (o *compositeSpanObserver) OnSetOperationName(operationName string) {

@@ -40,24 +40,24 @@ type SpanObserver interface {
 	OnFinish(options opentracing.FinishOptions)
 }
 
-// observer is a dispatcher to other observers
-type observer struct {
-	observers []Observer
+// compositeObserver is a dispatcher to other observers
+type compositeObserver struct {
+	observers []ContribObserver
 }
 
-// noopSpanObserver is used when there are no observers registered on the Tracer
-// or none of them returns span observers from OnStartSpan.
+// noopSpanObserver is used when there are no observers registered
+// on the Tracer or none of them returns span observers from OnStartSpan.
 var noopSpanObserver = &compositeSpanObserver{}
 
-func (o *observer) append(observer Observer) {
-	o.observers = append(o.observers, observer)
+func (o *compositeObserver) append(contribObserver ContribObserver) {
+	o.observers = append(o.observers, contribObserver)
 }
 
-func (o observer) OnStartSpan(operationName string, options opentracing.StartSpanOptions) SpanObserver {
+func (o *compositeObserver) OnStartSpan(sp opentracing.Span, operationName string, options opentracing.StartSpanOptions) ContribSpanObserver {
 	var spanObservers []ContribSpanObserver
 	for _, obs := range o.observers {
-		spanObs := obs.OnStartSpan(operationName, options)
-		if spanObs != nil {
+		spanObs, ok := obs.OnStartSpan(sp, operationName, options)
+		if ok {
 			if spanObservers == nil {
 				spanObservers = make([]ContribSpanObserver, 0, len(o.observers))
 			}
