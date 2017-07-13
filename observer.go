@@ -69,3 +69,26 @@ func (o *compositeObserver) OnStartSpan(sp opentracing.Span, operationName strin
 	}
 	return &compositeSpanObserver{observers: spanObservers}
 }
+
+// compositeSpanObserver is a dispatcher to other span observers
+type compositeSpanObserver struct {
+	observers []ContribSpanObserver
+}
+
+func (o *compositeSpanObserver) OnSetOperationName(operationName string) {
+	for _, obs := range o.observers {
+		obs.OnSetOperationName(operationName)
+	}
+}
+
+func (o *compositeSpanObserver) OnSetTag(key string, value interface{}) {
+	for _, obs := range o.observers {
+		obs.OnSetTag(key, value)
+	}
+}
+
+func (o *compositeSpanObserver) OnFinish(options opentracing.FinishOptions) {
+	for _, obs := range o.observers {
+		obs.OnFinish(options)
+	}
+}

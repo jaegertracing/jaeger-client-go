@@ -120,9 +120,31 @@ func TestInitGlobalTracer(t *testing.T) {
 		shouldErr     bool
 		tracerChanged bool
 	}{
-		{Configuration{Disabled: true}, false, false},
-		{Configuration{Sampler: &SamplerConfig{Type: "InvalidType"}}, true, false},
-		{Configuration{}, false, true},
+		{
+			cfg:           Configuration{Disabled: true},
+			shouldErr:     false,
+			tracerChanged: false,
+		},
+		{
+			cfg:           Configuration{Sampler: &SamplerConfig{Type: "InvalidType"}},
+			shouldErr:     true,
+			tracerChanged: false,
+		},
+		{
+			cfg: Configuration{
+				Sampler: &SamplerConfig{
+					Type: "remote",
+					SamplingRefreshInterval: 1,
+				},
+			},
+			shouldErr:     false,
+			tracerChanged: true,
+		},
+		{
+			cfg:           Configuration{},
+			shouldErr:     false,
+			tracerChanged: true,
+		},
 	}
 	for _, test := range tests {
 		opentracing.InitGlobalTracer(noopTracer)
@@ -166,7 +188,12 @@ func TestConfigWithRPCMetrics(t *testing.T) {
 		RPCMetrics: true,
 	}
 	r := jaeger.NewInMemoryReporter()
-	tracer, closer, err := c.New("test", Reporter(r), Metrics(metrics))
+	tracer, closer, err := c.New(
+		"test",
+		Reporter(r),
+		Metrics(metrics),
+		ContribObserver(fakeContribObserver{}),
+	)
 	require.NoError(t, err)
 	defer closer.Close()
 
