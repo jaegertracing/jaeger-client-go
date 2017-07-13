@@ -34,15 +34,18 @@ import (
 func TestApplyOptions(t *testing.T) {
 	metricsFactory := metrics.NewLocalFactory(0)
 	observer := fakeObserver{}
+	contribObserver := fakeContribObserver{}
 	opts := applyOptions(
 		Metrics(metricsFactory),
 		Logger(jaeger.StdLogger),
 		Observer(observer),
+		ContribObserver(contribObserver),
 		ZipkinSharedRPCSpan(true),
 	)
 	assert.Equal(t, jaeger.StdLogger, opts.logger)
 	assert.Equal(t, metricsFactory, opts.metrics)
 	assert.Equal(t, []jaeger.Observer{observer}, opts.observers)
+	assert.Equal(t, []jaeger.ContribObserver{contribObserver}, opts.contribObservers)
 	assert.True(t, opts.zipkinSharedRPCSpan)
 }
 
@@ -64,4 +67,10 @@ type fakeObserver struct{}
 
 func (o fakeObserver) OnStartSpan(operationName string, options opentracing.StartSpanOptions) jaeger.SpanObserver {
 	return nil
+}
+
+type fakeContribObserver struct{}
+
+func (o fakeContribObserver) OnStartSpan(span opentracing.Span, operationName string, options opentracing.StartSpanOptions) (jaeger.ContribSpanObserver, bool) {
+	return nil, false
 }

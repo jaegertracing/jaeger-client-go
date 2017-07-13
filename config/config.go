@@ -147,12 +147,12 @@ func (c Configuration) New(
 		jaeger.TracerOptions.ZipkinSharedRPCSpan(opts.zipkinSharedRPCSpan),
 	}
 
-	for _, obs := range opts.observers {
-		tracerOptions = append(tracerOptions, jaeger.TracerOptions.Observer(obs))
-	}
-
 	for _, tag := range opts.tags {
 		tracerOptions = append(tracerOptions, jaeger.TracerOptions.Tag(tag.Key, tag.Value))
+	}
+
+	for _, obs := range opts.observers {
+		tracerOptions = append(tracerOptions, jaeger.TracerOptions.Observer(obs))
 	}
 
 	for _, cobs := range opts.contribObservers {

@@ -45,6 +45,11 @@ type compositeObserver struct {
 	observers []ContribObserver
 }
 
+// compositeSpanObserver is a dispatcher to other span observers
+type compositeSpanObserver struct {
+	observers []ContribSpanObserver
+}
+
 // noopSpanObserver is used when there are no observers registered
 // on the Tracer or none of them returns span observers from OnStartSpan.
 var noopSpanObserver = &compositeSpanObserver{}
@@ -68,4 +73,22 @@ func (o *compositeObserver) OnStartSpan(sp opentracing.Span, operationName strin
 		return noopSpanObserver
 	}
 	return &compositeSpanObserver{observers: spanObservers}
+}
+
+func (o *compositeSpanObserver) OnSetOperationName(operationName string) {
+	for _, obs := range o.observers {
+		obs.OnSetOperationName(operationName)
+	}
+}
+
+func (o *compositeSpanObserver) OnSetTag(key string, value interface{}) {
+	for _, obs := range o.observers {
+		obs.OnSetTag(key, value)
+	}
+}
+
+func (o *compositeSpanObserver) OnFinish(options opentracing.FinishOptions) {
+	for _, obs := range o.observers {
+		obs.OnFinish(options)
+	}
 }

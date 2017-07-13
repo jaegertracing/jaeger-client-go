@@ -94,7 +94,7 @@ func (tracerOptions) Extractor(format interface{}, extractor Extractor) TracerOp
 	}
 }
 
-func (t *tracerOptions) Observer(observer Observer) TracerOption {
+func (t tracerOptions) Observer(observer Observer) TracerOption {
 	return t.ContribObserver(&oldObserver{obs: observer})
 }
 
