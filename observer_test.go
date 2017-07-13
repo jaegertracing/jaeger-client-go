@@ -49,7 +49,7 @@ func TestObservers(t *testing.T) {
 	s := tracer.StartSpan("test", ext.RPCServerOption(nil))
 
 	forEachObs := func(f func(so *testSpanObserver)) {
-		observers := s.(*Span).observer.(compositeSpanObserver).observers
+		observers := s.(*Span).observer.(*compositeSpanObserver).observers
 		assert.Len(t, observers, 2)
 		for _, so := range observers {
 			f(so.(*testSpanObserver))
