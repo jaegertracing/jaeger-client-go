@@ -45,7 +45,7 @@ type Tracer struct {
 	metrics  Metrics
 	logger   log.Logger
 
-  tracerStateHeaderName string
+	tracerStateHeaderName string
 
 	timeNow      func() time.Time
 	randomNumber func() uint64
@@ -126,7 +126,7 @@ func NewTracer(
 	if t.logger == nil {
 		t.logger = log.NullLogger
 	}
-  if t.tracerStateHeaderName == "" {
+	if t.tracerStateHeaderName == "" {
 		t.tracerStateHeaderName = TracerStateHeaderName
 	}
 	// Set tracer-level tags
