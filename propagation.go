@@ -133,7 +133,7 @@ func (p *textMapPropagator) Extract(abstractCarrier interface{}) (SpanContext, e
 	var baggage map[string]string
 	err := textMapReader.ForeachKey(func(rawKey, value string) error {
 		key := strings.ToLower(rawKey) // TODO not necessary for plain TextMap
-		if key == TracerStateHeaderName {
+		if key == p.tracer.tracerStateHeaderName {
 			var err error
 			safeVal := p.decodeValue(value)
 			if ctx, err = ContextFromString(safeVal); err != nil {

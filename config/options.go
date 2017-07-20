@@ -107,5 +107,8 @@ func applyOptions(options ...Option) Options {
 	if opts.logger == nil {
 		opts.logger = jaeger.NullLogger
 	}
+  if opts.tracerStateHeaderName == "" {
+		opts.tracerStateHeaderName = jaeger.TracerStateHeaderName
+	}
 	return opts
 }

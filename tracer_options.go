@@ -55,6 +55,12 @@ func (tracerOptions) TimeNow(timeNow func() time.Time) TracerOption {
 	}
 }
 
+func (tracerOptions) TracerStateHeaderName(headerName string) TracerOption {
+	return func(tracer *Tracer) {
+		tracer.tracerStateHeaderName = headerName
+	}
+}
+
 // RandomNumber creates a TracerOption that gives the tracer
 // a thread-safe random number generator function for generating trace IDs.
 func (tracerOptions) RandomNumber(randomNumber func() uint64) TracerOption {
