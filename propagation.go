@@ -115,7 +115,7 @@ func (p *textMapPropagator) Inject(
 	// Do not encode the string with trace context to avoid accidental double-encoding
 	// if people are using opentracing < 0.10.0. Our colon-separated representation
 	// of the trace context is already safe for HTTP headers.
-	textMapWriter.Set(TracerStateHeaderName, sc.String())
+	textMapWriter.Set(p.tracer.tracerStateHeaderName, sc.String())
 	for k, v := range sc.baggage {
 		safeKey := addBaggageKeyPrefix(k)
 		safeVal := p.encodeValue(v)
