@@ -45,7 +45,7 @@ type Tracer struct {
 	metrics  Metrics
 	logger   log.Logger
 
-  tracerStateHeaderName string
+	tracerStateHeaderName string
 
 	timeNow      func() time.Time
 	randomNumber func() uint64
