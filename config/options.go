@@ -58,6 +58,7 @@ func Logger(logger jaeger.Logger) Option {
 	}
 }
 
+// TracerStateHeaderName can be set to overwrite the default configuration
 func TracerStateHeaderName(headerName string) Option {
 	return func(c *Options) {
 		c.tracerStateHeaderName = headerName
