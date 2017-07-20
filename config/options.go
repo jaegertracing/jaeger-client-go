@@ -32,14 +32,14 @@ type Option func(c *Options)
 
 // Options control behavior of the client.
 type Options struct {
-	metrics                metrics.Factory
-	logger                 jaeger.Logger
-	reporter               jaeger.Reporter
-	contribObservers       []jaeger.ContribObserver
-	observers              []jaeger.Observer
-  tracerStateHeaderName  string
-	zipkinSharedRPCSpan    bool
-	tags                   []opentracing.Tag
+	metrics               metrics.Factory
+	logger                jaeger.Logger
+	reporter              jaeger.Reporter
+	contribObservers      []jaeger.ContribObserver
+	observers             []jaeger.Observer
+	tracerStateHeaderName string
+	zipkinSharedRPCSpan   bool
+	tags                  []opentracing.Tag
 }
 
 // Metrics creates an Option that initializes Metrics in the tracer,
@@ -114,7 +114,7 @@ func applyOptions(options ...Option) Options {
 	if opts.logger == nil {
 		opts.logger = jaeger.NullLogger
 	}
-  if opts.tracerStateHeaderName == "" {
+	if opts.tracerStateHeaderName == "" {
 		opts.tracerStateHeaderName = jaeger.TracerStateHeaderName
 	}
 	return opts

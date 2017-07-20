@@ -144,7 +144,7 @@ func (c Configuration) New(
 	tracerOptions := []jaeger.TracerOption{
 		jaeger.TracerOptions.Metrics(tracerMetrics),
 		jaeger.TracerOptions.Logger(opts.logger),
-    jaeger.TracerOptions.TracerStateHeaderName(opts.tracerStateHeaderName),
+		jaeger.TracerOptions.TracerStateHeaderName(opts.tracerStateHeaderName),
 		jaeger.TracerOptions.ZipkinSharedRPCSpan(opts.zipkinSharedRPCSpan),
 	}
 
