@@ -212,7 +212,7 @@ func (t *Tracer) startSpanWithOptions(
 		ctx.flags = byte(0)
 		if hasParent && parent.isDebugIDContainerOnly() {
 			ctx.flags |= (flagSampled | flagDebug)
-			samplerTags = []Tag{{key: JaegerDebugHeader, value: parent.debugID}}
+			samplerTags = []Tag{{key: t.headerKeys.JaegerDebugHeader, value: parent.debugID}}
 		} else if sampled, tags := t.sampler.IsSampled(ctx.traceID, operationName); sampled {
 			ctx.flags |= flagSampled
 			samplerTags = tags

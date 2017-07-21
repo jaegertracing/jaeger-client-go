@@ -227,7 +227,7 @@ func TestParseCommaSeperatedMap(t *testing.T) {
 	}
 
 	for _, testcase := range testcases {
-		m := parseCommaSeparatedMap(testcase.in)
+		m := parseCommaSeparatedMap(testcase.in, JaegerBaggageHeader)
 		assert.Equal(t, testcase.out, m)
 	}
 }

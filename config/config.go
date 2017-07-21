@@ -37,11 +37,11 @@ const defaultSamplingProbability = 0.001
 
 // Configuration configures and creates Jaeger Tracer
 type Configuration struct {
-	Disabled   bool                  `yaml:"disabled"`
-	Sampler    *SamplerConfig        `yaml:"sampler"`
-	Reporter   *ReporterConfig       `yaml:"reporter"`
-	Headers    jaeger.HeadersConfig  `yaml:"headers"`
-	RPCMetrics bool                  `yaml:"rpc_metrics"`
+	Disabled   bool                 `yaml:"disabled"`
+	Sampler    *SamplerConfig       `yaml:"sampler"`
+	Reporter   *ReporterConfig      `yaml:"reporter"`
+	Headers    jaeger.HeadersConfig `yaml:"headers"`
+	RPCMetrics bool                 `yaml:"rpc_metrics"`
 }
 
 // SamplerConfig allows initializing a non-default sampler.  All fields are optional.

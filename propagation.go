@@ -117,7 +117,7 @@ func (p *textMapPropagator) Inject(
 	// of the trace context is already safe for HTTP headers.
 	textMapWriter.Set(p.tracer.headerKeys.TracerStateHeaderName, sc.String())
 	for k, v := range sc.baggage {
-		safeKey := addBaggageKeyPrefix(k)
+		safeKey := addBaggageKeyPrefix(k, p.tracer.headerKeys.TraceBaggageHeaderPrefix)
 		safeVal := p.encodeValue(v)
 		textMapWriter.Set(safeKey, safeVal)
 	}
@@ -145,14 +145,14 @@ func (p *textMapPropagator) Extract(abstractCarrier interface{}) (SpanContext, e
 			if baggage == nil {
 				baggage = make(map[string]string)
 			}
-			for k, v := range parseCommaSeparatedMap(value) {
+			for k, v := range parseCommaSeparatedMap(value, p.tracer.headerKeys.JaegerBaggageHeader) {
 				baggage[k] = v
 			}
 		} else if strings.HasPrefix(key, p.tracer.headerKeys.TraceBaggageHeaderPrefix) {
 			if baggage == nil {
 				baggage = make(map[string]string)
 			}
-			safeKey := removeBaggageKeyPrefix(key)
+			safeKey := removeBaggageKeyPrefix(key, p.tracer.headerKeys.TraceBaggageHeaderPrefix)
 			safeVal := p.decodeValue(value)
 			baggage[safeKey] = safeVal
 		}
@@ -272,7 +272,7 @@ func (p *binaryPropagator) Extract(abstractCarrier interface{}) (SpanContext, er
 // is converted to map[string]string { "key1" : "value1",
 //                                     "key2" : "value2",
 //                                     "key3" : "value3" }
-func parseCommaSeparatedMap(value string) map[string]string {
+func parseCommaSeparatedMap(value, headerKey string) map[string]string {
 	baggage := make(map[string]string)
 	value, err := url.QueryUnescape(value)
 	if err != nil {
@@ -284,7 +284,7 @@ func parseCommaSeparatedMap(value string) map[string]string {
 		if len(kv) == 2 {
 			baggage[kv[0]] = kv[1]
 		} else {
-			log.Printf("Malformed value passed in for %s", JaegerBaggageHeader)
+			log.Printf("Malformed value passed in for %s", headerKey)
 		}
 	}
 	return baggage
@@ -292,12 +292,12 @@ func parseCommaSeparatedMap(value string) map[string]string {
 
 // Converts a baggage item key into an http header format,
 // by prepending TraceBaggageHeaderPrefix and encoding the key string
-func addBaggageKeyPrefix(key string) string {
+func addBaggageKeyPrefix(key, headerKey string) string {
 	// TODO encodeBaggageKeyAsHeader add caching and escaping
-	return fmt.Sprintf("%v%v", TraceBaggageHeaderPrefix, key)
+	return fmt.Sprintf("%v%v", headerKey, key)
 }
 
-func removeBaggageKeyPrefix(key string) string {
+func removeBaggageKeyPrefix(key, headerKey string) string {
 	// TODO decodeBaggageHeaderKey add caching and escaping
-	return key[len(TraceBaggageHeaderPrefix):]
+	return key[len(headerKey):]
 }
