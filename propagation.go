@@ -115,7 +115,7 @@ func (p *textMapPropagator) Inject(
 	// Do not encode the string with trace context to avoid accidental double-encoding
 	// if people are using opentracing < 0.10.0. Our colon-separated representation
 	// of the trace context is already safe for HTTP headers.
-	textMapWriter.Set(p.tracer.tracerStateHeaderName, sc.String())
+	textMapWriter.Set(p.tracer.headerKeys.TracerStateHeaderName, sc.String())
 	for k, v := range sc.baggage {
 		safeKey := addBaggageKeyPrefix(k)
 		safeVal := p.encodeValue(v)
@@ -133,22 +133,22 @@ func (p *textMapPropagator) Extract(abstractCarrier interface{}) (SpanContext, e
 	var baggage map[string]string
 	err := textMapReader.ForeachKey(func(rawKey, value string) error {
 		key := strings.ToLower(rawKey) // TODO not necessary for plain TextMap
-		if key == p.tracer.tracerStateHeaderName {
+		if key == p.tracer.headerKeys.TracerStateHeaderName {
 			var err error
 			safeVal := p.decodeValue(value)
 			if ctx, err = ContextFromString(safeVal); err != nil {
 				return err
 			}
-		} else if key == JaegerDebugHeader {
+		} else if key == p.tracer.headerKeys.JaegerDebugHeader {
 			ctx.debugID = p.decodeValue(value)
-		} else if key == JaegerBaggageHeader {
+		} else if key == p.tracer.headerKeys.JaegerBaggageHeader {
 			if baggage == nil {
 				baggage = make(map[string]string)
 			}
 			for k, v := range parseCommaSeparatedMap(value) {
 				baggage[k] = v
 			}
-		} else if strings.HasPrefix(key, TraceBaggageHeaderPrefix) {
+		} else if strings.HasPrefix(key, p.tracer.headerKeys.TraceBaggageHeaderPrefix) {
 			if baggage == nil {
 				baggage = make(map[string]string)
 			}

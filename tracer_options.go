@@ -55,9 +55,9 @@ func (tracerOptions) TimeNow(timeNow func() time.Time) TracerOption {
 	}
 }
 
-func (tracerOptions) TracerStateHeaderName(headerName string) TracerOption {
+func (tracerOptions) TracerHeaderKeys(headerConfig HeadersConfig) TracerOption {
 	return func(tracer *Tracer) {
-		tracer.tracerStateHeaderName = headerName
+		tracer.headerKeys = headerConfig
 	}
 }
 

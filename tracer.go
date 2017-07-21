@@ -45,8 +45,6 @@ type Tracer struct {
 	metrics  Metrics
 	logger   log.Logger
 
-	tracerStateHeaderName string
-
 	timeNow      func() time.Time
 	randomNumber func() uint64
 
@@ -61,6 +59,8 @@ type Tracer struct {
 
 	injectors  map[interface{}]Injector
 	extractors map[interface{}]Extractor
+
+	headerKeys HeadersConfig
 
 	observer compositeObserver
 
@@ -82,7 +82,13 @@ func NewTracer(
 		reporter:    reporter,
 		injectors:   make(map[interface{}]Injector),
 		extractors:  make(map[interface{}]Extractor),
-		metrics:     *NewNullMetrics(),
+		headerKeys: HeadersConfig{
+			JaegerDebugHeader:        JaegerDebugHeader,
+			JaegerBaggageHeader:      JaegerBaggageHeader,
+			TracerStateHeaderName:    TracerStateHeaderName,
+			TraceBaggageHeaderPrefix: TraceBaggageHeaderPrefix,
+		},
+		metrics: *NewNullMetrics(),
 		spanPool: sync.Pool{New: func() interface{} {
 			return &Span{}
 		}},
@@ -125,9 +131,6 @@ func NewTracer(
 	}
 	if t.logger == nil {
 		t.logger = log.NullLogger
-	}
-	if t.tracerStateHeaderName == "" {
-		t.tracerStateHeaderName = TracerStateHeaderName
 	}
 	// Set tracer-level tags
 	t.tags = append(t.tags, Tag{key: JaegerClientVersionTagKey, value: JaegerClientVersion})
