@@ -20,32 +20,17 @@
 
 package jaeger
 
-const (
-	defaultMaxValueLength = 2048
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-// BaggageRestrictionManager keeps track of valid baggage keys and their size restrictions.
-type BaggageRestrictionManager interface {
-	// GetBaggageSetter returns a BaggageSetter which can be used to set the baggage
-	// on a span.
-	GetBaggageSetter(key string) *BaggageSetter
-}
+var _ BaggageRestrictionManager = &DefaultBaggageRestrictionManager{}
 
-// DefaultBaggageRestrictionManager allows any baggage key.
-type DefaultBaggageRestrictionManager struct{
-	setter *BaggageSetter
-}
-
-func NewDefaultBaggageRestrictionManager(metrics *Metrics, maxValueLength int) *DefaultBaggageRestrictionManager {
-	if maxValueLength == 0 {
-		maxValueLength = defaultMaxValueLength
-	}
-	return *DefaultBaggageRestrictionManager{
-		setter: NewBaggageSetter(true, maxValueLength, metrics),
-	}
-}
-
-// GetBaggageSetter implements BaggageRestrictionManager#GetBaggageSetter
-func (m *DefaultBaggageRestrictionManager) GetBaggageSetter(key string) *BaggageSetter {
-	return m.setter
+func TestDefaultBaggageRestrictionManager(t *testing.T) {
+	mgr := NewDefaultBaggageRestrictionManager(NewNullMetrics(), 0)
+	setter := mgr.GetBaggageSetter("key")
+	assert.Equal(t, setter.maxValueLength, 2048)
+	assert.True(t, setter.valid)
 }

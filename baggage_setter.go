@@ -27,21 +27,21 @@ import (
 // BaggageSetter is an actor that can set a baggage value on a Span given certain
 // restrictions (eg. maxValueLength).
 type BaggageSetter struct {
-	valid bool
+	valid          bool
 	maxValueLength int
-	metrics *Metrics
+	metrics        *Metrics
 }
 
 // NewBaggageSetter returns a new BaggageSetter.
 func NewBaggageSetter(valid bool, maxValueLength int, metrics *Metrics) *BaggageSetter {
 	return &BaggageSetter{
-		valid: valid,
+		valid:          valid,
 		maxValueLength: maxValueLength,
-		metrics: metrics,
+		metrics:        metrics,
 	}
 }
 
-func (s *BaggageSetter) setBaggage(span *Span, key, value string) *SpanContext {
+func (s *BaggageSetter) setBaggage(span *Span, key, value string) SpanContext {
 	if !s.valid {
 		s.metrics.BaggageUpdateFailure.Inc(1)
 		logFields(span, key, value, "", false, true)
@@ -53,7 +53,7 @@ func (s *BaggageSetter) setBaggage(span *Span, key, value string) *SpanContext {
 		value = value[:s.maxValueLength]
 		s.metrics.BaggageTruncate.Inc(1)
 	}
-	prevItem := span.BaggageItem(key)
+	prevItem := span.context.baggage[key]
 	logFields(span, key, value, prevItem, truncated, false)
 	s.metrics.BaggageUpdateSuccess.Inc(1)
 	return span.context.WithBaggageItem(key, value)
@@ -72,10 +72,10 @@ func logFields(span *Span, key, value, prevItem string, truncated, invalid bool)
 		fields = append(fields, log.String("override", "true"))
 	}
 	if truncated {
-		fields = append(fields, log.String("trucated", "true"))
+		fields = append(fields, log.String("truncated", "true"))
 	}
 	if invalid {
 		fields = append(fields, log.String("invalid", "true"))
 	}
-	span.LogFields(fields...)
+	span.logFieldsNoLocking(fields...)
 }

@@ -168,17 +168,10 @@ func (s *Span) appendLog(lr opentracing.LogRecord) {
 // SetBaggageItem implements SetBaggageItem() of opentracing.SpanContext
 func (s *Span) SetBaggageItem(key, value string) opentracing.Span {
 	key = normalizeBaggageKey(key)
+	setter := s.tracer.baggageRestrictionManager.GetBaggageSetter(key)
 	s.Lock()
 	defer s.Unlock()
-	s.context = s.context.WithBaggageItem(key, value)
-	if s.context.IsSampled() {
-		// If sampled, record the baggage in the span
-		s.logFieldsNoLocking(
-			log.String("event", "baggage"),
-			log.String("key", key),
-			log.String("value", value),
-		)
-	}
+	s.context = setter.setBaggage(s, key, value)
 	return s
 }
 
