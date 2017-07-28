@@ -99,6 +99,7 @@ func newInMemoryTracer() (opentracing.Tracer, *jaeger.InMemoryReporter) {
 		testService,
 		jaeger.NewConstSampler(true),
 		inMemoryReporter,
+		nil,
 		jaeger.TracerOptions.Metrics(jaeger.NewNullMetrics()),
 		jaeger.TracerOptions.Logger(log.NullLogger))
 	return tracer, inMemoryReporter

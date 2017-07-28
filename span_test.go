@@ -30,7 +30,7 @@ import (
 
 func TestBaggageIterator(t *testing.T) {
 	service := "DOOP"
-	tracer, closer := NewTracer(service, NewConstSampler(true), NewNullReporter())
+	tracer, closer := NewTracer(service, NewConstSampler(true), NewNullReporter(), nil)
 	defer closer.Close()
 
 	sp1 := tracer.StartSpan("s1").(*Span)
@@ -76,7 +76,7 @@ func extractBaggage(sp opentracing.Span, allItems bool) map[string]string {
 }
 
 func TestSpanProperties(t *testing.T) {
-	tracer, closer := NewTracer("DOOP", NewConstSampler(true), NewNullReporter())
+	tracer, closer := NewTracer("DOOP", NewConstSampler(true), NewNullReporter(), nil)
 	defer closer.Close()
 
 	sp1 := tracer.StartSpan("s1").(*Span)
@@ -85,7 +85,7 @@ func TestSpanProperties(t *testing.T) {
 }
 
 func TestSpanOperationName(t *testing.T) {
-	tracer, closer := NewTracer("DOOP", NewConstSampler(true), NewNullReporter())
+	tracer, closer := NewTracer("DOOP", NewConstSampler(true), NewNullReporter(), nil)
 	defer closer.Close()
 
 	sp1 := tracer.StartSpan("s1").(*Span)

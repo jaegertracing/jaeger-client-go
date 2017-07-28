@@ -39,7 +39,8 @@ import (
 func TestThriftFirstInProcessSpan(t *testing.T) {
 	tracer, closer := NewTracer("DOOP",
 		NewConstSampler(true),
-		NewNullReporter())
+		NewNullReporter(),
+		nil)
 	defer closer.Close()
 
 	sp1 := tracer.StartSpan("s1").(*Span)
@@ -73,7 +74,8 @@ func TestThriftFirstInProcessSpan(t *testing.T) {
 func TestThriftForceSampled(t *testing.T) {
 	tracer, closer := NewTracer("DOOP",
 		NewConstSampler(false), // sample nothing
-		NewNullReporter())
+		NewNullReporter(),
+		nil)
 	defer closer.Close()
 
 	sp := tracer.StartSpan("s1").(*Span)
@@ -87,7 +89,8 @@ func TestThriftForceSampled(t *testing.T) {
 func TestThriftSpanLogs(t *testing.T) {
 	tracer, closer := NewTracer("DOOP",
 		NewConstSampler(true),
-		NewNullReporter())
+		NewNullReporter(),
+		nil)
 	defer closer.Close()
 	root := tracer.StartSpan("s1")
 
@@ -244,7 +247,8 @@ func TestThriftSpanLogs(t *testing.T) {
 func TestThriftLocalComponentSpan(t *testing.T) {
 	tracer, closer := NewTracer("DOOP",
 		NewConstSampler(true),
-		NewNullReporter())
+		NewNullReporter(),
+		nil)
 	defer closer.Close()
 
 	tests := []struct {
@@ -272,7 +276,8 @@ func TestThriftLocalComponentSpan(t *testing.T) {
 func TestSpecialTags(t *testing.T) {
 	tracer, closer := NewTracer("DOOP",
 		NewConstSampler(true),
-		NewNullReporter())
+		NewNullReporter(),
+		nil)
 	defer closer.Close()
 
 	sp := tracer.StartSpan("s1").(*Span)
@@ -304,7 +309,8 @@ func TestSpecialTags(t *testing.T) {
 func TestBaggageLogs(t *testing.T) {
 	tracer, closer := NewTracer("DOOP",
 		NewConstSampler(true),
-		NewNullReporter())
+		NewNullReporter(),
+		nil)
 	defer closer.Close()
 
 	sp := tracer.StartSpan("s1").(*Span)

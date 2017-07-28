@@ -48,6 +48,7 @@ func TestHTTPTransport(t *testing.T) {
 		"test",
 		jaeger.NewConstSampler(true),
 		jaeger.NewRemoteReporter(sender),
+		nil,
 	)
 	defer closer.Close()
 

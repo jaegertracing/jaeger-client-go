@@ -43,3 +43,29 @@ type HeadersConfig struct {
 	// This must be in lower-case to avoid mismatches when decoding incoming headers.
 	TraceBaggageHeaderPrefix string `yaml:"traceBaggageHeaderPrefix"`
 }
+
+// SetDefaultOrCustom ...
+func (c *HeadersConfig) SetDefaultOrCustom() *HeadersConfig {
+	if c.JaegerBaggageHeader == "" {
+		c.JaegerBaggageHeader = JaegerBaggageHeader
+	}
+	if c.JaegerDebugHeader == "" {
+		c.JaegerDebugHeader = JaegerDebugHeader
+	}
+	if c.TraceBaggageHeaderPrefix == "" {
+		c.TraceBaggageHeaderPrefix = TraceBaggageHeaderPrefix
+	}
+	if c.TracerStateHeaderName == "" {
+		c.TracerStateHeaderName = TracerStateHeaderName
+	}
+	return c
+}
+
+func getDefaultHeadersConfig() *HeadersConfig {
+	return &HeadersConfig{
+		JaegerDebugHeader:        JaegerDebugHeader,
+		JaegerBaggageHeader:      JaegerBaggageHeader,
+		TracerStateHeaderName:    TracerStateHeaderName,
+		TraceBaggageHeaderPrefix: TraceBaggageHeaderPrefix,
+	}
+}

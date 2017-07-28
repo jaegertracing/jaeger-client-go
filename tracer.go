@@ -60,8 +60,6 @@ type Tracer struct {
 	injectors  map[interface{}]Injector
 	extractors map[interface{}]Extractor
 
-	headerKeys HeadersConfig
-
 	observer compositeObserver
 
 	tags []Tag
@@ -74,6 +72,7 @@ func NewTracer(
 	serviceName string,
 	sampler Sampler,
 	reporter Reporter,
+	headersConfig *HeadersConfig,
 	options ...TracerOption,
 ) (opentracing.Tracer, io.Closer) {
 	t := &Tracer{
@@ -82,24 +81,22 @@ func NewTracer(
 		reporter:    reporter,
 		injectors:   make(map[interface{}]Injector),
 		extractors:  make(map[interface{}]Extractor),
-		headerKeys: HeadersConfig{
-			JaegerDebugHeader:        JaegerDebugHeader,
-			JaegerBaggageHeader:      JaegerBaggageHeader,
-			TracerStateHeaderName:    TracerStateHeaderName,
-			TraceBaggageHeaderPrefix: TraceBaggageHeaderPrefix,
-		},
-		metrics: *NewNullMetrics(),
+		metrics:     *NewNullMetrics(),
 		spanPool: sync.Pool{New: func() interface{} {
 			return &Span{}
 		}},
 	}
 
+	for _, option := range options {
+		option(t)
+	}
+
 	// register default injectors/extractors
-	textPropagator := newTextMapPropagator(t)
+	textPropagator := newTextMapPropagator(headersConfig, t.metrics)
 	t.injectors[opentracing.TextMap] = textPropagator
 	t.extractors[opentracing.TextMap] = textPropagator
 
-	httpHeaderPropagator := newHTTPHeaderPropagator(t)
+	httpHeaderPropagator := newHTTPHeaderPropagator(headersConfig, t.metrics)
 	t.injectors[opentracing.HTTPHeaders] = httpHeaderPropagator
 	t.extractors[opentracing.HTTPHeaders] = httpHeaderPropagator
 
@@ -115,10 +112,6 @@ func NewTracer(
 	zipkinPropagator := &zipkinPropagator{tracer: t}
 	t.injectors[ZipkinSpanFormat] = zipkinPropagator
 	t.extractors[ZipkinSpanFormat] = zipkinPropagator
-
-	for _, option := range options {
-		option(t)
-	}
 
 	if t.randomNumber == nil {
 		rng := utils.NewRand(time.Now().UnixNano())
@@ -212,7 +205,8 @@ func (t *Tracer) startSpanWithOptions(
 		ctx.flags = byte(0)
 		if hasParent && parent.isDebugIDContainerOnly() {
 			ctx.flags |= (flagSampled | flagDebug)
-			samplerTags = []Tag{{key: t.headerKeys.JaegerDebugHeader, value: parent.debugID}}
+			samplerTags = []Tag{{key: JaegerDebugHeader, value: parent.debugID}}
+			//samplerTags = []Tag{{key: t.headerKeys.JaegerDebugHeader, value: parent.debugID}}
 		} else if sampled, tags := t.sampler.IsSampled(ctx.traceID, operationName); sampled {
 			ctx.flags |= flagSampled
 			samplerTags = tags

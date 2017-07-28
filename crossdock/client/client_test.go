@@ -49,7 +49,8 @@ func TestCrossdock(t *testing.T) {
 	tracer, tCloser := jaeger.NewTracer(
 		"crossdock",
 		jaeger.NewConstSampler(false),
-		reporter)
+		reporter,
+		nil)
 	defer tCloser.Close()
 
 	s := &server.Server{

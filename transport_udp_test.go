@@ -34,7 +34,7 @@ import (
 )
 
 var (
-	testTracer, _ = NewTracer("svcName", NewConstSampler(false), NewNullReporter())
+	testTracer, _ = NewTracer("svcName", NewConstSampler(false), NewNullReporter(), nil)
 	jaegerTracer  = testTracer.(*Tracer)
 )
 
