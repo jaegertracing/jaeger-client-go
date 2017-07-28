@@ -54,11 +54,11 @@ func (tracerOptions) CustomHeaderKeys(headerKeys *HeadersConfig) TracerOption {
 		if headerKeys == nil {
 			return
 		}
-		textPropagator := newTextMapPropagator(headerKeys, tracer.metrics)
+		textPropagator := newTextMapPropagator(headerKeys.setDefaultOrCustom(), tracer.metrics)
 		tracer.injectors[opentracing.TextMap] = textPropagator
 		tracer.extractors[opentracing.TextMap] = textPropagator
 
-		httpHeaderPropagator := newHTTPHeaderPropagator(headerKeys, tracer.metrics)
+		httpHeaderPropagator := newHTTPHeaderPropagator(headerKeys.setDefaultOrCustom(), tracer.metrics)
 		tracer.injectors[opentracing.HTTPHeaders] = httpHeaderPropagator
 		tracer.extractors[opentracing.HTTPHeaders] = httpHeaderPropagator
 	}

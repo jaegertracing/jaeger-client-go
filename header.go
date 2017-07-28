@@ -35,9 +35,9 @@ type HeadersConfig struct {
 	// a root span does not exist.
 	JaegerBaggageHeader string `yaml:"jaegerBaggageHeader"`
 
-	// TracerStateHeaderName is the http header name used to propagate tracing context.
+	// TraceContextHeaderName is the http header name used to propagate tracing context.
 	// This must be in lower-case to avoid mismatches when decoding incoming headers.
-	TracerStateHeaderName string `yaml:"tracerStateHeaderName"`
+	TraceContextHeaderName string `yaml:"TraceContextHeaderName"`
 
 	// TraceBaggageHeaderPrefix is the prefix for http headers used to propagate baggage.
 	// This must be in lower-case to avoid mismatches when decoding incoming headers.
@@ -45,7 +45,7 @@ type HeadersConfig struct {
 }
 
 // SetDefaultOrCustom ...
-func (c *HeadersConfig) SetDefaultOrCustom() *HeadersConfig {
+func (c *HeadersConfig) setDefaultOrCustom() *HeadersConfig {
 	if c.JaegerBaggageHeader == "" {
 		c.JaegerBaggageHeader = JaegerBaggageHeader
 	}
@@ -55,8 +55,8 @@ func (c *HeadersConfig) SetDefaultOrCustom() *HeadersConfig {
 	if c.TraceBaggageHeaderPrefix == "" {
 		c.TraceBaggageHeaderPrefix = TraceBaggageHeaderPrefix
 	}
-	if c.TracerStateHeaderName == "" {
-		c.TracerStateHeaderName = TracerStateHeaderName
+	if c.TraceContextHeaderName == "" {
+		c.TraceContextHeaderName = TraceContextHeaderName
 	}
 	return c
 }
@@ -65,7 +65,7 @@ func getDefaultHeadersConfig() *HeadersConfig {
 	return &HeadersConfig{
 		JaegerDebugHeader:        JaegerDebugHeader,
 		JaegerBaggageHeader:      JaegerBaggageHeader,
-		TracerStateHeaderName:    TracerStateHeaderName,
+		TraceContextHeaderName:   TraceContextHeaderName,
 		TraceBaggageHeaderPrefix: TraceBaggageHeaderPrefix,
 	}
 }

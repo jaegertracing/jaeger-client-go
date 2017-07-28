@@ -65,10 +65,6 @@ type textMapPropagator struct {
 }
 
 func newTextMapPropagator(headerKeys *HeadersConfig, metrics Metrics) *textMapPropagator {
-	if headerKeys == nil {
-		headerKeys = getDefaultHeadersConfig()
-	}
-
 	return &textMapPropagator{
 		headerKeys: headerKeys,
 		metrics:    metrics,
@@ -82,10 +78,6 @@ func newTextMapPropagator(headerKeys *HeadersConfig, metrics Metrics) *textMapPr
 }
 
 func newHTTPHeaderPropagator(headerKeys *HeadersConfig, metrics Metrics) *textMapPropagator {
-	if headerKeys == nil {
-		headerKeys = getDefaultHeadersConfig()
-	}
-
 	return &textMapPropagator{
 		headerKeys: headerKeys,
 		metrics:    metrics,
@@ -126,9 +118,9 @@ func (p *textMapPropagator) Inject(
 	// Do not encode the string with trace context to avoid accidental double-encoding
 	// if people are using opentracing < 0.10.0. Our colon-separated representation
 	// of the trace context is already safe for HTTP headers.
-	textMapWriter.Set(p.headerKeys.TracerStateHeaderName, sc.String())
+	textMapWriter.Set(p.headerKeys.TraceContextHeaderName, sc.String())
 	for k, v := range sc.baggage {
-		safeKey := addBaggageKeyPrefix(k, p.headerKeys.TraceBaggageHeaderPrefix)
+		safeKey := p.addBaggageKeyPrefix(k)
 		safeVal := p.encodeValue(v)
 		textMapWriter.Set(safeKey, safeVal)
 	}
@@ -144,7 +136,7 @@ func (p *textMapPropagator) Extract(abstractCarrier interface{}) (SpanContext, e
 	var baggage map[string]string
 	err := textMapReader.ForeachKey(func(rawKey, value string) error {
 		key := strings.ToLower(rawKey) // TODO not necessary for plain TextMap
-		if key == p.headerKeys.TracerStateHeaderName {
+		if key == p.headerKeys.TraceContextHeaderName {
 			var err error
 			safeVal := p.decodeValue(value)
 			if ctx, err = ContextFromString(safeVal); err != nil {
@@ -156,14 +148,14 @@ func (p *textMapPropagator) Extract(abstractCarrier interface{}) (SpanContext, e
 			if baggage == nil {
 				baggage = make(map[string]string)
 			}
-			for k, v := range parseCommaSeparatedMap(value, p.headerKeys.JaegerBaggageHeader) {
+			for k, v := range p.parseCommaSeparatedMap(value) {
 				baggage[k] = v
 			}
 		} else if strings.HasPrefix(key, p.headerKeys.TraceBaggageHeaderPrefix) {
 			if baggage == nil {
 				baggage = make(map[string]string)
 			}
-			safeKey := removeBaggageKeyPrefix(key, p.headerKeys.TraceBaggageHeaderPrefix)
+			safeKey := p.removeBaggageKeyPrefix(key)
 			safeVal := p.decodeValue(value)
 			baggage[safeKey] = safeVal
 		}
@@ -283,7 +275,7 @@ func (p *binaryPropagator) Extract(abstractCarrier interface{}) (SpanContext, er
 // is converted to map[string]string { "key1" : "value1",
 //                                     "key2" : "value2",
 //                                     "key3" : "value3" }
-func parseCommaSeparatedMap(value, headerKey string) map[string]string {
+func (p *textMapPropagator) parseCommaSeparatedMap(value string) map[string]string {
 	baggage := make(map[string]string)
 	value, err := url.QueryUnescape(value)
 	if err != nil {
@@ -295,7 +287,7 @@ func parseCommaSeparatedMap(value, headerKey string) map[string]string {
 		if len(kv) == 2 {
 			baggage[kv[0]] = kv[1]
 		} else {
-			log.Printf("Malformed value passed in for %s", headerKey)
+			log.Printf("Malformed value passed in for %s", p.headerKeys.JaegerBaggageHeader)
 		}
 	}
 	return baggage
@@ -303,12 +295,12 @@ func parseCommaSeparatedMap(value, headerKey string) map[string]string {
 
 // Converts a baggage item key into an http header format,
 // by prepending TraceBaggageHeaderPrefix and encoding the key string
-func addBaggageKeyPrefix(key, headerKey string) string {
+func (p *textMapPropagator) addBaggageKeyPrefix(key string) string {
 	// TODO encodeBaggageKeyAsHeader add caching and escaping
-	return fmt.Sprintf("%v%v", headerKey, key)
+	return fmt.Sprintf("%v%v", p.headerKeys.TraceBaggageHeaderPrefix, key)
 }
 
-func removeBaggageKeyPrefix(key, headerKey string) string {
+func (p *textMapPropagator) removeBaggageKeyPrefix(key string) string {
 	// TODO decodeBaggageHeaderKey add caching and escaping
-	return key[len(headerKey):]
+	return key[len(p.headerKeys.TraceBaggageHeaderPrefix):]
 }

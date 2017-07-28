@@ -213,10 +213,6 @@ func (t *Tracer) startSpanWithOptions(
 		if hasParent && parent.isDebugIDContainerOnly() {
 			ctx.flags |= (flagSampled | flagDebug)
 			samplerTags = []Tag{{key: JaegerDebugHeader, value: parent.debugID}}
-			textMapPropagator, ok := t.injectors[opentracing.TextMap].(*textMapPropagator)
-			if ok {
-				samplerTags = []Tag{{key: textMapPropagator.headerKeys.JaegerDebugHeader, value: parent.debugID}}
-			}
 		} else if sampled, tags := t.sampler.IsSampled(ctx.traceID, operationName); sampled {
 			ctx.flags |= flagSampled
 			samplerTags = tags

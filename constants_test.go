@@ -26,8 +26,8 @@ import (
 )
 
 func TestHeaderConstants(t *testing.T) {
-	if TracerStateHeaderName != strings.ToLower(TracerStateHeaderName) {
-		t.Errorf("TracerStateHeaderName is not lower-case: %+v", TracerStateHeaderName)
+	if TraceContextHeaderName != strings.ToLower(TraceContextHeaderName) {
+		t.Errorf("TraceContextHeaderName is not lower-case: %+v", TraceContextHeaderName)
 	}
 	if TraceBaggageHeaderPrefix != strings.ToLower(TraceBaggageHeaderPrefix) {
 		t.Errorf("TraceBaggageHeaderPrefix is not lower-case: %+v", TraceBaggageHeaderPrefix)
