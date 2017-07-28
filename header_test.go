@@ -28,7 +28,6 @@ import (
 
 func TestSetDefaultOrCustom(t *testing.T) {
 	assert.Equal(t, (&HeadersConfig{}).setDefaultOrCustom(), getDefaultHeadersConfig())
-
 	assert.Equal(t, (&HeadersConfig{
 		JaegerDebugHeader: "custom-jaeger-debug-header",
 	}).setDefaultOrCustom(), &HeadersConfig{
