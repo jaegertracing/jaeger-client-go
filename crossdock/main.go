@@ -55,7 +55,6 @@ func initTracer() (opentracing.Tracer, io.Closer) {
 	t, c := jaeger.NewTracer(
 		common.DefaultTracerServiceName,
 		jaeger.NewConstSampler(false),
-		jaeger.NewLoggingReporter(jlog.StdLogger),
-		nil)
+		jaeger.NewLoggingReporter(jlog.StdLogger))
 	return t, c
 }
