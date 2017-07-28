@@ -44,7 +44,6 @@ func ExampleObserver() {
 		"serviceName",
 		jaeger.NewConstSampler(true),
 		jaeger.NewInMemoryReporter(),
-		nil,
 		jaeger.TracerOptions.Observer(metricsObserver),
 	)
 	defer closer.Close()
@@ -74,7 +73,6 @@ func withTestTracer(runTest func(tt *testTracer)) {
 		"test",
 		sampler,
 		reporter,
-		nil,
 		jaeger.TracerOptions.Observer(observer))
 	defer closer.Close()
 	runTest(&testTracer{

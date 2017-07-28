@@ -22,6 +22,8 @@ package jaeger
 
 import (
 	"time"
+
+	opentracing "github.com/opentracing/opentracing-go"
 )
 
 // TracerOption is a function that sets some option on the tracer
@@ -44,6 +46,21 @@ func (tracerOptions) Metrics(m *Metrics) TracerOption {
 func (tracerOptions) Logger(logger Logger) TracerOption {
 	return func(tracer *Tracer) {
 		tracer.logger = logger
+	}
+}
+
+func (tracerOptions) CustomHeaderKeys(headerKeys *HeadersConfig) TracerOption {
+	return func(tracer *Tracer) {
+		if headerKeys == nil {
+			return
+		}
+		textPropagator := newTextMapPropagator(headerKeys, tracer.metrics)
+		tracer.injectors[opentracing.TextMap] = textPropagator
+		tracer.extractors[opentracing.TextMap] = textPropagator
+
+		httpHeaderPropagator := newHTTPHeaderPropagator(headerKeys, tracer.metrics)
+		tracer.injectors[opentracing.HTTPHeaders] = httpHeaderPropagator
+		tracer.extractors[opentracing.HTTPHeaders] = httpHeaderPropagator
 	}
 }
 

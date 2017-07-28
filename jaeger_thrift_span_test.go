@@ -49,8 +49,7 @@ var (
 func TestBuildJaegerThrift(t *testing.T) {
 	tracer, closer := NewTracer("DOOP",
 		NewConstSampler(true),
-		NewNullReporter(),
-		nil)
+		NewNullReporter())
 	defer closer.Close()
 
 	sp1 := tracer.StartSpan("sp1").(*Span)
@@ -88,8 +87,7 @@ func TestBuildJaegerThrift(t *testing.T) {
 func TestBuildJaegerProcessThrift(t *testing.T) {
 	tracer, closer := NewTracer("DOOP",
 		NewConstSampler(true),
-		NewNullReporter(),
-		nil)
+		NewNullReporter())
 	defer closer.Close()
 
 	sp := tracer.StartSpan("sp1").(*Span)
@@ -106,8 +104,7 @@ func TestBuildJaegerProcessThrift(t *testing.T) {
 func TestBuildLogs(t *testing.T) {
 	tracer, closer := NewTracer("DOOP",
 		NewConstSampler(true),
-		NewNullReporter(),
-		nil)
+		NewNullReporter())
 	defer closer.Close()
 	root := tracer.StartSpan("s1")
 
@@ -319,8 +316,7 @@ func TestBuildReferences(t *testing.T) {
 func TestJaegerSpanBaggageLogs(t *testing.T) {
 	tracer, closer := NewTracer("DOOP",
 		NewConstSampler(true),
-		NewNullReporter(),
-		nil)
+		NewNullReporter())
 	defer closer.Close()
 
 	sp := tracer.StartSpan("s1").(*Span)

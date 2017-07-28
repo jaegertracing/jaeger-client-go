@@ -145,6 +145,7 @@ func (c Configuration) New(
 	tracerOptions := []jaeger.TracerOption{
 		jaeger.TracerOptions.Metrics(tracerMetrics),
 		jaeger.TracerOptions.Logger(opts.logger),
+		jaeger.TracerOptions.CustomHeaderKeys(c.Headers),
 		jaeger.TracerOptions.ZipkinSharedRPCSpan(opts.zipkinSharedRPCSpan),
 	}
 
@@ -160,16 +161,10 @@ func (c Configuration) New(
 		tracerOptions = append(tracerOptions, jaeger.TracerOptions.ContribObserver(cobs))
 	}
 
-	var customHeaders *jaeger.HeadersConfig
-	if c.Headers != nil {
-		customHeaders = c.Headers.SetDefaultOrCustom()
-	}
-
 	tracer, closer := jaeger.NewTracer(
 		serviceName,
 		sampler,
 		reporter,
-		customHeaders,
 		tracerOptions...)
 
 	return tracer, closer, nil

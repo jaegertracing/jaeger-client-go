@@ -44,7 +44,6 @@ func ExampleNewHTTPTransport() {
 		"my-service-name",
 		jaeger.NewConstSampler(true),
 		jaeger.NewRemoteReporter(transport, nil),
-		nil,
 	)
 	defer closer.Close()
 	opentracing.InitGlobalTracer(tracer)

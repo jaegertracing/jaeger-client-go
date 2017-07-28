@@ -43,7 +43,7 @@ func TestSpanPropagator(t *testing.T) {
 	const op = "test"
 	reporter := NewInMemoryReporter()
 	metricsFactory, metrics := initMetrics()
-	tracer, closer := NewTracer("x", NewConstSampler(true), reporter, nil, TracerOptions.Metrics(metrics), TracerOptions.ZipkinSharedRPCSpan(true))
+	tracer, closer := NewTracer("x", NewConstSampler(true), reporter, TracerOptions.Metrics(metrics), TracerOptions.ZipkinSharedRPCSpan(true))
 
 	mapc := opentracing.TextMapCarrier(make(map[string]string))
 	httpc := opentracing.HTTPHeadersCarrier(http.Header{})
@@ -148,7 +148,7 @@ func TestSpanIntegrityAfterSerialize(t *testing.T) {
 func TestDecodingError(t *testing.T) {
 	reporter := NewInMemoryReporter()
 	metricsFactory, metrics := initMetrics()
-	tracer, closer := NewTracer("x", NewConstSampler(true), reporter, nil, TracerOptions.Metrics(metrics))
+	tracer, closer := NewTracer("x", NewConstSampler(true), reporter, TracerOptions.Metrics(metrics))
 	defer closer.Close()
 
 	badHeader := "x.x.x.x"
@@ -162,7 +162,7 @@ func TestDecodingError(t *testing.T) {
 }
 
 func TestBaggagePropagationHTTP(t *testing.T) {
-	tracer, closer := NewTracer("DOOP", NewConstSampler(true), NewNullReporter(), nil)
+	tracer, closer := NewTracer("DOOP", NewConstSampler(true), NewNullReporter())
 	defer closer.Close()
 
 	sp1 := tracer.StartSpan("s1")
@@ -188,7 +188,6 @@ func TestJaegerBaggageHeader(t *testing.T) {
 	tracer, closer := NewTracer("DOOP",
 		NewConstSampler(true),
 		NewNullReporter(),
-		nil,
 		TracerOptions.Metrics(metrics),
 	)
 	defer closer.Close()
@@ -238,7 +237,6 @@ func TestDebugCorrelationID(t *testing.T) {
 	tracer, closer := NewTracer("DOOP",
 		NewConstSampler(true),
 		NewNullReporter(),
-		nil,
 		TracerOptions.Metrics(metrics),
 	)
 	defer closer.Close()

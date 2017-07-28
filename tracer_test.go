@@ -50,7 +50,6 @@ func (s *tracerSuite) SetupTest() {
 	s.tracer, s.closer = NewTracer("DOOP", // respect the classics, man!
 		NewConstSampler(true),
 		NewNullReporter(),
-		nil,
 		TracerOptions.Metrics(metrics),
 		TracerOptions.ZipkinSharedRPCSpan(true),
 	)
@@ -258,7 +257,6 @@ func TestTracerOptions(t *testing.T) {
 	openTracer, closer := NewTracer("DOOP", // respect the classics, man!
 		NewConstSampler(true),
 		NewNullReporter(),
-		nil,
 		TracerOptions.Logger(log.StdLogger),
 		TracerOptions.TimeNow(timeNow),
 		TracerOptions.RandomNumber(rnd),
@@ -279,7 +277,6 @@ func TestTracerOptions(t *testing.T) {
 
 func TestInjectorExtractorOptions(t *testing.T) {
 	tracer, tc := NewTracer("x", NewConstSampler(true), NewNullReporter(),
-		nil,
 		TracerOptions.Injector("dummy", &dummyPropagator{}),
 		TracerOptions.Extractor("dummy", &dummyPropagator{}),
 	)
@@ -304,7 +301,7 @@ func TestInjectorExtractorOptions(t *testing.T) {
 }
 
 func TestEmptySpanContextAsParent(t *testing.T) {
-	tracer, tc := NewTracer("x", NewConstSampler(true), NewNullReporter(), nil)
+	tracer, tc := NewTracer("x", NewConstSampler(true), NewNullReporter())
 	defer tc.Close()
 
 	span := tracer.StartSpan("test", opentracing.ChildOf(emptyContext))
@@ -314,7 +311,7 @@ func TestEmptySpanContextAsParent(t *testing.T) {
 }
 
 func TestZipkinSharedRPCSpan(t *testing.T) {
-	tracer, tc := NewTracer("x", NewConstSampler(true), NewNullReporter(), nil, TracerOptions.ZipkinSharedRPCSpan(false))
+	tracer, tc := NewTracer("x", NewConstSampler(true), NewNullReporter(), TracerOptions.ZipkinSharedRPCSpan(false))
 
 	sp1 := tracer.StartSpan("client", ext.SpanKindRPCClient)
 	sp2 := tracer.StartSpan("server", opentracing.ChildOf(sp1.Context()), ext.SpanKindRPCServer)
@@ -324,7 +321,7 @@ func TestZipkinSharedRPCSpan(t *testing.T) {
 	sp1.Finish()
 	tc.Close()
 
-	tracer, tc = NewTracer("x", NewConstSampler(true), NewNullReporter(), nil, TracerOptions.ZipkinSharedRPCSpan(true))
+	tracer, tc = NewTracer("x", NewConstSampler(true), NewNullReporter(), TracerOptions.ZipkinSharedRPCSpan(true))
 
 	sp1 = tracer.StartSpan("client", ext.SpanKindRPCClient)
 	sp2 = tracer.StartSpan("server", opentracing.ChildOf(sp1.Context()), ext.SpanKindRPCServer)

@@ -29,7 +29,7 @@ import (
 )
 
 func TestEmptyObserver(t *testing.T) {
-	tracer, closer := NewTracer("test", NewConstSampler(true), NewInMemoryReporter(), nil)
+	tracer, closer := NewTracer("test", NewConstSampler(true), NewInMemoryReporter())
 	defer closer.Close()
 	s := tracer.StartSpan("test", ext.RPCServerOption(nil))
 	s.Finish()
@@ -41,7 +41,6 @@ func TestObservers(t *testing.T) {
 		"test",
 		NewConstSampler(true),
 		NewInMemoryReporter(),
-		nil,
 		TracerOptions.Observer(testObserver{}),
 		TracerOptions.Observer(testObserver{}),
 	)

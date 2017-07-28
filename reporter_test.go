@@ -63,7 +63,6 @@ func (s *reporterSuite) SetupTest() {
 		"reporter-test-service",
 		NewConstSampler(true),
 		s.reporter,
-		nil,
 		TracerOptions.Metrics(metrics))
 	s.NotNil(s.tracer)
 }
@@ -200,7 +199,6 @@ func testRemoteReporter(
 		"reporter-test-service",
 		NewConstSampler(true),
 		reporter,
-		nil,
 		TracerOptions.Metrics(metrics))
 
 	span := tracer.StartSpan("leela")

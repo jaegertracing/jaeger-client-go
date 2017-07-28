@@ -72,7 +72,6 @@ func NewTracer(
 	serviceName string,
 	sampler Sampler,
 	reporter Reporter,
-	headersConfig *HeadersConfig,
 	options ...TracerOption,
 ) (opentracing.Tracer, io.Closer) {
 	t := &Tracer{
@@ -92,13 +91,21 @@ func NewTracer(
 	}
 
 	// register default injectors/extractors
-	textPropagator := newTextMapPropagator(headersConfig, t.metrics)
-	t.injectors[opentracing.TextMap] = textPropagator
-	t.extractors[opentracing.TextMap] = textPropagator
+	textPropagator := newTextMapPropagator(getDefaultHeadersConfig(), t.metrics)
+	if _, ok := t.injectors[opentracing.TextMap]; !ok { // options has created an injector with custom header values and added it to the injector map
+		t.injectors[opentracing.TextMap] = textPropagator
+	}
+	if _, ok := t.extractors[opentracing.TextMap]; !ok {
+		t.extractors[opentracing.TextMap] = textPropagator
+	}
 
-	httpHeaderPropagator := newHTTPHeaderPropagator(headersConfig, t.metrics)
-	t.injectors[opentracing.HTTPHeaders] = httpHeaderPropagator
-	t.extractors[opentracing.HTTPHeaders] = httpHeaderPropagator
+	httpHeaderPropagator := newHTTPHeaderPropagator(getDefaultHeadersConfig(), t.metrics)
+	if _, ok := t.injectors[opentracing.HTTPHeaders]; !ok {
+		t.injectors[opentracing.HTTPHeaders] = httpHeaderPropagator
+	}
+	if _, ok := t.extractors[opentracing.HTTPHeaders]; !ok {
+		t.extractors[opentracing.HTTPHeaders] = httpHeaderPropagator
+	}
 
 	binaryPropagator := newBinaryPropagator(t)
 	t.injectors[opentracing.Binary] = binaryPropagator

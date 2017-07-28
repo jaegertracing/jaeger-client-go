@@ -61,7 +61,7 @@ func TestTraceField(t *testing.T) {
 
 func withTracedContext(f func(ctx context.Context)) {
 	tracer, closer := jaeger.NewTracer(
-		"serviceName", jaeger.NewConstSampler(true), jaeger.NewNullReporter(), nil,
+		"serviceName", jaeger.NewConstSampler(true), jaeger.NewNullReporter(),
 	)
 	defer closer.Close()
 

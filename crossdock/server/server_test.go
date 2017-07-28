@@ -39,8 +39,7 @@ func TestServerJSON(t *testing.T) {
 	tracer, tCloser := jaeger.NewTracer(
 		"crossdock",
 		jaeger.NewConstSampler(false),
-		jaeger.NewNullReporter(),
-		nil)
+		jaeger.NewNullReporter())
 	defer tCloser.Close()
 
 	s := &Server{HostPortHTTP: "127.0.0.1:0", HostPortTChannel: "127.0.0.1:0", Tracer: tracer}
@@ -75,8 +74,7 @@ func TestObserveSpan(t *testing.T) {
 	tracer, tCloser := jaeger.NewTracer(
 		"crossdock",
 		jaeger.NewConstSampler(true),
-		jaeger.NewNullReporter(),
-		nil)
+		jaeger.NewNullReporter())
 	defer tCloser.Close()
 
 	_, err := observeSpan(context.Background(), tracer)
