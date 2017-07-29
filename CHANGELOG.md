@@ -1,10 +1,11 @@
 Changes by Version
 ==================
 
-2.8.1 (unreleased)
+2.9.0 (2017-07-29)
 ------------------
 
-- nothing yet.
+* c0a8538 - Pin thrift <= 0.10
+* feadba6 - Introduce a parallel interface ContribObserver
 
 
 2.8.0 (2017-07-05)
