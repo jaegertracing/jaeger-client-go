@@ -4,8 +4,8 @@ Changes by Version
 2.9.0 (2017-07-29)
 ------------------
 
-* c0a8538 - Pin thrift <= 0.10
-* feadba6 - Introduce a parallel interface ContribObserver
+- Pin thrift <= 0.10 (#179)
+- Introduce a parallel interface ContribObserver (#159)
 
 
 2.8.0 (2017-07-05)
