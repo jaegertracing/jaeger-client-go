@@ -50,12 +50,13 @@ const (
 	// SamplerParamTagKey reports the parameter of the sampler, like sampling probability.
 	SamplerParamTagKey = "sampler.param"
 
-	// TracerStateHeaderName is Deprecated: use TraceContextHeaderName
-	TracerStateHeaderName = "uber-trace-id"
-
 	// TraceContextHeaderName is the http header name used to propagate tracing context.
 	// This must be in lower-case to avoid mismatches when decoding incoming headers.
 	TraceContextHeaderName = "uber-trace-id"
+
+	// TracerStateHeaderName is deprecated.
+	// Deprecated: use TraceContextHeaderName
+	TracerStateHeaderName = TraceContextHeaderName
 
 	// TraceBaggageHeaderPrefix is the prefix for http headers used to propagate baggage.
 	// This must be in lower-case to avoid mismatches when decoding incoming headers.

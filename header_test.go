@@ -27,10 +27,10 @@ import (
 )
 
 func TestSetDefaultOrCustom(t *testing.T) {
-	assert.Equal(t, (&HeadersConfig{}).setDefaultOrCustom(), getDefaultHeadersConfig())
+	assert.Equal(t, (&HeadersConfig{}).applyDefaults(), getDefaultHeadersConfig())
 	assert.Equal(t, (&HeadersConfig{
 		JaegerDebugHeader: "custom-jaeger-debug-header",
-	}).setDefaultOrCustom(), &HeadersConfig{
+	}).applyDefaults(), &HeadersConfig{
 		JaegerDebugHeader:        "custom-jaeger-debug-header",
 		JaegerBaggageHeader:      JaegerBaggageHeader,
 		TraceContextHeaderName:   TraceContextHeaderName,
@@ -43,7 +43,7 @@ func TestSetDefaultOrCustom(t *testing.T) {
 		TraceContextHeaderName:   "custom-tracer-state-header-name",
 		TraceBaggageHeaderPrefix: "custom-tracer-baggage-header-prefix",
 	}
-	assert.Equal(t, customHeaders.setDefaultOrCustom(), customHeaders)
+	assert.Equal(t, customHeaders.applyDefaults(), customHeaders)
 }
 
 func TestGetDefaultHeadersConfig(t *testing.T) {

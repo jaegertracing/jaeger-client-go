@@ -90,35 +90,22 @@ func NewTracer(
 		option(t)
 	}
 
-	// register default injectors/extractors
+	// register default injectors/extractors unless they are already provided via options
 	textPropagator := newTextMapPropagator(getDefaultHeadersConfig(), t.metrics)
-	if _, ok := t.injectors[opentracing.TextMap]; !ok { // options has created an injector with custom header values and added it to the injector map
-		t.injectors[opentracing.TextMap] = textPropagator
-	}
-	if _, ok := t.extractors[opentracing.TextMap]; !ok {
-		t.extractors[opentracing.TextMap] = textPropagator
-	}
+	t.addCodec(opentracing.TextMap, textPropagator, textPropagator)
 
 	httpHeaderPropagator := newHTTPHeaderPropagator(getDefaultHeadersConfig(), t.metrics)
-	if _, ok := t.injectors[opentracing.HTTPHeaders]; !ok {
-		t.injectors[opentracing.HTTPHeaders] = httpHeaderPropagator
-	}
-	if _, ok := t.extractors[opentracing.HTTPHeaders]; !ok {
-		t.extractors[opentracing.HTTPHeaders] = httpHeaderPropagator
-	}
+	t.addCodec(opentracing.HTTPHeaders, httpHeaderPropagator, httpHeaderPropagator)
 
 	binaryPropagator := newBinaryPropagator(t)
-	t.injectors[opentracing.Binary] = binaryPropagator
-	t.extractors[opentracing.Binary] = binaryPropagator
+	t.addCodec(opentracing.Binary, binaryPropagator, binaryPropagator)
 
 	// TODO remove after TChannel supports OpenTracing
 	interopPropagator := &jaegerTraceContextPropagator{tracer: t}
-	t.injectors[SpanContextFormat] = interopPropagator
-	t.extractors[SpanContextFormat] = interopPropagator
+	t.addCodec(SpanContextFormat, interopPropagator, interopPropagator)
 
 	zipkinPropagator := &zipkinPropagator{tracer: t}
-	t.injectors[ZipkinSpanFormat] = zipkinPropagator
-	t.extractors[ZipkinSpanFormat] = zipkinPropagator
+	t.addCodec(ZipkinSpanFormat, zipkinPropagator, zipkinPropagator)
 
 	if t.randomNumber == nil {
 		rng := utils.NewRand(time.Now().UnixNano())
@@ -145,6 +132,16 @@ func NewTracer(
 	}
 
 	return t, t
+}
+
+// addCodec adds registers injector and extractor for given propagation format if not already defined.
+func (t *Tracer) addCodec(format interface{}, injector Injector, extractor Extractor) {
+	if _, ok := t.injectors[format]; !ok {
+		t.injectors[format] = injector
+	}
+	if _, ok := t.extractors[format]; !ok {
+		t.extractors[format] = extractor
+	}
 }
 
 // StartSpan implements StartSpan() method of opentracing.Tracer.

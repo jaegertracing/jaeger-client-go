@@ -44,8 +44,7 @@ type HeadersConfig struct {
 	TraceBaggageHeaderPrefix string `yaml:"traceBaggageHeaderPrefix"`
 }
 
-// SetDefaultOrCustom ...
-func (c *HeadersConfig) setDefaultOrCustom() *HeadersConfig {
+func (c *HeadersConfig) applyDefaults() *HeadersConfig {
 	if c.JaegerBaggageHeader == "" {
 		c.JaegerBaggageHeader = JaegerBaggageHeader
 	}
