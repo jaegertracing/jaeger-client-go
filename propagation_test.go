@@ -153,7 +153,7 @@ func TestDecodingError(t *testing.T) {
 
 	badHeader := "x.x.x.x"
 	httpHeader := http.Header{}
-	httpHeader.Add(TracerStateHeaderName, badHeader)
+	httpHeader.Add(TraceContextHeaderName, badHeader)
 	tmc := opentracing.HTTPHeadersCarrier(httpHeader)
 	_, err := tracer.Extract(opentracing.HTTPHeaders, tmc)
 	assert.Error(t, err)
@@ -227,7 +227,9 @@ func TestParseCommaSeperatedMap(t *testing.T) {
 	}
 
 	for _, testcase := range testcases {
-		m := parseCommaSeparatedMap(testcase.in)
+		m := (&textMapPropagator{
+			headerKeys: getDefaultHeadersConfig(),
+		}).parseCommaSeparatedMap(testcase.in)
 		assert.Equal(t, testcase.out, m)
 	}
 }

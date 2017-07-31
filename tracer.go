@@ -86,14 +86,26 @@ func NewTracer(
 		}},
 	}
 
-	// register default injectors/extractors
-	textPropagator := newTextMapPropagator(t)
-	t.injectors[opentracing.TextMap] = textPropagator
-	t.extractors[opentracing.TextMap] = textPropagator
+	for _, option := range options {
+		option(t)
+	}
 
-	httpHeaderPropagator := newHTTPHeaderPropagator(t)
-	t.injectors[opentracing.HTTPHeaders] = httpHeaderPropagator
-	t.extractors[opentracing.HTTPHeaders] = httpHeaderPropagator
+	// register default injectors/extractors
+	textPropagator := newTextMapPropagator(getDefaultHeadersConfig(), t.metrics)
+	if _, ok := t.injectors[opentracing.TextMap]; !ok { // options has created an injector with custom header values and added it to the injector map
+		t.injectors[opentracing.TextMap] = textPropagator
+	}
+	if _, ok := t.extractors[opentracing.TextMap]; !ok {
+		t.extractors[opentracing.TextMap] = textPropagator
+	}
+
+	httpHeaderPropagator := newHTTPHeaderPropagator(getDefaultHeadersConfig(), t.metrics)
+	if _, ok := t.injectors[opentracing.HTTPHeaders]; !ok {
+		t.injectors[opentracing.HTTPHeaders] = httpHeaderPropagator
+	}
+	if _, ok := t.extractors[opentracing.HTTPHeaders]; !ok {
+		t.extractors[opentracing.HTTPHeaders] = httpHeaderPropagator
+	}
 
 	binaryPropagator := newBinaryPropagator(t)
 	t.injectors[opentracing.Binary] = binaryPropagator
@@ -107,10 +119,6 @@ func NewTracer(
 	zipkinPropagator := &zipkinPropagator{tracer: t}
 	t.injectors[ZipkinSpanFormat] = zipkinPropagator
 	t.extractors[ZipkinSpanFormat] = zipkinPropagator
-
-	for _, option := range options {
-		option(t)
-	}
 
 	if t.randomNumber == nil {
 		rng := utils.NewRand(time.Now().UnixNano())
