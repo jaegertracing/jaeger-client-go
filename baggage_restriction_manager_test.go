@@ -30,7 +30,7 @@ var _ BaggageRestrictionManager = &DefaultBaggageRestrictionManager{}
 
 func TestDefaultBaggageRestrictionManager(t *testing.T) {
 	mgr := NewDefaultBaggageRestrictionManager(NewNullMetrics(), 0)
-	setter := mgr.GetBaggageSetter("key")
+	setter := mgr.GetBaggageSetter("key").(*baggageSetter)
 	assert.Equal(t, setter.maxValueLength, 2048)
 	assert.True(t, setter.valid)
 }

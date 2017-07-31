@@ -171,7 +171,7 @@ func (s *Span) SetBaggageItem(key, value string) opentracing.Span {
 	setter := s.tracer.baggageRestrictionManager.GetBaggageSetter(key)
 	s.Lock()
 	defer s.Unlock()
-	s.context = setter.setBaggage(s, key, value)
+	s.context = setter.SetBaggage(s, key, value)
 	return s
 }
 

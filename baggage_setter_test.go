@@ -51,7 +51,7 @@ func TestTruncateBaggage(t *testing.T) {
 		parent.context = parent.context.WithBaggageItem(key, value)
 		span := tracer.StartSpan("child", opentracing.ChildOf(parent.Context())).(*Span)
 
-		ctx := setter.setBaggage(span, key, value)
+		ctx := setter.SetBaggage(span, key, value)
 		assertBaggageFields(t, span, key, expected, true, true, false)
 		assert.Equal(t, expected, ctx.baggage[key])
 
@@ -77,7 +77,7 @@ func TestInvalidBaggage(t *testing.T) {
 
 		span := tracer.StartSpan("span").(*Span)
 
-		ctx := setter.setBaggage(span, key, value)
+		ctx := setter.SetBaggage(span, key, value)
 		assertBaggageFields(t, span, key, value, false, false, true)
 		assert.Empty(t, ctx.baggage[key])
 

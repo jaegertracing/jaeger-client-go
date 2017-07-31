@@ -26,22 +26,26 @@ import (
 
 // BaggageSetter is an actor that can set a baggage value on a Span given certain
 // restrictions (eg. maxValueLength).
-type BaggageSetter struct {
+type BaggageSetter interface {
+	SetBaggage(span *Span, key, value string) SpanContext
+}
+
+type baggageSetter struct {
 	valid          bool
 	maxValueLength int
 	metrics        *Metrics
 }
 
 // NewBaggageSetter returns a new BaggageSetter.
-func NewBaggageSetter(valid bool, maxValueLength int, metrics *Metrics) *BaggageSetter {
-	return &BaggageSetter{
+func NewBaggageSetter(valid bool, maxValueLength int, metrics *Metrics) BaggageSetter {
+	return &baggageSetter{
 		valid:          valid,
 		maxValueLength: maxValueLength,
 		metrics:        metrics,
 	}
 }
 
-func (s *BaggageSetter) setBaggage(span *Span, key, value string) SpanContext {
+func (s *baggageSetter) SetBaggage(span *Span, key, value string) SpanContext {
 	if !s.valid {
 		s.metrics.BaggageUpdateFailure.Inc(1)
 		logFields(span, key, value, "", false, true)
