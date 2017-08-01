@@ -24,33 +24,27 @@ import (
 	"github.com/opentracing/opentracing-go/log"
 )
 
-// BaggageSetter is an actor that can set a baggage value on a Span given certain
+// baggageSetter is an actor that can set a baggage value on a Span given certain
 // restrictions (eg. maxValueLength).
-type BaggageSetter interface {
-	SetBaggage(span *Span, key, value string) SpanContext
+type baggageSetter interface {
+	setBaggage(span *Span, key, value string)
 }
 
-type baggageSetter struct {
-	valid          bool
+// defaultBaggageSetter sets the baggage key:value on the span while respecting the
+// maxValueLength and truncating the value if too long.
+type defaultBaggageSetter struct {
 	maxValueLength int
 	metrics        *Metrics
 }
 
-// NewBaggageSetter returns a new BaggageSetter.
-func NewBaggageSetter(valid bool, maxValueLength int, metrics *Metrics) BaggageSetter {
-	return &baggageSetter{
-		valid:          valid,
+func newDefaultBaggageSetter(maxValueLength int, metrics *Metrics) *defaultBaggageSetter {
+	return &defaultBaggageSetter{
 		maxValueLength: maxValueLength,
 		metrics:        metrics,
 	}
 }
 
-func (s *baggageSetter) SetBaggage(span *Span, key, value string) SpanContext {
-	if !s.valid {
-		s.metrics.BaggageUpdateFailure.Inc(1)
-		logFields(span, key, value, "", false, true)
-		return span.context
-	}
+func (s *defaultBaggageSetter) setBaggage(span *Span, key, value string) {
 	var truncated bool
 	if len(value) > s.maxValueLength {
 		truncated = true
@@ -59,8 +53,24 @@ func (s *baggageSetter) SetBaggage(span *Span, key, value string) SpanContext {
 	}
 	prevItem := span.context.baggage[key]
 	logFields(span, key, value, prevItem, truncated, false)
+	span.context = span.context.WithBaggageItem(key, value)
 	s.metrics.BaggageUpdateSuccess.Inc(1)
-	return span.context.WithBaggageItem(key, value)
+}
+
+// invalidBaggageSetter logs the invalid baggage key:value on the span.
+type invalidBaggageSetter struct {
+	metrics *Metrics
+}
+
+func newInvalidBaggageSetter(metrics *Metrics) *invalidBaggageSetter {
+	return &invalidBaggageSetter{
+		metrics: metrics,
+	}
+}
+
+func (s *invalidBaggageSetter) setBaggage(span *Span, key, value string) {
+	logFields(span, key, value, "", false, true)
+	s.metrics.BaggageUpdateFailure.Inc(1)
 }
 
 func logFields(span *Span, key, value, prevItem string, truncated, invalid bool) {

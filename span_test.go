@@ -30,8 +30,7 @@ import (
 
 func TestBaggageIterator(t *testing.T) {
 	service := "DOOP"
-	tracer, closer := NewTracer(service, NewConstSampler(true), NewNullReporter(),
-		TracerOptions.BaggageRestrictionManager(NewDefaultBaggageRestrictionManager(NewNullMetrics(), 0)))
+	tracer, closer := NewTracer(service, NewConstSampler(true), NewNullReporter())
 	defer closer.Close()
 
 	sp1 := tracer.StartSpan("s1").(*Span)

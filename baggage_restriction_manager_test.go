@@ -26,11 +26,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var _ BaggageRestrictionManager = &DefaultBaggageRestrictionManager{}
+var _ baggageRestrictionManager = &defaultBaggageRestrictionManager{}
 
 func TestDefaultBaggageRestrictionManager(t *testing.T) {
-	mgr := NewDefaultBaggageRestrictionManager(NewNullMetrics(), 0)
-	setter := mgr.GetBaggageSetter("key").(*baggageSetter)
+	mgr := newDefaultBaggageRestrictionManager(NewNullMetrics(), 0)
+	setter := mgr.setter.(*defaultBaggageSetter)
 	assert.Equal(t, setter.maxValueLength, 2048)
-	assert.True(t, setter.valid)
 }

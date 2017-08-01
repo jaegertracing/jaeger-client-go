@@ -24,29 +24,26 @@ const (
 	defaultMaxValueLength = 2048
 )
 
-// BaggageRestrictionManager keeps track of valid baggage keys and their size restrictions.
-type BaggageRestrictionManager interface {
-	// GetBaggageSetter returns a BaggageSetter which can be used to set the baggage
-	// on a span.
-	GetBaggageSetter(key string) BaggageSetter
+// baggageRestrictionManager keeps track of valid baggage keys and their size restrictions.
+type baggageRestrictionManager interface {
+	// setBaggage sets the baggage key:value on a span and the associated logs.
+	setBaggage(span *Span, key, value string)
 }
 
-// DefaultBaggageRestrictionManager allows any baggage key.
-type DefaultBaggageRestrictionManager struct {
-	setter BaggageSetter
+// defaultBaggageRestrictionManager allows any baggage key.
+type defaultBaggageRestrictionManager struct {
+	setter baggageSetter
 }
 
-// NewDefaultBaggageRestrictionManager returns a DefaultBaggageRestrictionManager
-func NewDefaultBaggageRestrictionManager(metrics *Metrics, maxValueLength int) *DefaultBaggageRestrictionManager {
+func newDefaultBaggageRestrictionManager(metrics *Metrics, maxValueLength int) *defaultBaggageRestrictionManager {
 	if maxValueLength == 0 {
 		maxValueLength = defaultMaxValueLength
 	}
-	return &DefaultBaggageRestrictionManager{
-		setter: NewBaggageSetter(true, maxValueLength, metrics),
+	return &defaultBaggageRestrictionManager{
+		setter: newDefaultBaggageSetter(maxValueLength, metrics),
 	}
 }
 
-// GetBaggageSetter implements BaggageRestrictionManager#GetBaggageSetter
-func (m *DefaultBaggageRestrictionManager) GetBaggageSetter(key string) BaggageSetter {
-	return m.setter
+func (m *defaultBaggageRestrictionManager) setBaggage(span *Span, key, value string) {
+	m.setter.setBaggage(span, key, value)
 }

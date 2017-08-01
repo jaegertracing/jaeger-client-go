@@ -132,9 +132,3 @@ func (tracerOptions) Tag(key string, value interface{}) TracerOption {
 		tracer.tags = append(tracer.tags, Tag{key: key, value: value})
 	}
 }
-
-func (tracerOptions) BaggageRestrictionManager(manager BaggageRestrictionManager) TracerOption {
-	return func(tracer *Tracer) {
-		tracer.baggageRestrictionManager = manager
-	}
-}

@@ -64,7 +64,7 @@ type Tracer struct {
 
 	tags []Tag
 
-	baggageRestrictionManager BaggageRestrictionManager
+	baggageRestrictionManager baggageRestrictionManager
 }
 
 // NewTracer creates Tracer implementation that reports tracing to Jaeger.
@@ -123,7 +123,7 @@ func NewTracer(
 	t.extractors[ZipkinSpanFormat] = zipkinPropagator
 
 	if t.baggageRestrictionManager == nil {
-		t.baggageRestrictionManager = NewDefaultBaggageRestrictionManager(&t.metrics, 0)
+		t.baggageRestrictionManager = newDefaultBaggageRestrictionManager(&t.metrics, 0)
 	}
 	if t.randomNumber == nil {
 		rng := utils.NewRand(time.Now().UnixNano())
@@ -381,4 +381,9 @@ func (t *Tracer) randomID() uint64 {
 		val = t.randomNumber()
 	}
 	return val
+}
+
+// (NB) span should hold the lock before making this call
+func (t *Tracer) setBaggage(sp *Span, key, value string) {
+	t.baggageRestrictionManager.setBaggage(sp, key, value)
 }

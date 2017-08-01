@@ -42,7 +42,7 @@ func withTracerAndMetrics(f func(tracer *Tracer, metrics *Metrics, factory *metr
 
 func TestTruncateBaggage(t *testing.T) {
 	withTracerAndMetrics(func(tracer *Tracer, metrics *Metrics, factory *metrics.LocalFactory) {
-		setter := NewBaggageSetter(true, 5, metrics)
+		setter := newDefaultBaggageSetter(5, metrics)
 		key := "key"
 		value := "01234567890"
 		expected := "01234"
@@ -51,9 +51,9 @@ func TestTruncateBaggage(t *testing.T) {
 		parent.context = parent.context.WithBaggageItem(key, value)
 		span := tracer.StartSpan("child", opentracing.ChildOf(parent.Context())).(*Span)
 
-		ctx := setter.SetBaggage(span, key, value)
+		setter.setBaggage(span, key, value)
 		assertBaggageFields(t, span, key, expected, true, true, false)
-		assert.Equal(t, expected, ctx.baggage[key])
+		assert.Equal(t, expected, span.context.baggage[key])
 
 		testutils.AssertCounterMetrics(t, factory,
 			testutils.ExpectedMetric{
@@ -71,15 +71,15 @@ func TestTruncateBaggage(t *testing.T) {
 
 func TestInvalidBaggage(t *testing.T) {
 	withTracerAndMetrics(func(tracer *Tracer, metrics *Metrics, factory *metrics.LocalFactory) {
-		setter := NewBaggageSetter(false, 0, metrics)
+		setter := newInvalidBaggageSetter(metrics)
 		key := "key"
 		value := "value"
 
 		span := tracer.StartSpan("span").(*Span)
 
-		ctx := setter.SetBaggage(span, key, value)
+		setter.setBaggage(span, key, value)
 		assertBaggageFields(t, span, key, value, false, false, true)
-		assert.Empty(t, ctx.baggage[key])
+		assert.Empty(t, span.context.baggage[key])
 
 		testutils.AssertCounterMetrics(t, factory,
 			testutils.ExpectedMetric{
