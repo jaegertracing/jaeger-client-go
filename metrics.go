@@ -76,6 +76,15 @@ type Metrics struct {
 
 	// Number of times the Sampler failed to retrieve sampling strategy
 	SamplerQueryFailure metrics.Counter `metric:"sampler" tags:"state=failure,phase=query"`
+
+	// Number of times baggage was successfully written or updated on spans.
+	BaggageUpdateSuccess metrics.Counter `metric:"baggage-update" tags:"result=ok"`
+
+	// Number of times baggage failed to write or update on spans.
+	BaggageUpdateFailure metrics.Counter `metric:"baggage-update" tags:"result=err"`
+
+	// Number of times baggage was truncated as per baggage restrictions.
+	BaggageTruncate metrics.Counter `metric:"baggage-truncate"`
 }
 
 // NewMetrics creates a new Metrics struct and initializes it.
