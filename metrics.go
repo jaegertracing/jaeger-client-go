@@ -85,6 +85,12 @@ type Metrics struct {
 
 	// Number of times baggage was truncated as per baggage restrictions.
 	BaggageTruncate metrics.Counter `metric:"baggage-truncate"`
+
+	// Number of times baggage restrictions were successfully updated.
+	BaggageRestrictionsUpdateSuccess metrics.Counter `metric:"baggage-restrictions-update" tags:"result=ok"`
+
+	// Number of times baggage restrictions failed to update.
+	BaggageRestrictionsUpdateFailure metrics.Counter `metric:"baggage-restrictions-update" tags:"result=err"`
 }
 
 // NewMetrics creates a new Metrics struct and initializes it.

@@ -65,6 +65,7 @@ type Tracer struct {
 	tags []Tag
 
 	baggageRestrictionManager baggageRestrictionManager
+	baggageRestrictionsConfig *BaggageRestrictionsConfig
 }
 
 // NewTracer creates Tracer implementation that reports tracing to Jaeger.
@@ -109,8 +110,11 @@ func NewTracer(
 	zipkinPropagator := &zipkinPropagator{tracer: t}
 	t.addCodec(ZipkinSpanFormat, zipkinPropagator, zipkinPropagator)
 
-	if t.baggageRestrictionManager == nil {
+	if t.baggageRestrictionsConfig == nil {
 		t.baggageRestrictionManager = newDefaultBaggageRestrictionManager(&t.metrics, 0)
+	} else {
+		t.baggageRestrictionsConfig.applyDefaults()
+
 	}
 	if t.randomNumber == nil {
 		rng := utils.NewRand(time.Now().UnixNano())
