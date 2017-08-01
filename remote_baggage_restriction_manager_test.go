@@ -30,10 +30,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/uber-go/atomic"
-
-	"github.com/uber/jaeger-client-go/thrift-gen/baggage"
 	"github.com/uber/jaeger-lib/metrics"
 	"github.com/uber/jaeger-lib/metrics/testutils"
+
+	"github.com/uber/jaeger-client-go/thrift-gen/baggage"
 )
 
 const (
