@@ -114,7 +114,8 @@ func NewTracer(
 		t.baggageRestrictionManager = newDefaultBaggageRestrictionManager(&t.metrics, 0)
 	} else {
 		t.baggageRestrictionsConfig.applyDefaults()
-
+		t.baggageRestrictionManager =
+			newRemoteRestrictionManager(t.serviceName, t.baggageRestrictionsConfig, &t.metrics, t.logger)
 	}
 	if t.randomNumber == nil {
 		rng := utils.NewRand(time.Now().UnixNano())
