@@ -20,76 +20,8 @@
 
 package jaeger
 
-import (
-	"github.com/opentracing/opentracing-go/log"
-)
-
 // baggageSetter is an actor that can set a baggage value on a Span given certain
 // restrictions (eg. maxValueLength).
-type baggageSetter interface {
-	setBaggage(span *Span, key, value string)
-}
-
-// defaultBaggageSetter sets the baggage key:value on the span while respecting the
-// maxValueLength and truncating the value if too long.
-type defaultBaggageSetter struct {
-	maxValueLength int
-	metrics        *Metrics
-}
-
-func newDefaultBaggageSetter(maxValueLength int, metrics *Metrics) *defaultBaggageSetter {
-	return &defaultBaggageSetter{
-		maxValueLength: maxValueLength,
-		metrics:        metrics,
-	}
-}
-
-func (s *defaultBaggageSetter) setBaggage(span *Span, key, value string) {
-	var truncated bool
-	if len(value) > s.maxValueLength {
-		truncated = true
-		value = value[:s.maxValueLength]
-		s.metrics.BaggageTruncate.Inc(1)
-	}
-	prevItem := span.context.baggage[key]
-	logFields(span, key, value, prevItem, truncated, false)
-	span.context = span.context.WithBaggageItem(key, value)
-	s.metrics.BaggageUpdateSuccess.Inc(1)
-}
-
-// invalidBaggageSetter logs the invalid baggage key:value on the span.
-type invalidBaggageSetter struct {
-	metrics *Metrics
-}
-
-func newInvalidBaggageSetter(metrics *Metrics) *invalidBaggageSetter {
-	return &invalidBaggageSetter{
-		metrics: metrics,
-	}
-}
-
-func (s *invalidBaggageSetter) setBaggage(span *Span, key, value string) {
-	logFields(span, key, value, "", false, true)
-	s.metrics.BaggageUpdateFailure.Inc(1)
-}
-
-func logFields(span *Span, key, value, prevItem string, truncated, invalid bool) {
-	if !span.context.IsSampled() {
-		return
-	}
-	fields := []log.Field{
-		log.String("event", "baggage"),
-		log.String("key", key),
-		log.String("value", value),
-	}
-	if prevItem != "" {
-		fields = append(fields, log.String("override", "true"))
-	}
-	if truncated {
-		fields = append(fields, log.String("truncated", "true"))
-	}
-	if invalid {
-		fields = append(fields, log.String("invalid", "true"))
-	}
-	span.logFieldsNoLocking(fields...)
+type BaggageSetter interface {
+	SetBaggage(span *Span, key, value string) SpanContext
 }
