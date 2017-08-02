@@ -24,6 +24,8 @@ import (
 	"time"
 
 	"github.com/opentracing/opentracing-go"
+
+	"github.com/uber/jaeger-client-go/internal/baggage"
 )
 
 // TracerOption is a function that sets some option on the tracer
@@ -131,8 +133,8 @@ func (tracerOptions) Tag(key string, value interface{}) TracerOption {
 	}
 }
 
-func (tracerOptions) BaggageRestrictionsConfig(cfg *BaggageRestrictionsConfig) TracerOption {
+func (tracerOptions) BaggageRestrictionManager(mgr baggage.RestrictionManager) TracerOption {
 	return func(tracer *Tracer) {
-		tracer.baggageRestrictionsConfig = cfg
+		tracer.baggageRestrictionManager = mgr
 	}
 }

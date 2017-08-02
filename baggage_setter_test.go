@@ -20,93 +20,93 @@
 
 package jaeger
 
-import (
-	"testing"
-
-	"github.com/opentracing/opentracing-go"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"github.com/uber/jaeger-lib/metrics"
-	"github.com/uber/jaeger-lib/metrics/testutils"
-)
-
-func withTracerAndMetrics(f func(tracer *Tracer, metrics *Metrics, factory *metrics.LocalFactory)) {
-	factory := metrics.NewLocalFactory(0)
-	m := NewMetrics(factory, nil)
-
-	service := "DOOP"
-	tracer, closer := NewTracer(service, NewConstSampler(true), NewNullReporter())
-	defer closer.Close()
-	f(tracer.(*Tracer), m, factory)
-}
-
-func TestTruncateBaggage(t *testing.T) {
-	withTracerAndMetrics(func(tracer *Tracer, metrics *Metrics, factory *metrics.LocalFactory) {
-		setter := newDefaultBaggageSetter(5, metrics)
-		key := "key"
-		value := "01234567890"
-		expected := "01234"
-
-		parent := tracer.StartSpan("parent").(*Span)
-		parent.context = parent.context.WithBaggageItem(key, value)
-		span := tracer.StartSpan("child", opentracing.ChildOf(parent.Context())).(*Span)
-
-		setter.setBaggage(span, key, value)
-		assertBaggageFields(t, span, key, expected, true, true, false)
-		assert.Equal(t, expected, span.context.baggage[key])
-
-		testutils.AssertCounterMetrics(t, factory,
-			testutils.ExpectedMetric{
-				Name:  "jaeger.baggage-truncate",
-				Value: 1,
-			},
-			testutils.ExpectedMetric{
-				Name:  "jaeger.baggage-update",
-				Tags:  map[string]string{"result": "ok"},
-				Value: 1,
-			},
-		)
-	})
-}
-
-func TestInvalidBaggage(t *testing.T) {
-	withTracerAndMetrics(func(tracer *Tracer, metrics *Metrics, factory *metrics.LocalFactory) {
-		setter := newInvalidBaggageSetter(metrics)
-		key := "key"
-		value := "value"
-
-		span := tracer.StartSpan("span").(*Span)
-
-		setter.setBaggage(span, key, value)
-		assertBaggageFields(t, span, key, value, false, false, true)
-		assert.Empty(t, span.context.baggage[key])
-
-		testutils.AssertCounterMetrics(t, factory,
-			testutils.ExpectedMetric{
-				Name:  "jaeger.baggage-update",
-				Tags:  map[string]string{"result": "err"},
-				Value: 1,
-			},
-		)
-	})
-}
-
-func assertBaggageFields(t *testing.T, sp *Span, key, value string, override, truncated, invalid bool) {
-	require.Len(t, sp.logs, 1)
-	keys := map[string]struct{}{}
-	for _, field := range sp.logs[0].Fields {
-		keys[field.String()] = struct{}{}
-	}
-	assert.Contains(t, keys, "event:baggage")
-	assert.Contains(t, keys, "key:"+key)
-	assert.Contains(t, keys, "value:"+value)
-	if invalid {
-		assert.Contains(t, keys, "invalid:true")
-	}
-	if override {
-		assert.Contains(t, keys, "override:true")
-	}
-	if truncated {
-		assert.Contains(t, keys, "truncated:true")
-	}
-}
+//import (
+//	"testing"
+//
+//	"github.com/opentracing/opentracing-go"
+//	"github.com/stretchr/testify/assert"
+//	"github.com/stretchr/testify/require"
+//	"github.com/uber/jaeger-lib/metrics"
+//	"github.com/uber/jaeger-lib/metrics/testutils"
+//)
+//
+//func withTracerAndMetrics(f func(tracer *Tracer, metrics *Metrics, factory *metrics.LocalFactory)) {
+//	factory := metrics.NewLocalFactory(0)
+//	m := NewMetrics(factory, nil)
+//
+//	service := "DOOP"
+//	tracer, closer := NewTracer(service, NewConstSampler(true), NewNullReporter())
+//	defer closer.Close()
+//	f(tracer.(*Tracer), m, factory)
+//}
+//
+//func TestTruncateBaggage(t *testing.T) {
+//	withTracerAndMetrics(func(tracer *Tracer, metrics *Metrics, factory *metrics.LocalFactory) {
+//		setter := newDefaultBaggageSetter(5, metrics)
+//		key := "key"
+//		value := "01234567890"
+//		expected := "01234"
+//
+//		parent := tracer.StartSpan("parent").(*Span)
+//		parent.context = parent.context.WithBaggageItem(key, value)
+//		span := tracer.StartSpan("child", opentracing.ChildOf(parent.Context())).(*Span)
+//
+//		setter.setBaggage(span, key, value)
+//		assertBaggageFields(t, span, key, expected, true, true, false)
+//		assert.Equal(t, expected, span.context.baggage[key])
+//
+//		testutils.AssertCounterMetrics(t, factory,
+//			testutils.ExpectedMetric{
+//				Name:  "jaeger.baggage-truncate",
+//				Value: 1,
+//			},
+//			testutils.ExpectedMetric{
+//				Name:  "jaeger.baggage-update",
+//				Tags:  map[string]string{"result": "ok"},
+//				Value: 1,
+//			},
+//		)
+//	})
+//}
+//
+//func TestInvalidBaggage(t *testing.T) {
+//	withTracerAndMetrics(func(tracer *Tracer, metrics *Metrics, factory *metrics.LocalFactory) {
+//		setter := newInvalidBaggageSetter(metrics)
+//		key := "key"
+//		value := "value"
+//
+//		span := tracer.StartSpan("span").(*Span)
+//
+//		setter.setBaggage(span, key, value)
+//		assertBaggageFields(t, span, key, value, false, false, true)
+//		assert.Empty(t, span.context.baggage[key])
+//
+//		testutils.AssertCounterMetrics(t, factory,
+//			testutils.ExpectedMetric{
+//				Name:  "jaeger.baggage-update",
+//				Tags:  map[string]string{"result": "err"},
+//				Value: 1,
+//			},
+//		)
+//	})
+//}
+//
+//func assertBaggageFields(t *testing.T, sp *Span, key, value string, override, truncated, invalid bool) {
+//	require.Len(t, sp.logs, 1)
+//	keys := map[string]struct{}{}
+//	for _, field := range sp.logs[0].Fields {
+//		keys[field.String()] = struct{}{}
+//	}
+//	assert.Contains(t, keys, "event:baggage")
+//	assert.Contains(t, keys, "key:"+key)
+//	assert.Contains(t, keys, "value:"+value)
+//	if invalid {
+//		assert.Contains(t, keys, "invalid:true")
+//	}
+//	if override {
+//		assert.Contains(t, keys, "override:true")
+//	}
+//	if truncated {
+//		assert.Contains(t, keys, "truncated:true")
+//	}
+//}

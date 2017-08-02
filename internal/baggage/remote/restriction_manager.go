@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package jaeger
+package remote
 
 import (
 	"fmt"
@@ -26,6 +26,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/uber/jaeger-client-go/internal/baggage"
 	thrift "github.com/uber/jaeger-client-go/thrift-gen/baggage"
 	"github.com/uber/jaeger-client-go/utils"
 )
@@ -44,41 +45,37 @@ func (s *httpBaggageRestrictionManagerProxy) GetBaggageRestrictions(serviceName 
 	return out, nil
 }
 
-// remoteRestrictionManager manages baggage restrictions by retrieving baggage restrictions from agent
-type remoteRestrictionManager struct {
-	mux             sync.RWMutex
-	serviceName     string
-	metrics         *Metrics
-	logger          Logger
-	refreshInterval time.Duration
-	setters         map[string]baggageSetter
-	thriftProxy     thrift.BaggageRestrictionManager
-	pollStopped     sync.WaitGroup
-	stopPoll        chan struct{}
-	invalidSetter   baggageSetter
-	validSetter     baggageSetter
-	failClosed      bool
+// RestrictionManager manages baggage restrictions by retrieving baggage restrictions from agent
+type RestrictionManager struct {
+	options
+
+	mux                sync.RWMutex
+	serviceName        string
+	restrictions       map[string]*baggage.Restriction
+	thriftProxy        thrift.BaggageRestrictionManager
+	pollStopped        sync.WaitGroup
+	stopPoll           chan struct{}
+	invalidRestriction *baggage.Restriction
+	validRestriction   *baggage.Restriction
 
 	// Determines if the manager has successfully retrieved baggage restrictions from agent
 	initialized bool
 }
 
-// newRemoteRestrictionManager returns a BaggageRestrictionManager that polls the agent for the latest
+// NewRestrictionManager returns a BaggageRestrictionManager that polls the agent for the latest
 // baggage restrictions.
-func newRemoteRestrictionManager(serviceName string, cfg *BaggageRestrictionsConfig, metrics *Metrics, logger Logger) *remoteRestrictionManager {
+func NewRestrictionManager(serviceName string, options ...Option) *RestrictionManager {
 	// TODO there is a developing use case where a single tracer can generate traces on behalf of many services.
 	// restrictionsMap will need to exist per service
-	m := &remoteRestrictionManager{
-		serviceName:     serviceName,
-		setters:         make(map[string]baggageSetter),
-		thriftProxy:     &httpBaggageRestrictionManagerProxy{serverURL: cfg.ServerURL},
-		stopPoll:        make(chan struct{}),
-		invalidSetter:   newInvalidBaggageSetter(metrics),
-		validSetter:     newDefaultBaggageSetter(defaultMaxValueLength, metrics),
-		metrics:         metrics,
-		logger:          logger,
-		refreshInterval: cfg.RefreshInterval,
-		failClosed:      cfg.DenyBaggageOnInitializationFailure,
+	opts := applyOptions(options...)
+	m := &RestrictionManager{
+		serviceName:        serviceName,
+		options:            opts,
+		restrictions:       make(map[string]*baggage.Restriction),
+		thriftProxy:        &httpBaggageRestrictionManagerProxy{serverURL: opts.serverURL},
+		stopPoll:           make(chan struct{}),
+		invalidRestriction: baggage.NewRestriction(false, 0),
+		validRestriction:   baggage.NewRestriction(true, defaultMaxValueLength),
 	}
 	if err := m.updateRestrictions(); err != nil {
 		m.logger.Error(fmt.Sprintf("Failed to initialize baggage restrictions: %s", err.Error()))
@@ -91,34 +88,34 @@ func newRemoteRestrictionManager(serviceName string, cfg *BaggageRestrictionsCon
 }
 
 // isReady returns true if the manager has retrieved baggage restrictions from the remote source.
-func (m *remoteRestrictionManager) isReady() bool {
+func (m *RestrictionManager) isReady() bool {
 	m.mux.RLock()
 	defer m.mux.RUnlock()
 	return m.initialized
 }
 
-func (m *remoteRestrictionManager) setBaggage(span *Span, key, value string) {
+func (m *RestrictionManager) GetRestriction(key string) *baggage.Restriction {
 	m.mux.RLock()
 	defer m.mux.RUnlock()
-	setter := m.invalidSetter
 	if !m.initialized {
-		if !m.failClosed {
-			setter = m.validSetter
+		if m.failClosed {
+			return m.invalidRestriction
 		}
+		return m.validRestriction
 	}
-	if serviceBaggageSetter, ok := m.setters[key]; ok {
-		setter = serviceBaggageSetter
+	if restriction, ok := m.restrictions[key]; ok {
+		return restriction
 	}
-	setter.setBaggage(span, key, value)
+	return m.invalidRestriction
 }
 
 // Close stops remote polling and closes the RemoteRestrictionManager.
-func (m *remoteRestrictionManager) Close() {
+func (m *RestrictionManager) Close() {
 	close(m.stopPoll)
 	m.pollStopped.Wait()
 }
 
-func (m *remoteRestrictionManager) pollManager() {
+func (m *RestrictionManager) pollManager() {
 	defer m.pollStopped.Done()
 	ticker := time.NewTicker(m.refreshInterval)
 	defer ticker.Stop()
@@ -135,25 +132,25 @@ func (m *remoteRestrictionManager) pollManager() {
 	}
 }
 
-func (m *remoteRestrictionManager) updateRestrictions() error {
+func (m *RestrictionManager) updateRestrictions() error {
 	restrictions, err := m.thriftProxy.GetBaggageRestrictions(m.serviceName)
 	if err != nil {
 		m.metrics.BaggageRestrictionsUpdateFailure.Inc(1)
 		return err
 	}
-	setters := m.generateSetters(restrictions)
+	newRestrictions := m.generateRestrictions(restrictions)
 	m.metrics.BaggageRestrictionsUpdateSuccess.Inc(1)
 	m.mux.Lock()
 	defer m.mux.Unlock()
 	m.initialized = true
-	m.setters = setters
+	m.restrictions = newRestrictions
 	return nil
 }
 
-func (m *remoteRestrictionManager) generateSetters(restrictions []*thrift.BaggageRestriction) map[string]baggageSetter {
-	setters := make(map[string]baggageSetter, len(restrictions))
+func (m *RestrictionManager) generateRestrictions(restrictions []*thrift.BaggageRestriction) map[string]*baggage.Restriction {
+	setters := make(map[string]*baggage.Restriction, len(restrictions))
 	for _, restriction := range restrictions {
-		setters[restriction.BaggageKey] = newDefaultBaggageSetter(int(restriction.MaxValueLength), m.metrics)
+		setters[restriction.BaggageKey] = baggage.NewRestriction(true, int(restriction.MaxValueLength))
 	}
 	return setters
 }

@@ -31,6 +31,7 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 
+	"github.com/uber/jaeger-client-go/internal/baggage"
 	"github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-client-go/utils"
 )
@@ -64,8 +65,8 @@ type Tracer struct {
 
 	tags []Tag
 
-	baggageRestrictionManager baggageRestrictionManager
-	baggageRestrictionsConfig *BaggageRestrictionsConfig
+	baggageRestrictionManager baggage.RestrictionManager
+	baggageSetter             baggageSetter
 }
 
 // NewTracer creates Tracer implementation that reports tracing to Jaeger.
@@ -110,12 +111,10 @@ func NewTracer(
 	zipkinPropagator := &zipkinPropagator{tracer: t}
 	t.addCodec(ZipkinSpanFormat, zipkinPropagator, zipkinPropagator)
 
-	if t.baggageRestrictionsConfig == nil {
-		t.baggageRestrictionManager = newDefaultBaggageRestrictionManager(&t.metrics, 0)
+	if t.baggageRestrictionManager != nil {
+		t.baggageSetter = newBaggageSetter(t.baggageRestrictionManager, &t.metrics)
 	} else {
-		t.baggageRestrictionsConfig.applyDefaults()
-		t.baggageRestrictionManager =
-			newRemoteRestrictionManager(t.serviceName, t.baggageRestrictionsConfig, &t.metrics, t.logger)
+		t.baggageSetter = newBaggageSetter(baggage.NewDefaultRestrictionManager(0), &t.metrics)
 	}
 	if t.randomNumber == nil {
 		rng := utils.NewRand(time.Now().UnixNano())
@@ -387,5 +386,5 @@ func (t *Tracer) randomID() uint64 {
 
 // (NB) span should hold the lock before making this call
 func (t *Tracer) setBaggage(sp *Span, key, value string) {
-	t.baggageRestrictionManager.setBaggage(sp, key, value)
+	t.baggageSetter.setBaggage(sp, key, value)
 }
