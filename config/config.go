@@ -30,8 +30,8 @@ import (
 	"github.com/opentracing/opentracing-go"
 
 	"github.com/uber/jaeger-client-go"
+	"github.com/uber/jaeger-client-go/internal/baggage/remote"
 	"github.com/uber/jaeger-client-go/rpcmetrics"
-	//"github.com/uber/jaeger-client-go/internal/baggage/remote"
 )
 
 const defaultSamplingProbability = 0.001
@@ -181,17 +181,17 @@ func (c Configuration) New(
 	}
 
 	if c.BaggageRestrictions != nil {
-		//baggageRestrictionManager := remote.NewRestrictionManager(
-		//	serviceName,
-		//	remote.Options.Metrics(tracerMetrics),
-		//	remote.Options.Logger(opts.logger),
-		//	remote.Options.ServerURL(c.BaggageRestrictions.ServerURL),
-		//	remote.Options.RefreshInterval(c.BaggageRestrictions.RefreshInterval),
-		//	remote.Options.DenyBaggageOnInitializationFailure(
-		//		c.BaggageRestrictions.DenyBaggageOnInitializationFailure,
-		//	),
-		//)
-		//tracerOptions = append(tracerOptions, jaeger.Tr)
+		mgr := remote.NewRestrictionManager(
+			serviceName,
+			remote.Options.Metrics(tracerMetrics),
+			remote.Options.Logger(opts.logger),
+			remote.Options.ServerURL(c.BaggageRestrictions.ServerURL),
+			remote.Options.RefreshInterval(c.BaggageRestrictions.RefreshInterval),
+			remote.Options.DenyBaggageOnInitializationFailure(
+				c.BaggageRestrictions.DenyBaggageOnInitializationFailure,
+			),
+		)
+		tracerOptions = append(tracerOptions, jaeger.TracerOptions.BaggageRestrictionManager(mgr))
 	}
 
 	tracer, closer := jaeger.NewTracer(
