@@ -130,3 +130,9 @@ func (tracerOptions) Tag(key string, value interface{}) TracerOption {
 		tracer.tags = append(tracer.tags, Tag{key: key, value: value})
 	}
 }
+
+func (tracerOptions) BaggageSetter(baggageSetter BaggageSetter) TracerOption {
+	return func(tracer *Tracer) {
+		tracer.baggageSetter = baggageSetter
+	}
+}

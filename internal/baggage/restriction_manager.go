@@ -18,32 +18,31 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package jaeger
+package baggage
 
 const (
 	defaultMaxValueLength = 2048
 )
 
 // baggageRestrictionManager keeps track of valid baggage keys and their size restrictions.
-type baggageRestrictionManager interface {
-	// setBaggage sets the baggage key:value on a span and the associated logs.
-	setBaggage(span *Span, key, value string)
+type BaggageRestrictionManager interface {
+	GetRestriction(key string) (bool, int)
 }
 
-// defaultBaggageRestrictionManager allows any baggage key.
-type defaultBaggageRestrictionManager struct {
-	setter baggageSetter
+// DefaultBaggageRestrictionManager allows any baggage key.
+type DefaultBaggageRestrictionManager struct {
+	maxValueLength int
 }
 
-func newDefaultBaggageRestrictionManager(metrics *Metrics, maxValueLength int) *defaultBaggageRestrictionManager {
+func NewDefaultBaggageRestrictionManager(maxValueLength int) *DefaultBaggageRestrictionManager {
 	if maxValueLength == 0 {
 		maxValueLength = defaultMaxValueLength
 	}
-	return &defaultBaggageRestrictionManager{
-		setter: newDefaultBaggageSetter(maxValueLength, metrics),
+	return &DefaultBaggageRestrictionManager{
+		maxValueLength: maxValueLength,
 	}
 }
 
-func (m *defaultBaggageRestrictionManager) setBaggage(span *Span, key, value string) {
-	m.setter.setBaggage(span, key, value)
+func (m *DefaultBaggageRestrictionManager) GetRestriction(key string) (bool, int) {
+	return true, m.maxValueLength
 }

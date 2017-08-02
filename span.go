@@ -170,7 +170,12 @@ func (s *Span) SetBaggageItem(key, value string) opentracing.Span {
 	key = normalizeBaggageKey(key)
 	s.Lock()
 	defer s.Unlock()
-	s.tracer.setBaggage(s, key, value)
+	if s.tracer.baggageSetter != nil {
+		s.context = s.tracer.baggageSetter.SetBaggage(s, key, value)
+	} else {
+		// TODO Need to log the baggage somewhere
+		s.context = s.context.WithBaggageItem(key, value)
+	}
 	return s
 }
 
