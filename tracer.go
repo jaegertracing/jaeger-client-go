@@ -287,6 +287,9 @@ func (t *Tracer) Extract(
 func (t *Tracer) Close() error {
 	t.reporter.Close()
 	t.sampler.Close()
+	if mgr, ok := t.baggageRestrictionManager.(io.Closer); ok {
+		mgr.Close()
+	}
 	return nil
 }
 

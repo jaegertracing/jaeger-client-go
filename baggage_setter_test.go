@@ -99,6 +99,18 @@ func TestInvalidBaggage(t *testing.T) {
 	})
 }
 
+func TestNotSampled(t *testing.T) {
+	withTracerAndMetrics(func(_ *Tracer, metrics *Metrics, factory *metrics.LocalFactory) {
+		tracer, closer := NewTracer("svc", NewConstSampler(false), NewNullReporter())
+		defer closer.Close()
+
+		setter := newBaggageSetter(baggage.NewDefaultRestrictionManager(10), metrics)
+		span := tracer.StartSpan("span").(*Span)
+		setter.setBaggage(span, "key", "value")
+		assert.Empty(t, span.logs, "No baggage fields should be created if span is not sampled")
+	})
+}
+
 func assertBaggageFields(t *testing.T, sp *Span, key, value string, override, truncated, invalid bool) {
 	require.Len(t, sp.logs, 1)
 	keys := map[string]struct{}{}

@@ -32,6 +32,7 @@ import (
 	"github.com/uber/jaeger-lib/metrics"
 	"github.com/uber/jaeger-lib/metrics/testutils"
 
+	"github.com/uber/jaeger-client-go/internal/baggage"
 	"github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-client-go/utils"
 )
@@ -52,6 +53,7 @@ func (s *tracerSuite) SetupTest() {
 		NewNullReporter(),
 		TracerOptions.Metrics(metrics),
 		TracerOptions.ZipkinSharedRPCSpan(true),
+		TracerOptions.BaggageRestrictionManager(baggage.NewDefaultRestrictionManager(0)),
 	)
 	s.NotNil(s.tracer)
 }
