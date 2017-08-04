@@ -24,27 +24,31 @@ const (
 	defaultMaxValueLength = 2048
 )
 
+// Restriction determines whether a baggage key is allowed and contains any restrictions on the baggage value.
 type Restriction struct {
-	valid          bool
+	keyAllowed     bool
 	maxValueLength int
 }
 
-func NewRestriction(valid bool, maxValueLength int) *Restriction {
+// NewRestriction returns a new Restriction.
+func NewRestriction(keyAllowed bool, maxValueLength int) *Restriction {
 	return &Restriction{
-		valid:          valid,
+		keyAllowed:     keyAllowed,
 		maxValueLength: maxValueLength,
 	}
 }
 
-func (r *Restriction) Valid() bool {
-	return r.valid
+// KeyAllowed returns whether the baggage key for this restriction is allowed.
+func (r *Restriction) KeyAllowed() bool {
+	return r.keyAllowed
 }
 
+// MaxValueLength returns the max length for the baggage value.
 func (r *Restriction) MaxValueLength() int {
 	return r.maxValueLength
 }
 
-// RestrictionManager keeps track of valid baggage keys and their size restrictions.
+// RestrictionManager keeps track of valid baggage keys and their restrictions.
 type RestrictionManager interface {
 	GetRestriction(key string) *Restriction
 }
@@ -54,15 +58,17 @@ type DefaultRestrictionManager struct {
 	defaultRestriction *Restriction
 }
 
+// NewDefaultRestrictionManager returns a DefaultRestrictionManager.
 func NewDefaultRestrictionManager(maxValueLength int) *DefaultRestrictionManager {
 	if maxValueLength == 0 {
 		maxValueLength = defaultMaxValueLength
 	}
 	return &DefaultRestrictionManager{
-		defaultRestriction: &Restriction{valid: true, maxValueLength: maxValueLength},
+		defaultRestriction: &Restriction{keyAllowed: true, maxValueLength: maxValueLength},
 	}
 }
 
+// GetRestriction implements RestrictionManager#GetRestriction.
 func (m *DefaultRestrictionManager) GetRestriction(key string) *Restriction {
 	return m.defaultRestriction
 }

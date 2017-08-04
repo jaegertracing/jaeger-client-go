@@ -44,8 +44,8 @@ func (s baggageSetter) setBaggage(span *Span, key, value string) {
 	var truncated bool
 	var prevItem string
 	restriction := s.restrictionManager.GetRestriction(key)
-	if !restriction.Valid() {
-		logFields(span, key, value, prevItem, truncated, restriction.Valid())
+	if !restriction.KeyAllowed() {
+		s.logFields(span, key, value, prevItem, truncated, restriction.KeyAllowed())
 		s.metrics.BaggageUpdateFailure.Inc(1)
 		return
 	}
@@ -55,12 +55,12 @@ func (s baggageSetter) setBaggage(span *Span, key, value string) {
 		s.metrics.BaggageTruncate.Inc(1)
 	}
 	prevItem = span.context.baggage[key]
-	logFields(span, key, value, prevItem, truncated, restriction.Valid())
+	s.logFields(span, key, value, prevItem, truncated, restriction.KeyAllowed())
 	span.context = span.context.WithBaggageItem(key, value)
 	s.metrics.BaggageUpdateSuccess.Inc(1)
 }
 
-func logFields(span *Span, key, value, prevItem string, truncated, valid bool) {
+func (s baggageSetter) logFields(span *Span, key, value, prevItem string, truncated, valid bool) {
 	if !span.context.IsSampled() {
 		return
 	}

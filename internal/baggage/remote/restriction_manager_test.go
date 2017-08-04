@@ -20,197 +20,184 @@
 
 package remote
 
-//import (
-//	"encoding/json"
-//	"net/http"
-//	"net/http/httptest"
-//	"testing"
-//	"time"
-//
-//	"github.com/stretchr/testify/assert"
-//	"github.com/stretchr/testify/require"
-//	"github.com/uber-go/atomic"
-//	"github.com/uber/jaeger-lib/metrics"
-//	"github.com/uber/jaeger-lib/metrics/testutils"
-//
-//	"github.com/uber/jaeger-client-go/thrift-gen/baggage"
-//)
-//
-//const (
-//	service      = "svc"
-//	expectedKey  = "key"
-//	expectedSize = int32(10)
-//)
-//
-//var (
-//	testRestrictions = []*baggage.BaggageRestriction{
-//		{BaggageKey: expectedKey, MaxValueLength: expectedSize},
-//	}
-//)
-//
-//type baggageHandler struct {
-//	returnError  *atomic.Bool
-//	restrictions []*baggage.BaggageRestriction
-//}
-//
-//func (h *baggageHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-//	if h.returnError.Load() {
-//		w.WriteHeader(http.StatusInternalServerError)
-//	} else {
-//		bytes, _ := json.Marshal(h.restrictions)
-//		w.Header().Add("Content-Type", "application/json")
-//		w.Write(bytes)
-//	}
-//}
-//
-//func (h *baggageHandler) setReturnError(b bool) {
-//	h.returnError.Store(b)
-//}
-//
-//func withHTTPServer(
-//	restrictions []*baggage.BaggageRestriction,
-//	f func(
-//		metrics *Metrics,
-//		factory *metrics.LocalFactory,
-//		handler *baggageHandler,
-//		server *httptest.Server,
-//		tracer *Tracer,
-//	),
-//) {
-//	factory := metrics.NewLocalFactory(0)
-//	m := NewMetrics(factory, nil)
-//
-//	handler := &baggageHandler{returnError: atomic.NewBool(true), restrictions: restrictions}
-//	server := httptest.NewServer(handler)
-//	defer server.Close()
-//
-//	tracer, closer := NewTracer(service, NewConstSampler(true), NewNullReporter())
-//	defer closer.Close()
-//
-//	f(m, factory, handler, server, tracer.(*Tracer))
-//}
-//
-//func TestNewRemoteRestrictionManager(t *testing.T) {
-//	withHTTPServer(
-//		testRestrictions,
-//		func(
-//			metrics *Metrics,
-//			factory *metrics.LocalFactory,
-//			handler *baggageHandler,
-//			server *httptest.Server,
-//			tracer *Tracer,
-//		) {
-//			handler.setReturnError(false)
-//			mgr := newRemoteRestrictionManager(
-//				service,
-//				&BaggageRestrictionsConfig{RefreshInterval: time.Minute, ServerURL: server.URL},
-//				metrics,
-//				NullLogger,
-//			)
-//			defer mgr.Close()
-//
-//			for i := 0; i < 100; i++ {
-//				if mgr.isReady() {
-//					break
-//				}
-//				time.Sleep(time.Millisecond)
-//			}
-//			require.True(t, mgr.isReady())
-//
-//			span := tracer.StartSpan("s1").(*Span)
-//			value := "value"
-//			mgr.setBaggage(span, expectedKey, value)
-//			assert.Equal(t, value, span.BaggageItem(expectedKey))
-//
-//			badKey := "bad-key"
-//			mgr.setBaggage(span, badKey, value)
-//			assert.Empty(t, span.BaggageItem(badKey))
-//
-//			testutils.AssertCounterMetrics(t, factory,
-//				testutils.ExpectedMetric{
-//					Name:  "jaeger.baggage-restrictions-update",
-//					Tags:  map[string]string{"result": "ok"},
-//					Value: 1,
-//				},
-//			)
-//		})
-//}
-//
-//func TestFailClosed(t *testing.T) {
-//	withHTTPServer(
-//		testRestrictions,
-//		func(
-//			metrics *Metrics,
-//			factory *metrics.LocalFactory,
-//			handler *baggageHandler,
-//			server *httptest.Server,
-//			tracer *Tracer,
-//		) {
-//			mgr := newRemoteRestrictionManager(
-//				service,
-//				&BaggageRestrictionsConfig{
-//					RefreshInterval:                    time.Minute,
-//					ServerURL:                          server.URL,
-//					DenyBaggageOnInitializationFailure: true,
-//				},
-//				metrics,
-//				NullLogger,
-//			)
-//			require.False(t, mgr.isReady())
-//
-//			testutils.AssertCounterMetrics(t, factory,
-//				testutils.ExpectedMetric{
-//					Name:  "jaeger.baggage-restrictions-update",
-//					Tags:  map[string]string{"result": "err"},
-//					Value: 1,
-//				},
-//			)
-//
-//			// FailClosed should not allow any key to be written
-//			span := tracer.StartSpan("s1").(*Span)
-//			value := "value"
-//			mgr.setBaggage(span, expectedKey, value)
-//			assert.Empty(t, span.BaggageItem(expectedKey))
-//
-//			handler.setReturnError(false)
-//			mgr.updateRestrictions()
-//
-//			// Wait until manager retrieves baggage restrictions
-//			for i := 0; i < 100; i++ {
-//				if mgr.isReady() {
-//					break
-//				}
-//				time.Sleep(time.Millisecond)
-//			}
-//			require.True(t, mgr.isReady())
-//
-//			mgr.setBaggage(span, expectedKey, value)
-//			assert.Equal(t, value, span.BaggageItem(expectedKey))
-//		})
-//}
-//
-//func TestFailOpen(t *testing.T) {
-//	withHTTPServer(
-//		testRestrictions,
-//		func(
-//			metrics *Metrics,
-//			factory *metrics.LocalFactory,
-//			handler *baggageHandler,
-//			server *httptest.Server,
-//			tracer *Tracer,
-//		) {
-//			mgr := newRemoteRestrictionManager(
-//				service,
-//				&BaggageRestrictionsConfig{RefreshInterval: time.Millisecond, ServerURL: server.URL},
-//				metrics,
-//				NullLogger,
-//			)
-//			require.False(t, mgr.isReady())
-//
-//			// FailOpn should allow any key to be written
-//			span := tracer.StartSpan("s1").(*Span)
-//			value := "value"
-//			mgr.setBaggage(span, expectedKey, value)
-//			assert.Equal(t, value, span.BaggageItem(expectedKey))
-//		})
-//}
+import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/uber-go/atomic"
+	"github.com/uber/jaeger-lib/metrics"
+	"github.com/uber/jaeger-lib/metrics/testutils"
+
+	"github.com/uber/jaeger-client-go"
+	"github.com/uber/jaeger-client-go/internal/baggage"
+	thrift "github.com/uber/jaeger-client-go/thrift-gen/baggage"
+)
+
+const (
+	service      = "svc"
+	expectedKey  = "key"
+	expectedSize = 10
+)
+
+var (
+	testRestrictions = []*thrift.BaggageRestriction{
+		{BaggageKey: expectedKey, MaxValueLength: int32(expectedSize)},
+	}
+)
+
+type baggageHandler struct {
+	returnError  *atomic.Bool
+	restrictions []*thrift.BaggageRestriction
+}
+
+func (h *baggageHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if h.returnError.Load() {
+		w.WriteHeader(http.StatusInternalServerError)
+	} else {
+		bytes, _ := json.Marshal(h.restrictions)
+		w.Header().Add("Content-Type", "application/json")
+		w.Write(bytes)
+	}
+}
+
+func (h *baggageHandler) setReturnError(b bool) {
+	h.returnError.Store(b)
+}
+
+func withHTTPServer(
+	restrictions []*thrift.BaggageRestriction,
+	f func(
+		metrics *jaeger.Metrics,
+		factory *metrics.LocalFactory,
+		handler *baggageHandler,
+		server *httptest.Server,
+	),
+) {
+	factory := metrics.NewLocalFactory(0)
+	m := jaeger.NewMetrics(factory, nil)
+
+	handler := &baggageHandler{returnError: atomic.NewBool(true), restrictions: restrictions}
+	server := httptest.NewServer(handler)
+	defer server.Close()
+
+	f(m, factory, handler, server)
+}
+
+func TestNewRemoteRestrictionManager(t *testing.T) {
+	withHTTPServer(
+		testRestrictions,
+		func(
+			metrics *jaeger.Metrics,
+			factory *metrics.LocalFactory,
+			handler *baggageHandler,
+			server *httptest.Server,
+		) {
+			handler.setReturnError(false)
+			mgr := NewRestrictionManager(
+				service,
+				Options.ServerURL(server.URL),
+				Options.Metrics(metrics),
+				Options.Logger(jaeger.NullLogger),
+			)
+			defer mgr.Close()
+
+			for i := 0; i < 100; i++ {
+				if mgr.isReady() {
+					break
+				}
+				time.Sleep(time.Millisecond)
+			}
+			require.True(t, mgr.isReady())
+
+			restriction := mgr.GetRestriction(expectedKey)
+			assert.EqualValues(t, baggage.NewRestriction(true, expectedSize), restriction)
+
+			badKey := "bad-key"
+			restriction = mgr.GetRestriction(badKey)
+			assert.EqualValues(t, baggage.NewRestriction(false, 0), restriction)
+
+			testutils.AssertCounterMetrics(t, factory,
+				testutils.ExpectedMetric{
+					Name:  "jaeger.baggage-restrictions-update",
+					Tags:  map[string]string{"result": "ok"},
+					Value: 1,
+				},
+			)
+		})
+}
+
+func TestFailClosed(t *testing.T) {
+	withHTTPServer(
+		testRestrictions,
+		func(
+			metrics *jaeger.Metrics,
+			factory *metrics.LocalFactory,
+			handler *baggageHandler,
+			server *httptest.Server,
+		) {
+			mgr := NewRestrictionManager(
+				service,
+				Options.DenyBaggageOnInitializationFailure(true),
+				Options.ServerURL(server.URL),
+				Options.Metrics(metrics),
+				Options.Logger(jaeger.NullLogger),
+			)
+			require.False(t, mgr.isReady())
+
+			testutils.AssertCounterMetrics(t, factory,
+				testutils.ExpectedMetric{
+					Name:  "jaeger.baggage-restrictions-update",
+					Tags:  map[string]string{"result": "err"},
+					Value: 1,
+				},
+			)
+
+			// FailClosed should not allow any key to be written
+			restriction := mgr.GetRestriction(expectedKey)
+			assert.EqualValues(t, baggage.NewRestriction(false, 0), restriction)
+
+			handler.setReturnError(false)
+			mgr.updateRestrictions()
+
+			// Wait until manager retrieves baggage restrictions
+			for i := 0; i < 100; i++ {
+				if mgr.isReady() {
+					break
+				}
+				time.Sleep(time.Millisecond)
+			}
+			require.True(t, mgr.isReady())
+
+			restriction = mgr.GetRestriction(expectedKey)
+			assert.EqualValues(t, baggage.NewRestriction(true, expectedSize), restriction)
+		})
+}
+
+func TestFailOpen(t *testing.T) {
+	withHTTPServer(
+		testRestrictions,
+		func(
+			metrics *jaeger.Metrics,
+			factory *metrics.LocalFactory,
+			handler *baggageHandler,
+			server *httptest.Server,
+		) {
+			mgr := NewRestrictionManager(
+				service,
+				Options.RefreshInterval(time.Millisecond),
+				Options.ServerURL(server.URL),
+				Options.Metrics(metrics),
+				Options.Logger(jaeger.NullLogger),
+			)
+			require.False(t, mgr.isReady())
+
+			// FailOpen should allow any key to be written
+			restriction := mgr.GetRestriction(expectedKey)
+			assert.EqualValues(t, baggage.NewRestriction(true, 2048), restriction)
+		})
+}

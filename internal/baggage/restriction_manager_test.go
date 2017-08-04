@@ -31,5 +31,5 @@ var _ RestrictionManager = &DefaultRestrictionManager{}
 func TestDefaultRestrictionManager(t *testing.T) {
 	mgr := NewDefaultRestrictionManager(0)
 	restriction := mgr.GetRestriction("key")
-	assert.Equal(t, Restriction{valid: true, maxValueLength: 2048}, *restriction)
+	assert.EqualValues(t, NewRestriction(true, 2048), restriction)
 }
