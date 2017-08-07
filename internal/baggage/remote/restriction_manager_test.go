@@ -36,6 +36,7 @@ import (
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/internal/baggage"
 	thrift "github.com/uber/jaeger-client-go/thrift-gen/baggage"
+	"io"
 )
 
 const (
@@ -49,6 +50,8 @@ var (
 		{BaggageKey: expectedKey, MaxValueLength: int32(expectedSize)},
 	}
 )
+
+var _ io.Closer = new(RestrictionManager) // API check
 
 type baggageHandler struct {
 	returnError  *atomic.Bool
@@ -131,7 +134,7 @@ func TestNewRemoteRestrictionManager(t *testing.T) {
 		})
 }
 
-func TestFailClosed(t *testing.T) {
+func TestDenyBaggageOnInitializationFailure(t *testing.T) {
 	withHTTPServer(
 		testRestrictions,
 		func(
@@ -178,7 +181,7 @@ func TestFailClosed(t *testing.T) {
 		})
 }
 
-func TestFailOpen(t *testing.T) {
+func TestAllowBaggageOnInitializationFailure(t *testing.T) {
 	withHTTPServer(
 		testRestrictions,
 		func(

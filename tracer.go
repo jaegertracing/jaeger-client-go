@@ -66,7 +66,7 @@ type Tracer struct {
 	tags []Tag
 
 	baggageRestrictionManager baggage.RestrictionManager
-	baggageSetter             baggageSetter
+	baggageSetter             *baggageSetter
 }
 
 // NewTracer creates Tracer implementation that reports tracing to Jaeger.

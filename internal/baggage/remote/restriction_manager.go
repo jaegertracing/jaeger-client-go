@@ -99,7 +99,7 @@ func (m *RestrictionManager) GetRestriction(key string) *baggage.Restriction {
 	m.mux.RLock()
 	defer m.mux.RUnlock()
 	if !m.initialized {
-		if m.failClosed {
+		if m.denyBaggageOnInitializationFailure {
 			return m.invalidRestriction
 		}
 		return m.validRestriction
@@ -111,9 +111,10 @@ func (m *RestrictionManager) GetRestriction(key string) *baggage.Restriction {
 }
 
 // Close stops remote polling and closes the RemoteRestrictionManager.
-func (m *RestrictionManager) Close() {
+func (m *RestrictionManager) Close() error {
 	close(m.stopPoll)
 	m.pollStopped.Wait()
+	return nil
 }
 
 func (m *RestrictionManager) pollManager() {
@@ -139,7 +140,7 @@ func (m *RestrictionManager) updateRestrictions() error {
 		m.metrics.BaggageRestrictionsUpdateFailure.Inc(1)
 		return err
 	}
-	newRestrictions := m.generateRestrictions(restrictions)
+	newRestrictions := m.parseRestrictions(restrictions)
 	m.metrics.BaggageRestrictionsUpdateSuccess.Inc(1)
 	m.mux.Lock()
 	defer m.mux.Unlock()
@@ -148,7 +149,7 @@ func (m *RestrictionManager) updateRestrictions() error {
 	return nil
 }
 
-func (m *RestrictionManager) generateRestrictions(restrictions []*thrift.BaggageRestriction) map[string]*baggage.Restriction {
+func (m *RestrictionManager) parseRestrictions(restrictions []*thrift.BaggageRestriction) map[string]*baggage.Restriction {
 	setters := make(map[string]*baggage.Restriction, len(restrictions))
 	for _, restriction := range restrictions {
 		setters[restriction.BaggageKey] = baggage.NewRestriction(true, int(restriction.MaxValueLength))

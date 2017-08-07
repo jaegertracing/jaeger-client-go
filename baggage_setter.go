@@ -33,14 +33,15 @@ type baggageSetter struct {
 	metrics            *Metrics
 }
 
-func newBaggageSetter(restrictionManager baggage.RestrictionManager, metrics *Metrics) baggageSetter {
-	return baggageSetter{
+func newBaggageSetter(restrictionManager baggage.RestrictionManager, metrics *Metrics) *baggageSetter {
+	return &baggageSetter{
 		restrictionManager: restrictionManager,
 		metrics:            metrics,
 	}
 }
 
-func (s baggageSetter) setBaggage(span *Span, key, value string) {
+// (NB) span should hold the lock before making this call
+func (s *baggageSetter) setBaggage(span *Span, key, value string) {
 	var truncated bool
 	var prevItem string
 	restriction := s.restrictionManager.GetRestriction(key)
@@ -60,7 +61,7 @@ func (s baggageSetter) setBaggage(span *Span, key, value string) {
 	s.metrics.BaggageUpdateSuccess.Inc(1)
 }
 
-func (s baggageSetter) logFields(span *Span, key, value, prevItem string, truncated, valid bool) {
+func (s *baggageSetter) logFields(span *Span, key, value, prevItem string, truncated, valid bool) {
 	if !span.context.IsSampled() {
 		return
 	}

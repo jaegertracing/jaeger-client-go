@@ -39,11 +39,11 @@ type Option func(options *options)
 var Options options
 
 type options struct {
-	failClosed      bool
-	metrics         *jaeger.Metrics
-	logger          jaeger.Logger
-	serverURL       string
-	refreshInterval time.Duration
+	denyBaggageOnInitializationFailure bool
+	metrics                            *jaeger.Metrics
+	logger                             jaeger.Logger
+	serverURL                          string
+	refreshInterval                    time.Duration
 }
 
 // DenyBaggageOnInitializationFailure creates an Option that determines the startup failure mode of RestrictionManager.
@@ -53,7 +53,7 @@ type options struct {
 // restrictions have been retrieved from agent.
 func (options) DenyBaggageOnInitializationFailure(b bool) Option {
 	return func(o *options) {
-		o.failClosed = b
+		o.denyBaggageOnInitializationFailure = b
 	}
 }
 
