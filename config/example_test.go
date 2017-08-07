@@ -60,6 +60,8 @@ func ExampleConfiguration_InitGlobalTracer_testing() {
 		return
 	}
 	defer closer.Close()
+
+	// continue main()
 }
 
 func ExampleConfiguration_InitGlobalTracer_production() {
@@ -83,4 +85,6 @@ func ExampleConfiguration_InitGlobalTracer_production() {
 		return
 	}
 	defer closer.Close()
+
+	// continue main()
 }
