@@ -8,21 +8,47 @@ with Zipkin-compatible data model.
 
 ## Installation
 
-Get the latest source code (note that during go get you may see build errors
-due to the dependencies not being set up correctly yet), and set up the dependencies
-like so:
+We recommended using a dependency manager like [glide](https://github.com/Masterminds/glide)
+and [semantic versioning](http://semver.org/) when including this library into an application.
+For example, Jaeger backend imports this library like this:
 
+```yaml
+- package: github.com/uber/jaeger-client-go
+  version: ^2.7.0
 ```
+
+If you instead want to use the latest version in `master`, you can pull it via `go get`.
+Note that during `go get` you may see build errors due to incompatible dependencies, which is why
+we recommend using semantic versions for dependencioes.  The error  may be fixed by running
+`make install` (it will install `glide` if you don't have it):
+
+```shell
 go get -u github.com/uber/jaeger-client-go/
 cd $GOPATH/src/github.com/uber/jaeger-client-go/
 git submodule update --init --recursive
-make install # will install https://github.com/Masterminds/glide if you don't have it
+make install
 ```
 
 ## Initialization
 
 See tracer initialization examples in [godoc](https://godoc.org/github.com/uber/jaeger-client-go/config#pkg-examples)
 and [config/example_test.go](./config/example_test.go).
+
+### Closing the tracer via `io.Closer`
+
+The constructor functions for Jaeger Tracer return the tracer itself and an `io.Closer` instance.
+It is recommended to structure your `main()` so that it calls the `Close()` function on the closer
+before exiting, e.g.
+
+```go
+tracer, closer, err := cfg.New(...)
+defer closer.Close()
+```
+
+This is especially useful for command-line tools that enable tracing, as well as
+for the long-running apps that support graceful shutdown. For example, if your deployment
+system sends SIGTERM instead of killing the process and you trap that signal to do a graceful
+exit, then having `defer closer.Closer()` ensures that all buffered spans are flushed.
 
 ### Metrics & Monitoring
 
