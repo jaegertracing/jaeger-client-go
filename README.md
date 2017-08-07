@@ -24,6 +24,22 @@ make install # will install https://github.com/Masterminds/glide if you don't ha
 See tracer initialization examples in [godoc](https://godoc.org/github.com/uber/jaeger-client-go/config#pkg-examples)
 and [config/example_test.go](./config/example_test.go).
 
+### Closing the tracer via `io.Closer`
+
+The constructor functions for Jaeger Tracer return the tracer itself and an `io.Closer` instance.
+It is recommended to structure your `main()` so that it calls the `Close()` function on the closer
+before exiting, e.g.
+
+```go
+tracer, closer, err := cfg.New(...)
+defer closer.Close()
+```
+
+This is especially useful for command-line tools that enable tracing, as well as
+for the long-running apps that support graceful shutdown. For example, if your deployment
+system sends SIGTERM instead of killing the process and you trap that signal to do a graceful
+exit, then having `defer closer.Closer()` ensures that all buffered spans are flushed.
+
 ### Metrics & Monitoring
 
 The tracer emits a number of different metrics, defined in
