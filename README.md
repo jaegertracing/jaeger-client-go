@@ -11,14 +11,12 @@ with Zipkin-compatible data model.
 Get the latest source code (note that during go get you may see build errors
 due to the dependencies not being set up correctly yet), and set up the dependencies
 like so:
-(note you should install the
-[glide](https://github.com/Masterminds/glide) dependency manager)
 
 ```
 go get -u github.com/uber/jaeger-client-go/
 cd $GOPATH/src/github.com/uber/jaeger-client-go/
 git submodule update --init --recursive
-glide install
+make install # will install https://github.com/Masterminds/glide if you don't have it
 ```
 
 ## Initialization
