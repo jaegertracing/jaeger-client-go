@@ -8,7 +8,8 @@ with Zipkin-compatible data model.
 
 ## Initialization
 
-See [tracer initialization](https://godoc.org/github.com/uber/jaeger-client-go/config#pkg-examples).
+See tracer initialization examples in [godoc](https://godoc.org/github.com/uber/jaeger-client-go/config#pkg-examples)
+and [config/example_test.go](./config/example_test.go).
 
 ### Metrics & Monitoring
 
