@@ -24,6 +24,8 @@ import (
 	"time"
 
 	"github.com/opentracing/opentracing-go"
+
+	"github.com/uber/jaeger-client-go/internal/baggage"
 )
 
 // TracerOption is a function that sets some option on the tracer
@@ -128,5 +130,11 @@ func (tracerOptions) ZipkinSharedRPCSpan(zipkinSharedRPCSpan bool) TracerOption 
 func (tracerOptions) Tag(key string, value interface{}) TracerOption {
 	return func(tracer *Tracer) {
 		tracer.tags = append(tracer.tags, Tag{key: key, value: value})
+	}
+}
+
+func (tracerOptions) BaggageRestrictionManager(mgr baggage.RestrictionManager) TracerOption {
+	return func(tracer *Tracer) {
+		tracer.baggageRestrictionManager = mgr
 	}
 }

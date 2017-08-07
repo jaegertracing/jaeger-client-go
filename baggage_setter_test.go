@@ -28,6 +28,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/uber/jaeger-lib/metrics"
 	"github.com/uber/jaeger-lib/metrics/testutils"
+
+	"github.com/uber/jaeger-client-go/internal/baggage"
 )
 
 func withTracerAndMetrics(f func(tracer *Tracer, metrics *Metrics, factory *metrics.LocalFactory)) {
@@ -42,7 +44,7 @@ func withTracerAndMetrics(f func(tracer *Tracer, metrics *Metrics, factory *metr
 
 func TestTruncateBaggage(t *testing.T) {
 	withTracerAndMetrics(func(tracer *Tracer, metrics *Metrics, factory *metrics.LocalFactory) {
-		setter := newDefaultBaggageSetter(5, metrics)
+		setter := newBaggageSetter(baggage.NewDefaultRestrictionManager(5), metrics)
 		key := "key"
 		value := "01234567890"
 		expected := "01234"
@@ -69,9 +71,15 @@ func TestTruncateBaggage(t *testing.T) {
 	})
 }
 
+type keyNotAllowedBaggageRestrictionManager struct{}
+
+func (m *keyNotAllowedBaggageRestrictionManager) GetRestriction(key string) *baggage.Restriction {
+	return baggage.NewRestriction(false, 0)
+}
+
 func TestInvalidBaggage(t *testing.T) {
 	withTracerAndMetrics(func(tracer *Tracer, metrics *Metrics, factory *metrics.LocalFactory) {
-		setter := newInvalidBaggageSetter(metrics)
+		setter := newBaggageSetter(&keyNotAllowedBaggageRestrictionManager{}, metrics)
 		key := "key"
 		value := "value"
 
@@ -88,6 +96,18 @@ func TestInvalidBaggage(t *testing.T) {
 				Value: 1,
 			},
 		)
+	})
+}
+
+func TestNotSampled(t *testing.T) {
+	withTracerAndMetrics(func(_ *Tracer, metrics *Metrics, factory *metrics.LocalFactory) {
+		tracer, closer := NewTracer("svc", NewConstSampler(false), NewNullReporter())
+		defer closer.Close()
+
+		setter := newBaggageSetter(baggage.NewDefaultRestrictionManager(10), metrics)
+		span := tracer.StartSpan("span").(*Span)
+		setter.setBaggage(span, "key", "value")
+		assert.Empty(t, span.logs, "No baggage fields should be created if span is not sampled")
 	})
 }
 

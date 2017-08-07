@@ -30,6 +30,7 @@ import (
 	"github.com/opentracing/opentracing-go"
 
 	"github.com/uber/jaeger-client-go"
+	"github.com/uber/jaeger-client-go/internal/baggage/remote"
 	"github.com/uber/jaeger-client-go/rpcmetrics"
 )
 
@@ -37,11 +38,12 @@ const defaultSamplingProbability = 0.001
 
 // Configuration configures and creates Jaeger Tracer
 type Configuration struct {
-	Disabled   bool                  `yaml:"disabled"`
-	Sampler    *SamplerConfig        `yaml:"sampler"`
-	Reporter   *ReporterConfig       `yaml:"reporter"`
-	Headers    *jaeger.HeadersConfig `yaml:"headers"`
-	RPCMetrics bool                  `yaml:"rpc_metrics"`
+	Disabled            bool                       `yaml:"disabled"`
+	Sampler             *SamplerConfig             `yaml:"sampler"`
+	Reporter            *ReporterConfig            `yaml:"reporter"`
+	Headers             *jaeger.HeadersConfig      `yaml:"headers"`
+	RPCMetrics          bool                       `yaml:"rpc_metrics"`
+	BaggageRestrictions *BaggageRestrictionsConfig `yaml:"baggage_restrictions"`
 }
 
 // SamplerConfig allows initializing a non-default sampler.  All fields are optional.
@@ -90,6 +92,23 @@ type ReporterConfig struct {
 
 	// LocalAgentHostPort instructs reporter to send spans to jaeger-agent at this address
 	LocalAgentHostPort string `yaml:"localAgentHostPort"`
+}
+
+// BaggageRestrictionsConfig configures the baggage restrictions manager which can be used to whitelist
+// certain baggage keys. All fields are optional.
+type BaggageRestrictionsConfig struct {
+	// DenyBaggageOnInitializationFailure controls the startup failure mode of the baggage restriction
+	// manager. If true, the manager will not allow any baggage to be written until baggage restrictions have
+	// been retrieved from jaeger-agent. If false, the manager wil allow any baggage to be written until baggage
+	// restrictions have been retrieved from jaeger-agent.
+	DenyBaggageOnInitializationFailure bool `yaml:"denyBaggageOnInitializationFailure"`
+
+	// ServerURL is the address of jaeger-agent's HTTP baggage restrictions server
+	ServerURL string `yaml:"serverURL"`
+
+	// RefreshInterval controls how often the baggage restriction manager will poll
+	// jaeger-agent for the most recent baggage restrictions.
+	RefreshInterval time.Duration `yaml:"refreshInterval"`
 }
 
 type nullCloser struct{}
@@ -159,6 +178,20 @@ func (c Configuration) New(
 
 	for _, cobs := range opts.contribObservers {
 		tracerOptions = append(tracerOptions, jaeger.TracerOptions.ContribObserver(cobs))
+	}
+
+	if c.BaggageRestrictions != nil {
+		mgr := remote.NewRestrictionManager(
+			serviceName,
+			remote.Options.Metrics(tracerMetrics),
+			remote.Options.Logger(opts.logger),
+			remote.Options.ServerURL(c.BaggageRestrictions.ServerURL),
+			remote.Options.RefreshInterval(c.BaggageRestrictions.RefreshInterval),
+			remote.Options.DenyBaggageOnInitializationFailure(
+				c.BaggageRestrictions.DenyBaggageOnInitializationFailure,
+			),
+		)
+		tracerOptions = append(tracerOptions, jaeger.TracerOptions.BaggageRestrictionManager(mgr))
 	}
 
 	tracer, closer := jaeger.NewTracer(

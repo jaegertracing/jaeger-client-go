@@ -22,6 +22,7 @@ package config
 
 import (
 	"testing"
+	"time"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
@@ -203,6 +204,30 @@ func TestConfigWithRPCMetrics(t *testing.T) {
 		testutils.ExpectedMetric{
 			Name:  "jaeger-rpc.requests",
 			Tags:  map[string]string{"component": "jaeger", "endpoint": "test", "error": "false"},
+			Value: 1,
+		},
+	)
+}
+
+func TestBaggageRestrictionsConfig(t *testing.T) {
+	m := metrics.NewLocalFactory(0)
+	c := Configuration{
+		BaggageRestrictions: &BaggageRestrictionsConfig{
+			ServerURL:       "fakeServerURL",
+			RefreshInterval: time.Minute,
+		},
+	}
+	_, closer, err := c.New(
+		"test",
+		Metrics(m),
+	)
+	require.NoError(t, err)
+	defer closer.Close()
+
+	testutils.AssertCounterMetrics(t, m,
+		testutils.ExpectedMetric{
+			Name:  "jaeger.baggage-restrictions-update",
+			Tags:  map[string]string{"result": "err"},
 			Value: 1,
 		},
 	)
