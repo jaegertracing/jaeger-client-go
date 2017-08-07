@@ -22,6 +22,7 @@ package remote
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -36,7 +37,6 @@ import (
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/internal/baggage"
 	thrift "github.com/uber/jaeger-client-go/thrift-gen/baggage"
-	"io"
 )
 
 const (
