@@ -224,10 +224,22 @@ func TestBaggageRestrictionsConfig(t *testing.T) {
 	require.NoError(t, err)
 	defer closer.Close()
 
+	metricName := "jaeger.baggage-restrictions-update"
+	metricTags := map[string]string{"result": "err"}
+	key := metrics.GetKey(metricName, metricTags, "|", "=")
+	for i := 0; i < 100; i++ {
+		// wait until the async initialization call is complete
+		counters, _ := m.Snapshot()
+		if _, ok := counters[key]; ok {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+
 	testutils.AssertCounterMetrics(t, m,
 		testutils.ExpectedMetric{
-			Name:  "jaeger.baggage-restrictions-update",
-			Tags:  map[string]string{"result": "err"},
+			Name:  metricName,
+			Tags:  metricTags,
 			Value: 1,
 		},
 	)
