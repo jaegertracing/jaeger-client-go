@@ -6,6 +6,19 @@ This is a client side library that implements an
 [OpenTracing](http://opentracing.io) Tracer,
 with Zipkin-compatible data model.
 
+## Installation
+
+Get the latest source code (note that during go get you may see build errors
+due to the dependencies not being set up correctly yet), and set up the dependencies
+like so:
+
+```
+go get -u github.com/uber/jaeger-client-go/
+cd $GOPATH/src/github.com/uber/jaeger-client-go/
+git submodule update --init --recursive
+make install # will install https://github.com/Masterminds/glide if you don't have it
+```
+
 ## Initialization
 
 See tracer initialization examples in [godoc](https://godoc.org/github.com/uber/jaeger-client-go/config#pkg-examples)
