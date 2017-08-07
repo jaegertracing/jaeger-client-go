@@ -103,8 +103,8 @@ type BaggageRestrictionsConfig struct {
 	// restrictions have been retrieved from jaeger-agent.
 	DenyBaggageOnInitializationFailure bool `yaml:"denyBaggageOnInitializationFailure"`
 
-	// ServerURL is the address of jaeger-agent's HTTP baggage restrictions server
-	ServerURL string `yaml:"serverURL"`
+	// HostPort is the hostPort of jaeger-agent's baggage restrictions server
+	HostPort string `yaml:"hostPort"`
 
 	// RefreshInterval controls how often the baggage restriction manager will poll
 	// jaeger-agent for the most recent baggage restrictions.
@@ -185,7 +185,7 @@ func (c Configuration) New(
 			serviceName,
 			remote.Options.Metrics(tracerMetrics),
 			remote.Options.Logger(opts.logger),
-			remote.Options.ServerURL(c.BaggageRestrictions.ServerURL),
+			remote.Options.HostPort(c.BaggageRestrictions.HostPort),
 			remote.Options.RefreshInterval(c.BaggageRestrictions.RefreshInterval),
 			remote.Options.DenyBaggageOnInitializationFailure(
 				c.BaggageRestrictions.DenyBaggageOnInitializationFailure,

@@ -25,6 +25,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
@@ -103,7 +104,7 @@ func TestNewRemoteRestrictionManager(t *testing.T) {
 			handler.setReturnError(false)
 			mgr := NewRestrictionManager(
 				service,
-				Options.ServerURL(server.URL),
+				Options.HostPort(getHostPort(t, server.URL)),
 				Options.Metrics(metrics),
 				Options.Logger(jaeger.NullLogger),
 			)
@@ -138,7 +139,7 @@ func TestDenyBaggageOnInitializationFailure(t *testing.T) {
 	withHTTPServer(
 		testRestrictions,
 		func(
-			metrics *jaeger.Metrics,
+			m *jaeger.Metrics,
 			factory *metrics.LocalFactory,
 			handler *baggageHandler,
 			server *httptest.Server,
@@ -146,24 +147,37 @@ func TestDenyBaggageOnInitializationFailure(t *testing.T) {
 			mgr := NewRestrictionManager(
 				service,
 				Options.DenyBaggageOnInitializationFailure(true),
-				Options.ServerURL(server.URL),
-				Options.Metrics(metrics),
+				Options.HostPort(getHostPort(t, server.URL)),
+				Options.Metrics(m),
 				Options.Logger(jaeger.NullLogger),
 			)
 			require.False(t, mgr.isReady())
 
+			metricName := "jaeger.baggage-restrictions-update"
+			metricTags := map[string]string{"result": "err"}
+			key := metrics.GetKey(metricName, metricTags, "|", "=")
+			for i := 0; i < 100; i++ {
+				// wait until the async initialization call is complete
+				counters, _ := factory.Snapshot()
+				if _, ok := counters[key]; ok {
+					break
+				}
+				time.Sleep(time.Millisecond)
+			}
+
 			testutils.AssertCounterMetrics(t, factory,
 				testutils.ExpectedMetric{
-					Name:  "jaeger.baggage-restrictions-update",
-					Tags:  map[string]string{"result": "err"},
+					Name:  metricName,
+					Tags:  metricTags,
 					Value: 1,
 				},
 			)
 
-			// FailClosed should not allow any key to be written
+			// DenyBaggageOnInitializationFailure should not allow any key to be written
 			restriction := mgr.GetRestriction(expectedKey)
 			assert.EqualValues(t, baggage.NewRestriction(false, 0), restriction)
 
+			// have the http server return restrictions
 			handler.setReturnError(false)
 			mgr.updateRestrictions()
 
@@ -193,14 +207,20 @@ func TestAllowBaggageOnInitializationFailure(t *testing.T) {
 			mgr := NewRestrictionManager(
 				service,
 				Options.RefreshInterval(time.Millisecond),
-				Options.ServerURL(server.URL),
+				Options.HostPort(getHostPort(t, server.URL)),
 				Options.Metrics(metrics),
 				Options.Logger(jaeger.NullLogger),
 			)
 			require.False(t, mgr.isReady())
 
-			// FailOpen should allow any key to be written
+			// AllowBaggageOnInitializationFailure should allow any key to be written
 			restriction := mgr.GetRestriction(expectedKey)
 			assert.EqualValues(t, baggage.NewRestriction(true, 2048), restriction)
 		})
+}
+
+func getHostPort(t *testing.T, s string) string {
+	u, err := url.Parse(s)
+	require.NoError(t, err, "Failed to parse url")
+	return u.Host
 }

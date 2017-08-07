@@ -29,7 +29,7 @@ import (
 const (
 	defaultMaxValueLength  = 2048
 	defaultRefreshInterval = time.Minute
-	defaultServerURL       = "http://localhost:5778/baggageRestrictions"
+	defaultHostPort        = "localhost:5778"
 )
 
 // Option is a function that sets some option on the RestrictionManager
@@ -42,7 +42,7 @@ type options struct {
 	denyBaggageOnInitializationFailure bool
 	metrics                            *jaeger.Metrics
 	logger                             jaeger.Logger
-	serverURL                          string
+	hostPort                           string
 	refreshInterval                    time.Duration
 }
 
@@ -71,10 +71,10 @@ func (options) Logger(logger jaeger.Logger) Option {
 	}
 }
 
-// ServerURL creates an Option that sets the server url of the local agent that contains the baggage restrictions.
-func (options) ServerURL(url string) Option {
+// HostPort creates an Option that sets the hostPort of the local agent that contains the baggage restrictions.
+func (options) HostPort(hostPort string) Option {
 	return func(o *options) {
-		o.serverURL = url
+		o.hostPort = hostPort
 	}
 }
 
@@ -97,8 +97,8 @@ func applyOptions(o ...Option) options {
 	if opts.logger == nil {
 		opts.logger = jaeger.NullLogger
 	}
-	if opts.serverURL == "" {
-		opts.serverURL = defaultServerURL
+	if opts.hostPort == "" {
+		opts.hostPort = defaultHostPort
 	}
 	if opts.refreshInterval == 0 {
 		opts.refreshInterval = defaultRefreshInterval
