@@ -213,7 +213,7 @@ func TestBaggageRestrictionsConfig(t *testing.T) {
 	m := metrics.NewLocalFactory(0)
 	c := Configuration{
 		BaggageRestrictions: &BaggageRestrictionsConfig{
-			ServerURL:       "fakeServerURL",
+			HostPort:        "not:1929213",
 			RefreshInterval: time.Minute,
 		},
 	}

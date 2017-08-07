@@ -32,14 +32,20 @@ import (
 )
 
 type httpBaggageRestrictionManagerProxy struct {
-	serverURL string
+	url string
+}
+
+func newHTTPBaggageRestrictionManagerProxy(hostPort, serviceName string) *httpBaggageRestrictionManagerProxy {
+	v := url.Values{}
+	v.Set("service", serviceName)
+	return &httpBaggageRestrictionManagerProxy{
+		url: fmt.Sprintf("http://%s/baggageRestrictions?%s", hostPort, v.Encode()),
+	}
 }
 
 func (s *httpBaggageRestrictionManagerProxy) GetBaggageRestrictions(serviceName string) ([]*thrift.BaggageRestriction, error) {
 	var out []*thrift.BaggageRestriction
-	v := url.Values{}
-	v.Set("service", serviceName)
-	if err := utils.GetJSON(fmt.Sprintf("%s?%s", s.serverURL, v.Encode()), &out); err != nil {
+	if err := utils.GetJSON(s.url, &out); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -72,16 +78,12 @@ func NewRestrictionManager(serviceName string, options ...Option) *RestrictionMa
 		serviceName:        serviceName,
 		options:            opts,
 		restrictions:       make(map[string]*baggage.Restriction),
-		thriftProxy:        &httpBaggageRestrictionManagerProxy{serverURL: opts.serverURL},
+		thriftProxy:        newHTTPBaggageRestrictionManagerProxy(opts.hostPort, serviceName),
 		stopPoll:           make(chan struct{}),
 		invalidRestriction: baggage.NewRestriction(false, 0),
 		validRestriction:   baggage.NewRestriction(true, defaultMaxValueLength),
 	}
-	if err := m.updateRestrictions(); err != nil {
-		m.logger.Error(fmt.Sprintf("Failed to initialize baggage restrictions: %s", err.Error()))
-	} else {
-		m.initialized = true
-	}
+	go m.updateRestrictions() // initialize restrictions asynchronously
 	m.pollStopped.Add(1)
 	go m.pollManager()
 	return m
