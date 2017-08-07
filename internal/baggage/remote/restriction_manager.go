@@ -83,7 +83,6 @@ func NewRestrictionManager(serviceName string, options ...Option) *RestrictionMa
 		invalidRestriction: baggage.NewRestriction(false, 0),
 		validRestriction:   baggage.NewRestriction(true, defaultMaxValueLength),
 	}
-	go m.updateRestrictions() // initialize restrictions asynchronously
 	m.pollStopped.Add(1)
 	go m.pollManager()
 	return m
@@ -121,6 +120,10 @@ func (m *RestrictionManager) Close() error {
 
 func (m *RestrictionManager) pollManager() {
 	defer m.pollStopped.Done()
+	// attempt to initialize baggage restrictions
+	if err := m.updateRestrictions(); err != nil {
+		m.logger.Error(fmt.Sprintf("Failed to initialize baggage restrictions: %s", err.Error()))
+	}
 	ticker := time.NewTicker(m.refreshInterval)
 	defer ticker.Stop()
 
