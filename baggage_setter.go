@@ -44,7 +44,7 @@ func newBaggageSetter(restrictionManager baggage.RestrictionManager, metrics *Me
 func (s *baggageSetter) setBaggage(span *Span, key, value string) {
 	var truncated bool
 	var prevItem string
-	restriction := s.restrictionManager.GetRestriction(key)
+	restriction := s.restrictionManager.GetRestriction(span.tracer.serviceName, key)
 	if !restriction.KeyAllowed() {
 		s.logFields(span, key, value, prevItem, truncated, restriction.KeyAllowed())
 		s.metrics.BaggageUpdateFailure.Inc(1)

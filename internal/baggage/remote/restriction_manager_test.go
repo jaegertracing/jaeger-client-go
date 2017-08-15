@@ -118,11 +118,11 @@ func TestNewRemoteRestrictionManager(t *testing.T) {
 			}
 			require.True(t, mgr.isReady())
 
-			restriction := mgr.GetRestriction(expectedKey)
+			restriction := mgr.GetRestriction(service, expectedKey)
 			assert.EqualValues(t, baggage.NewRestriction(true, expectedSize), restriction)
 
 			badKey := "bad-key"
-			restriction = mgr.GetRestriction(badKey)
+			restriction = mgr.GetRestriction(service, badKey)
 			assert.EqualValues(t, baggage.NewRestriction(false, 0), restriction)
 
 			testutils.AssertCounterMetrics(t, factory,
@@ -174,7 +174,7 @@ func TestDenyBaggageOnInitializationFailure(t *testing.T) {
 			)
 
 			// DenyBaggageOnInitializationFailure should not allow any key to be written
-			restriction := mgr.GetRestriction(expectedKey)
+			restriction := mgr.GetRestriction(service, expectedKey)
 			assert.EqualValues(t, baggage.NewRestriction(false, 0), restriction)
 
 			// have the http server return restrictions
@@ -190,7 +190,7 @@ func TestDenyBaggageOnInitializationFailure(t *testing.T) {
 			}
 			require.True(t, mgr.isReady())
 
-			restriction = mgr.GetRestriction(expectedKey)
+			restriction = mgr.GetRestriction(service, expectedKey)
 			assert.EqualValues(t, baggage.NewRestriction(true, expectedSize), restriction)
 		})
 }
@@ -214,7 +214,7 @@ func TestAllowBaggageOnInitializationFailure(t *testing.T) {
 			require.False(t, mgr.isReady())
 
 			// AllowBaggageOnInitializationFailure should allow any key to be written
-			restriction := mgr.GetRestriction(expectedKey)
+			restriction := mgr.GetRestriction(service, expectedKey)
 			assert.EqualValues(t, baggage.NewRestriction(true, 2048), restriction)
 		})
 }

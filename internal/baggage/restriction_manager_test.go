@@ -30,6 +30,6 @@ var _ RestrictionManager = &DefaultRestrictionManager{}
 
 func TestDefaultRestrictionManager(t *testing.T) {
 	mgr := NewDefaultRestrictionManager(0)
-	restriction := mgr.GetRestriction("key")
+	restriction := mgr.GetRestriction("svc", "key")
 	assert.EqualValues(t, NewRestriction(true, 2048), restriction)
 }

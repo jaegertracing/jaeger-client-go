@@ -48,9 +48,12 @@ func (r *Restriction) MaxValueLength() int {
 	return r.maxValueLength
 }
 
-// RestrictionManager keeps track of valid baggage keys and their restrictions.
+// RestrictionManager keeps track of valid baggage keys and their restrictions. The manager
+// will return a Restriction for a specific baggage key which will determine whether the baggage
+// key is allowed for the current service and any other applicable restrictions on the baggage
+// value.
 type RestrictionManager interface {
-	GetRestriction(key string) *Restriction
+	GetRestriction(service, key string) *Restriction
 }
 
 // DefaultRestrictionManager allows any baggage key.
@@ -69,6 +72,6 @@ func NewDefaultRestrictionManager(maxValueLength int) *DefaultRestrictionManager
 }
 
 // GetRestriction implements RestrictionManager#GetRestriction.
-func (m *DefaultRestrictionManager) GetRestriction(key string) *Restriction {
+func (m *DefaultRestrictionManager) GetRestriction(service, key string) *Restriction {
 	return m.defaultRestriction
 }
