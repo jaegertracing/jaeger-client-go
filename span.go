@@ -232,6 +232,10 @@ func (s *Span) OperationName() string {
 	return s.operationName
 }
 
+func (s *Span) serviceName() string {
+	return s.tracer.serviceName
+}
+
 func setSamplingPriority(s *Span, value interface{}) bool {
 	s.Lock()
 	defer s.Unlock()

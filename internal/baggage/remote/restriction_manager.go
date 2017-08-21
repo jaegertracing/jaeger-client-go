@@ -96,7 +96,7 @@ func (m *RestrictionManager) isReady() bool {
 }
 
 // GetRestriction implements RestrictionManager#GetRestriction.
-func (m *RestrictionManager) GetRestriction(key string) *baggage.Restriction {
+func (m *RestrictionManager) GetRestriction(service, key string) *baggage.Restriction {
 	m.mux.RLock()
 	defer m.mux.RUnlock()
 	if !m.initialized {

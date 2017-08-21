@@ -73,7 +73,7 @@ func TestTruncateBaggage(t *testing.T) {
 
 type keyNotAllowedBaggageRestrictionManager struct{}
 
-func (m *keyNotAllowedBaggageRestrictionManager) GetRestriction(key string) *baggage.Restriction {
+func (m *keyNotAllowedBaggageRestrictionManager) GetRestriction(service, key string) *baggage.Restriction {
 	return baggage.NewRestriction(false, 0)
 }
 
