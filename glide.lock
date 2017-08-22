@@ -1,12 +1,12 @@
-hash: 50e5f204fc6ee9ff66efb1275c7d12f78f8f21a2de98ed38c947d01eb2064b0f
-updated: 2017-07-28T19:53:12.495163139-04:00
+hash: 4abcf83a509c003112c27a131eafde7d4fa11aeb17decb43ac0746593890ff85
+updated: 2017-08-22T14:21:39.649697305-04:00
 imports:
 - name: github.com/apache/thrift
   version: b2a4d4ae21c789b689dd162deb819665567f481c
   subpackages:
   - lib/go/thrift
 - name: github.com/codahale/hdrhistogram
-  version: 3a0bb77429bd3a61596f5e8a3172445844342120
+  version: f8ad88b59a584afeee9d334eff879b104439117b
 - name: github.com/crossdock/crossdock-go
   version: 049aabb0122b03bc9bd30cab8f3f91fb60166361
   subpackages:
@@ -32,14 +32,14 @@ imports:
   - require
   - suite
 - name: github.com/uber-go/atomic
-  version: 4e336646b2ef9fc6e47be8e21594178f98e5ebcf
+  version: 0c9e689d64f004564b79d9a663634756df322902
 - name: github.com/uber/jaeger-lib
-  version: e3c1d3b562900c6ac0a7ded654cb95d88e72b63e
+  version: 575c678b2873b62aaadd0fa5817a2aeb3155dc4d
   subpackages:
   - metrics
   - metrics/testutils
 - name: github.com/uber/tchannel-go
-  version: b99c1d7cecb0fdc882bed0098e7cae6ec7459059
+  version: a7ad9ecb640b5f10a0395b38d6319175172b3ab2
   subpackages:
   - atomic
   - internal/argreader
@@ -54,7 +54,7 @@ imports:
 - name: go.uber.org/atomic
   version: 4e336646b2ef9fc6e47be8e21594178f98e5ebcf
 - name: go.uber.org/zap
-  version: 6a4e056f2cc954cfec3581729e758909604b3f76
+  version: 9cabc84638b70e564c3dab2766efcb1ded2aac9f
   subpackages:
   - buffer
   - internal/bufferpool
