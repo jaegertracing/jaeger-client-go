@@ -244,3 +244,22 @@ func TestBaggageRestrictionsConfig(t *testing.T) {
 		},
 	)
 }
+
+func TestConfigWithGen128Bit(t *testing.T) {
+	c := Configuration{
+		Sampler: &SamplerConfig{
+			Type:  "const",
+			Param: 1,
+		},
+		RPCMetrics: true,
+	}
+	tracer, closer, err := c.New("test", Gen128Bit(true))
+	require.NoError(t, err)
+	defer closer.Close()
+
+	span := tracer.StartSpan("test")
+	defer span.Finish()
+	traceID := span.Context().(jaeger.SpanContext).TraceID()
+	require.True(t, traceID.High != 0)
+	require.True(t, traceID.Low != 0)
+}

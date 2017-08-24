@@ -40,12 +40,14 @@ func TestApplyOptions(t *testing.T) {
 		Logger(jaeger.StdLogger),
 		Observer(observer),
 		ContribObserver(contribObserver),
+		Gen128Bit(true),
 		ZipkinSharedRPCSpan(true),
 	)
 	assert.Equal(t, jaeger.StdLogger, opts.logger)
 	assert.Equal(t, metricsFactory, opts.metrics)
 	assert.Equal(t, []jaeger.Observer{observer}, opts.observers)
 	assert.Equal(t, []jaeger.ContribObserver{contribObserver}, opts.contribObservers)
+	assert.True(t, opts.gen128Bit)
 	assert.True(t, opts.zipkinSharedRPCSpan)
 }
 

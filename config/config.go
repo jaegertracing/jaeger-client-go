@@ -165,6 +165,7 @@ func (c Configuration) New(
 		jaeger.TracerOptions.Metrics(tracerMetrics),
 		jaeger.TracerOptions.Logger(opts.logger),
 		jaeger.TracerOptions.CustomHeaderKeys(c.Headers),
+		jaeger.TracerOptions.Gen128Bit(opts.gen128Bit),
 		jaeger.TracerOptions.ZipkinSharedRPCSpan(opts.zipkinSharedRPCSpan),
 	}
 
