@@ -312,6 +312,17 @@ func TestEmptySpanContextAsParent(t *testing.T) {
 	assert.True(t, ctx.IsValid())
 }
 
+func TestGen128Bit(t *testing.T) {
+	tracer, tc := NewTracer("x", NewConstSampler(true), NewNullReporter(), TracerOptions.Gen128Bit(true))
+	defer tc.Close()
+
+	span := tracer.StartSpan("test", opentracing.ChildOf(emptyContext))
+	defer span.Finish()
+	traceID := span.Context().(SpanContext).TraceID()
+	assert.True(t, traceID.High != 0)
+	assert.True(t, traceID.Low != 0)
+}
+
 func TestZipkinSharedRPCSpan(t *testing.T) {
 	tracer, tc := NewTracer("x", NewConstSampler(true), NewNullReporter(), TracerOptions.ZipkinSharedRPCSpan(false))
 

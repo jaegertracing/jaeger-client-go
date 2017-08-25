@@ -121,6 +121,12 @@ func (tracerOptions) ContribObserver(observer ContribObserver) TracerOption {
 	}
 }
 
+func (tracerOptions) Gen128Bit(gen128Bit bool) TracerOption {
+	return func(tracer *Tracer) {
+		tracer.options.gen128Bit = gen128Bit
+	}
+}
+
 func (tracerOptions) ZipkinSharedRPCSpan(zipkinSharedRPCSpan bool) TracerOption {
 	return func(tracer *Tracer) {
 		tracer.options.zipkinSharedRPCSpan = zipkinSharedRPCSpan
