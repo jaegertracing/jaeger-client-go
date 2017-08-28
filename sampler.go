@@ -338,6 +338,7 @@ func (s *adaptiveSampler) Close() {
 	for _, sampler := range s.samplers {
 		sampler.Close()
 	}
+	s.defaultSampler.Close()
 }
 
 func (s *adaptiveSampler) Equal(other Sampler) bool {
