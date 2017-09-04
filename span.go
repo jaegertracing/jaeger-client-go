@@ -21,7 +21,6 @@
 package jaeger
 
 import (
-	"strings"
 	"sync"
 	"time"
 
@@ -167,7 +166,6 @@ func (s *Span) appendLog(lr opentracing.LogRecord) {
 
 // SetBaggageItem implements SetBaggageItem() of opentracing.SpanContext
 func (s *Span) SetBaggageItem(key, value string) opentracing.Span {
-	key = normalizeBaggageKey(key)
 	s.Lock()
 	defer s.Unlock()
 	s.tracer.setBaggage(s, key, value)
@@ -176,7 +174,6 @@ func (s *Span) SetBaggageItem(key, value string) opentracing.Span {
 
 // BaggageItem implements BaggageItem() of opentracing.SpanContext
 func (s *Span) BaggageItem(key string) string {
-	key = normalizeBaggageKey(key)
 	s.RLock()
 	defer s.RUnlock()
 	return s.context.baggage[key]
@@ -248,11 +245,4 @@ func setSamplingPriority(s *Span, value interface{}) bool {
 		return true
 	}
 	return false
-}
-
-// Converts end-user baggage key into internal representation.
-// Used for both read and write access to baggage items.
-func normalizeBaggageKey(key string) string {
-	// TODO(yurishkuro) normalizeBaggageKey: cache the results in some bounded LRU cache
-	return strings.Replace(strings.ToLower(key), "_", "-", -1)
 }

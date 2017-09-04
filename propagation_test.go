@@ -165,22 +165,24 @@ func TestBaggagePropagationHTTP(t *testing.T) {
 	tracer, closer := NewTracer("DOOP", NewConstSampler(true), NewNullReporter())
 	defer closer.Close()
 
-	sp1 := tracer.StartSpan("s1")
+	sp1 := tracer.StartSpan("s1").(*Span)
 	sp1.SetBaggageItem("Some_Key", "12345")
-	assert.Equal(t, "12345", sp1.BaggageItem("some-KEY"), "baggage: %+v", sp1.(*Span).context.baggage)
-	sp1.SetBaggageItem("Some_Key", "98:765") // colon : should be escaped as %3A
-	assert.Equal(t, "98:765", sp1.BaggageItem("some-KEY"), "baggage: %+v", sp1.(*Span).context.baggage)
+	assert.Equal(t, "12345", sp1.BaggageItem("Some_Key"), "baggage: %+v", sp1.context.baggage)
+	assert.Empty(t, sp1.BaggageItem("some-KEY"), "baggage: %+v", sp1.context.baggage)
+	sp1.SetBaggageItem("Some_Key", "98:765")
+	assert.Equal(t, "98:765", sp1.BaggageItem("Some_Key"), "baggage: %+v", sp1.context.baggage)
+	assert.Empty(t, sp1.BaggageItem("some-KEY"), "baggage: %+v", sp1.context.baggage)
 
 	h := http.Header{}
 	h.Add("header1", "value1") // make sure this does not get unmarshalled as baggage
 	err := tracer.Inject(sp1.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(h))
 	require.NoError(t, err)
 	// check that colon : was encoded as %3A
-	assert.Equal(t, "98%3A765", h.Get(TraceBaggageHeaderPrefix+"some-key"))
+	assert.Equal(t, "98%3A765", h.Get(TraceBaggageHeaderPrefix+"Some_Key"), "headers: %+v", h)
 
 	sp2, err := tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(h))
 	require.NoError(t, err)
-	assert.Equal(t, map[string]string{"some-key": "98:765"}, sp2.(SpanContext).baggage)
+	assert.Equal(t, map[string]string{"some_key": "98:765"}, sp2.(SpanContext).baggage)
 }
 
 func TestJaegerBaggageHeader(t *testing.T) {
