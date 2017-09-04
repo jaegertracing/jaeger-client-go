@@ -36,7 +36,7 @@ func TestBaggageIterator(t *testing.T) {
 	sp1 := tracer.StartSpan("s1").(*Span)
 	sp1.SetBaggageItem("Some_Key", "12345")
 	sp1.SetBaggageItem("Some-other-key", "42")
-	expectedBaggage := map[string]string{"some-key": "12345", "some-other-key": "42"}
+	expectedBaggage := map[string]string{"Some_Key": "12345", "Some-other-key": "42"}
 	assertBaggage(t, sp1, expectedBaggage)
 	assertBaggageRecords(t, sp1, expectedBaggage)
 
