@@ -21,6 +21,7 @@
 package jaeger
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -234,7 +235,7 @@ func (r *remoteReporter) processQueue() {
 				atomic.AddInt64(&r.queueLength, -1)
 				if flushed, err := r.sender.Append(span); err != nil {
 					r.metrics.ReporterFailure.Inc(int64(flushed))
-					r.logger.Error(err.Error())
+					r.logger.Error(fmt.Sprintf("error reporting span %q: %s", span.OperationName(), err.Error()))
 				} else if flushed > 0 {
 					r.metrics.ReporterSuccess.Inc(int64(flushed))
 					// to reduce the number of gauge stats, we only emit queue length on flush
