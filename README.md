@@ -209,7 +209,7 @@ However it is not the default propagation format, see [here](zipkin/README.md#Ne
 
 ## License
 
-  [The MIT License](LICENSE).
+[Apache 2.0 License](LICENSE).
 
 
 [doc-img]: https://godoc.org/github.com/uber/jaeger-client-go?status.svg
