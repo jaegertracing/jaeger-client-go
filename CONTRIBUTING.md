@@ -7,6 +7,8 @@ by forking the repository and sending a pull request into the `master` branch.
 
 This library uses [glide](https://github.com/Masterminds/glide) to manage dependencies.
 
+The library's import path is `github.com/uber/jaeger-client-go`.
+
 To get started:
 
 ```bash
