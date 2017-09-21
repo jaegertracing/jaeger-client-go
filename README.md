@@ -80,6 +80,10 @@ by the [Logger](logger.go) interface. A logger instance implementing
 this interface can be set on the `Config` object before calling the
 `New` method.
 
+Besides the [zap](https://github.com/uber-go/zap) implementation
+bundled with this package there is also a [go-kit](https://github.com/go-kit/kit)
+one in the [jaeger-lib](https://github.com/uber/jaeger-lib) repository.
+
 ## Instrumentation for Tracing
 
 Since this tracer is fully compliant with OpenTracing API 1.0,
