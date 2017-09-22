@@ -5,7 +5,9 @@ package baggage
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+
 	"github.com/apache/thrift/lib/go/thrift"
 )
 
@@ -156,13 +158,13 @@ func NewBaggageRestrictionManagerProcessor(handler BaggageRestrictionManager) *B
 	return self2
 }
 
-func (p *BaggageRestrictionManagerProcessor) Process(iprot, oprot thrift.TProtocol) (success bool, err thrift.TException) {
+func (p *BaggageRestrictionManagerProcessor) Process(ctx context.Context, iprot, oprot thrift.TProtocol) (success bool, err thrift.TException) {
 	name, _, seqId, err := iprot.ReadMessageBegin()
 	if err != nil {
 		return false, err
 	}
 	if processor, ok := p.GetProcessorFunction(name); ok {
-		return processor.Process(seqId, iprot, oprot)
+		return processor.Process(context.Background(), seqId, iprot, oprot)
 	}
 	iprot.Skip(thrift.STRUCT)
 	iprot.ReadMessageEnd()
@@ -179,7 +181,7 @@ type baggageRestrictionManagerProcessorGetBaggageRestrictions struct {
 	handler BaggageRestrictionManager
 }
 
-func (p *baggageRestrictionManagerProcessorGetBaggageRestrictions) Process(seqId int32, iprot, oprot thrift.TProtocol) (success bool, err thrift.TException) {
+func (p *baggageRestrictionManagerProcessorGetBaggageRestrictions) Process(ctx context.Context, seqId int32, iprot, oprot thrift.TProtocol) (success bool, err thrift.TException) {
 	args := BaggageRestrictionManagerGetBaggageRestrictionsArgs{}
 	if err = args.Read(iprot); err != nil {
 		iprot.ReadMessageEnd()

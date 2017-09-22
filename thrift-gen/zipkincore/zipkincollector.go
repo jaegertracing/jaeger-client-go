@@ -5,7 +5,9 @@ package zipkincore
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+
 	"github.com/apache/thrift/lib/go/thrift"
 )
 
@@ -148,13 +150,13 @@ func NewZipkinCollectorProcessor(handler ZipkinCollector) *ZipkinCollectorProces
 	return self4
 }
 
-func (p *ZipkinCollectorProcessor) Process(iprot, oprot thrift.TProtocol) (success bool, err thrift.TException) {
+func (p *ZipkinCollectorProcessor) Process(ctx context.Context, iprot, oprot thrift.TProtocol) (success bool, err thrift.TException) {
 	name, _, seqId, err := iprot.ReadMessageBegin()
 	if err != nil {
 		return false, err
 	}
 	if processor, ok := p.GetProcessorFunction(name); ok {
-		return processor.Process(seqId, iprot, oprot)
+		return processor.Process(context.Background(), seqId, iprot, oprot)
 	}
 	iprot.Skip(thrift.STRUCT)
 	iprot.ReadMessageEnd()
@@ -171,7 +173,7 @@ type zipkinCollectorProcessorSubmitZipkinBatch struct {
 	handler ZipkinCollector
 }
 
-func (p *zipkinCollectorProcessorSubmitZipkinBatch) Process(seqId int32, iprot, oprot thrift.TProtocol) (success bool, err thrift.TException) {
+func (p *zipkinCollectorProcessorSubmitZipkinBatch) Process(ctx context.Context, seqId int32, iprot, oprot thrift.TProtocol) (success bool, err thrift.TException) {
 	args := ZipkinCollectorSubmitZipkinBatchArgs{}
 	if err = args.Read(iprot); err != nil {
 		iprot.ReadMessageEnd()
