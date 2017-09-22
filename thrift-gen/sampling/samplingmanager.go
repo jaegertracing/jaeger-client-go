@@ -5,7 +5,9 @@ package sampling
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+
 	"github.com/apache/thrift/lib/go/thrift"
 )
 
@@ -154,7 +156,7 @@ func (p *SamplingManagerProcessor) Process(iprot, oprot thrift.TProtocol) (succe
 		return false, err
 	}
 	if processor, ok := p.GetProcessorFunction(name); ok {
-		return processor.Process(seqId, iprot, oprot)
+		return processor.Process(context.Background(), seqId, iprot, oprot)
 	}
 	iprot.Skip(thrift.STRUCT)
 	iprot.ReadMessageEnd()
@@ -171,7 +173,7 @@ type samplingManagerProcessorGetSamplingStrategy struct {
 	handler SamplingManager
 }
 
-func (p *samplingManagerProcessorGetSamplingStrategy) Process(seqId int32, iprot, oprot thrift.TProtocol) (success bool, err thrift.TException) {
+func (p *samplingManagerProcessorGetSamplingStrategy) Process(ctx context.Context, seqId int32, iprot, oprot thrift.TProtocol) (success bool, err thrift.TException) {
 	args := SamplingManagerGetSamplingStrategyArgs{}
 	if err = args.Read(iprot); err != nil {
 		iprot.ReadMessageEnd()

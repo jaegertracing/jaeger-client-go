@@ -15,6 +15,7 @@
 package testutils
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -104,7 +105,7 @@ func (s *MockAgent) serve(started *sync.WaitGroup) {
 		if err == nil {
 			trans.Write(buf[:n])
 			protocol := protocolFact.GetProtocol(trans)
-			handler.Process(protocol, protocol)
+			handler.Process(context.Background(), protocol, protocol)
 		}
 	}
 }
