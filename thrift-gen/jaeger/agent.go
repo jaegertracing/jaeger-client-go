@@ -104,7 +104,7 @@ func NewAgentProcessor(handler Agent) *AgentProcessor {
 	return self6
 }
 
-func (p *AgentProcessor) Process(ctx context.Context, iprot, oprot thrift.TProtocol) (success bool, err thrift.TException) {
+func (p *AgentProcessor) Process(iprot, oprot thrift.TProtocol) (success bool, err thrift.TException) {
 	name, _, seqId, err := iprot.ReadMessageBegin()
 	if err != nil {
 		return false, err

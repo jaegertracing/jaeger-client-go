@@ -150,7 +150,7 @@ func NewZipkinCollectorProcessor(handler ZipkinCollector) *ZipkinCollectorProces
 	return self4
 }
 
-func (p *ZipkinCollectorProcessor) Process(ctx context.Context, iprot, oprot thrift.TProtocol) (success bool, err thrift.TException) {
+func (p *ZipkinCollectorProcessor) Process(iprot, oprot thrift.TProtocol) (success bool, err thrift.TException) {
 	name, _, seqId, err := iprot.ReadMessageBegin()
 	if err != nil {
 		return false, err

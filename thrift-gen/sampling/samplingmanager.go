@@ -150,7 +150,7 @@ func NewSamplingManagerProcessor(handler SamplingManager) *SamplingManagerProces
 	return self3
 }
 
-func (p *SamplingManagerProcessor) Process(ctx context.Context, iprot, oprot thrift.TProtocol) (success bool, err thrift.TException) {
+func (p *SamplingManagerProcessor) Process(iprot, oprot thrift.TProtocol) (success bool, err thrift.TException) {
 	name, _, seqId, err := iprot.ReadMessageBegin()
 	if err != nil {
 		return false, err
