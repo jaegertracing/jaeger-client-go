@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"time"
 
@@ -85,6 +86,7 @@ type ReporterConfig struct {
 	LogSpans bool `yaml:"logSpans"`
 
 	// LocalAgentHostPort instructs reporter to send spans to jaeger-agent at this address
+	// May be configured via the environment variables JAEGER_AGENT_HOST and JAEGER_AGENT_PORT
 	LocalAgentHostPort string `yaml:"localAgentHostPort"`
 }
 
@@ -282,6 +284,23 @@ func (rc *ReporterConfig) NewReporter(
 	return reporter, err
 }
 
+// To permit clean testing.
+var newUDPTransport = jaeger.NewUDPTransport
+
 func (rc *ReporterConfig) newTransport() (jaeger.Transport, error) {
-	return jaeger.NewUDPTransport(rc.LocalAgentHostPort, 0)
+	hostPort := ""
+	if len(rc.LocalAgentHostPort) == 0 {
+		host := os.Getenv("JAEGER_AGENT_HOST")
+		port := os.Getenv("JAEGER_AGENT_PORT")
+		if len(host) == 0 {
+			host = "localhost"
+		}
+		if len(port) == 0 {
+			port = "6831"
+		}
+		hostPort = fmt.Sprintf("%s:%s", host, port)
+	} else {
+		hostPort = rc.LocalAgentHostPort
+	}
+	return newUDPTransport(hostPort, 0)
 }

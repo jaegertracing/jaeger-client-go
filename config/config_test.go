@@ -15,6 +15,7 @@
 package config
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -102,6 +103,29 @@ func TestNewReporterError(t *testing.T) {
 	}
 	_, _, err := cfg.New("testService")
 	require.Error(t, err)
+}
+
+func TestReporterHostFromEnvironment(t *testing.T) {
+	oldHost := os.Getenv("JAEGER_AGENT_HOST")
+	defer os.Setenv("JAEGER_AGENT_HOST", oldHost)
+	os.Setenv("JAEGER_AGENT_HOST", "127.0.0.2")
+	oldNewUDPTransport := newUDPTransport
+	defer func() { newUDPTransport = oldNewUDPTransport }()
+	usedHostPort := ""
+	newUDPTransport = func(hostPort string, maxPacketSize int) (jaeger.Transport, error) {
+		usedHostPort = hostPort
+		return oldNewUDPTransport(hostPort, maxPacketSize)
+	}
+
+	cfg := Configuration{
+		// We want to permit environment variables to work even when
+		// some code based config has been done.
+		Reporter: &ReporterConfig{},
+	}
+	_, closer, err := cfg.New("testService")
+	defer closer.Close()
+	require.NoError(t, err)
+	assert.Equal(t, "127.0.0.2:6831", usedHostPort)
 }
 
 func TestInitGlobalTracer(t *testing.T) {
