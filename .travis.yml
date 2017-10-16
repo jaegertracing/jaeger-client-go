@@ -29,11 +29,11 @@ env:
     - secure: aR7jrdGh3cXncHlIJ6FgVf5jqMiUHSWiGON3tocCUIAB3GyRoT4lFsHg4y86c4qDkpiTrFZT2mY7Iyqs/Y+Hi64V2pGP2FouN9cZK8b5IuBDboa//9nebAvTVuzsuUBLmRwtaQ2qvpS+Jg7ApXyLjF+Cdvfh4WRm4IcwxbvmMr/+zVxkPbEBNnnALx7h1kNiAtQVrCjiHJ1Q+p2RzER+OSTtdvJRqMzkwI741ttj7pvxElbexdPwiU+9lLC9IoW/lSOSwx29Ph8WAK2aF2VrxxrUbNiTd8o2U11Zc2ic44FhOadTrGk6bJBLHOerFnDt9ieoGpbocinviZJ2OGvSoXWaI9XNPaxCNSuA3woRRX4+j9SK/AFunSxUtC2gyUhCvMKLcz1WbVtto9kAXZKq+N1zBrA5zeFCArbKCLOidTdrv1iY5eC/mV6RPhvy2knpDRzFtk6UP/7oiTiUu1yI1CGDRrWRQaaguRcLdhSKFKfgjfRNksfO1QQ6rokZWZdc5kUchLEcb2QtCRWOAShfuvyr+j38l8Rgx5DwBAnd7zov0H4cXUZ1oBOzbHmejHQF7KMs6cnGgCvDT2mQYEwvMc9cueD8S3qWrkaLIm78pQesKLuKarYHeAF8pWivQPr9hwSSPnY944E9YT0odMbNmNrWruwF2YuyFKTMdIVhy3Q=
 
 install:
-  - make install_ci
+  - make install-ci
   - if [ "$CROSSDOCK" == true ]; then bash ./travis/install-crossdock-deps.sh ; fi
 
 script:
-  - if [ "$TESTS" == true ]; then make test_ci ; else echo 'skipping tests'; fi
+  - if [ "$TESTS" == true ]; then make test-ci ; else echo 'skipping tests'; fi
   - if [ "$COVERAGE" == true ]; then travis_retry goveralls -coverprofile=cover.out -service=travis-ci || true ; else echo 'skipping coverage'; fi
   - if [ "$CROSSDOCK" == true ]; then bash ./travis/build-crossdock.sh ; else echo 'skipping crossdock'; fi
 

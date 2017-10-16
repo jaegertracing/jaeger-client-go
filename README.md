@@ -6,6 +6,12 @@ This is a client side library that implements an
 [OpenTracing](http://opentracing.io) Tracer,
 with Zipkin-compatible data model.
 
+The library's import path is github.com/uber/jaeger-client-go.
+
+## How to Contribute
+
+Please see [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Installation
 
 We recommended using a dependency manager like [glide](https://github.com/Masterminds/glide)
@@ -218,9 +224,9 @@ However it is not the default propagation format, see [here](zipkin/README.md#Ne
 
 [doc-img]: https://godoc.org/github.com/uber/jaeger-client-go?status.svg
 [doc]: https://godoc.org/github.com/uber/jaeger-client-go
-[ci-img]: https://travis-ci.org/uber/jaeger-client-go.svg?branch=master
-[ci]: https://travis-ci.org/uber/jaeger-client-go
-[cov-img]: https://coveralls.io/repos/uber/jaeger-client-go/badge.svg?branch=master&service=github
-[cov]: https://coveralls.io/github/uber/jaeger-client-go?branch=master
+[ci-img]: https://travis-ci.org/jaegertracing/jaeger-client-go.svg?branch=master
+[ci]: https://travis-ci.org/jaegertracing/jaeger-client-go
+[cov-img]: https://coveralls.io/repos/jaegertracing/jaeger-client-go/badge.svg?branch=master&service=github
+[cov]: https://coveralls.io/github/jaegertracing/jaeger-client-go?branch=master
 [ot-img]: https://img.shields.io/badge/OpenTracing--1.0-enabled-blue.svg
 [ot-url]: http://opentracing.io
