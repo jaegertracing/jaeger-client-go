@@ -6,7 +6,7 @@ This is a client side library that implements an
 [OpenTracing](http://opentracing.io) Tracer,
 with Zipkin-compatible data model.
 
-The library's import path is github.com/uber/jaeger-client-go.
+The library's import path is `github.com/uber/jaeger-client-go`.
 
 ## How to Contribute
 
@@ -226,7 +226,7 @@ However it is not the default propagation format, see [here](zipkin/README.md#Ne
 [doc]: https://godoc.org/github.com/uber/jaeger-client-go
 [ci-img]: https://travis-ci.org/jaegertracing/jaeger-client-go.svg?branch=master
 [ci]: https://travis-ci.org/jaegertracing/jaeger-client-go
-[cov-img]: https://coveralls.io/repos/jaegertracing/jaeger-client-go/badge.svg?branch=master&service=github
-[cov]: https://coveralls.io/github/jaegertracing/jaeger-client-go?branch=master
+[cov-img]: https://codecov.io/gh/jaegertracing/jaeger-client-go/branch/master/graph/badge.svg
+[cov]: https://codecov.io/gh/jaegertracing/jaeger-client-go
 [ot-img]: https://img.shields.io/badge/OpenTracing--1.0-enabled-blue.svg
 [ot-url]: http://opentracing.io
