@@ -35,14 +35,12 @@ var (
 	endToEndConfig = config.Configuration{
 		Disabled: false,
 		Sampler: &config.SamplerConfig{
-			Type:                    defaultSamplerType,
-			Param:                   1.0,
-			SamplingServerURL:       "http://test_driver:5778/sampling",
+			Type:  defaultSamplerType,
+			Param: 1.0,
 			SamplingRefreshInterval: 5 * time.Second,
 		},
 		Reporter: &config.ReporterConfig{
 			BufferFlushInterval: time.Second,
-			LocalAgentHostPort:  "test_driver:5775",
 		},
 	}
 )
@@ -65,7 +63,9 @@ var (
 type Handler struct {
 	sync.RWMutex
 
-	tracers map[string]opentracing.Tracer
+	tracers           map[string]opentracing.Tracer
+	agentHostPort     string
+	samplingServerURL string
 }
 
 type traceRequest struct {
@@ -76,14 +76,22 @@ type traceRequest struct {
 }
 
 // NewHandler returns a Handler.
-func NewHandler() *Handler {
+func NewHandler(agentHostPort string, samplingServerURL string) *Handler {
 	return &Handler{
-		tracers: make(map[string]opentracing.Tracer),
+		agentHostPort:     agentHostPort,
+		samplingServerURL: samplingServerURL,
+		tracers:           make(map[string]opentracing.Tracer),
 	}
 }
 
 // init initializes the handler with a tracer
 func (h *Handler) init(cfg config.Configuration) error {
+	if cfg.Sampler != nil && cfg.Sampler.SamplingServerURL == "" {
+		cfg.Sampler.SamplingServerURL = h.samplingServerURL
+	}
+	if cfg.Reporter != nil && cfg.Reporter.LocalAgentHostPort == "" {
+		cfg.Reporter.LocalAgentHostPort = h.agentHostPort
+	}
 	tracer, _, err := cfg.New(common.DefaultTracerServiceName)
 	if err != nil {
 		return err

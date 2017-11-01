@@ -99,13 +99,13 @@ func newInMemoryTracer() (opentracing.Tracer, *jaeger.InMemoryReporter) {
 }
 
 func TestInit(t *testing.T) {
-	handler := NewHandler()
+	handler := NewHandler("", "")
 	err := handler.init(testConfig)
 	assert.NoError(t, err)
 }
 
 func TestInitBadConfig(t *testing.T) {
-	handler := NewHandler()
+	handler := NewHandler("", "")
 	err := handler.init(badConfig)
 	assert.Error(t, err)
 }
@@ -118,7 +118,7 @@ func TestGetTracer(t *testing.T) {
 }
 
 func TestGetTracerError(t *testing.T) {
-	handler := NewHandler()
+	handler := NewHandler("", "")
 	tracer := handler.getTracer("INVALID_TYPE")
 	assert.Nil(t, tracer)
 }
@@ -132,8 +132,8 @@ func TestGenerateTraces(t *testing.T) {
 		handler      *Handler
 	}{
 		{http.StatusOK, testTraceJSONRequest, &Handler{tracers: map[string]opentracing.Tracer{jaeger.SamplerTypeConst: tracer}}},
-		{http.StatusBadRequest, testInvalidJSON, NewHandler()},
-		{http.StatusInternalServerError, testInvalidTypeJSONRequest, NewHandler()}, // Tracer failed to initialize
+		{http.StatusBadRequest, testInvalidJSON, NewHandler("", "")},
+		{http.StatusInternalServerError, testInvalidTypeJSONRequest, NewHandler("", "")}, // Tracer failed to initialize
 	}
 
 	for _, test := range tests {
