@@ -36,12 +36,14 @@ import (
 
 // Server implements S1-S3 servers
 type Server struct {
-	HostPortHTTP     string
-	HostPortTChannel string
-	Tracer           opentracing.Tracer
-	listener         net.Listener
-	channel          *tchannel.Channel
-	eHandler         *endtoend.Handler
+	HostPortHTTP      string
+	HostPortTChannel  string
+	AgentHostPort     string
+	SamplingServerURL string
+	Tracer            opentracing.Tracer
+	listener          net.Listener
+	channel           *tchannel.Channel
+	eHandler          *endtoend.Handler
 }
 
 // Start starts the test server called by the Client and other upstream servers.
@@ -56,7 +58,7 @@ func (s *Server) Start() error {
 	if err := s.startTChannelServer(s.Tracer); err != nil {
 		return err
 	}
-	s.eHandler = endtoend.NewHandler()
+	s.eHandler = endtoend.NewHandler(s.AgentHostPort, s.SamplingServerURL)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { return }) // health check
