@@ -16,6 +16,7 @@ package main
 
 import (
 	"io"
+	"os"
 
 	"github.com/opentracing/opentracing-go"
 
@@ -30,10 +31,19 @@ import (
 func main() {
 	log.Enabled = true
 
+	agentHostPort, ok := os.LookupEnv("AGENT_HOST_PORT")
+	if !ok {
+		jlog.StdLogger.Error("env AGENT_HOST_PORT is not specified!")
+	}
+	sServerURL, ok := os.LookupEnv("SAMPLING_SERVER_URL")
+	if !ok {
+		jlog.StdLogger.Error("env SAMPLING_SEVER_URL is not specified!")
+	}
+
 	tracer, tCloser := initTracer()
 	defer tCloser.Close()
 
-	s := &server.Server{Tracer: tracer}
+	s := &server.Server{Tracer: tracer, SamplingServerURL: sServerURL, AgentHostPort: agentHostPort}
 	if err := s.Start(); err != nil {
 		panic(err.Error())
 	} else {
