@@ -94,8 +94,7 @@ one in the [jaeger-lib](https://github.com/uber/jaeger-lib) repository.
 
 Since this tracer is fully compliant with OpenTracing API 1.0,
 all code instrumentation should only use the API itself, as described
-in the [opentracing-go]
-(https://github.com/opentracing/opentracing-go) documentation.
+in the [opentracing-go](https://github.com/opentracing/opentracing-go) documentation.
 
 ## Features
 
