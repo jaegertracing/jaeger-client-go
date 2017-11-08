@@ -317,6 +317,24 @@ func TestGen128Bit(t *testing.T) {
 	assert.True(t, traceID.Low != 0)
 }
 
+func TestConsistentHighTraceID(t *testing.T) {
+	tracer, tc := NewTracer("x", NewConstSampler(true), NewNullReporter(), TracerOptions.ConsistentHighTraceID(true))
+	defer tc.Close()
+
+	span1 := tracer.StartSpan("test", opentracing.ChildOf(emptyContext))
+	defer span1.Finish()
+	traceID1 := span1.Context().(SpanContext).TraceID()
+	assert.True(t, traceID1.High != 0)
+	assert.True(t, traceID1.Low != 0)
+
+	span2 := tracer.StartSpan("test", opentracing.ChildOf(emptyContext))
+	defer span2.Finish()
+	traceID2 := span2.Context().(SpanContext).TraceID()
+	assert.True(t, traceID2.High != 0)
+	assert.True(t, traceID2.Low != 0)
+	assert.Equal(t, traceID1.High, traceID2.High)
+}
+
 func TestZipkinSharedRPCSpan(t *testing.T) {
 	tracer, tc := NewTracer("x", NewConstSampler(true), NewNullReporter(), TracerOptions.ZipkinSharedRPCSpan(false))
 
