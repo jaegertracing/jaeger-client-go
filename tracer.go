@@ -15,8 +15,6 @@
 package jaeger
 
 import (
-	"crypto/sha256"
-	"encoding/binary"
 	"fmt"
 	"io"
 	"os"
@@ -46,10 +44,10 @@ type Tracer struct {
 	randomNumber func() uint64
 
 	options struct {
-		poolSpans             bool
-		gen128Bit             bool // whether to generate 128bit trace IDs
-		zipkinSharedRPCSpan   bool
-		consistentHighTraceID bool // whether to hash service name for high bits
+		poolSpans            bool
+		gen128Bit            bool // whether to generate 128bit trace IDs
+		zipkinSharedRPCSpan  bool
+		highTraceIDGenerator func() uint64 // custom high trace ID generator
 		// more options to come
 	}
 	// pool for Span objects
@@ -138,11 +136,6 @@ func NewTracer(
 		t.logger.Error("Unable to determine this host's IP address: " + err.Error())
 	}
 
-	if t.options.consistentHighTraceID {
-		hash := sha256.Sum256([]byte(serviceName))
-		t.serviceNameHash = binary.BigEndian.Uint64(hash[0:])
-	}
-
 	return t, t
 }
 
@@ -215,9 +208,8 @@ func (t *Tracer) startSpanWithOptions(
 		ctx.traceID.Low = t.randomID()
 		if t.options.gen128Bit {
 			ctx.traceID.High = t.randomID()
-		}
-		if t.options.consistentHighTraceID {
-			ctx.traceID.High = t.serviceNameHash
+		} else if t.options.highTraceIDGenerator != nil {
+			ctx.traceID.High = t.options.highTraceIDGenerator()
 		}
 		ctx.spanID = SpanID(ctx.traceID.Low)
 		ctx.parentID = 0

@@ -15,6 +15,8 @@
 package jaeger
 
 import (
+	"crypto/sha256"
+	"encoding/binary"
 	"io"
 	"testing"
 	"time"
@@ -317,15 +319,21 @@ func TestGen128Bit(t *testing.T) {
 	assert.True(t, traceID.Low != 0)
 }
 
-func TestConsistentHighTraceID(t *testing.T) {
-	tracer, tc := NewTracer("x", NewConstSampler(true), NewNullReporter(), TracerOptions.ConsistentHighTraceID(true))
+func TestHighTraceIDGenerator(t *testing.T) {
+	hash := sha256.Sum256([]byte("x"))
+	id := binary.BigEndian.Uint64(hash[0:])
+	highTraceIDGenerator := func() uint64 {
+		return id
+	}
+
+	tracer, tc := NewTracer("x", NewConstSampler(true), NewNullReporter(), TracerOptions.HighTraceIDGenerator(highTraceIDGenerator))
 	defer tc.Close()
 
 	span1 := tracer.StartSpan("test", opentracing.ChildOf(emptyContext))
 	defer span1.Finish()
 	traceID1 := span1.Context().(SpanContext).TraceID()
-	assert.True(t, traceID1.High != 0)
 	assert.True(t, traceID1.Low != 0)
+	assert.Equal(t, id, traceID1.High)
 
 	span2 := tracer.StartSpan("test", opentracing.ChildOf(emptyContext))
 	defer span2.Finish()

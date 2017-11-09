@@ -121,9 +121,9 @@ func (tracerOptions) Gen128Bit(gen128Bit bool) TracerOption {
 	}
 }
 
-func (tracerOptions) ConsistentHighTraceID(consistentHighTraceID bool) TracerOption {
+func (tracerOptions) HighTraceIDGenerator(highTraceIDGenerator func() uint64) TracerOption {
 	return func(tracer *Tracer) {
-		tracer.options.consistentHighTraceID = consistentHighTraceID
+		tracer.options.highTraceIDGenerator = highTraceIDGenerator
 	}
 }
 
