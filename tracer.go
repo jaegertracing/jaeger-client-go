@@ -376,7 +376,7 @@ func (t *Tracer) reportSpan(sp *Span) {
 func (t *Tracer) randomID() uint64 {
 	val := t.randomNumber()
 	for val == 0 {
-		val = t.randomNumber()
+		val = t.randomID()
 	}
 	return val
 }
