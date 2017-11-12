@@ -136,6 +136,11 @@ func NewTracer(
 		t.logger.Error("Unable to determine this host's IP address: " + err.Error())
 	}
 
+	if !t.options.gen128Bit && t.options.highTraceIDGenerator != nil {
+		t.logger.Error("Overriding high trace ID generator but not generating " +
+			"128 bit trace IDs, consider enabling the \"Gen128Bit\" option")
+	}
+
 	return t, t
 }
 
@@ -207,9 +212,11 @@ func (t *Tracer) startSpanWithOptions(
 		newTrace = true
 		ctx.traceID.Low = t.randomID()
 		if t.options.gen128Bit {
-			ctx.traceID.High = t.randomID()
-		} else if t.options.highTraceIDGenerator != nil {
-			ctx.traceID.High = t.options.highTraceIDGenerator()
+			if t.options.highTraceIDGenerator != nil {
+				ctx.traceID.High = t.options.highTraceIDGenerator()
+			} else {
+				ctx.traceID.High = t.randomID()
+			}
 		}
 		ctx.spanID = SpanID(ctx.traceID.Low)
 		ctx.parentID = 0

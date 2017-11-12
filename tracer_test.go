@@ -15,8 +15,6 @@
 package jaeger
 
 import (
-	"crypto/sha256"
-	"encoding/binary"
 	"io"
 	"testing"
 	"time"
@@ -320,27 +318,45 @@ func TestGen128Bit(t *testing.T) {
 }
 
 func TestHighTraceIDGenerator(t *testing.T) {
-	hash := sha256.Sum256([]byte("x"))
-	id := binary.BigEndian.Uint64(hash[0:])
+	id := uint64(12345)
+	calledGenerator := false
 	highTraceIDGenerator := func() uint64 {
+		calledGenerator = true
 		return id
 	}
 
-	tracer, tc := NewTracer("x", NewConstSampler(true), NewNullReporter(), TracerOptions.HighTraceIDGenerator(highTraceIDGenerator))
+	tracer, tc := NewTracer("x", NewConstSampler(true), NewNullReporter(), TracerOptions.HighTraceIDGenerator(highTraceIDGenerator), TracerOptions.Gen128Bit(true))
 	defer tc.Close()
 
-	span1 := tracer.StartSpan("test", opentracing.ChildOf(emptyContext))
-	defer span1.Finish()
-	traceID1 := span1.Context().(SpanContext).TraceID()
-	assert.True(t, traceID1.Low != 0)
-	assert.Equal(t, id, traceID1.High)
+	span := tracer.StartSpan("test", opentracing.ChildOf(emptyContext))
+	defer span.Finish()
+	traceID := span.Context().(SpanContext).TraceID()
+	assert.Equal(t, id, traceID.High)
+	assert.True(t, calledGenerator)
+}
 
-	span2 := tracer.StartSpan("test", opentracing.ChildOf(emptyContext))
-	defer span2.Finish()
-	traceID2 := span2.Context().(SpanContext).TraceID()
-	assert.True(t, traceID2.High != 0)
-	assert.True(t, traceID2.Low != 0)
-	assert.Equal(t, traceID1.High, traceID2.High)
+type mockLogger struct {
+	msg string
+}
+
+func (l *mockLogger) Error(msg string) {
+	l.msg = msg
+}
+
+func (l *mockLogger) Infof(msg string, args ...interface{}) {
+}
+
+func TestHighTraceIDGeneratorNotGen128Bit(t *testing.T) {
+	highTraceIDGenerator := func() uint64 {
+		return 0
+	}
+	logger := &mockLogger{}
+	NewTracer("x", NewConstSampler(true), NewNullReporter(), TracerOptions.HighTraceIDGenerator(highTraceIDGenerator), TracerOptions.Gen128Bit(false), TracerOptions.Logger(logger))
+	msg := "Overriding high trace ID generator but not generating " +
+		"128 bit trace IDs, consider enabling the \"Gen128Bit\" option"
+	assert.Equal(t,
+		msg,
+		logger.msg)
 }
 
 func TestZipkinSharedRPCSpan(t *testing.T) {
