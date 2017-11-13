@@ -335,6 +335,9 @@ func TestHighTraceIDGenerator(t *testing.T) {
 	assert.True(t, calledGenerator)
 }
 
+// TODO: Remove mockLogger in favor of testutils/logger.go once it is refactored
+// from jaeger into jaeger-lib.
+
 type mockLogger struct {
 	msg string
 }
