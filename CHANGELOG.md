@@ -1,10 +1,17 @@
 Changes by Version
 ==================
 
-2.9.1 (unreleased)
-------------------
+2.10.0 (2017-11-14)
+-------------------
 
-- nothing yet
+- Support custom tracing headers (#176)
+- Add BaggageRestrictionManager (#178)
+- Add RemoteBaggageRestrictionManager (#182)
+- Add option to enable gen128Bit for tracer (#193)
+- Do not coerce baggage keys to lower case (#196)
+- Log span name when span cannot be reported (#198)
+- Use Xdock jaeger compose file (#213)
+- Allow custom generator for high bits of trace ID (#219)
 
 
 2.9.0 (2017-07-29)
