@@ -107,7 +107,7 @@ func TestNewReporterError(t *testing.T) {
 func TestInitGlobalTracer(t *testing.T) {
 	// Save the existing GlobalTracer and replace after finishing function
 	prevTracer := opentracing.GlobalTracer()
-	defer opentracing.InitGlobalTracer(prevTracer)
+	defer opentracing.SetGlobalTracer(prevTracer)
 	noopTracer := opentracing.NoopTracer{}
 
 	tests := []struct {
@@ -142,7 +142,7 @@ func TestInitGlobalTracer(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		opentracing.InitGlobalTracer(noopTracer)
+		opentracing.SetGlobalTracer(noopTracer)
 		_, err := test.cfg.InitGlobalTracer("testService")
 		if test.shouldErr {
 			require.Error(t, err)
