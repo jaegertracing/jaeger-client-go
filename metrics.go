@@ -33,16 +33,16 @@ type Metrics struct {
 	TracesJoinedNotSampled metrics.Counter `metric:"traces" tags:"state=joined,sampled=n"`
 
 	// Number of sampled spans started by this tracer
-	SpansStarted metrics.Counter `metric:"spans" tags:"group=lifecycle,state=started"`
+	SpansStarted metrics.Counter `metric:"spans-by-lifecycle" tags:"state=started"`
 
 	// Number of sampled spans finished by this tracer
-	SpansFinished metrics.Counter `metric:"spans" tags:"group=lifecycle,state=finished"`
+	SpansFinished metrics.Counter `metric:"spans-by-lifecycle" tags:"state=finished"`
 
 	// Number of sampled spans started by this tracer
-	SpansSampled metrics.Counter `metric:"spans" tags:"group=sampling,sampled=y"`
+	SpansSampled metrics.Counter `metric:"spans-started" tags:"sampled=y"`
 
 	// Number of not-sampled spans started by this tracer
-	SpansNotSampled metrics.Counter `metric:"spans" tags:"group=sampling,sampled=n"`
+	SpansNotSampled metrics.Counter `metric:"spans-started" tags:"sampled=n"`
 
 	// Number of errors decoding tracing context
 	DecodingErrors metrics.Counter `metric:"decoding-errors"`
@@ -57,39 +57,40 @@ type Metrics struct {
 	ReporterDropped metrics.Counter `metric:"reporter-spans" tags:"state=dropped"`
 
 	// Current number of spans in the reporter queue
-	ReporterQueueLength metrics.Gauge `metric:"reporter-queue"`
+	ReporterQueueLength metrics.Gauge `metric:"reporter-queue-length"`
 
 	// Number of times the Sampler succeeded to retrieve sampling strategy
-	SamplerRetrieved metrics.Counter `metric:"sampler" tags:"state=retrieved"`
+	SamplerRetrieved metrics.Counter `metric:"sampler-retrieved"`
 
 	// Number of times the Sampler succeeded to retrieve and update sampling strategy
-	SamplerUpdated metrics.Counter `metric:"sampler" tags:"state=updated"`
+	SamplerUpdated metrics.Counter `metric:"sampler-updated"`
 
 	// Number of times the Sampler failed to update sampling strategy
-	SamplerUpdateFailure metrics.Counter `metric:"sampler" tags:"state=failure,phase=updating"`
+	SamplerUpdateFailure metrics.Counter `metric:"sampler-update-failures"`
 
 	// Number of times the Sampler failed to retrieve sampling strategy
-	SamplerQueryFailure metrics.Counter `metric:"sampler" tags:"state=failure,phase=query"`
+	SamplerQueryFailure metrics.Counter `metric:"sampler-query-failures"`
 
 	// Number of times baggage was successfully written or updated on spans.
-	BaggageUpdateSuccess metrics.Counter `metric:"baggage-update" tags:"result=ok"`
+	BaggageUpdateSuccess metrics.Counter `metric:"baggage-updates" tags:"result=ok"`
 
 	// Number of times baggage failed to write or update on spans.
-	BaggageUpdateFailure metrics.Counter `metric:"baggage-update" tags:"result=err"`
+	BaggageUpdateFailure metrics.Counter `metric:"baggage-updates" tags:"result=err"`
 
 	// Number of times baggage was truncated as per baggage restrictions.
-	BaggageTruncate metrics.Counter `metric:"baggage-truncate"`
+	BaggageTruncate metrics.Counter `metric:"baggage-truncated"`
 
 	// Number of times baggage restrictions were successfully updated.
-	BaggageRestrictionsUpdateSuccess metrics.Counter `metric:"baggage-restrictions-update" tags:"result=ok"`
+	BaggageRestrictionsUpdateSuccess metrics.Counter `metric:"baggage-restrictions-updates" tags:"result=ok"`
 
 	// Number of times baggage restrictions failed to update.
-	BaggageRestrictionsUpdateFailure metrics.Counter `metric:"baggage-restrictions-update" tags:"result=err"`
+	BaggageRestrictionsUpdateFailure metrics.Counter `metric:"baggage-restrictions-updates" tags:"result=err"`
 }
 
 // NewMetrics creates a new Metrics struct and initializes it.
 func NewMetrics(factory metrics.Factory, globalTags map[string]string) *Metrics {
 	m := &Metrics{}
+	// TODO the namespace "jaeger" should be configurable (e.g. in all-in-one "jaeger-client" would make more sense)
 	metrics.Init(m, factory.Namespace("jaeger", nil), globalTags)
 	return m
 }

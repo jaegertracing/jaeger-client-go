@@ -35,14 +35,14 @@ func TestNewMetrics(t *testing.T) {
 	m.ReporterQueueLength.Update(11)
 	testutils.AssertCounterMetrics(t, factory,
 		testutils.ExpectedMetric{
-			Name:  "jaeger.spans",
-			Tags:  map[string]string{"group": "sampling", "lib": "jaeger", "sampled": "y"},
+			Name:  "jaeger.spans-started",
+			Tags:  map[string]string{"lib": "jaeger", "sampled": "y"},
 			Value: 1,
 		},
 	)
 	testutils.AssertGaugeMetrics(t, factory,
 		testutils.ExpectedMetric{
-			Name:  "jaeger.reporter-queue",
+			Name:  "jaeger.reporter-queue-length",
 			Tags:  map[string]string{"lib": "jaeger"},
 			Value: 11,
 		},

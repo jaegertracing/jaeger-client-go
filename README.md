@@ -65,17 +65,26 @@ like `counters.my-service.jaeger.spans.started.sampled`, the metrics
 are defined by a short name and a collection of key/value tags, for
 example: `name:traces, state:started, sampled:true`.
 
-The monitoring backend is represented by the
-[StatsReporter](stats_reporter.go) interface. An implementation
-of that interface should be passed to the `New` method during
-tracer initialization:
+The monitoring backend is represented by the `metrics.Factory` interface from package
+[`"github.com/uber/jaeger-lib/metrics"`](github.com/uber/jaeger-lib/metrics).  An implementation
+of that interface can be passed as an option to either the Configuration object or the Tracer
+constructor, for example:
 
 ```go
-    stats := // create StatsReporter implementation
-    tracer := config.Tracing.New("your-service-name", stats)
+import (
+    "github.com/prometheus/client_golang/prometheus"
+    jprom "github.com/uber/jaeger-lib/metrics/prometheus"
+    "github.com/uber/jaeger-client-go/config"
+)
+
+    metricsFactory := jprom.New(prometheus.DefaultRegisterer, nil)
+    tracer, closer, err := new(config.Configuration).New(
+        "your-service-name",
+        config.Metrics(metricsFactory),
+    )
 ```
 
-By default, a no-op `NullStatsReporter` is used.
+By default, a no-op `metrics.NullFactory` is used.
 
 ### Logging
 
@@ -143,18 +152,15 @@ are available:
 
 ### Baggage Injection
 
-The OpenTracing spec allows for [baggage](https://github.com/opentracing/specification/blob/master/specification.md#set-a-baggage-item),
-which are key value pairs that are added to the span context and propagated
-throughout the trace.
-An external process can inject baggage by setting the special
-HTTP Header `jaeger-baggage` on a request
+The OpenTracing spec allows for [baggage][baggage], which are key value pairs that are added
+to the span context and propagated throughout the trace. An external process can inject baggage
+by setting the special HTTP Header `jaeger-baggage` on a request:
 
 ```sh
 curl -H "jaeger-baggage: key1=value1, key2=value2" http://myhost.com
 ```
 
-Baggage can also be programatically set inside your service by doing
-the following
+Baggage can also be programatically set inside your service:
 
 ```go
 if span := opentracing.SpanFromContext(ctx); span != nil {
@@ -229,3 +235,4 @@ However it is not the default propagation format, see [here](zipkin/README.md#Ne
 [cov]: https://codecov.io/gh/jaegertracing/jaeger-client-go
 [ot-img]: https://img.shields.io/badge/OpenTracing--1.0-enabled-blue.svg
 [ot-url]: http://opentracing.io
+[baggage]: https://github.com/opentracing/specification/blob/master/specification.md#set-a-baggage-item

@@ -90,9 +90,9 @@ func (s *tracerSuite) TestBeginRootSpan() {
 	s.NotNil(ss.duration)
 
 	testutils.AssertCounterMetrics(s.T(), s.metricsFactory, []testutils.ExpectedMetric{
-		{Name: "jaeger.spans", Tags: map[string]string{"group": "lifecycle", "state": "started"}, Value: 1},
-		{Name: "jaeger.spans", Tags: map[string]string{"group": "lifecycle", "state": "finished"}, Value: 1},
-		{Name: "jaeger.spans", Tags: map[string]string{"group": "sampling", "sampled": "y"}, Value: 1},
+		{Name: "jaeger.spans-by-lifecycle", Tags: map[string]string{"state": "started"}, Value: 1},
+		{Name: "jaeger.spans-by-lifecycle", Tags: map[string]string{"state": "finished"}, Value: 1},
+		{Name: "jaeger.spans-started", Tags: map[string]string{"sampled": "y"}, Value: 1},
 		{Name: "jaeger.traces", Tags: map[string]string{"sampled": "y", "state": "started"}, Value: 1},
 	}...)
 }
@@ -114,10 +114,10 @@ func (s *tracerSuite) TestStartChildSpan() {
 	s.NotNil(sp2.(*Span).duration)
 	sp1.Finish()
 	testutils.AssertCounterMetrics(s.T(), s.metricsFactory, []testutils.ExpectedMetric{
-		{Name: "jaeger.spans", Tags: map[string]string{"group": "sampling", "sampled": "y"}, Value: 2},
+		{Name: "jaeger.spans-started", Tags: map[string]string{"sampled": "y"}, Value: 2},
 		{Name: "jaeger.traces", Tags: map[string]string{"sampled": "y", "state": "started"}, Value: 1},
-		{Name: "jaeger.spans", Tags: map[string]string{"group": "lifecycle", "state": "started"}, Value: 2},
-		{Name: "jaeger.spans", Tags: map[string]string{"group": "lifecycle", "state": "finished"}, Value: 2},
+		{Name: "jaeger.spans-by-lifecycle", Tags: map[string]string{"state": "started"}, Value: 2},
+		{Name: "jaeger.spans-by-lifecycle", Tags: map[string]string{"state": "finished"}, Value: 2},
 	}...)
 }
 
@@ -146,10 +146,10 @@ func (s *tracerSuite) TestStartSpanWithMultipleReferences() {
 	sp2.Finish()
 	sp1.Finish()
 	testutils.AssertCounterMetrics(s.T(), s.metricsFactory, []testutils.ExpectedMetric{
-		{Name: "jaeger.spans", Tags: map[string]string{"group": "sampling", "sampled": "y"}, Value: 4},
+		{Name: "jaeger.spans-started", Tags: map[string]string{"sampled": "y"}, Value: 4},
 		{Name: "jaeger.traces", Tags: map[string]string{"sampled": "y", "state": "started"}, Value: 3},
-		{Name: "jaeger.spans", Tags: map[string]string{"group": "lifecycle", "state": "started"}, Value: 4},
-		{Name: "jaeger.spans", Tags: map[string]string{"group": "lifecycle", "state": "finished"}, Value: 4},
+		{Name: "jaeger.spans-by-lifecycle", Tags: map[string]string{"state": "started"}, Value: 4},
+		{Name: "jaeger.spans-by-lifecycle", Tags: map[string]string{"state": "finished"}, Value: 4},
 	}...)
 	assert.Len(s.T(), sp4.(*Span).references, 3)
 }
@@ -167,10 +167,10 @@ func (s *tracerSuite) TestStartSpanWithOnlyFollowFromReference() {
 	s.NotNil(sp2.(*Span).duration)
 	sp1.Finish()
 	testutils.AssertCounterMetrics(s.T(), s.metricsFactory, []testutils.ExpectedMetric{
-		{Name: "jaeger.spans", Tags: map[string]string{"group": "sampling", "sampled": "y"}, Value: 2},
+		{Name: "jaeger.spans-started", Tags: map[string]string{"sampled": "y"}, Value: 2},
 		{Name: "jaeger.traces", Tags: map[string]string{"sampled": "y", "state": "started"}, Value: 1},
-		{Name: "jaeger.spans", Tags: map[string]string{"group": "lifecycle", "state": "started"}, Value: 2},
-		{Name: "jaeger.spans", Tags: map[string]string{"group": "lifecycle", "state": "finished"}, Value: 2},
+		{Name: "jaeger.spans-by-lifecycle", Tags: map[string]string{"state": "started"}, Value: 2},
+		{Name: "jaeger.spans-by-lifecycle", Tags: map[string]string{"state": "finished"}, Value: 2},
 	}...)
 	assert.Len(s.T(), sp2.(*Span).references, 1)
 }
@@ -198,9 +198,9 @@ func (s *tracerSuite) TestTraceStartedOrJoinedMetrics() {
 		s.Equal(test.sampled, sp2.Context().(SpanContext).IsSampled())
 
 		testutils.AssertCounterMetrics(s.T(), s.metricsFactory, []testutils.ExpectedMetric{
-			{Name: "jaeger.spans", Tags: map[string]string{"group": "sampling", "sampled": test.label}, Value: 3},
-			{Name: "jaeger.spans", Tags: map[string]string{"group": "lifecycle", "state": "started"}, Value: 3},
-			{Name: "jaeger.spans", Tags: map[string]string{"group": "lifecycle", "state": "finished"}, Value: 3},
+			{Name: "jaeger.spans-started", Tags: map[string]string{"sampled": test.label}, Value: 3},
+			{Name: "jaeger.spans-by-lifecycle", Tags: map[string]string{"state": "started"}, Value: 3},
+			{Name: "jaeger.spans-by-lifecycle", Tags: map[string]string{"state": "finished"}, Value: 3},
 			{Name: "jaeger.traces", Tags: map[string]string{"sampled": test.label, "state": "started"}, Value: 1},
 			{Name: "jaeger.traces", Tags: map[string]string{"sampled": test.label, "state": "joined"}, Value: 1},
 		}...)

@@ -119,9 +119,9 @@ func TestSpanPropagator(t *testing.T) {
 	}
 
 	testutils.AssertCounterMetrics(t, metricsFactory, []testutils.ExpectedMetric{
-		{Name: "jaeger.spans", Tags: map[string]string{"group": "sampling", "sampled": "y"}, Value: 1 + 2*len(tests)},
-		{Name: "jaeger.spans", Tags: map[string]string{"group": "lifecycle", "state": "started"}, Value: 1 + 2*len(tests)},
-		{Name: "jaeger.spans", Tags: map[string]string{"group": "lifecycle", "state": "finished"}, Value: 1 + len(tests)},
+		{Name: "jaeger.spans-started", Tags: map[string]string{"sampled": "y"}, Value: 1 + 2*len(tests)},
+		{Name: "jaeger.spans-by-lifecycle", Tags: map[string]string{"state": "started"}, Value: 1 + 2*len(tests)},
+		{Name: "jaeger.spans-by-lifecycle", Tags: map[string]string{"state": "finished"}, Value: 1 + len(tests)},
 		{Name: "jaeger.traces", Tags: map[string]string{"state": "started", "sampled": "y"}, Value: 1},
 		{Name: "jaeger.traces", Tags: map[string]string{"state": "joined", "sampled": "y"}, Value: len(tests)},
 	}...)
