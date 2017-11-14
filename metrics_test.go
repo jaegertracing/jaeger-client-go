@@ -55,7 +55,7 @@ func TestNewMetrics(t *testing.T) {
 func TestNewPrometheusMetrics(t *testing.T) {
 	tags := map[string]string{"lib": "jaeger"}
 
-	factory := jprom.New(prometheus.DefaultRegisterer, nil)
+	factory := jprom.New(jprom.WithRegisterer(prometheus.NewPedanticRegistry()))
 	m := NewMetrics(factory, tags)
 
 	require.NotNil(t, m.SpansStartedSampled, "counter not initialized")

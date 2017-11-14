@@ -1,5 +1,5 @@
-hash: 8feaf73ee802ae55d0f69c97cbf5639382a2d4d2e3ce449ec01e51c66dc47bf5
-updated: 2017-11-14T14:01:45.699697722-05:00
+hash: 5653273b48af18d06f186353155735aafdd7a0f3d9ffa1c3f6fe011fb4ab055a
+updated: 2017-11-14T16:09:50.826250878-05:00
 imports:
 - name: github.com/apache/thrift
   version: b2a4d4ae21c789b689dd162deb819665567f481c
@@ -62,11 +62,11 @@ imports:
   - require
   - suite
 - name: github.com/uber-go/atomic
-  version: 54f72d32435d760d5604f17a82e2435b28dc4ba5
+  version: 8474b86a5a6f79c443ce4b2992817ff32cf208b8
   subpackages:
   - utils
 - name: github.com/uber/jaeger-lib
-  version: 87d428f53f98801dc0e418fe5aa7d68c4abedd9d
+  version: c48167d9cae5887393dd5e61efd06a4a48b7fbb3
   subpackages:
   - metrics
   - metrics/prometheus
@@ -85,7 +85,7 @@ imports:
   - trand
   - typed
 - name: go.uber.org/atomic
-  version: 54f72d32435d760d5604f17a82e2435b28dc4ba5
+  version: 8474b86a5a6f79c443ce4b2992817ff32cf208b8
 - name: go.uber.org/multierr
   version: 3c4937480c32f4c13a875a1829af76c98ca3d40a
 - name: go.uber.org/zap
