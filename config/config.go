@@ -211,7 +211,7 @@ func (c Configuration) InitGlobalTracer(
 	if err != nil {
 		return nil, err
 	}
-	opentracing.InitGlobalTracer(tracer)
+	opentracing.SetGlobalTracer(tracer)
 	return closer, nil
 }
 

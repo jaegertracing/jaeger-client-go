@@ -40,7 +40,7 @@ func ExampleNewHTTPTransport() {
 		jaeger.NewRemoteReporter(transport, nil),
 	)
 	defer closer.Close()
-	opentracing.InitGlobalTracer(tracer)
+	opentracing.SetGlobalTracer(tracer)
 
 	// initialize servers
 }
