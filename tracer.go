@@ -62,7 +62,6 @@ type Tracer struct {
 
 	baggageRestrictionManager baggage.RestrictionManager
 	baggageSetter             *baggageSetter
-	serviceNameHash           uint64
 }
 
 // NewTracer creates Tracer implementation that reports tracing to Jaeger.
