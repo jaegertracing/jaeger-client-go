@@ -17,8 +17,10 @@ package jaeger
 import (
 	"testing"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
 	"github.com/uber/jaeger-lib/metrics"
+	jprom "github.com/uber/jaeger-lib/metrics/prometheus"
 	"github.com/uber/jaeger-lib/metrics/testutils"
 )
 
@@ -28,10 +30,10 @@ func TestNewMetrics(t *testing.T) {
 	factory := metrics.NewLocalFactory(0)
 	m := NewMetrics(factory, tags)
 
-	require.NotNil(t, m.SpansSampled, "counter not initialized")
+	require.NotNil(t, m.SpansStartedSampled, "counter not initialized")
 	require.NotNil(t, m.ReporterQueueLength, "gauge not initialized")
 
-	m.SpansSampled.Inc(1)
+	m.SpansStartedSampled.Inc(1)
 	m.ReporterQueueLength.Update(11)
 	testutils.AssertCounterMetrics(t, factory,
 		testutils.ExpectedMetric{
@@ -47,4 +49,15 @@ func TestNewMetrics(t *testing.T) {
 			Value: 11,
 		},
 	)
+}
+
+// TestNewPrometheusMetrics ensures that the metrics do not have conflicting dimensions and will work with Prometheus.
+func TestNewPrometheusMetrics(t *testing.T) {
+	tags := map[string]string{"lib": "jaeger"}
+
+	factory := jprom.New(prometheus.DefaultRegisterer, nil)
+	m := NewMetrics(factory, tags)
+
+	require.NotNil(t, m.SpansStartedSampled, "counter not initialized")
+	require.NotNil(t, m.ReporterQueueLength, "gauge not initialized")
 }

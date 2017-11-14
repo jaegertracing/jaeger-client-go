@@ -348,9 +348,8 @@ func (t *Tracer) startSpanInternal(
 		}
 	}
 	// emit metrics
-	t.metrics.SpansStarted.Inc(1)
 	if sp.context.IsSampled() {
-		t.metrics.SpansSampled.Inc(1)
+		t.metrics.SpansStartedSampled.Inc(1)
 		if newTrace {
 			// We cannot simply check for parentID==0 because in Zipkin model the
 			// server-side RPC span has the exact same trace/span/parent IDs as the
@@ -361,7 +360,7 @@ func (t *Tracer) startSpanInternal(
 			t.metrics.TracesJoinedSampled.Inc(1)
 		}
 	} else {
-		t.metrics.SpansNotSampled.Inc(1)
+		t.metrics.SpansStartedNotSampled.Inc(1)
 		if newTrace {
 			t.metrics.TracesStartedNotSampled.Inc(1)
 		} else if sp.firstInProcess {

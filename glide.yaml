@@ -29,6 +29,8 @@ import:
   - suite
 - package: github.com/crossdock/crossdock-go
 - package: github.com/uber/jaeger-lib
-  version: ^1.0.0
+  version: ^1.2.0
   subpackages:
   - metrics
+- package: github.com/prometheus/client_golang
+  version: v0.8.0

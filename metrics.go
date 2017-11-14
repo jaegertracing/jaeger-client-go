@@ -33,58 +33,55 @@ type Metrics struct {
 	TracesJoinedNotSampled metrics.Counter `metric:"traces" tags:"state=joined,sampled=n"`
 
 	// Number of sampled spans started by this tracer
-	SpansStarted metrics.Counter `metric:"spans-by-lifecycle" tags:"state=started"`
+	SpansStartedSampled metrics.Counter `metric:"spans_started" tags:"sampled=y"`
 
-	// Number of sampled spans finished by this tracer
-	SpansFinished metrics.Counter `metric:"spans-by-lifecycle" tags:"state=finished"`
+	// Number of unsampled spans started by this tracer
+	SpansStartedNotSampled metrics.Counter `metric:"spans_started" tags:"sampled=n"`
 
-	// Number of sampled spans started by this tracer
-	SpansSampled metrics.Counter `metric:"spans-started" tags:"sampled=y"`
-
-	// Number of not-sampled spans started by this tracer
-	SpansNotSampled metrics.Counter `metric:"spans-started" tags:"sampled=n"`
+	// Number of spans finished by this tracer
+	SpansFinished metrics.Counter `metric:"spans_finished"`
 
 	// Number of errors decoding tracing context
-	DecodingErrors metrics.Counter `metric:"decoding-errors"`
+	DecodingErrors metrics.Counter `metric:"span_context_decoding_errors"`
 
 	// Number of spans successfully reported
-	ReporterSuccess metrics.Counter `metric:"reporter-spans" tags:"state=success"`
+	ReporterSuccess metrics.Counter `metric:"reporter_spans_reported"`
 
-	// Number of spans in failed attempts to report
-	ReporterFailure metrics.Counter `metric:"reporter-spans" tags:"state=failure"`
+	// Number of spans not reported due to some failure
+	ReporterFailure metrics.Counter `metric:"reporter_spans_failed"`
 
 	// Number of spans dropped due to internal queue overflow
-	ReporterDropped metrics.Counter `metric:"reporter-spans" tags:"state=dropped"`
+	ReporterDropped metrics.Counter `metric:"reporter_spans_dropped"`
 
 	// Current number of spans in the reporter queue
-	ReporterQueueLength metrics.Gauge `metric:"reporter-queue-length"`
+	ReporterQueueLength metrics.Gauge `metric:"reporter_queue_length"`
 
 	// Number of times the Sampler succeeded to retrieve sampling strategy
-	SamplerRetrieved metrics.Counter `metric:"sampler-retrieved"`
+	SamplerRetrieved metrics.Counter `metric:"sampler_retrieved"`
 
 	// Number of times the Sampler succeeded to retrieve and update sampling strategy
-	SamplerUpdated metrics.Counter `metric:"sampler-updated"`
+	SamplerUpdated metrics.Counter `metric:"sampler_updated"`
 
 	// Number of times the Sampler failed to update sampling strategy
-	SamplerUpdateFailure metrics.Counter `metric:"sampler-update-failures"`
+	SamplerUpdateFailure metrics.Counter `metric:"sampler_update_failures"`
 
 	// Number of times the Sampler failed to retrieve sampling strategy
-	SamplerQueryFailure metrics.Counter `metric:"sampler-query-failures"`
+	SamplerQueryFailure metrics.Counter `metric:"sampler_query_failures"`
 
 	// Number of times baggage was successfully written or updated on spans.
-	BaggageUpdateSuccess metrics.Counter `metric:"baggage-updates" tags:"result=ok"`
+	BaggageUpdateSuccess metrics.Counter `metric:"baggage_updates" tags:"result=ok"`
 
 	// Number of times baggage failed to write or update on spans.
-	BaggageUpdateFailure metrics.Counter `metric:"baggage-updates" tags:"result=err"`
+	BaggageUpdateFailure metrics.Counter `metric:"baggage_updates" tags:"result=err"`
 
 	// Number of times baggage was truncated as per baggage restrictions.
-	BaggageTruncate metrics.Counter `metric:"baggage-truncated"`
+	BaggageTruncate metrics.Counter `metric:"baggage_truncated"`
 
 	// Number of times baggage restrictions were successfully updated.
-	BaggageRestrictionsUpdateSuccess metrics.Counter `metric:"baggage-restrictions-updates" tags:"result=ok"`
+	BaggageRestrictionsUpdateSuccess metrics.Counter `metric:"baggage_restrictions_updates" tags:"result=ok"`
 
 	// Number of times baggage restrictions failed to update.
-	BaggageRestrictionsUpdateFailure metrics.Counter `metric:"baggage-restrictions-updates" tags:"result=err"`
+	BaggageRestrictionsUpdateFailure metrics.Counter `metric:"baggage_restrictions_updates" tags:"result=err"`
 }
 
 // NewMetrics creates a new Metrics struct and initializes it.
