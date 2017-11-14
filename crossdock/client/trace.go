@@ -69,12 +69,12 @@ func (c *Client) trace(t crossdock.T) {
 		}
 	}
 
-	traceID := resp.Span.TraceId
-	if traceID == "" {
+	if resp.Span == nil || resp.Span.TraceId == "" {
 		t.Errorf("Trace ID is empty in S1(%s)", server1)
 		return
 	}
 
+	traceID := resp.Span.TraceId
 	success := validateTrace(t, level1.Downstream, resp, server1, 1, traceID, sampled, baggage)
 	if success {
 		t.Successf("trace checks out")
