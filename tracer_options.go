@@ -121,6 +121,12 @@ func (tracerOptions) Gen128Bit(gen128Bit bool) TracerOption {
 	}
 }
 
+func (tracerOptions) HighTraceIDGenerator(highTraceIDGenerator func() uint64) TracerOption {
+	return func(tracer *Tracer) {
+		tracer.options.highTraceIDGenerator = highTraceIDGenerator
+	}
+}
+
 func (tracerOptions) ZipkinSharedRPCSpan(zipkinSharedRPCSpan bool) TracerOption {
 	return func(tracer *Tracer) {
 		tracer.options.zipkinSharedRPCSpan = zipkinSharedRPCSpan

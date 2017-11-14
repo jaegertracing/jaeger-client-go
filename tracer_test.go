@@ -317,6 +317,51 @@ func TestGen128Bit(t *testing.T) {
 	assert.True(t, traceID.Low != 0)
 }
 
+func TestHighTraceIDGenerator(t *testing.T) {
+	id := uint64(12345)
+	calledGenerator := false
+	highTraceIDGenerator := func() uint64 {
+		calledGenerator = true
+		return id
+	}
+
+	tracer, tc := NewTracer("x", NewConstSampler(true), NewNullReporter(), TracerOptions.HighTraceIDGenerator(highTraceIDGenerator), TracerOptions.Gen128Bit(true))
+	defer tc.Close()
+
+	span := tracer.StartSpan("test", opentracing.ChildOf(emptyContext))
+	defer span.Finish()
+	traceID := span.Context().(SpanContext).TraceID()
+	assert.Equal(t, id, traceID.High)
+	assert.True(t, calledGenerator)
+}
+
+// TODO: Remove mockLogger in favor of testutils/logger.go once it is refactored
+// from jaeger into jaeger-lib.
+
+type mockLogger struct {
+	msg string
+}
+
+func (l *mockLogger) Error(msg string) {
+	l.msg = msg
+}
+
+func (l *mockLogger) Infof(msg string, args ...interface{}) {
+}
+
+func TestHighTraceIDGeneratorNotGen128Bit(t *testing.T) {
+	highTraceIDGenerator := func() uint64 {
+		return 0
+	}
+	logger := &mockLogger{}
+	NewTracer("x", NewConstSampler(true), NewNullReporter(), TracerOptions.HighTraceIDGenerator(highTraceIDGenerator), TracerOptions.Gen128Bit(false), TracerOptions.Logger(logger))
+	msg := "Overriding high trace ID generator but not generating " +
+		"128 bit trace IDs, consider enabling the \"Gen128Bit\" option"
+	assert.Equal(t,
+		msg,
+		logger.msg)
+}
+
 func TestZipkinSharedRPCSpan(t *testing.T) {
 	tracer, tc := NewTracer("x", NewConstSampler(true), NewNullReporter(), TracerOptions.ZipkinSharedRPCSpan(false))
 

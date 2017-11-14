@@ -44,9 +44,10 @@ type Tracer struct {
 	randomNumber func() uint64
 
 	options struct {
-		poolSpans           bool
-		gen128Bit           bool // whether to generate 128bit trace IDs
-		zipkinSharedRPCSpan bool
+		poolSpans            bool
+		gen128Bit            bool // whether to generate 128bit trace IDs
+		zipkinSharedRPCSpan  bool
+		highTraceIDGenerator func() uint64 // custom high trace ID generator
 		// more options to come
 	}
 	// pool for Span objects
@@ -134,6 +135,15 @@ func NewTracer(
 		t.logger.Error("Unable to determine this host's IP address: " + err.Error())
 	}
 
+	if t.options.gen128Bit {
+		if t.options.highTraceIDGenerator == nil {
+			t.options.highTraceIDGenerator = t.randomNumber
+		}
+	} else if t.options.highTraceIDGenerator != nil {
+		t.logger.Error("Overriding high trace ID generator but not generating " +
+			"128 bit trace IDs, consider enabling the \"Gen128Bit\" option")
+	}
+
 	return t, t
 }
 
@@ -205,7 +215,7 @@ func (t *Tracer) startSpanWithOptions(
 		newTrace = true
 		ctx.traceID.Low = t.randomID()
 		if t.options.gen128Bit {
-			ctx.traceID.High = t.randomID()
+			ctx.traceID.High = t.options.highTraceIDGenerator()
 		}
 		ctx.spanID = SpanID(ctx.traceID.Low)
 		ctx.parentID = 0
