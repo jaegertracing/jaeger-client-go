@@ -232,7 +232,7 @@ func setSamplingPriority(s *Span, value interface{}) bool {
 	defer s.Unlock()
 	if val, ok := value.(uint16); ok {
 		if val > 0 {
-			s.context.flags = s.context.flags | flagDebug | flagSampled
+			s.context.flags = s.context.flags | flagDebug | flagSampled | flagSpecial
 		} else {
 			s.context.flags = s.context.flags & (^flagSampled)
 		}

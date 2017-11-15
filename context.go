@@ -24,6 +24,7 @@ import (
 const (
 	flagSampled = byte(1)
 	flagDebug   = byte(2)
+	flagSpecial = byte(4)
 )
 
 var (

@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -87,4 +88,18 @@ func TestSpanOperationName(t *testing.T) {
 	sp1.Finish()
 
 	assert.Equal(t, "s2", sp1.OperationName())
+}
+
+func TestSetSamplingPriority(t *testing.T) {
+	tracer, closer := NewTracer("DOOP", NewConstSampler(false), NewNullReporter())
+	defer closer.Close()
+
+	sp1 := tracer.StartSpan("s1").(*Span)
+	ext.SamplingPriority.Set(sp1, 1)
+	sp2 := tracer.StartSpan("s2", opentracing.ChildOf(sp1.Context())).(*Span)
+	sp2.Finish()
+	sp1.Finish()
+
+	assert.Equal(t, byte(7), sp1.context.flags)
+	assert.Equal(t, byte(7), sp2.context.flags)
 }
