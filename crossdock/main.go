@@ -37,7 +37,7 @@ func main() {
 	}
 	sServerURL, ok := os.LookupEnv("SAMPLING_SERVER_URL")
 	if !ok {
-		jlog.StdLogger.Error("env SAMPLING_SEVER_URL is not specified!")
+		jlog.StdLogger.Error("env SAMPLING_SERVER_URL is not specified!")
 	}
 
 	tracer, tCloser := initTracer()
