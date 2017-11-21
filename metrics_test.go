@@ -25,10 +25,8 @@ import (
 )
 
 func TestNewMetrics(t *testing.T) {
-	tags := map[string]string{"lib": "jaeger"}
-
 	factory := metrics.NewLocalFactory(0)
-	m := NewMetrics(factory, tags)
+	m := NewMetrics(factory, map[string]string{"lib": "jaeger"})
 
 	require.NotNil(t, m.SpansStartedSampled, "counter not initialized")
 	require.NotNil(t, m.ReporterQueueLength, "gauge not initialized")
@@ -37,14 +35,14 @@ func TestNewMetrics(t *testing.T) {
 	m.ReporterQueueLength.Update(11)
 	testutils.AssertCounterMetrics(t, factory,
 		testutils.ExpectedMetric{
-			Name:  "jaeger.spans-started",
+			Name:  "jaeger.spans_started",
 			Tags:  map[string]string{"lib": "jaeger", "sampled": "y"},
 			Value: 1,
 		},
 	)
 	testutils.AssertGaugeMetrics(t, factory,
 		testutils.ExpectedMetric{
-			Name:  "jaeger.reporter-queue-length",
+			Name:  "jaeger.reporter_queue_length",
 			Tags:  map[string]string{"lib": "jaeger"},
 			Value: 11,
 		},
