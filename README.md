@@ -72,12 +72,11 @@ constructor, for example:
 
 ```go
 import (
-    "github.com/prometheus/client_golang/prometheus"
-    jprom "github.com/uber/jaeger-lib/metrics/prometheus"
+    "github.com/uber/jaeger-lib/metrics/prometheus"
     "github.com/uber/jaeger-client-go/config"
 )
 
-    metricsFactory := jprom.New(prometheus.DefaultRegisterer, nil)
+    metricsFactory := prometheus.New()
     tracer, closer, err := new(config.Configuration).New(
         "your-service-name",
         config.Metrics(metricsFactory),
