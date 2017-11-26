@@ -71,6 +71,6 @@ const (
 	SamplerTypeRateLimiting = "ratelimiting"
 
 	// SamplerTypeLowerBound is the type of sampler that samples
-	// only up to a fixed number of traces per second.
+	// at least a fixed number of traces per second.
 	SamplerTypeLowerBound = "lowerbound"
 )
