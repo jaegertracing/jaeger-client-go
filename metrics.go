@@ -33,63 +33,61 @@ type Metrics struct {
 	TracesJoinedNotSampled metrics.Counter `metric:"traces" tags:"state=joined,sampled=n"`
 
 	// Number of sampled spans started by this tracer
-	SpansStarted metrics.Counter `metric:"spans" tags:"group=lifecycle,state=started"`
+	SpansStartedSampled metrics.Counter `metric:"started_spans" tags:"sampled=y"`
 
-	// Number of sampled spans finished by this tracer
-	SpansFinished metrics.Counter `metric:"spans" tags:"group=lifecycle,state=finished"`
+	// Number of unsampled spans started by this tracer
+	SpansStartedNotSampled metrics.Counter `metric:"started_spans" tags:"sampled=n"`
 
-	// Number of sampled spans started by this tracer
-	SpansSampled metrics.Counter `metric:"spans" tags:"group=sampling,sampled=y"`
-
-	// Number of not-sampled spans started by this tracer
-	SpansNotSampled metrics.Counter `metric:"spans" tags:"group=sampling,sampled=n"`
+	// Number of spans finished by this tracer
+	SpansFinished metrics.Counter `metric:"finished_spans"`
 
 	// Number of errors decoding tracing context
-	DecodingErrors metrics.Counter `metric:"decoding-errors"`
+	DecodingErrors metrics.Counter `metric:"span_context_decoding_errors"`
 
 	// Number of spans successfully reported
-	ReporterSuccess metrics.Counter `metric:"reporter-spans" tags:"state=success"`
+	ReporterSuccess metrics.Counter `metric:"reporter_spans" tags:"result=ok"`
 
-	// Number of spans in failed attempts to report
-	ReporterFailure metrics.Counter `metric:"reporter-spans" tags:"state=failure"`
+	// Number of spans not reported due to a Sender failure
+	ReporterFailure metrics.Counter `metric:"reporter_spans" tags:"result=err"`
 
 	// Number of spans dropped due to internal queue overflow
-	ReporterDropped metrics.Counter `metric:"reporter-spans" tags:"state=dropped"`
+	ReporterDropped metrics.Counter `metric:"reporter_spans" tags:"result=dropped"`
 
 	// Current number of spans in the reporter queue
-	ReporterQueueLength metrics.Gauge `metric:"reporter-queue"`
+	ReporterQueueLength metrics.Gauge `metric:"reporter_queue_length"`
 
 	// Number of times the Sampler succeeded to retrieve sampling strategy
-	SamplerRetrieved metrics.Counter `metric:"sampler" tags:"state=retrieved"`
-
-	// Number of times the Sampler succeeded to retrieve and update sampling strategy
-	SamplerUpdated metrics.Counter `metric:"sampler" tags:"state=updated"`
-
-	// Number of times the Sampler failed to update sampling strategy
-	SamplerUpdateFailure metrics.Counter `metric:"sampler" tags:"state=failure,phase=updating"`
+	SamplerRetrieved metrics.Counter `metric:"sampler_queries" tags:"result=ok"`
 
 	// Number of times the Sampler failed to retrieve sampling strategy
-	SamplerQueryFailure metrics.Counter `metric:"sampler" tags:"state=failure,phase=query"`
+	SamplerQueryFailure metrics.Counter `metric:"sampler_queries" tags:"result=err"`
+
+	// Number of times the Sampler succeeded to retrieve and update sampling strategy
+	SamplerUpdated metrics.Counter `metric:"sampler_updates" tags:"result=ok"`
+
+	// Number of times the Sampler failed to update sampling strategy
+	SamplerUpdateFailure metrics.Counter `metric:"sampler_updates" tags:"result=err"`
 
 	// Number of times baggage was successfully written or updated on spans.
-	BaggageUpdateSuccess metrics.Counter `metric:"baggage-update" tags:"result=ok"`
+	BaggageUpdateSuccess metrics.Counter `metric:"baggage_updates" tags:"result=ok"`
 
 	// Number of times baggage failed to write or update on spans.
-	BaggageUpdateFailure metrics.Counter `metric:"baggage-update" tags:"result=err"`
+	BaggageUpdateFailure metrics.Counter `metric:"baggage_updates" tags:"result=err"`
 
 	// Number of times baggage was truncated as per baggage restrictions.
-	BaggageTruncate metrics.Counter `metric:"baggage-truncate"`
+	BaggageTruncate metrics.Counter `metric:"baggage_truncations"`
 
 	// Number of times baggage restrictions were successfully updated.
-	BaggageRestrictionsUpdateSuccess metrics.Counter `metric:"baggage-restrictions-update" tags:"result=ok"`
+	BaggageRestrictionsUpdateSuccess metrics.Counter `metric:"baggage_restrictions_updates" tags:"result=ok"`
 
 	// Number of times baggage restrictions failed to update.
-	BaggageRestrictionsUpdateFailure metrics.Counter `metric:"baggage-restrictions-update" tags:"result=err"`
+	BaggageRestrictionsUpdateFailure metrics.Counter `metric:"baggage_restrictions_updates" tags:"result=err"`
 }
 
 // NewMetrics creates a new Metrics struct and initializes it.
 func NewMetrics(factory metrics.Factory, globalTags map[string]string) *Metrics {
 	m := &Metrics{}
+	// TODO the namespace "jaeger" should be configurable (e.g. in all-in-one "jaeger-client" would make more sense)
 	metrics.Init(m, factory.Namespace("jaeger", nil), globalTags)
 	return m
 }

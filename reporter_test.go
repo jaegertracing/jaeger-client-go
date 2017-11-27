@@ -97,8 +97,8 @@ func (s *reporterSuite) TestRootSpanTags() {
 
 	mTestutils.AssertCounterMetrics(s.T(), s.metricsFactory,
 		mTestutils.ExpectedMetric{
-			Name:  "jaeger.reporter-spans",
-			Tags:  map[string]string{"state": "success"},
+			Name:  "jaeger.reporter_spans",
+			Tags:  map[string]string{"result": "ok"},
 			Value: 1,
 		},
 	)
@@ -123,8 +123,8 @@ func (s *reporterSuite) TestClientSpan() {
 
 	mTestutils.AssertCounterMetrics(s.T(), s.metricsFactory,
 		mTestutils.ExpectedMetric{
-			Name:  "jaeger.reporter-spans",
-			Tags:  map[string]string{"state": "success"},
+			Name:  "jaeger.reporter_spans",
+			Tags:  map[string]string{"result": "ok"},
 			Value: 2,
 		},
 	)
@@ -213,8 +213,8 @@ func testRemoteReporter(
 	assert.Equal(t, "downstream", *tag.VStr)
 
 	mTestutils.AssertCounterMetrics(t, metricsFactory, []mTestutils.ExpectedMetric{
-		{Name: "jaeger.reporter-spans", Tags: map[string]string{"state": "success"}, Value: 1},
-		{Name: "jaeger.reporter-spans", Tags: map[string]string{"state": "failure"}, Value: 0},
+		{Name: "jaeger.reporter_spans", Tags: map[string]string{"result": "ok"}, Value: 1},
+		{Name: "jaeger.reporter_spans", Tags: map[string]string{"result": "err"}, Value: 0},
 	}...)
 }
 

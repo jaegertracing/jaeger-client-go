@@ -119,9 +119,8 @@ func TestSpanPropagator(t *testing.T) {
 	}
 
 	testutils.AssertCounterMetrics(t, metricsFactory, []testutils.ExpectedMetric{
-		{Name: "jaeger.spans", Tags: map[string]string{"group": "sampling", "sampled": "y"}, Value: 1 + 2*len(tests)},
-		{Name: "jaeger.spans", Tags: map[string]string{"group": "lifecycle", "state": "started"}, Value: 1 + 2*len(tests)},
-		{Name: "jaeger.spans", Tags: map[string]string{"group": "lifecycle", "state": "finished"}, Value: 1 + len(tests)},
+		{Name: "jaeger.started_spans", Tags: map[string]string{"sampled": "y"}, Value: 1 + 2*len(tests)},
+		{Name: "jaeger.finished_spans", Value: 1 + len(tests)},
 		{Name: "jaeger.traces", Tags: map[string]string{"state": "started", "sampled": "y"}, Value: 1},
 		{Name: "jaeger.traces", Tags: map[string]string{"state": "joined", "sampled": "y"}, Value: len(tests)},
 	}...)
@@ -152,7 +151,7 @@ func TestDecodingError(t *testing.T) {
 	_, err := tracer.Extract(opentracing.HTTPHeaders, tmc)
 	assert.Error(t, err)
 
-	testutils.AssertCounterMetrics(t, metricsFactory, testutils.ExpectedMetric{Name: "jaeger.decoding-errors", Value: 1})
+	testutils.AssertCounterMetrics(t, metricsFactory, testutils.ExpectedMetric{Name: "jaeger.span_context_decoding_errors", Value: 1})
 }
 
 func TestBaggagePropagationHTTP(t *testing.T) {

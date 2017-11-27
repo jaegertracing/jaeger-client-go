@@ -121,7 +121,7 @@ func TestNewRemoteRestrictionManager(t *testing.T) {
 
 			testutils.AssertCounterMetrics(t, factory,
 				testutils.ExpectedMetric{
-					Name:  "jaeger.baggage-restrictions-update",
+					Name:  "jaeger.baggage_restrictions_updates",
 					Tags:  map[string]string{"result": "ok"},
 					Value: 1,
 				},
@@ -147,7 +147,7 @@ func TestDenyBaggageOnInitializationFailure(t *testing.T) {
 			)
 			require.False(t, mgr.isReady())
 
-			metricName := "jaeger.baggage-restrictions-update"
+			metricName := "jaeger.baggage_restrictions_updates"
 			metricTags := map[string]string{"result": "err"}
 			key := metrics.GetKey(metricName, metricTags, "|", "=")
 			for i := 0; i < 100; i++ {

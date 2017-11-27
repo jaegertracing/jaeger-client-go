@@ -12,37 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package jaeger
+package prometheus_test
 
 import (
 	"testing"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
-	"github.com/uber/jaeger-lib/metrics"
-	"github.com/uber/jaeger-lib/metrics/testutils"
+	jprom "github.com/uber/jaeger-lib/metrics/prometheus"
+
+	"github.com/uber/jaeger-client-go"
 )
 
-func TestNewMetrics(t *testing.T) {
-	factory := metrics.NewLocalFactory(0)
-	m := NewMetrics(factory, map[string]string{"lib": "jaeger"})
+// TestNewPrometheusMetrics ensures that the metrics do not have conflicting dimensions and will work with Prometheus.
+func TestNewPrometheusMetrics(t *testing.T) {
+	tags := map[string]string{"lib": "jaeger"}
+
+	factory := jprom.New(jprom.WithRegisterer(prometheus.NewPedanticRegistry()))
+	m := jaeger.NewMetrics(factory, tags)
 
 	require.NotNil(t, m.SpansStartedSampled, "counter not initialized")
 	require.NotNil(t, m.ReporterQueueLength, "gauge not initialized")
-
-	m.SpansStartedSampled.Inc(1)
-	m.ReporterQueueLength.Update(11)
-	testutils.AssertCounterMetrics(t, factory,
-		testutils.ExpectedMetric{
-			Name:  "jaeger.started_spans",
-			Tags:  map[string]string{"lib": "jaeger", "sampled": "y"},
-			Value: 1,
-		},
-	)
-	testutils.AssertGaugeMetrics(t, factory,
-		testutils.ExpectedMetric{
-			Name:  "jaeger.reporter_queue_length",
-			Tags:  map[string]string{"lib": "jaeger"},
-			Value: 11,
-		},
-	)
 }

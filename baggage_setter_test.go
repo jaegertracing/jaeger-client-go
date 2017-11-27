@@ -53,11 +53,11 @@ func TestTruncateBaggage(t *testing.T) {
 
 		testutils.AssertCounterMetrics(t, factory,
 			testutils.ExpectedMetric{
-				Name:  "jaeger.baggage-truncate",
+				Name:  "jaeger.baggage_truncations",
 				Value: 1,
 			},
 			testutils.ExpectedMetric{
-				Name:  "jaeger.baggage-update",
+				Name:  "jaeger.baggage_updates",
 				Tags:  map[string]string{"result": "ok"},
 				Value: 1,
 			},
@@ -85,7 +85,7 @@ func TestInvalidBaggage(t *testing.T) {
 
 		testutils.AssertCounterMetrics(t, factory,
 			testutils.ExpectedMetric{
-				Name:  "jaeger.baggage-update",
+				Name:  "jaeger.baggage_updates",
 				Tags:  map[string]string{"result": "err"},
 				Value: 1,
 			},
