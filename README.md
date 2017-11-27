@@ -63,7 +63,8 @@ The tracer emits a number of different metrics, defined in
 tag-based metric names, e.g. instead of `statsd`-style string names
 like `counters.my-service.jaeger.spans.started.sampled`, the metrics
 are defined by a short name and a collection of key/value tags, for
-example: `name:traces, state:started, sampled:true`.
+example: `name:jaeger.traces, state:started, sampled:y`. See [metrics.go](./metrics.go)
+file for the full list and descriptions of emitted metrics.
 
 The monitoring backend is represented by the `metrics.Factory` interface from package
 [`"github.com/uber/jaeger-lib/metrics"`](github.com/uber/jaeger-lib/metrics).  An implementation
@@ -72,8 +73,8 @@ constructor, for example:
 
 ```go
 import (
-    "github.com/uber/jaeger-lib/metrics/prometheus"
     "github.com/uber/jaeger-client-go/config"
+    "github.com/uber/jaeger-lib/metrics/prometheus"
 )
 
     metricsFactory := prometheus.New()
