@@ -1,9 +1,10 @@
 Changes by Version
 ==================
 
-2.10.1 (unreleased)
+2.11.0 (2017-11-27)
 -------------------
-- nothing yet
+
+- Normalize metric names and tags to be compatible with Prometheus (#222)
 
 
 2.10.0 (2017-11-14)
