@@ -53,7 +53,7 @@ func TestTruncateBaggage(t *testing.T) {
 
 		testutils.AssertCounterMetrics(t, factory,
 			testutils.ExpectedMetric{
-				Name:  "jaeger.baggage_truncated",
+				Name:  "jaeger.baggage_truncations",
 				Value: 1,
 			},
 			testutils.ExpectedMetric{

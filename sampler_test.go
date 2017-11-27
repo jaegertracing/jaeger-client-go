@@ -317,8 +317,8 @@ func TestRemotelyControlledSampler(t *testing.T) {
 		getSamplingStrategyResponse(sampling.SamplingStrategyType_PROBABILISTIC, testDefaultSamplingProbability))
 	remoteSampler.updateSampler()
 	mTestutils.AssertCounterMetrics(t, metricsFactory, []mTestutils.ExpectedMetric{
-		{Name: "jaeger.sampler_retrieved", Value: 1},
-		{Name: "jaeger.sampler_updated", Value: 1},
+		{Name: "jaeger.sampler_queries", Tags: map[string]string{"result": "ok"}, Value: 1},
+		{Name: "jaeger.sampler_updates", Tags: map[string]string{"result": "ok"}, Value: 1},
 	}...)
 	_, ok = remoteSampler.sampler.(*ProbabilisticSampler)
 	assert.True(t, ok)
@@ -429,7 +429,7 @@ func TestRemotelyControlledSampler_updateSampler(t *testing.T) {
 
 			mTestutils.AssertCounterMetrics(t, metricsFactory,
 				mTestutils.ExpectedMetric{
-					Name: "jaeger.sampler_updated", Value: 1,
+					Name: "jaeger.sampler_updates", Tags: map[string]string{"result": "ok"}, Value: 1,
 				},
 			)
 
@@ -486,7 +486,7 @@ func TestSamplerQueryError(t *testing.T) {
 	assert.Equal(t, initSampler, sampler.sampler, "Sampler should not have been updated due to query error")
 
 	mTestutils.AssertCounterMetrics(t, metricsFactory,
-		mTestutils.ExpectedMetric{Name: "jaeger.sampler_query_failures", Value: 1},
+		mTestutils.ExpectedMetric{Name: "jaeger.sampler_queries", Tags: map[string]string{"result": "err"}, Value: 1},
 	)
 }
 
@@ -539,8 +539,8 @@ func TestRemotelyControlledSampler_updateSamplerFromAdaptiveSampler(t *testing.T
 	remoteSampler.updateSampler()
 
 	mTestutils.AssertCounterMetrics(t, metricsFactory,
-		mTestutils.ExpectedMetric{Name: "jaeger.sampler_retrieved", Value: 3},
-		mTestutils.ExpectedMetric{Name: "jaeger.sampler_updated", Value: 3},
+		mTestutils.ExpectedMetric{Name: "jaeger.sampler_queries", Tags: map[string]string{"result": "ok"}, Value: 3},
+		mTestutils.ExpectedMetric{Name: "jaeger.sampler_updates", Tags: map[string]string{"result": "ok"}, Value: 3},
 	)
 }
 
