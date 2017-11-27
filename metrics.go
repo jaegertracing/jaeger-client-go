@@ -33,40 +33,40 @@ type Metrics struct {
 	TracesJoinedNotSampled metrics.Counter `metric:"traces" tags:"state=joined,sampled=n"`
 
 	// Number of sampled spans started by this tracer
-	SpansStartedSampled metrics.Counter `metric:"spans_started" tags:"sampled=y"`
+	SpansStartedSampled metrics.Counter `metric:"started_spans" tags:"sampled=y"`
 
 	// Number of unsampled spans started by this tracer
-	SpansStartedNotSampled metrics.Counter `metric:"spans_started" tags:"sampled=n"`
+	SpansStartedNotSampled metrics.Counter `metric:"started_spans" tags:"sampled=n"`
 
 	// Number of spans finished by this tracer
-	SpansFinished metrics.Counter `metric:"spans_finished"`
+	SpansFinished metrics.Counter `metric:"finished_spans"`
 
 	// Number of errors decoding tracing context
 	DecodingErrors metrics.Counter `metric:"span_context_decoding_errors"`
 
 	// Number of spans successfully reported
-	ReporterSuccess metrics.Counter `metric:"reporter_spans_reported"`
+	ReporterSuccess metrics.Counter `metric:"reporter_spans" tags:"result=ok"`
 
-	// Number of spans not reported due to some failure
-	ReporterFailure metrics.Counter `metric:"reporter_spans_failed"`
+	// Number of spans not reported due to a Sender failure
+	ReporterFailure metrics.Counter `metric:"reporter_spans" tags:"result=err"`
 
 	// Number of spans dropped due to internal queue overflow
-	ReporterDropped metrics.Counter `metric:"reporter_spans_dropped"`
+	ReporterDropped metrics.Counter `metric:"reporter_spans" tags:"result=dropped"`
 
 	// Current number of spans in the reporter queue
 	ReporterQueueLength metrics.Gauge `metric:"reporter_queue_length"`
 
 	// Number of times the Sampler succeeded to retrieve sampling strategy
-	SamplerRetrieved metrics.Counter `metric:"sampler_retrieved"`
-
-	// Number of times the Sampler succeeded to retrieve and update sampling strategy
-	SamplerUpdated metrics.Counter `metric:"sampler_updated"`
-
-	// Number of times the Sampler failed to update sampling strategy
-	SamplerUpdateFailure metrics.Counter `metric:"sampler_update_failures"`
+	SamplerRetrieved metrics.Counter `metric:"sampler_queries" tags:"result=ok"`
 
 	// Number of times the Sampler failed to retrieve sampling strategy
-	SamplerQueryFailure metrics.Counter `metric:"sampler_query_failures"`
+	SamplerQueryFailure metrics.Counter `metric:"sampler_queries" tags:"result=err"`
+
+	// Number of times the Sampler succeeded to retrieve and update sampling strategy
+	SamplerUpdated metrics.Counter `metric:"sampler_updates" tags:"result=ok"`
+
+	// Number of times the Sampler failed to update sampling strategy
+	SamplerUpdateFailure metrics.Counter `metric:"sampler_updates" tags:"result=err"`
 
 	// Number of times baggage was successfully written or updated on spans.
 	BaggageUpdateSuccess metrics.Counter `metric:"baggage_updates" tags:"result=ok"`
@@ -75,7 +75,7 @@ type Metrics struct {
 	BaggageUpdateFailure metrics.Counter `metric:"baggage_updates" tags:"result=err"`
 
 	// Number of times baggage was truncated as per baggage restrictions.
-	BaggageTruncate metrics.Counter `metric:"baggage_truncated"`
+	BaggageTruncate metrics.Counter `metric:"baggage_truncations"`
 
 	// Number of times baggage restrictions were successfully updated.
 	BaggageRestrictionsUpdateSuccess metrics.Counter `metric:"baggage_restrictions_updates" tags:"result=ok"`
