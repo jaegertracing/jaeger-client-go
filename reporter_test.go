@@ -218,6 +218,33 @@ func testRemoteReporter(
 	}...)
 }
 
+func TestRemoteReporterReportAfterClose(
+	t *testing.T,
+) {
+	metricsFactory := metrics.NewLocalFactory(0)
+	metrics := NewMetrics(metricsFactory, nil)
+
+	sender := &fakeSender{}
+
+	reporter := NewRemoteReporter(sender, ReporterOptions.Metrics(metrics)).(*remoteReporter)
+
+	tracer, closer := NewTracer(
+		"reporter-test-service",
+		NewConstSampler(true),
+		reporter,
+		TracerOptions.Metrics(metrics))
+
+	span := tracer.StartSpan("leela")
+	ext.SpanKindRPCClient.Set(span)
+	ext.PeerService.Set(span, "downstream")
+
+	// Close the tracer, which also closes and flushes the reporter
+	closer.Close()
+
+	// This is just no-op
+	span.Finish()
+}
+
 func (s *reporterSuite) TestMemoryReporterReport() {
 	sp := s.tracer.StartSpan("leela")
 	ext.PeerService.Set(sp, s.serviceName)
