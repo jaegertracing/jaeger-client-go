@@ -216,12 +216,14 @@ func (r *remoteReporter) Report(span *Span) {
 
 // Close implements Close() method of Reporter by waiting for the queue to be drained.
 func (r *remoteReporter) Close() {
-	// First, cut off report requests still in-flight
-	close(r.closed)
-
-	// After that, drain the queue
+	// Cut off report requests still in-flight and drain the queue
+	// NB we keep r.queue open because it causes a race condition in Report() where since both
+	// r.closed and r.queue are closed, the select stmt will pick one arbitrarily and might
+	// attempt to insert into r.queue which will cause a panic. By keeping r.queue open, Report()
+	// will always fall into r.closed. The alternative is to create a atomic flag to keep track whether
+	// the reporter is closed but seemed overkill.
 	r.queueDrained.Add(1)
-	close(r.queue)
+	close(r.closed)
 	r.queueDrained.Wait()
 
 	r.sender.Close()
@@ -233,6 +235,12 @@ func (r *remoteReporter) Close() {
 // reporting new spans.
 func (r *remoteReporter) processQueue() {
 	timer := time.NewTicker(r.bufferFlushInterval)
+	close := func() {
+		// queue closed
+		timer.Stop()
+		r.flush()
+		r.queueDrained.Done()
+	}
 	for {
 		select {
 		case span, ok := <-r.queue:
@@ -247,12 +255,12 @@ func (r *remoteReporter) processQueue() {
 					r.metrics.ReporterQueueLength.Update(atomic.LoadInt64(&r.queueLength))
 				}
 			} else {
-				// queue closed
-				timer.Stop()
-				r.flush()
-				r.queueDrained.Done()
+				close()
 				return
 			}
+		case <-r.closed:
+			close()
+			return
 		case <-timer.C:
 			r.flush()
 		case wg := <-r.flushSignal: // for testing
