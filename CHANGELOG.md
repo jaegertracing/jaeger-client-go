@@ -1,10 +1,10 @@
 Changes by Version
 ==================
 
-2.11.1 (unreleased)
+2.11.1 (2017-12-06)
 -------------------
 
-- nothing yet.
+- Do not enqueue spans after Report is closed (#235)
 
 
 2.11.0 (2017-11-27)
