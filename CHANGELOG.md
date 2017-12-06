@@ -4,7 +4,7 @@ Changes by Version
 2.11.1 (2017-12-06)
 -------------------
 
-- Do not enqueue spans after Report is closed (#235)
+- Do not enqueue spans after Reporter is closed (#235)
 
 
 2.11.0 (2017-11-27)
