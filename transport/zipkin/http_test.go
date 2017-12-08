@@ -57,11 +57,10 @@ func TestHttpTransport(t *testing.T) {
 		jaeger.NewConstSampler(true),
 		jaeger.NewRemoteReporter(sender),
 	)
+	defer closer.Close()
 
 	span := tracer.StartSpan("root")
 	span.Finish()
-
-	closer.Close()
 
 	// Need to yield to the select loop to accept the send request, and then
 	// yield again to the send operation to write to the socket. I think the

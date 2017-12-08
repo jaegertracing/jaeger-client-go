@@ -195,7 +195,6 @@ func NewRemoteReporter(sender Transport, opts ...ReporterOption) Reporter {
 		closed:          make(chan interface{}),
 		queue:           make(chan *Span, options.queueSize),
 	}
-	println("start processQueue")
 	go reporter.processQueue()
 	return reporter
 }
@@ -203,7 +202,6 @@ func NewRemoteReporter(sender Transport, opts ...ReporterOption) Reporter {
 // Report implements Report() method of Reporter.
 // It passes the span to a background go-routine for submission to Jaeger.
 func (r *remoteReporter) Report(span *Span) {
-	println("report span")
 	select {
 	// This path will be triggered whenever request to report a span
 	// comes, while reporter was already closed
@@ -236,12 +234,10 @@ func (r *remoteReporter) Close() {
 // Buffer also gets flushed automatically every batchFlushInterval seconds, just in case the tracer stopped
 // reporting new spans.
 func (r *remoteReporter) processQueue() {
-	println("processQueue")
 	timer := time.NewTicker(r.bufferFlushInterval)
 	for {
 		select {
 		case span := <-r.queue:
-			println("we got a span")
 			atomic.AddInt64(&r.queueLength, -1)
 			if flushed, err := r.sender.Append(span); err != nil {
 				r.metrics.ReporterFailure.Inc(int64(flushed))
