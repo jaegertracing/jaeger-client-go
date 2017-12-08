@@ -237,17 +237,15 @@ func (r *remoteReporter) processQueue() {
 	timer := time.NewTicker(r.bufferFlushInterval)
 	for {
 		select {
-		case span, ok := <-r.queue:
-			if ok {
-				atomic.AddInt64(&r.queueLength, -1)
-				if flushed, err := r.sender.Append(span); err != nil {
-					r.metrics.ReporterFailure.Inc(int64(flushed))
-					r.logger.Error(fmt.Sprintf("error reporting span %q: %s", span.OperationName(), err.Error()))
-				} else if flushed > 0 {
-					r.metrics.ReporterSuccess.Inc(int64(flushed))
-					// to reduce the number of gauge stats, we only emit queue length on flush
-					r.metrics.ReporterQueueLength.Update(atomic.LoadInt64(&r.queueLength))
-				}
+		case span := <-r.queue:
+			atomic.AddInt64(&r.queueLength, -1)
+			if flushed, err := r.sender.Append(span); err != nil {
+				r.metrics.ReporterFailure.Inc(int64(flushed))
+				r.logger.Error(fmt.Sprintf("error reporting span %q: %s", span.OperationName(), err.Error()))
+			} else if flushed > 0 {
+				r.metrics.ReporterSuccess.Inc(int64(flushed))
+				// to reduce the number of gauge stats, we only emit queue length on flush
+				r.metrics.ReporterQueueLength.Update(atomic.LoadInt64(&r.queueLength))
 			}
 		case <-r.closed:
 			timer.Stop()
