@@ -63,7 +63,7 @@ func TestHttpTransport(t *testing.T) {
 	// yield again to the send operation to write to the socket. I think the
 	// best way to do that is just give it some time.
 
-	deadline := time.Now().Add(2 * time.Second)
+	deadline := time.Now().Add(10 * time.Second)
 	for {
 		if time.Now().After(deadline) {
 			t.Fatal("never received a span")
