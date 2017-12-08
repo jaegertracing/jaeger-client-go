@@ -235,12 +235,6 @@ func (r *remoteReporter) Close() {
 // reporting new spans.
 func (r *remoteReporter) processQueue() {
 	timer := time.NewTicker(r.bufferFlushInterval)
-	close := func() {
-		// queue closed
-		timer.Stop()
-		r.flush()
-		r.queueDrained.Done()
-	}
 	for {
 		select {
 		case span, ok := <-r.queue:
@@ -254,12 +248,11 @@ func (r *remoteReporter) processQueue() {
 					// to reduce the number of gauge stats, we only emit queue length on flush
 					r.metrics.ReporterQueueLength.Update(atomic.LoadInt64(&r.queueLength))
 				}
-			} else {
-				close()
-				return
 			}
 		case <-r.closed:
-			close()
+			timer.Stop()
+			r.flush()
+			r.queueDrained.Done()
 			return
 		case <-timer.C:
 			r.flush()
