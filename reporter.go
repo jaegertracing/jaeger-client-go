@@ -195,6 +195,7 @@ func NewRemoteReporter(sender Transport, opts ...ReporterOption) Reporter {
 		closed:          make(chan interface{}),
 		queue:           make(chan *Span, options.queueSize),
 	}
+	println("start processQueue")
 	go reporter.processQueue()
 	return reporter
 }
@@ -234,10 +235,12 @@ func (r *remoteReporter) Close() {
 // Buffer also gets flushed automatically every batchFlushInterval seconds, just in case the tracer stopped
 // reporting new spans.
 func (r *remoteReporter) processQueue() {
+	println("processQueue")
 	timer := time.NewTicker(r.bufferFlushInterval)
 	for {
 		select {
 		case span := <-r.queue:
+			println("we got a span")
 			atomic.AddInt64(&r.queueLength, -1)
 			if flushed, err := r.sender.Append(span); err != nil {
 				r.metrics.ReporterFailure.Inc(int64(flushed))
