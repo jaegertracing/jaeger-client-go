@@ -194,14 +194,13 @@ func testRemoteReporter(
 		NewConstSampler(true),
 		reporter,
 		TracerOptions.Metrics(metrics))
+	defer closer.Close()
 
 	span := tracer.StartSpan("leela")
 	ext.SpanKindRPCClient.Set(span)
 	ext.PeerService.Set(span, "downstream")
 	span.Finish()
-	closer.Close() // close the tracer, which also closes and flushes the reporter
-	// however, in case of UDP reporter it's fire and forget, so we need to wait a bit
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 5000; i++ {
 		if batches := getBatches(); len(batches) == 1 {
 			break
 		}

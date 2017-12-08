@@ -203,6 +203,7 @@ func NewRemoteReporter(sender Transport, opts ...ReporterOption) Reporter {
 // Report implements Report() method of Reporter.
 // It passes the span to a background go-routine for submission to Jaeger.
 func (r *remoteReporter) Report(span *Span) {
+	println("report span")
 	select {
 	// This path will be triggered whenever request to report a span
 	// comes, while reporter was already closed
