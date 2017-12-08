@@ -119,6 +119,10 @@ func (c *HTTPTransport) Flush() (int, error) {
 		return 0, nil
 	}
 	err := c.send(c.batch)
+	println("we are here")
+	if err != nil {
+		println(err.Error())
+	}
 	c.batch = c.batch[:0]
 	return count, err
 }
