@@ -45,7 +45,11 @@ func TestHttpTransport(t *testing.T) {
 	server := newHTTPServer(t)
 	httpUsername := "Aphex"
 	httpPassword := "Twin"
-	sender, err := NewHTTPTransport("http://localhost:10000/api/v1/spans", HTTPBasicAuth(httpUsername, httpPassword))
+	sender, err := NewHTTPTransport(
+		"http://localhost:10000/api/v1/spans",
+		HTTPBatchSize(1),
+		HTTPBasicAuth(httpUsername, httpPassword),
+	)
 	require.NoError(t, err)
 
 	tracer, closer := jaeger.NewTracer(
@@ -63,7 +67,7 @@ func TestHttpTransport(t *testing.T) {
 	// yield again to the send operation to write to the socket. I think the
 	// best way to do that is just give it some time.
 
-	deadline := time.Now().Add(10 * time.Second)
+	deadline := time.Now().Add(2 * time.Second)
 	for {
 		if time.Now().After(deadline) {
 			t.Fatal("never received a span")
