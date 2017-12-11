@@ -163,11 +163,14 @@ type remoteReporter struct {
 	queueLength int64
 
 	reporterOptions
-	sender       Transport
-	queue        chan *Span
-	queueDrained sync.WaitGroup
-	flushSignal  chan *sync.WaitGroup
-	closed       chan interface{}
+	sender Transport
+	queue  chan *Span
+
+	queueDrained    sync.WaitGroup
+	reportsInflight sync.WaitGroup
+
+	flushSignal chan *sync.WaitGroup
+	closed      chan interface{}
 }
 
 // NewRemoteReporter creates a new reporter that sends spans out of process by means of Sender
@@ -207,6 +210,15 @@ func (r *remoteReporter) Report(span *Span) {
 	// comes, while reporter was already closed
 	case <-r.closed:
 		r.reporterOptions.logger.Infof("Span not reported since Reporter is already closed: %+v", span)
+		return
+	default:
+	}
+
+	// Increment a counter for the requests currently in-flight
+	r.reportsInflight.Add(1)
+	defer r.reportsInflight.Done()
+
+	select {
 	case r.queue <- span:
 		atomic.AddInt64(&r.queueLength, 1)
 	default:
@@ -216,8 +228,11 @@ func (r *remoteReporter) Report(span *Span) {
 
 // Close implements Close() method of Reporter by waiting for the queue to be drained.
 func (r *remoteReporter) Close() {
-	// First, cut off report requests still in-flight
+	// First, cut off new report requests still in-flight
 	close(r.closed)
+
+	// Second, wait to drain all the in-flight requests
+	r.reportsInflight.Wait()
 
 	// After that, drain the queue
 	r.queueDrained.Add(1)
