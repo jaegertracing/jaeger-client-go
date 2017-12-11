@@ -168,6 +168,7 @@ type remoteReporter struct {
 	queueDrained sync.WaitGroup
 	flushSignal  chan *sync.WaitGroup
 	closed       chan interface{}
+	lock         sync.Mutex
 }
 
 // NewRemoteReporter creates a new reporter that sends spans out of process by means of Sender
@@ -202,11 +203,19 @@ func NewRemoteReporter(sender Transport, opts ...ReporterOption) Reporter {
 // Report implements Report() method of Reporter.
 // It passes the span to a background go-routine for submission to Jaeger.
 func (r *remoteReporter) Report(span *Span) {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+
 	select {
 	// This path will be triggered whenever request to report a span
 	// comes, while reporter was already closed
 	case <-r.closed:
 		r.reporterOptions.logger.Infof("Span not reported since Reporter is already closed: %+v", span)
+		return
+	default:
+	}
+
+	select {
 	case r.queue <- span:
 		atomic.AddInt64(&r.queueLength, 1)
 	default:
@@ -216,6 +225,9 @@ func (r *remoteReporter) Report(span *Span) {
 
 // Close implements Close() method of Reporter by waiting for the queue to be drained.
 func (r *remoteReporter) Close() {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+
 	// First, cut off report requests still in-flight
 	close(r.closed)
 
