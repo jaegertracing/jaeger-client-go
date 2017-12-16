@@ -6,7 +6,9 @@ This is a client side library that implements an
 [OpenTracing](http://opentracing.io) Tracer,
 with Zipkin-compatible data model.
 
-**IMPORTANT**: The library's import path is `github.com/uber/jaeger-client-go`, based on its original location. Do not try to import it as `github.com/jaegertracing/jaeger-client-go`, it will not compile. We might revisit this in the next major release.
+**IMPORTANT**: The library's import path is based on its original location under `github.com/uber`. Do not try to import it as `github.com/jaegertracing`, it will not compile. We might revisit this in the next major release.
+  * :white_check_mark: `import "github.com/uber/jaeger-client-go"`
+  * :x: `import "github.com/jaegertracing/jaeger-client-go"`
 
 ## How to Contribute
 
