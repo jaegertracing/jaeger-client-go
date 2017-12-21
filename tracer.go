@@ -26,6 +26,7 @@ import (
 	"github.com/opentracing/opentracing-go/ext"
 
 	"github.com/uber/jaeger-client-go/internal/baggage"
+	"github.com/uber/jaeger-client-go/internal/throttler"
 	"github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-client-go/utils"
 )
@@ -62,6 +63,8 @@ type Tracer struct {
 
 	baggageRestrictionManager baggage.RestrictionManager
 	baggageSetter             *baggageSetter
+
+	debugThrottler throttler.Throttler
 }
 
 // NewTracer creates Tracer implementation that reports tracing to Jaeger.
@@ -111,6 +114,10 @@ func NewTracer(
 	} else {
 		t.baggageSetter = newBaggageSetter(baggage.NewDefaultRestrictionManager(0), &t.metrics)
 	}
+	if t.debugThrottler == nil {
+		t.debugThrottler = throttler.DefaultThrottler{}
+	}
+	t.debugThrottler.SetUUID("PLACEHOLDER") // TODO
 	if t.randomNumber == nil {
 		rng := utils.NewRand(time.Now().UnixNano())
 		t.randomNumber = func() uint64 {
@@ -393,4 +400,8 @@ func (t *Tracer) randomID() uint64 {
 // (NB) span should hold the lock before making this call
 func (t *Tracer) setBaggage(sp *Span, key, value string) {
 	t.baggageSetter.setBaggage(sp, key, value)
+}
+
+func (t *Tracer) throttleDebugSpan(operationName string) bool {
+	return t.debugThrottler.IsThrottled(operationName)
 }

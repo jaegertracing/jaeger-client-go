@@ -80,6 +80,7 @@ func (s *Span) SetOperationName(operationName string) opentracing.Span {
 // SetTag implements SetTag() of opentracing.Span
 func (s *Span) SetTag(key string, value interface{}) opentracing.Span {
 	s.observer.OnSetTag(key, value)
+	// TODO call tracer.throttleDebugSpan here
 	if key == string(ext.SamplingPriority) && setSamplingPriority(s, value) {
 		return s
 	}
