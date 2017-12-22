@@ -124,11 +124,9 @@ into one, e.g. to attach a logging reporter to the main remote reporter.
 ### Span Reporting Transports
 
 The remote reporter uses "transports" to actually send the spans out
-of process. Currently two supported transports are Thrift over UDP
-and Thrift over TChannel. More transports will be added in the future.
-
-The only data format currently used is Zipkin Thrift 1.x span format,
-which allows easy integration of the tracer with Zipkin backend.
+of process. Currently the supported transports include:
+  * [Jaeger Thrift](https://github.com/jaegertracing/jaeger-idl/blob/master/thrift/agent.thrift) over UDP or HTTP,
+  * [Zipkin Thrift](https://github.com/jaegertracing/jaeger-idl/blob/master/thrift/zipkincore.thrift) over HTTP.
 
 ### Sampling
 
