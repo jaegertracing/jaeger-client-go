@@ -154,7 +154,7 @@ func (r *compositeReporter) Close() {
 
 const (
 	defaultQueueSize           = 100
-	defaultBufferFlushInterval = 10 * time.Second
+	defaultBufferFlushInterval = 1 * time.Second
 )
 
 type remoteReporter struct {
