@@ -15,10 +15,11 @@
 package jaeger
 
 import (
+	"errors"
 	"io"
-	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -26,141 +27,171 @@ import (
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	"github.com/uber/jaeger-lib/metrics"
 	mTestutils "github.com/uber/jaeger-lib/metrics/testutils"
 
+	"github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-client-go/testutils"
 	j "github.com/uber/jaeger-client-go/thrift-gen/jaeger"
 )
 
 type reporterSuite struct {
-	suite.Suite
 	tracer         opentracing.Tracer
 	closer         io.Closer
 	serviceName    string
 	reporter       *remoteReporter
-	collector      *fakeSender
+	sender         *fakeSender
 	metricsFactory *metrics.LocalFactory
+	logger         *log.BytesBufferLogger
 }
 
-func (s *reporterSuite) SetupTest() {
-	s.metricsFactory = metrics.NewLocalFactory(0)
-	metrics := NewMetrics(s.metricsFactory, nil)
-	s.serviceName = "DOOP"
-	s.collector = &fakeSender{}
-	s.reporter = NewRemoteReporter(
-		s.collector, ReporterOptions.Metrics(metrics),
-	).(*remoteReporter)
+func makeReporterSuite(t *testing.T, opts ...ReporterOption) *reporterSuite {
+	return makeReporterSuiteWithSender(t, &fakeSender{bufferSize: 5}, opts...)
+}
 
+func makeReporterSuiteWithSender(t *testing.T, sender *fakeSender, opts ...ReporterOption) *reporterSuite {
+	s := &reporterSuite{
+		metricsFactory: metrics.NewLocalFactory(0),
+		serviceName:    "DOOP",
+		sender:         sender,
+		logger:         &log.BytesBufferLogger{},
+	}
+	metrics := NewMetrics(s.metricsFactory, nil)
+	opts = append([]ReporterOption{
+		ReporterOptions.Metrics(metrics),
+		ReporterOptions.Logger(s.logger),
+		ReporterOptions.BufferFlushInterval(100 * time.Second),
+	}, opts...)
+	s.reporter = NewRemoteReporter(s.sender, opts...).(*remoteReporter)
 	s.tracer, s.closer = NewTracer(
 		"reporter-test-service",
 		NewConstSampler(true),
 		s.reporter,
-		TracerOptions.Metrics(metrics))
-	s.NotNil(s.tracer)
+		// TracerOptions.Metrics(metrics),
+	)
+	require.NotNil(t, s.tracer)
+	return s
 }
 
-func (s *reporterSuite) TearDownTest() {
+func (s *reporterSuite) close() {
 	s.closer.Close()
-	s.tracer = nil
-	s.reporter = nil
-	s.collector = nil
 }
 
-func TestReporter(t *testing.T) {
-	suite.Run(t, new(reporterSuite))
+func (s *reporterSuite) assertCounter(t *testing.T, name string, tags map[string]string, expectedValue int64) {
+	getValue := func() int64 {
+		counters, _ := s.metricsFactory.Snapshot()
+		key := metrics.GetKey(name, tags, "|", "=")
+		return counters[key]
+	}
+	for i := 0; i < 1000; i++ {
+		if getValue() == expectedValue {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	assert.Equal(t, expectedValue, getValue(), "expected counter: name=%s, tags=%+v", name, tags)
 }
 
-func (s *reporterSuite) flushReporter() {
-	// Wait for reporter queue to add spans to buffer. We could've called reporter.Close(),
-	// but then it fails when the test suite calls close on it again (via tracer's Closer).
-	time.Sleep(5 * time.Millisecond)
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-	s.reporter.flushSignal <- &wg
-	wg.Wait()
+func (s *reporterSuite) assertLogs(t *testing.T, expectedLogs string) {
+	for i := 0; i < 1000; i++ {
+		if s.logger.String() == expectedLogs {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	assert.Equal(t, expectedLogs, s.logger.String(), "expected logs: %s", expectedLogs)
 }
 
-func (s *reporterSuite) TestRootSpanTags() {
-	s.metricsFactory.Clear()
-	sp := s.tracer.StartSpan("get_name")
-	ext.SpanKindRPCServer.Set(sp)
-	ext.PeerService.Set(sp, s.serviceName)
-	sp.Finish()
-	s.flushReporter()
-	s.Equal(1, len(s.collector.Spans()))
-	span := s.collector.Spans()[0]
-	s.Len(span.tags, 4)
-	s.EqualValues("server", span.tags[2].value, "span.kind should be server")
+func TestRemoteReporterAppend(t *testing.T) {
+	s := makeReporterSuite(t)
+	defer s.close()
+	s.tracer.StartSpan("sp1").Finish()
+	s.sender.assertBufferedSpans(t, 1)
+}
 
-	mTestutils.AssertCounterMetrics(s.T(), s.metricsFactory,
+func TestRemoteReporterAppendAndPeriodicFlush(t *testing.T) {
+	s := makeReporterSuite(t, ReporterOptions.BufferFlushInterval(50*time.Millisecond))
+	defer s.close()
+	s.tracer.StartSpan("sp1").Finish()
+	s.sender.assertBufferedSpans(t, 1)
+	// here we wait for periodic flush to occur
+	s.sender.assertFlushedSpans(t, 1)
+	s.assertCounter(t, "jaeger.reporter_spans", map[string]string{"result": "ok"}, 1)
+}
+
+func TestRemoteReporterFlushViaAppend(t *testing.T) {
+	s := makeReporterSuiteWithSender(t, &fakeSender{bufferSize: 2})
+	defer s.close()
+	s.tracer.StartSpan("sp1").Finish()
+	s.tracer.StartSpan("sp2").Finish()
+	s.sender.assertFlushedSpans(t, 2)
+	s.tracer.StartSpan("sp3").Finish()
+	s.sender.assertBufferedSpans(t, 1)
+	s.assertCounter(t, "jaeger.reporter_spans", map[string]string{"result": "ok"}, 2)
+	s.assertCounter(t, "jaeger.reporter_spans", map[string]string{"result": "err"}, 0)
+}
+
+func TestRemoteReporterFailedFlushViaAppend(t *testing.T) {
+	s := makeReporterSuiteWithSender(t, &fakeSender{bufferSize: 2, flushErr: errors.New("flush error")}, ReporterOptions.BufferFlushInterval(100*time.Second))
+	s.tracer.StartSpan("sp1").Finish()
+	s.tracer.StartSpan("sp2").Finish()
+	s.sender.assertFlushedSpans(t, 2)
+	s.assertLogs(t, "ERROR: error reporting span \"sp2\": flush error\n")
+	s.assertCounter(t, "jaeger.reporter_spans", map[string]string{"result": "err"}, 2)
+	s.assertCounter(t, "jaeger.reporter_spans", map[string]string{"result": "ok"}, 0)
+	s.close() // causes explicit flush that also fails with the same error
+	s.assertLogs(t, "ERROR: error reporting span \"sp2\": flush error\nERROR: error when flushing the buffer: flush error\n")
+}
+
+func TestRemoteReporterDroppedSpans(t *testing.T) {
+	s := makeReporterSuite(t, ReporterOptions.QueueSize(1))
+	defer s.close()
+
+	s.reporter.sendCloseEvent()       // manually shut down the worker
+	s.tracer.StartSpan("s1").Finish() // this span should be added to the queue
+	s.tracer.StartSpan("s2").Finish() // this span should be dropped since the queue is full
+
+	mTestutils.AssertCounterMetrics(t, s.metricsFactory,
 		mTestutils.ExpectedMetric{
 			Name:  "jaeger.reporter_spans",
 			Tags:  map[string]string{"result": "ok"},
+			Value: 0,
+		},
+		mTestutils.ExpectedMetric{
+			Name:  "jaeger.reporter_spans",
+			Tags:  map[string]string{"result": "dropped"},
 			Value: 1,
 		},
 	)
+
+	go s.reporter.processQueue() // restart the worker so that Close() doesn't deadlock
 }
 
-func (s *reporterSuite) TestClientSpan() {
-	s.metricsFactory.Clear()
-	sp := s.tracer.StartSpan("get_name")
-	ext.SpanKindRPCServer.Set(sp)
-	ext.PeerService.Set(sp, s.serviceName)
-	sp2 := s.tracer.StartSpan("get_last_name", opentracing.ChildOf(sp.Context()))
-	ext.SpanKindRPCClient.Set(sp2)
-	ext.PeerService.Set(sp2, s.serviceName)
-	sp2.Finish()
-	sp.Finish()
-	s.flushReporter()
-	s.Equal(2, len(s.collector.Spans()))
-	span := s.collector.Spans()[0] // child span is reported first
-	s.EqualValues(span.context.spanID, sp2.(*Span).context.spanID)
-	s.Len(span.tags, 2)
-	s.EqualValues("client", span.tags[0].value, "span.kind should be client")
-
-	mTestutils.AssertCounterMetrics(s.T(), s.metricsFactory,
-		mTestutils.ExpectedMetric{
-			Name:  "jaeger.reporter_spans",
-			Tags:  map[string]string{"result": "ok"},
-			Value: 2,
-		},
-	)
+func TestRemoteReporterDoubleClose(t *testing.T) {
+	logger := &log.BytesBufferLogger{}
+	reporter := NewRemoteReporter(&fakeSender{}, ReporterOptions.QueueSize(1), ReporterOptions.Logger(logger))
+	reporter.Close()
+	reporter.Close()
+	assert.Equal(t, "ERROR: Repeated attempt to close the reporter is ignored\n", logger.String())
 }
 
-func (s *reporterSuite) TestTagsAndEvents() {
-	sp := s.tracer.StartSpan("get_name")
-	sp.LogEvent("hello")
-	sp.LogEvent(strings.Repeat("long event ", 30))
-	expected := []string{"long", "ping", "awake", "awake", "one", "two", "three", "bite me",
-		SamplerParamTagKey, SamplerTypeTagKey, "does not compute"}
-	sp.SetTag("long", strings.Repeat("x", 300))
-	sp.SetTag("ping", "pong")
-	sp.SetTag("awake", true)
-	sp.SetTag("awake", false)
-	sp.SetTag("one", 1)
-	sp.SetTag("two", int32(2))
-	sp.SetTag("three", int64(3))
-	sp.SetTag("bite me", []byte{1})
-	sp.SetTag("does not compute", sp) // should be converted to string
-	sp.Finish()
-	s.flushReporter()
-	s.Equal(1, len(s.collector.Spans()))
-	span := s.collector.Spans()[0]
-	s.Equal(2, len(span.logs), "expecting two logs")
-	s.Equal(len(expected), len(span.tags),
-		"expecting %d tags", len(expected))
-	tags := []string{}
-	for _, tag := range span.tags {
-		tags = append(tags, string(tag.key))
+func TestRemoteReporterReportAfterClose(t *testing.T) {
+	s := makeReporterSuite(t)
+	span := s.tracer.StartSpan("leela")
+
+	s.close() // Close the tracer, which also closes and flushes the reporter
+
+	assert.EqualValues(t, 1, atomic.LoadInt64(&s.reporter.closed), "reporter state must be closed")
+	select {
+	case <-s.reporter.queue:
+		t.Fatal("Reporter queue must be empty")
+	default:
+		// expected to get here
 	}
-	sort.Strings(expected)
-	sort.Strings(tags)
-	s.Equal(expected, tags, "expecting %d tags", len(expected))
 
-	s.NotNil(findDomainLog(span, "hello"), "expecting 'hello' log: %+v", span.logs)
+	span.Finish()
+	item := <-s.reporter.queue
+	assert.Equal(t, span, item.span, "since the reporter is closed and its worker routing finished, the span should be in the queue")
 }
 
 func TestUDPReporter(t *testing.T) {
@@ -168,7 +199,7 @@ func TestUDPReporter(t *testing.T) {
 	require.NoError(t, err)
 	defer agent.Close()
 
-	testRemoteReporter(t,
+	testRemoteReporterWithSender(t,
 		func(m *Metrics) (Transport, error) {
 			return NewUDPTransport(agent.SpanServerAddr(), 0)
 		},
@@ -177,15 +208,15 @@ func TestUDPReporter(t *testing.T) {
 		})
 }
 
-func testRemoteReporter(
+func testRemoteReporterWithSender(
 	t *testing.T,
-	factory func(m *Metrics) (Transport, error),
+	senderFactory func(m *Metrics) (Transport, error),
 	getBatches func() []*j.Batch,
 ) {
 	metricsFactory := metrics.NewLocalFactory(0)
 	metrics := NewMetrics(metricsFactory, nil)
 
-	sender, err := factory(metrics)
+	sender, err := senderFactory(metrics)
 	require.NoError(t, err)
 	reporter := NewRemoteReporter(sender, ReporterOptions.Metrics(metrics)).(*remoteReporter)
 
@@ -200,8 +231,14 @@ func testRemoteReporter(
 	ext.PeerService.Set(span, "downstream")
 	span.Finish()
 	closer.Close() // close the tracer, which also closes and flushes the reporter
-	// however, in case of UDP reporter it's fire and forget, so we need to wait a bit
-	time.Sleep(5 * time.Millisecond)
+
+	// UDP transport uses fire and forget, so we need to wait for spans to get to the agent
+	for i := 0; i < 1000; i++ {
+		time.Sleep(1 * time.Millisecond)
+		if batches := getBatches(); len(batches) > 0 {
+			break
+		}
+	}
 
 	batches := getBatches()
 	require.Equal(t, 1, len(batches))
@@ -218,66 +255,108 @@ func testRemoteReporter(
 	}...)
 }
 
-func TestRemoteReporterReportAfterClose(
-	t *testing.T,
-) {
-	metricsFactory := metrics.NewLocalFactory(0)
-	metrics := NewMetrics(metricsFactory, nil)
-
-	sender := &fakeSender{}
-
-	reporter := NewRemoteReporter(sender, ReporterOptions.Metrics(metrics)).(*remoteReporter)
-
-	tracer, closer := NewTracer(
-		"reporter-test-service",
-		NewConstSampler(true),
-		reporter,
-		TracerOptions.Metrics(metrics))
-
-	span := tracer.StartSpan("leela")
-	ext.SpanKindRPCClient.Set(span)
-	ext.PeerService.Set(span, "downstream")
-
-	// Close the tracer, which also closes and flushes the reporter
-	closer.Close()
-
-	// This is just no-op
-	span.Finish()
+func TestMemoryReporterReport(t *testing.T) {
+	reporter := NewInMemoryReporter()
+	tracer, closer := NewTracer("DOOP", NewConstSampler(true), reporter)
+	defer closer.Close()
+	tracer.StartSpan("leela").Finish()
+	assert.Len(t, reporter.GetSpans(), 1, "expected number of spans submitted")
+	assert.Equal(t, 1, reporter.SpansSubmitted(), "expected number of spans submitted")
+	reporter.Reset()
+	assert.Len(t, reporter.GetSpans(), 0, "expected number of spans submitted")
+	assert.Equal(t, 0, reporter.SpansSubmitted(), "expected number of spans submitted")
 }
 
-func (s *reporterSuite) TestMemoryReporterReport() {
-	sp := s.tracer.StartSpan("leela")
-	ext.PeerService.Set(sp, s.serviceName)
-	reporter := NewInMemoryReporter()
-	reporter.Report(sp.(*Span))
-	s.Equal(1, reporter.SpansSubmitted(), "expected number of spans submitted")
-	reporter.Close()
+func TestCompositeReporterReport(t *testing.T) {
+	reporter1 := NewInMemoryReporter()
+	reporter2 := NewInMemoryReporter()
+	reporter3 := NewCompositeReporter(reporter1, reporter2)
+	tracer, closer := NewTracer("DOOP", NewConstSampler(true), reporter3)
+	defer closer.Close()
+	tracer.StartSpan("leela").Finish()
+	assert.Len(t, reporter1.GetSpans(), 1, "expected number of spans submitted")
+	assert.Len(t, reporter2.GetSpans(), 1, "expected number of spans submitted")
+}
+
+func TestLoggingReporter(t *testing.T) {
+	logger := &log.BytesBufferLogger{}
+	reporter := NewLoggingReporter(logger)
+	tracer, closer := NewTracer("test", NewConstSampler(true), reporter)
+	defer closer.Close() // will call Close on the reporter
+	tracer.StartSpan("sp1").Finish()
+	assert.True(t, strings.HasPrefix(logger.String(), "INFO: Reporting span"))
 }
 
 type fakeSender struct {
-	spans []*Span
-	mutex sync.Mutex
+	bufferSize int
+	appendErr  error
+	flushErr   error
+
+	spans   []*Span
+	flushed []*Span
+	mutex   sync.Mutex
 }
 
 func (s *fakeSender) Append(span *Span) (int, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
+
 	s.spans = append(s.spans, span)
-	return 1, nil
+	if n := len(s.spans); n == s.bufferSize {
+		return s.flushNoLock()
+	}
+	return 0, s.appendErr
 }
 
 func (s *fakeSender) Flush() (int, error) {
-	return 0, nil
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	return s.flushNoLock()
+}
+
+func (s *fakeSender) flushNoLock() (int, error) {
+	n := len(s.spans)
+	s.flushed = append(s.flushed, s.spans...)
+	s.spans = nil
+	return n, s.flushErr
 }
 
 func (s *fakeSender) Close() error { return nil }
 
-func (s *fakeSender) Spans() []*Span {
+func (s *fakeSender) BufferedSpans() []*Span {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	res := make([]*Span, len(s.spans))
 	copy(res, s.spans)
 	return res
+}
+
+func (s *fakeSender) FlushedSpans() []*Span {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	res := make([]*Span, len(s.flushed))
+	copy(res, s.flushed)
+	return res
+}
+
+func (s *fakeSender) assertBufferedSpans(t *testing.T, count int) {
+	for i := 0; i < 1000; i++ {
+		if len(s.BufferedSpans()) == count {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	assert.Len(t, s.BufferedSpans(), count)
+}
+
+func (s *fakeSender) assertFlushedSpans(t *testing.T, count int) {
+	for i := 0; i < 1000; i++ {
+		if len(s.FlushedSpans()) == count {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	assert.Len(t, s.FlushedSpans(), count)
 }
 
 func findDomainLog(span *Span, key string) *opentracing.LogRecord {
