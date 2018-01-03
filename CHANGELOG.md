@@ -1,10 +1,11 @@
 Changes by Version
 ==================
 
-2.11.1 (2017-12-06)
+2.11.1 (2017-01-03)
 -------------------
 
-- Do not enqueue spans after Reporter is closed (#235)
+- Do not enqueue spans after Reporter is closed (#235, #245)
+- Change default flush interval to 1sec (#243)
 
 
 2.11.0 (2017-11-27)
