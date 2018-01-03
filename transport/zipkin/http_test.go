@@ -45,7 +45,11 @@ func TestHttpTransport(t *testing.T) {
 	server := newHTTPServer(t)
 	httpUsername := "Aphex"
 	httpPassword := "Twin"
-	sender, err := NewHTTPTransport("http://localhost:10000/api/v1/spans", HTTPBasicAuth(httpUsername, httpPassword))
+	sender, err := NewHTTPTransport(
+		"http://localhost:10000/api/v1/spans",
+		HTTPBatchSize(1),
+		HTTPBasicAuth(httpUsername, httpPassword),
+	)
 	require.NoError(t, err)
 
 	tracer, closer := jaeger.NewTracer(
@@ -53,11 +57,10 @@ func TestHttpTransport(t *testing.T) {
 		jaeger.NewConstSampler(true),
 		jaeger.NewRemoteReporter(sender),
 	)
+	defer closer.Close()
 
 	span := tracer.StartSpan("root")
 	span.Finish()
-
-	closer.Close()
 
 	// Need to yield to the select loop to accept the send request, and then
 	// yield again to the send operation to write to the socket. I think the

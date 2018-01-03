@@ -216,12 +216,14 @@ func (r *remoteReporter) Report(span *Span) {
 
 // Close implements Close() method of Reporter by waiting for the queue to be drained.
 func (r *remoteReporter) Close() {
-	// First, cut off report requests still in-flight
-	close(r.closed)
-
-	// After that, drain the queue
+	// Cut off report requests still in-flight and drain the queue
+	// NB we keep r.queue open because it causes a race condition in Report() where since both
+	// r.closed and r.queue are closed, the select stmt will pick one arbitrarily and might
+	// attempt to insert into r.queue which will cause a panic. By keeping r.queue open, Report()
+	// will always fall into r.closed. The alternative is to create a atomic flag to keep track whether
+	// the reporter is closed but seemed overkill.
 	r.queueDrained.Add(1)
-	close(r.queue)
+	close(r.closed)
 	r.queueDrained.Wait()
 
 	r.sender.Close()
@@ -235,24 +237,21 @@ func (r *remoteReporter) processQueue() {
 	timer := time.NewTicker(r.bufferFlushInterval)
 	for {
 		select {
-		case span, ok := <-r.queue:
-			if ok {
-				atomic.AddInt64(&r.queueLength, -1)
-				if flushed, err := r.sender.Append(span); err != nil {
-					r.metrics.ReporterFailure.Inc(int64(flushed))
-					r.logger.Error(fmt.Sprintf("error reporting span %q: %s", span.OperationName(), err.Error()))
-				} else if flushed > 0 {
-					r.metrics.ReporterSuccess.Inc(int64(flushed))
-					// to reduce the number of gauge stats, we only emit queue length on flush
-					r.metrics.ReporterQueueLength.Update(atomic.LoadInt64(&r.queueLength))
-				}
-			} else {
-				// queue closed
-				timer.Stop()
-				r.flush()
-				r.queueDrained.Done()
-				return
+		case span := <-r.queue:
+			atomic.AddInt64(&r.queueLength, -1)
+			if flushed, err := r.sender.Append(span); err != nil {
+				r.metrics.ReporterFailure.Inc(int64(flushed))
+				r.logger.Error(fmt.Sprintf("error reporting span %q: %s", span.OperationName(), err.Error()))
+			} else if flushed > 0 {
+				r.metrics.ReporterSuccess.Inc(int64(flushed))
+				// to reduce the number of gauge stats, we only emit queue length on flush
+				r.metrics.ReporterQueueLength.Update(atomic.LoadInt64(&r.queueLength))
 			}
+		case <-r.closed:
+			timer.Stop()
+			r.flush()
+			r.queueDrained.Done()
+			return
 		case <-timer.C:
 			r.flush()
 		case wg := <-r.flushSignal: // for testing
