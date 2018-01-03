@@ -131,7 +131,7 @@ func TestProbabilisticSamplerPerformance(t *testing.T) {
 			count++
 		}
 	}
-	println("Sampled:", count, "rate=", float64(count)/float64(100000000))
+	// println("Sampled:", count, "rate=", float64(count)/float64(100000000))
 	// Sampled: 999829 rate= 0.009998290
 }
 

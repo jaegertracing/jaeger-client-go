@@ -14,7 +14,12 @@
 
 package log
 
-import "log"
+import (
+	"bytes"
+	"fmt"
+	"log"
+	"sync"
+)
 
 // Logger provides an abstract interface for logging from Reporters.
 // Applications can provide their own implementation of this interface to adapt
@@ -49,3 +54,30 @@ type nullLogger struct{}
 
 func (l *nullLogger) Error(msg string)                      {}
 func (l *nullLogger) Infof(msg string, args ...interface{}) {}
+
+// BytesBufferLogger implements Logger backed by a bytes.Buffer.
+type BytesBufferLogger struct {
+	mux sync.Mutex
+	buf bytes.Buffer
+}
+
+// Error implements Logger.
+func (l *BytesBufferLogger) Error(msg string) {
+	l.mux.Lock()
+	l.buf.WriteString(fmt.Sprintf("ERROR: %s\n", msg))
+	l.mux.Unlock()
+}
+
+// Infof implements Logger.
+func (l *BytesBufferLogger) Infof(msg string, args ...interface{}) {
+	l.mux.Lock()
+	l.buf.WriteString("INFO: " + fmt.Sprintf(msg, args...) + "\n")
+	l.mux.Unlock()
+}
+
+// String returns string representation of the underlying buffer.
+func (l *BytesBufferLogger) String() string {
+	l.mux.Lock()
+	defer l.mux.Unlock()
+	return l.buf.String()
+}
