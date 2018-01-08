@@ -24,6 +24,7 @@ import (
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
+	"github.com/satori/go.uuid"
 
 	"github.com/uber/jaeger-client-go/internal/baggage"
 	"github.com/uber/jaeger-client-go/log"
@@ -34,6 +35,7 @@ import (
 type Tracer struct {
 	serviceName string
 	hostIPv4    uint32 // this is for zipkin endpoint conversion
+	uuid        uuid.UUID
 
 	sampler  Sampler
 	reporter Reporter
@@ -134,6 +136,8 @@ func NewTracer(
 	} else {
 		t.logger.Error("Unable to determine this host's IP address: " + err.Error())
 	}
+	t.uuid = uuid.NewV4()
+	t.tags = append(t.tags, Tag{key: TracerUUID, value: t.uuid.String()})
 
 	if t.options.gen128Bit {
 		if t.options.highTraceIDGenerator == nil {
