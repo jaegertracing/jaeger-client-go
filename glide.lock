@@ -1,5 +1,5 @@
-hash: 2620c136edbee92cfb359a9f221f198bc39d7d40e3e41fe305d90cc8ebfd5430
-updated: 2018-01-08T14:28:38.571573-05:00
+hash: 761f92bb6735becf9e5f2a65a476ed87eb0e74ee0e8da6d484820ef5cf2e049b
+updated: 2018-01-08T15:12:58.89874-05:00
 imports:
 - name: github.com/apache/thrift
   version: b2a4d4ae21c789b689dd162deb819665567f481c
@@ -73,6 +73,7 @@ imports:
   - metrics
   - metrics/prometheus
   - metrics/testutils
+  - utils
 - name: github.com/uber/tchannel-go
   version: 7bcb33f4bb908c21374f8bfdc9d4b1ebcbb8dab0
   subpackages:
@@ -89,7 +90,7 @@ imports:
 - name: go.uber.org/atomic
   version: 8474b86a5a6f79c443ce4b2992817ff32cf208b8
 - name: go.uber.org/multierr
-  version: fb7d312c2c04c34f0ad621048bbb953b168f9ff6
+  version: 3c4937480c32f4c13a875a1829af76c98ca3d40a
 - name: go.uber.org/zap
   version: f85c78b1dd998214c5f2138155b320a4a43fbe36
   subpackages:

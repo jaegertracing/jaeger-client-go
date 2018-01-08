@@ -21,6 +21,8 @@ import (
 	"sync"
 	"time"
 
+	libutils "github.com/uber/jaeger-lib/utils"
+
 	"github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-client-go/thrift-gen/sampling"
 	"github.com/uber/jaeger-client-go/utils"
@@ -153,7 +155,7 @@ func (s *ProbabilisticSampler) Equal(other Sampler) bool {
 
 type rateLimitingSampler struct {
 	maxTracesPerSecond float64
-	rateLimiter        utils.RateLimiter
+	rateLimiter        libutils.RateLimiter
 	tags               []Tag
 }
 
@@ -168,7 +170,7 @@ func NewRateLimitingSampler(maxTracesPerSecond float64) Sampler {
 	}
 	return &rateLimitingSampler{
 		maxTracesPerSecond: maxTracesPerSecond,
-		rateLimiter:        utils.NewRateLimiter(maxTracesPerSecond, math.Max(maxTracesPerSecond, 1.0)),
+		rateLimiter:        libutils.NewRateLimiter(maxTracesPerSecond, math.Max(maxTracesPerSecond, 1.0)),
 		tags:               tags,
 	}
 }
