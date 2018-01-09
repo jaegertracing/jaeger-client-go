@@ -43,7 +43,7 @@ and [config/example_test.go](./config/example_test.go).
 
 ### Closing the tracer via `io.Closer`
 
-The constructor functions for Jaeger Tracer returns the tracer itself and an `io.Closer` instance.
+The constructor function for Jaeger Tracer returns the tracer itself and an `io.Closer` instance.
 It is recommended to structure your `main()` so that it calls the `Close()` function on the closer
 before exiting, e.g.
 
