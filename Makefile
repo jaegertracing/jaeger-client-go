@@ -55,10 +55,10 @@ lint:
 
 .PHONY: install
 install:
+	glide --version || go get github.com/Masterminds/glide
 ifeq ($(USE_DEP),true)
 	dep ensure
 else
-	glide --version || go get github.com/Masterminds/glide
 	glide install
 endif
 
