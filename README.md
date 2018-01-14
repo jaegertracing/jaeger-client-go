@@ -68,7 +68,7 @@ example: `name:jaeger.traces, state:started, sampled:y`. See [metrics.go](./metr
 file for the full list and descriptions of emitted metrics.
 
 The monitoring backend is represented by the `metrics.Factory` interface from package
-[`"github.com/uber/jaeger-lib/metrics"`](github.com/uber/jaeger-lib/metrics).  An implementation
+[`"github.com/uber/jaeger-lib/metrics"`](https://github.com/jaegertracing/jaeger-lib/tree/master/metrics).  An implementation
 of that interface can be passed as an option to either the Configuration object or the Tracer
 constructor, for example:
 
@@ -98,7 +98,7 @@ this interface can be set on the `Config` object before calling the
 
 Besides the [zap](https://github.com/uber-go/zap) implementation
 bundled with this package there is also a [go-kit](https://github.com/go-kit/kit)
-one in the [jaeger-lib](https://github.com/uber/jaeger-lib) repository.
+one in the [jaeger-lib](https://github.com/jaegertracing/jaeger-lib) repository.
 
 ## Instrumentation for Tracing
 
