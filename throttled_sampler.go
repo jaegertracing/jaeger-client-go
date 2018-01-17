@@ -35,10 +35,6 @@ func newThrottledSampler(sampler Sampler, throttler throttler.Throttler) *thrott
 	}
 }
 
-func (s *throttledSampler) SetUUID(uuid string) {
-	s.throttler.SetUUID(uuid)
-}
-
 func (s *throttledSampler) IsSampled(id TraceID, operation string) (bool, []Tag) {
 	sampled, tags := s.sampler.IsSampled(id, operation)
 	if sampled && !s.throttler.IsThrottled(operation) {
