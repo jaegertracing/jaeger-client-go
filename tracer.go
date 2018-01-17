@@ -65,6 +65,7 @@ type Tracer struct {
 	baggageSetter             *baggageSetter
 
 	debugThrottler throttler.Throttler
+	throttler      throttler.Throttler
 }
 
 // NewTracer creates Tracer implementation that reports tracing to Jaeger.
@@ -118,6 +119,10 @@ func NewTracer(
 		t.debugThrottler = throttler.DefaultThrottler{}
 	}
 	t.debugThrottler.SetUUID("PLACEHOLDER") // TODO
+	if t.throttler != nil {
+		t.throttler.SetUUID("PLACEHOLDER")
+		t.sampler = newThrottledSampler(t.sampler, t.throttler)
+	}
 	if t.randomNumber == nil {
 		rng := utils.NewRand(time.Now().UnixNano())
 		t.randomNumber = func() uint64 {

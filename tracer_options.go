@@ -151,3 +151,9 @@ func (tracerOptions) DebugThrottler(throttler throttler.Throttler) TracerOption 
 		tracer.debugThrottler = throttler
 	}
 }
+
+func (tracerOptions) Throttler(throttler throttler.Throttler) TracerOption {
+	return func(tracer *Tracer) {
+		tracer.throttler = throttler
+	}
+}

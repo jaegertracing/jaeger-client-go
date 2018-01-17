@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package sampler
+package jaeger
 
 import (
-	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/internal/throttler"
 )
 
@@ -25,11 +24,11 @@ import (
 // throttledSampler wraps a sampler and throttles it.
 type throttledSampler struct {
 	throttler throttler.Throttler
-	sampler   jaeger.Sampler
+	sampler   Sampler
 }
 
 // newThrottledSampler returns a sampler that is throttled.
-func newThrottledSampler(sampler jaeger.Sampler, throttler throttler.Throttler) *throttledSampler {
+func newThrottledSampler(sampler Sampler, throttler throttler.Throttler) *throttledSampler {
 	return &throttledSampler{
 		sampler:   sampler,
 		throttler: throttler,
@@ -40,7 +39,7 @@ func (s *throttledSampler) SetUUID(uuid string) {
 	s.throttler.SetUUID(uuid)
 }
 
-func (s *throttledSampler) IsSampled(id jaeger.TraceID, operation string) (bool, []jaeger.Tag) {
+func (s *throttledSampler) IsSampled(id TraceID, operation string) (bool, []Tag) {
 	sampled, tags := s.sampler.IsSampled(id, operation)
 	if sampled && !s.throttler.IsThrottled(operation) {
 		return sampled, tags
@@ -52,7 +51,7 @@ func (s *throttledSampler) Close() {
 	s.throttler.Close()
 }
 
-func (s *throttledSampler) Equal(other jaeger.Sampler) bool {
+func (s *throttledSampler) Equal(other Sampler) bool {
 	// Not implemented
 	return false
 }
