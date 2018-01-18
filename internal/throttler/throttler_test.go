@@ -14,21 +14,15 @@
 
 package throttler
 
-import "io"
+import (
+	"testing"
 
-// Throttler is used to rate limits operations. For example, given how debug spans
-// are always sampled, a throttler can be enabled per client to rate limit the amount
-// of debug spans a client can start.
-type Throttler interface {
-	// IsAllowed determines whether the operation should be allowed and not be
-	// throttled.
-	IsAllowed(operation string) bool
-}
+	"github.com/stretchr/testify/assert"
+)
 
-// DefaultThrottler doesn't throttle at all.
-type DefaultThrottler struct{}
+var _ Throttler = DefaultThrottler{}
 
-// IsAllowed implements Throttler#IsAllowed.
-func (t DefaultThrottler) IsAllowed(operation string) bool {
-	return true
+func TestDefaultThrottler(t *testing.T) {
+	throttler := DefaultThrottler{}
+	assert.True(t, throttler.IsAllowed(""))
 }

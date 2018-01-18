@@ -18,9 +18,8 @@ import (
 	"fmt"
 	"net/url"
 	"sync"
+	"sync/atomic"
 	"time"
-
-	"github.com/uber-go/atomic"
 
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/utils"
@@ -30,6 +29,7 @@ const (
 	// minimumCredits is the minimum amount of credits necessary to not be throttled.
 	// i.e. if currentCredits > minimumCredits, then the operation will not be throttled.
 	minimumCredits = 1.0
+	uuidSet        = uint32(1)
 )
 
 type creditResponse struct {
@@ -69,7 +69,8 @@ type Throttler struct {
 
 	mux           sync.RWMutex
 	service       string
-	uuid          *atomic.String
+	uuid          string
+	uuidSet       uint32 // 1 means uuid set, 0 means not set
 	creditManager *httpCreditManagerProxy
 	credits       map[string]float64 // map of operation->credits
 	close         chan struct{}
@@ -89,52 +90,56 @@ func NewThrottler(service string, options ...Option) *Throttler {
 		service:       service,
 		credits:       make(map[string]float64),
 		close:         make(chan struct{}),
-		uuid:          atomic.NewString(""),
 	}
 	t.stopped.Add(1)
 	go t.pollManager()
 	return t
 }
 
-// IsThrottled implements Throttler#IsThrottled.
-func (t *Throttler) IsThrottled(operation string) bool {
+// IsAllowed implements Throttler#IsAllowed.
+func (t *Throttler) IsAllowed(operation string) bool {
 	t.mux.Lock()
 	defer t.mux.Unlock()
 	_, ok := t.credits[operation]
 	if !ok {
+		if !t.synchronousInitialization {
+			t.credits[operation] = 0
+			return false
+		}
 		// If it is the first time this operation is being checked, synchronously fetch
 		// the credits.
-		credits := t.fetchCreditsHelper([]string{operation})
+		credits := t.fetchCredits([]string{operation})
 		if len(credits) == 0 {
 			// Failed to receive credits from agent, try again next time
-			return true
+			return false
 		}
 		t.credits[operation] = credits[0].Credits
 	}
-	return t.isThrottled(operation)
+	return t.isAllowed(operation)
 }
 
-// Close implements Throttler#Close.
+// Close stops the throttler from fetching credits from remote.
 func (t *Throttler) Close() error {
 	close(t.close)
 	t.stopped.Wait()
 	return nil
 }
 
-// SetUUID implements Throttler#SetUUID. It's imperative that the UUID is set before any remote
+// SetProcess implements ProcessSetter#SetProcess. It's imperative that the UUID is set before any remote
 // requests are made.
-func (t *Throttler) SetUUID(uuid string) {
-	t.uuid.Store(uuid)
+func (t *Throttler) SetProcess(process jaeger.Process) {
+	t.uuid = process.UUID
+	atomic.StoreUint32(&t.uuidSet, uuidSet)
 }
 
-// N.B. This function should be called with the Write Lock
-func (t *Throttler) isThrottled(operation string) bool {
+// N.B. This function must be called with the Write Lock
+func (t *Throttler) isAllowed(operation string) bool {
 	credits := t.credits[operation]
 	if credits < minimumCredits {
-		return true
+		return false
 	}
 	t.credits[operation] = credits - minimumCredits
-	return false
+	return true
 }
 
 func (t *Throttler) pollManager() {
@@ -144,22 +149,21 @@ func (t *Throttler) pollManager() {
 	for {
 		select {
 		case <-ticker.C:
-			t.fetchCredits()
+			t.refreshCredits()
 		case <-t.close:
 			return
 		}
 	}
 }
 
-func (t *Throttler) fetchCredits() {
+func (t *Throttler) refreshCredits() {
 	t.mux.RLock()
-	// TODO This is probably inefficient, maybe create a static slice of operations?
 	operations := make([]string, 0, len(t.credits))
 	for op := range t.credits {
 		operations = append(operations, op)
 	}
 	t.mux.RUnlock()
-	newCredits := t.fetchCreditsHelper(operations)
+	newCredits := t.fetchCredits(operations)
 
 	t.mux.Lock()
 	defer t.mux.Unlock()
@@ -168,11 +172,10 @@ func (t *Throttler) fetchCredits() {
 	}
 }
 
-func (t *Throttler) fetchCreditsHelper(operations []string) []creditResponse {
-	uuid := t.uuid.Load()
-	if uuid == "" {
+func (t *Throttler) fetchCredits(operations []string) []creditResponse {
+	if atomic.LoadUint32(&t.uuidSet) != uuidSet {
 		t.logger.Error("Throttler uuid is not set, failed to fetch credits")
 		return nil
 	}
-	return t.creditManager.FetchCredits(uuid, t.service, operations)
+	return t.creditManager.FetchCredits(t.uuid, t.service, operations)
 }

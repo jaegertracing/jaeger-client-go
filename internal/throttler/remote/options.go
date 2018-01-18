@@ -32,10 +32,11 @@ type Option func(options *options)
 var Options options
 
 type options struct {
-	metrics         *jaeger.Metrics
-	logger          jaeger.Logger
-	hostPort        string
-	refreshInterval time.Duration
+	metrics                   *jaeger.Metrics
+	logger                    jaeger.Logger
+	hostPort                  string
+	refreshInterval           time.Duration
+	synchronousInitialization bool
 }
 
 // Metrics creates an Option that initializes Metrics on the Throttler, which is used to emit statistics.
@@ -64,6 +65,14 @@ func (options) HostPort(hostPort string) Option {
 func (options) RefreshInterval(refreshInterval time.Duration) Option {
 	return func(o *options) {
 		o.refreshInterval = refreshInterval
+	}
+}
+
+// SynchronousInitialization creates an Option that determines whether the throttler should synchronously
+// fetch credits from the agent when an operation is seen for the first time.
+func (options) SynchronousInitialization(b bool) Option {
+	return func(o *options) {
+		o.synchronousInitialization = b
 	}
 }
 

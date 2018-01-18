@@ -12,23 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package throttler
+package jaeger
 
-import "io"
-
-// Throttler is used to rate limits operations. For example, given how debug spans
-// are always sampled, a throttler can be enabled per client to rate limit the amount
-// of debug spans a client can start.
-type Throttler interface {
-	// IsAllowed determines whether the operation should be allowed and not be
-	// throttled.
-	IsAllowed(operation string) bool
+// Process holds process specific metadata that's relevant to this client.
+type Process struct {
+	Service string
+	UUID    string
+	Tags    []Tag
 }
 
-// DefaultThrottler doesn't throttle at all.
-type DefaultThrottler struct{}
-
-// IsAllowed implements Throttler#IsAllowed.
-func (t DefaultThrottler) IsAllowed(operation string) bool {
-	return true
+// ProcessSetter sets a process. This can be used by any class that requires
+// the process to be set as part of initialization.
+// See internal/throttler/remote/throttler.go for an example.
+type ProcessSetter interface {
+	SetProcess(process Process)
 }

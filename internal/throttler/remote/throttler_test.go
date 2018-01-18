@@ -16,6 +16,7 @@ package remote
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -24,7 +25,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/uber-go/atomic"
 
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/internal/throttler"
@@ -32,16 +32,18 @@ import (
 )
 
 var _ throttler.Throttler = &Throttler{}
+var _ io.Closer = &Throttler{}
+var _ jaeger.ProcessSetter = &Throttler{}
 
 var testOperation = "op"
 
 type creditHandler struct {
-	returnError *atomic.Bool
+	returnError bool
 	credits     float64
 }
 
 func (h *creditHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if h.returnError.Load() {
+	if h.returnError {
 		w.WriteHeader(http.StatusInternalServerError)
 	} else {
 		operations := r.URL.Query()["operation"]
@@ -57,7 +59,7 @@ func (h *creditHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *creditHandler) setReturnError(b bool) {
-	h.returnError.Store(b)
+	h.returnError = b
 }
 
 func withHTTPServer(
@@ -67,7 +69,7 @@ func withHTTPServer(
 		server *httptest.Server,
 	),
 ) {
-	handler := &creditHandler{returnError: atomic.NewBool(false), credits: credits}
+	handler := &creditHandler{returnError: false, credits: credits}
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
@@ -111,15 +113,14 @@ func TestRemoteThrottler_UUIDNotSet(t *testing.T) {
 				creditManager: creditManager,
 				service:       "svc",
 				credits:       make(map[string]float64),
-				uuid:          atomic.NewString(""),
-				options:       options{logger: logger},
+				options:       options{logger: logger, synchronousInitialization: true},
 			}
-			assert.True(t, throttler.IsThrottled(testOperation))
+			assert.False(t, throttler.IsAllowed(testOperation))
 			assert.Equal(t, "ERROR: Throttler uuid is not set, failed to fetch credits\n", logger.String())
-			throttler.SetUUID("uuid")
-			assert.False(t, throttler.IsThrottled(testOperation))
-			assert.False(t, throttler.IsThrottled(testOperation))
-			assert.True(t, throttler.IsThrottled(testOperation))
+			throttler.SetProcess(jaeger.Process{UUID: "uuid"})
+			assert.True(t, throttler.IsAllowed(testOperation))
+			assert.True(t, throttler.IsAllowed(testOperation))
+			assert.False(t, throttler.IsAllowed(testOperation))
 		})
 }
 
@@ -132,23 +133,51 @@ func TestRemotelyControlledThrottler_pollManager(t *testing.T) {
 		) {
 			throttler := NewThrottler(
 				"svc",
-				Options.RefreshInterval(5*time.Millisecond),
+				Options.RefreshInterval(time.Millisecond),
+				Options.HostPort(getHostPort(t, server.URL)),
+				Options.SynchronousInitialization(true),
+			)
+			defer throttler.Close()
+			throttler.SetProcess(jaeger.Process{UUID: "uuid"})
+			assert.True(t, throttler.IsAllowed(testOperation))
+			loopUntilCreditsReady(throttler)
+			assert.True(t, throttler.IsAllowed(testOperation))
+			assert.False(t, throttler.IsAllowed(testOperation))
+		})
+}
+
+func TestRemotelyControlledThrottler_asynchronousInitialization(t *testing.T) {
+	withHTTPServer(
+		2,
+		func(
+			handler *creditHandler,
+			server *httptest.Server,
+		) {
+			throttler := NewThrottler(
+				"svc",
+				Options.RefreshInterval(time.Millisecond),
 				Options.HostPort(getHostPort(t, server.URL)),
 			)
 			defer throttler.Close()
-			throttler.SetUUID("uuid")
-			assert.False(t, throttler.IsThrottled(testOperation))
-			for i := 0; i < 1000; i++ {
-				throttler.mux.RLock()
-				if throttler.credits[testOperation] > 0 {
-					throttler.mux.RUnlock()
-					break
-				}
-				throttler.mux.RUnlock()
-			}
-			assert.False(t, throttler.IsThrottled(testOperation))
-			assert.True(t, throttler.IsThrottled(testOperation))
+			throttler.SetProcess(jaeger.Process{UUID: "uuid"})
+			assert.False(t, throttler.IsAllowed(testOperation))
+			loopUntilCreditsReady(throttler)
+			assert.True(t, throttler.IsAllowed(testOperation))
+			assert.True(t, throttler.IsAllowed(testOperation))
+			assert.False(t, throttler.IsAllowed(testOperation))
 		})
+}
+
+func loopUntilCreditsReady(throttler *Throttler) {
+	for i := 0; i < 1000; i++ {
+		throttler.mux.RLock()
+		if throttler.credits[testOperation] > 0 {
+			throttler.mux.RUnlock()
+			break
+		}
+		throttler.mux.RUnlock()
+		time.Sleep(time.Millisecond)
+	}
 }
 
 func getHostPort(t *testing.T, s string) string {

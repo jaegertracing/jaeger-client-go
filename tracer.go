@@ -59,7 +59,8 @@ type Tracer struct {
 
 	observer compositeObserver
 
-	tags []Tag
+	tags    []Tag
+	process Process
 
 	baggageRestrictionManager baggage.RestrictionManager
 	baggageSetter             *baggageSetter
@@ -118,11 +119,6 @@ func NewTracer(
 	if t.debugThrottler == nil {
 		t.debugThrottler = throttler.DefaultThrottler{}
 	}
-	t.debugThrottler.SetUUID("PLACEHOLDER") // TODO
-	if t.throttler != nil {
-		t.throttler.SetUUID("PLACEHOLDER")
-		t.sampler = newThrottledSampler(t.sampler, t.throttler)
-	}
 	if t.randomNumber == nil {
 		rng := utils.NewRand(time.Now().UnixNano())
 		t.randomNumber = func() uint64 {
@@ -154,6 +150,14 @@ func NewTracer(
 	} else if t.options.highTraceIDGenerator != nil {
 		t.logger.Error("Overriding high trace ID generator but not generating " +
 			"128 bit trace IDs, consider enabling the \"Gen128Bit\" option")
+	}
+	t.process = Process{
+		UUID:    "PLACEHOLDER", // TODO
+		Service: serviceName,
+		Tags:    t.tags,
+	}
+	if throttler, ok := t.throttler.(ProcessSetter); ok {
+		throttler.SetProcess(t.process)
 	}
 
 	return t, t
@@ -306,6 +310,9 @@ func (t *Tracer) Close() error {
 	if mgr, ok := t.baggageRestrictionManager.(io.Closer); ok {
 		mgr.Close()
 	}
+	if throttler, ok := t.throttler.(io.Closer); ok {
+		throttler.Close()
+	}
 	return nil
 }
 
@@ -402,11 +409,7 @@ func (t *Tracer) randomID() uint64 {
 	return val
 }
 
-// (NB) span should hold the lock before making this call
+// (NB) span must hold the lock before making this call
 func (t *Tracer) setBaggage(sp *Span, key, value string) {
 	t.baggageSetter.setBaggage(sp, key, value)
-}
-
-func (t *Tracer) throttleDebugSpan(operationName string) bool {
-	return t.debugThrottler.IsThrottled(operationName)
 }
