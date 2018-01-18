@@ -14,8 +14,6 @@
 
 package throttler
 
-import "io"
-
 // Throttler is used to rate limits operations. For example, given how debug spans
 // are always sampled, a throttler can be enabled per client to rate limit the amount
 // of debug spans a client can start.
