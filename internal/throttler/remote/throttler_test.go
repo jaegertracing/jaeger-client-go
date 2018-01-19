@@ -117,6 +117,10 @@ func TestRemoteThrottler_UUIDNotSet(t *testing.T) {
 			}
 			assert.False(t, throttler.IsAllowed(testOperation))
 			assert.Equal(t, "ERROR: Throttler uuid is not set, failed to fetch credits\n", logger.String())
+			logger.Flush()
+			throttler.SetProcess(jaeger.Process{UUID: ""})
+			assert.False(t, throttler.IsAllowed(testOperation))
+			assert.Equal(t, "ERROR: Throttler uuid is not set, failed to fetch credits\n", logger.String())
 			throttler.SetProcess(jaeger.Process{UUID: "uuid"})
 			assert.True(t, throttler.IsAllowed(testOperation))
 			assert.True(t, throttler.IsAllowed(testOperation))
