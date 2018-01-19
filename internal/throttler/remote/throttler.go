@@ -29,7 +29,6 @@ const (
 	// minimumCredits is the minimum amount of credits necessary to not be throttled.
 	// i.e. if currentCredits > minimumCredits, then the operation will not be throttled.
 	minimumCredits = 1.0
-	uuidSet        = uint32(1)
 )
 
 type creditResponse struct {
@@ -69,8 +68,7 @@ type Throttler struct {
 
 	mux           sync.RWMutex
 	service       string
-	uuid          string
-	uuidSet       uint32 // 1 means uuid set, 0 means not set
+	uuid          atomic.Value
 	creditManager *httpCreditManagerProxy
 	credits       map[string]float64 // map of operation->credits
 	close         chan struct{}
@@ -128,8 +126,7 @@ func (t *Throttler) Close() error {
 // SetProcess implements ProcessSetter#SetProcess. It's imperative that the UUID is set before any remote
 // requests are made.
 func (t *Throttler) SetProcess(process jaeger.Process) {
-	t.uuid = process.UUID
-	atomic.StoreUint32(&t.uuidSet, uuidSet)
+	t.uuid.Store(process.UUID)
 }
 
 // N.B. This function must be called with the Write Lock
@@ -173,9 +170,11 @@ func (t *Throttler) refreshCredits() {
 }
 
 func (t *Throttler) fetchCredits(operations []string) []creditResponse {
-	if atomic.LoadUint32(&t.uuidSet) != uuidSet {
+	uuid := t.uuid.Load()
+	uuidStr, _ := uuid.(string)
+	if uuid == nil || uuidStr == "" {
 		t.logger.Error("Throttler uuid is not set, failed to fetch credits")
 		return nil
 	}
-	return t.creditManager.FetchCredits(t.uuid, t.service, operations)
+	return t.creditManager.FetchCredits(uuidStr, t.service, operations)
 }
