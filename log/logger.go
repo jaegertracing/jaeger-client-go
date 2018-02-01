@@ -47,7 +47,7 @@ func (l *stdLogger) Infof(msg string, args ...interface{}) {
 	log.Printf(msg, args...)
 }
 
-// NullLogger is implementation of the Logger interface that delegates to default `log` package
+// NullLogger is implementation of the Logger interface that is no-op
 var NullLogger = &nullLogger{}
 
 type nullLogger struct{}
