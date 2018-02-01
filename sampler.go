@@ -380,6 +380,7 @@ type RemotelyControlledSampler struct {
 	timer       *time.Ticker
 	manager     sampling.SamplingManager
 	pollStopped sync.WaitGroup
+	doneChan    chan bool
 }
 
 type httpSamplingManager struct {
@@ -408,6 +409,7 @@ func NewRemotelyControlledSampler(
 		serviceName:    serviceName,
 		timer:          time.NewTicker(options.samplingRefreshInterval),
 		manager:        &httpSamplingManager{serverURL: options.samplingServerURL},
+		doneChan:       make(chan bool),
 	}
 
 	go sampler.pollController()
@@ -451,6 +453,7 @@ func (s *RemotelyControlledSampler) IsSampled(id TraceID, operation string) (boo
 func (s *RemotelyControlledSampler) Close() {
 	s.RLock()
 	s.timer.Stop()
+	s.doneChan <- true
 	s.RUnlock()
 
 	s.pollStopped.Wait()
@@ -471,15 +474,22 @@ func (s *RemotelyControlledSampler) Equal(other Sampler) bool {
 }
 
 func (s *RemotelyControlledSampler) pollController() {
+	s.pollStopped.Add(1)
+	defer s.pollStopped.Done()
+
 	// in unit tests we re-assign the timer Ticker, so need to lock to avoid data races
 	s.Lock()
 	timer := s.timer
 	s.Unlock()
 
-	for range timer.C {
-		s.updateSampler()
+	for {
+		select {
+		case <-timer.C:
+			s.updateSampler()
+		case <-s.doneChan:
+			return
+		}
 	}
-	s.pollStopped.Add(1)
 }
 
 func (s *RemotelyControlledSampler) updateSampler() {
