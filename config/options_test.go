@@ -61,12 +61,24 @@ func TestApplyOptionsDefaults(t *testing.T) {
 
 type fakeObserver struct{}
 
-func (o fakeObserver) OnStartSpan(operationName string, options opentracing.StartSpanOptions) jaeger.SpanObserver {
+func (fakeObserver) OnStartSpan(operationName string, options opentracing.StartSpanOptions) jaeger.SpanObserver {
 	return nil
 }
 
 type fakeContribObserver struct{}
 
-func (o fakeContribObserver) OnStartSpan(span opentracing.Span, operationName string, options opentracing.StartSpanOptions) (jaeger.ContribSpanObserver, bool) {
+func (fakeContribObserver) OnStartSpan(span opentracing.Span, operationName string, options opentracing.StartSpanOptions) (jaeger.ContribSpanObserver, bool) {
 	return nil, false
+}
+
+type fakeInjector struct{}
+
+func (fakeInjector) Inject(ctx jaeger.SpanContext, carrier interface{}) error {
+	return nil
+}
+
+type fakeExtractor struct{}
+
+func (fakeExtractor) Extract(carrier interface{}) (jaeger.SpanContext, error) {
+	return jaeger.SpanContext{}, nil
 }
