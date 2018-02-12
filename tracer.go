@@ -66,7 +66,6 @@ type Tracer struct {
 	baggageSetter             *baggageSetter
 
 	debugThrottler throttler.Throttler
-	throttler      throttler.Throttler
 }
 
 // NewTracer creates Tracer implementation that reports tracing to Jaeger.
@@ -156,7 +155,7 @@ func NewTracer(
 		Service: serviceName,
 		Tags:    t.tags,
 	}
-	if throttler, ok := t.throttler.(ProcessSetter); ok {
+	if throttler, ok := t.debugThrottler.(ProcessSetter); ok {
 		throttler.SetProcess(t.process)
 	}
 
@@ -310,7 +309,7 @@ func (t *Tracer) Close() error {
 	if mgr, ok := t.baggageRestrictionManager.(io.Closer); ok {
 		mgr.Close()
 	}
-	if throttler, ok := t.throttler.(io.Closer); ok {
+	if throttler, ok := t.debugThrottler.(io.Closer); ok {
 		throttler.Close()
 	}
 	return nil

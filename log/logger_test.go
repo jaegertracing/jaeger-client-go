@@ -27,4 +27,6 @@ func TestLogger(t *testing.T) {
 		logger.Error("Bad wolf")
 	}
 	assert.Equal(t, "INFO: Hi there\nERROR: Bad wolf\n", bbLogger.String())
+	bbLogger.Flush()
+	assert.Empty(t, bbLogger.String())
 }
