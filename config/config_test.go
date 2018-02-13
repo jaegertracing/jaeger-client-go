@@ -257,3 +257,32 @@ func TestConfigWithGen128Bit(t *testing.T) {
 	require.True(t, traceID.High != 0)
 	require.True(t, traceID.Low != 0)
 }
+
+func TestConfigWithInjector(t *testing.T) {
+	c := Configuration{}
+	tracer, closer, err := c.New("test", Injector("custom.format", fakeInjector{}))
+	require.NoError(t, err)
+	defer closer.Close()
+
+	span := tracer.StartSpan("test")
+	defer span.Finish()
+
+	err = tracer.Inject(span.Context(), "unknown.format", nil)
+	require.Error(t, err)
+
+	err = tracer.Inject(span.Context(), "custom.format", nil)
+	require.NoError(t, err)
+}
+
+func TestConfigWithExtractor(t *testing.T) {
+	c := Configuration{}
+	tracer, closer, err := c.New("test", Extractor("custom.format", fakeExtractor{}))
+	require.NoError(t, err)
+	defer closer.Close()
+
+	_, err = tracer.Extract("unknown.format", nil)
+	require.Error(t, err)
+
+	_, err = tracer.Extract("custom.format", nil)
+	require.NoError(t, err)
+}
