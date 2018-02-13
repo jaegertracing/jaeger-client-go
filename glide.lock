@@ -1,5 +1,5 @@
-hash: af5e193de27f73f5a8cef66ae2f0c013bcb9e48ecd69db4a595221f88ba99a71
-updated: 2017-11-21T19:49:03.248636345-05:00
+hash: 2620c136edbee92cfb359a9f221f198bc39d7d40e3e41fe305d90cc8ebfd5430
+updated: 2018-01-09T12:01:48.751291-05:00
 imports:
 - name: github.com/apache/thrift
   version: b2a4d4ae21c789b689dd162deb819665567f481c
@@ -55,8 +55,10 @@ imports:
   version: a1dba9ce8baed984a2495b658c82687f8157b98f
   subpackages:
   - xfs
+- name: github.com/satori/go.uuid
+  version: 879c5887cd475cd7864858769793b2ceb0d44feb
 - name: github.com/stretchr/testify
-  version: 69483b4bd14f5845b5a1e55bca19e954e827f1d0
+  version: b91bfb9ebec76498946beb6af7c0230c7cc7ba6c
   subpackages:
   - assert
   - require
@@ -66,13 +68,13 @@ imports:
   subpackages:
   - utils
 - name: github.com/uber/jaeger-lib
-  version: c48167d9cae5887393dd5e61efd06a4a48b7fbb3
+  version: 5519f3beabf28707fca8d3f47f9cff87dad48d96
   subpackages:
   - metrics
   - metrics/prometheus
   - metrics/testutils
 - name: github.com/uber/tchannel-go
-  version: cc230a2942d078a8b01f4a79895dad62e6c572f1
+  version: 7bcb33f4bb908c21374f8bfdc9d4b1ebcbb8dab0
   subpackages:
   - atomic
   - internal/argreader
