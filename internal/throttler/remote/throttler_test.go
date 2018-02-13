@@ -38,14 +38,21 @@ var _ jaeger.ProcessSetter = &Throttler{}
 var testOperation = "op"
 
 type creditHandler struct {
-	returnError bool
-	credits     float64
+	returnError     bool
+	returnEmptyResp bool
+	credits         float64
 }
 
 func (h *creditHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if h.returnError {
 		w.WriteHeader(http.StatusInternalServerError)
 	} else {
+		w.Header().Add("Content-Type", "application/json")
+		if h.returnEmptyResp {
+			bytes, _ := json.Marshal([]creditResponse{})
+			w.Write(bytes)
+			return
+		}
 		operations := r.URL.Query()["operation"]
 		resp := make([]creditResponse, len(operations))
 		for i, op := range operations {
@@ -53,13 +60,16 @@ func (h *creditHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		h.credits = 0
 		bytes, _ := json.Marshal(resp)
-		w.Header().Add("Content-Type", "application/json")
 		w.Write(bytes)
 	}
 }
 
 func (h *creditHandler) setReturnError(b bool) {
 	h.returnError = b
+}
+
+func (h *creditHandler) setReturnEmptyResp(b bool) {
+	h.returnEmptyResp = b
 }
 
 func withHTTPServer(
@@ -100,7 +110,7 @@ func TestCreditManager(t *testing.T) {
 		})
 }
 
-func TestRemoteThrottler_UUIDNotSet(t *testing.T) {
+func TestRemoteThrottler_fetchCreditsErrors(t *testing.T) {
 	withHTTPServer(
 		2,
 		func(
@@ -121,10 +131,22 @@ func TestRemoteThrottler_UUIDNotSet(t *testing.T) {
 			throttler.SetProcess(jaeger.Process{UUID: ""})
 			assert.False(t, throttler.IsAllowed(testOperation))
 			assert.Equal(t, "ERROR: Failed to fetch credits: Throttler uuid must be set\n", logger.String())
+			logger.Flush()
 			throttler.SetProcess(jaeger.Process{UUID: "uuid"})
+
+			handler.setReturnEmptyResp(true)
+			assert.False(t, throttler.IsAllowed(testOperation), "Recevied an empty response, should not be allowed")
+			handler.setReturnEmptyResp(false)
+			logger.Flush()
+
 			assert.True(t, throttler.IsAllowed(testOperation))
 			assert.True(t, throttler.IsAllowed(testOperation))
 			assert.False(t, throttler.IsAllowed(testOperation))
+
+			handler.setReturnError(true)
+			logger.Flush()
+			throttler.refreshCredits()
+			assert.Equal(t, "ERROR: Failed to fetch credits: Failed to receive credits from agent: StatusCode: 500, Body: \n", logger.String())
 		})
 }
 
