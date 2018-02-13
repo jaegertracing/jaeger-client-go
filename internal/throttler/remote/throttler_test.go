@@ -83,20 +83,20 @@ func TestCreditManager(t *testing.T) {
 			handler *creditHandler,
 			server *httptest.Server,
 		) {
-			logger := &log.BytesBufferLogger{}
-			creditManager := newHTTPCreditManagerProxy(getHostPort(t, server.URL), logger)
-			credits := creditManager.FetchCredits("uuid", "svc", []string{"op1", "op2"})
+			creditManager := newHTTPCreditManagerProxy(getHostPort(t, server.URL))
+			credits, err := creditManager.FetchCredits("uuid", "svc", []string{"op1", "op2"})
+			assert.NoError(t, err)
 			require.Len(t, credits, 2)
 			assert.EqualValues(t, 2, credits[0].Credits)
 
-			credits = creditManager.FetchCredits("uuid", "svc", []string{"op1"})
+			credits, err = creditManager.FetchCredits("uuid", "svc", []string{"op1"})
+			assert.NoError(t, err)
 			require.Len(t, credits, 1)
 			assert.EqualValues(t, 0, credits[0].Credits)
 
 			handler.setReturnError(true)
-			credits = creditManager.FetchCredits("uuid", "svc", []string{"op1"})
-			assert.Empty(t, credits)
-			assert.Equal(t, "ERROR: Failed to receive credits from agent: StatusCode: 500, Body: \n", logger.String())
+			credits, err = creditManager.FetchCredits("uuid", "svc", []string{"op1"})
+			assert.EqualError(t, err, "Failed to receive credits from agent: StatusCode: 500, Body: ")
 		})
 }
 
@@ -108,7 +108,7 @@ func TestRemoteThrottler_UUIDNotSet(t *testing.T) {
 			server *httptest.Server,
 		) {
 			logger := &log.BytesBufferLogger{}
-			creditManager := newHTTPCreditManagerProxy(getHostPort(t, server.URL), jaeger.NullLogger)
+			creditManager := newHTTPCreditManagerProxy(getHostPort(t, server.URL))
 			throttler := &Throttler{
 				creditManager: creditManager,
 				service:       "svc",
@@ -116,11 +116,11 @@ func TestRemoteThrottler_UUIDNotSet(t *testing.T) {
 				options:       options{logger: logger, synchronousInitialization: true},
 			}
 			assert.False(t, throttler.IsAllowed(testOperation))
-			assert.Equal(t, "ERROR: Throttler uuid is not set, failed to fetch credits\n", logger.String())
+			assert.Equal(t, "ERROR: Failed to fetch credits: Throttler uuid must be set\n", logger.String())
 			logger.Flush()
 			throttler.SetProcess(jaeger.Process{UUID: ""})
 			assert.False(t, throttler.IsAllowed(testOperation))
-			assert.Equal(t, "ERROR: Throttler uuid is not set, failed to fetch credits\n", logger.String())
+			assert.Equal(t, "ERROR: Failed to fetch credits: Throttler uuid must be set\n", logger.String())
 			throttler.SetProcess(jaeger.Process{UUID: "uuid"})
 			assert.True(t, throttler.IsAllowed(testOperation))
 			assert.True(t, throttler.IsAllowed(testOperation))

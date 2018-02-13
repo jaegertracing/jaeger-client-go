@@ -1,7 +1,7 @@
 package: github.com/uber/jaeger-client-go
 import:
 - package: github.com/apache/thrift
-  version: ">=0.9.3, <0.11.0"
+  version: '>=0.9.3, <0.11.0'
   subpackages:
   - lib/go/thrift
 - package: github.com/opentracing/opentracing-go
@@ -32,6 +32,8 @@ import:
   version: ^1.2.1
   subpackages:
   - metrics
+- package: github.com/pkg/errors
+  version: ~0.8.0
 testImport:
 - package: github.com/prometheus/client_golang
   version: v0.8.0

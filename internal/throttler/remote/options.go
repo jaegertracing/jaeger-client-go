@@ -69,7 +69,9 @@ func (options) RefreshInterval(refreshInterval time.Duration) Option {
 }
 
 // SynchronousInitialization creates an Option that determines whether the throttler should synchronously
-// fetch credits from the agent when an operation is seen for the first time.
+// fetch credits from the agent when an operation is seen for the first time. This should be set to true
+// if the client will be used by a short lived service that needs to ensure that credits are fetched upfront
+// such that sampling or throttling occurs.
 func (options) SynchronousInitialization(b bool) Option {
 	return func(o *options) {
 		o.synchronousInitialization = b

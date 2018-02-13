@@ -21,6 +21,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/utils"
 )
@@ -31,6 +33,10 @@ const (
 	minimumCredits = 1.0
 )
 
+var (
+	errorUUIDNotSet = errors.New("Throttler uuid must be set")
+)
+
 type creditResponse struct {
 	Operation string  `json:"operation"`
 	Credits   float64 `json:"credits"`
@@ -38,17 +44,15 @@ type creditResponse struct {
 
 type httpCreditManagerProxy struct {
 	hostPort string
-	logger   jaeger.Logger
 }
 
-func newHTTPCreditManagerProxy(hostPort string, logger jaeger.Logger) *httpCreditManagerProxy {
+func newHTTPCreditManagerProxy(hostPort string) *httpCreditManagerProxy {
 	return &httpCreditManagerProxy{
 		hostPort: hostPort,
-		logger:   logger,
 	}
 }
 
-func (m *httpCreditManagerProxy) FetchCredits(uuid, serviceName string, operation []string) []creditResponse {
+func (m *httpCreditManagerProxy) FetchCredits(uuid, serviceName string, operation []string) ([]creditResponse, error) {
 	params := url.Values{}
 	params.Set("service", serviceName)
 	params.Set("uuid", uuid)
@@ -57,9 +61,9 @@ func (m *httpCreditManagerProxy) FetchCredits(uuid, serviceName string, operatio
 	}
 	var resp []creditResponse
 	if err := utils.GetJSON(fmt.Sprintf("http://%s/credits?%s", m.hostPort, params.Encode()), &resp); err != nil {
-		m.logger.Error("Failed to receive credits from agent: " + err.Error())
+		return nil, errors.Wrap(err, "Failed to receive credits from agent")
 	}
-	return resp
+	return resp, nil
 }
 
 // Throttler retrieves credits from agent and uses it to throttle operations.
@@ -81,7 +85,7 @@ func NewThrottler(service string, options ...Option) *Throttler {
 	// TODO add metrics
 	// TODO set a limit on the max number of credits
 	opts := applyOptions(options...)
-	creditManager := newHTTPCreditManagerProxy(opts.hostPort, opts.logger)
+	creditManager := newHTTPCreditManagerProxy(opts.hostPort)
 	t := &Throttler{
 		options:       opts,
 		creditManager: creditManager,
@@ -106,9 +110,14 @@ func (t *Throttler) IsAllowed(operation string) bool {
 		}
 		// If it is the first time this operation is being checked, synchronously fetch
 		// the credits.
-		credits := t.fetchCredits([]string{operation})
-		if len(credits) == 0 {
+		credits, err := t.fetchCredits([]string{operation})
+		if err != nil {
 			// Failed to receive credits from agent, try again next time
+			t.logger.Error("Failed to fetch credits: " + err.Error())
+			return false
+		}
+		if len(credits) == 0 {
+			// This shouldn't happen but just in case
 			return false
 		}
 		t.credits[operation] = credits[0].Credits
@@ -160,7 +169,11 @@ func (t *Throttler) refreshCredits() {
 		operations = append(operations, op)
 	}
 	t.mux.RUnlock()
-	newCredits := t.fetchCredits(operations)
+	newCredits, err := t.fetchCredits(operations)
+	if err != nil {
+		t.logger.Error("Failed to fetch credits: " + err.Error())
+		return
+	}
 
 	t.mux.Lock()
 	defer t.mux.Unlock()
@@ -169,12 +182,11 @@ func (t *Throttler) refreshCredits() {
 	}
 }
 
-func (t *Throttler) fetchCredits(operations []string) []creditResponse {
+func (t *Throttler) fetchCredits(operations []string) ([]creditResponse, error) {
 	uuid := t.uuid.Load()
 	uuidStr, _ := uuid.(string)
 	if uuid == nil || uuidStr == "" {
-		t.logger.Error("Throttler uuid is not set, failed to fetch credits")
-		return nil
+		return nil, errorUUIDNotSet
 	}
 	return t.creditManager.FetchCredits(uuidStr, t.service, operations)
 }
