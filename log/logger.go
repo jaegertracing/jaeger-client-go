@@ -81,3 +81,10 @@ func (l *BytesBufferLogger) String() string {
 	defer l.mux.Unlock()
 	return l.buf.String()
 }
+
+// Flush empties the underlying buffer.
+func (l *BytesBufferLogger) Flush() {
+	l.mux.Lock()
+	defer l.mux.Unlock()
+	l.buf.Reset()
+}

@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Uber Technologies, Inc.
+// Copyright (c) 2018 The Jaeger Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,21 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package log
+package jaeger
 
-import (
-	"testing"
+// Process holds process specific metadata that's relevant to this client.
+type Process struct {
+	Service string
+	UUID    string
+	Tags    []Tag
+}
 
-	"github.com/stretchr/testify/assert"
-)
-
-func TestLogger(t *testing.T) {
-	bbLogger := &BytesBufferLogger{}
-	for _, logger := range []Logger{StdLogger, NullLogger, bbLogger} {
-		logger.Infof("Hi %s", "there")
-		logger.Error("Bad wolf")
-	}
-	assert.Equal(t, "INFO: Hi there\nERROR: Bad wolf\n", bbLogger.String())
-	bbLogger.Flush()
-	assert.Empty(t, bbLogger.String())
+// ProcessSetter sets a process. This can be used by any class that requires
+// the process to be set as part of initialization.
+// See internal/throttler/remote/throttler.go for an example.
+type ProcessSetter interface {
+	SetProcess(process Process)
 }
