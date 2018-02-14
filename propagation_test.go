@@ -239,24 +239,21 @@ func TestDebugCorrelationID(t *testing.T) {
 	defer closer.Close()
 
 	h := http.Header{}
-	h.Add(JaegerDebugHeader, "value1")
+	val := "value1"
+	h.Add(JaegerDebugHeader, val)
 	ctx, err := tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(h))
 	require.NoError(t, err)
 	assert.EqualValues(t, 0, ctx.(SpanContext).parentID)
-	assert.EqualValues(t, "value1", ctx.(SpanContext).debugID)
+	assert.EqualValues(t, val, ctx.(SpanContext).debugID)
 	sp := tracer.StartSpan("root", opentracing.ChildOf(ctx)).(*Span)
 	assert.EqualValues(t, 0, sp.context.parentID)
 	assert.True(t, sp.context.traceID.IsValid())
 	assert.True(t, sp.context.IsSampled())
 	assert.True(t, sp.context.IsDebug())
-	tagFound := false
-	for _, tag := range sp.tags {
-		if tag.key == JaegerDebugHeader {
-			assert.Equal(t, "value1", tag.value)
-			tagFound = true
-		}
-	}
-	assert.True(t, tagFound)
+
+	tag := findDomainTag(sp, JaegerDebugHeader)
+	assert.NotNil(t, tag)
+	assert.Equal(t, val, tag.value)
 
 	// ensure that traces.started counter is incremented, not traces.joined
 	testutils.AssertCounterMetrics(t, metricsFactory,

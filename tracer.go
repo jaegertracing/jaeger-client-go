@@ -235,7 +235,7 @@ func (t *Tracer) startSpanWithOptions(
 		ctx.spanID = SpanID(ctx.traceID.Low)
 		ctx.parentID = 0
 		ctx.flags = byte(0)
-		if hasParent && parent.isDebugIDContainerOnly() {
+		if hasParent && parent.isDebugIDContainerOnly() && t.isDebugAllowed(operationName) {
 			ctx.flags |= (flagSampled | flagDebug)
 			samplerTags = []Tag{{key: JaegerDebugHeader, value: parent.debugID}}
 		} else if sampled, tags := t.sampler.IsSampled(ctx.traceID, operationName); sampled {
@@ -359,7 +359,7 @@ func (t *Tracer) startSpanInternal(
 		copy(sp.tags, internalTags)
 		for k, v := range tags {
 			sp.observer.OnSetTag(k, v)
-			if k == string(ext.SamplingPriority) && setSamplingPriority(sp, v) {
+			if k == string(ext.SamplingPriority) && !setSamplingPriority(sp, v) {
 				continue
 			}
 			sp.setTagNoLocking(k, v)
@@ -411,4 +411,9 @@ func (t *Tracer) randomID() uint64 {
 // (NB) span must hold the lock before making this call
 func (t *Tracer) setBaggage(sp *Span, key, value string) {
 	t.baggageSetter.setBaggage(sp, key, value)
+}
+
+// (NB) span must hold the lock before making this call
+func (t *Tracer) isDebugAllowed(operation string) bool {
+	return t.debugThrottler.IsAllowed(operation)
 }
