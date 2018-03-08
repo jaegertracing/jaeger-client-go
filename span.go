@@ -80,7 +80,7 @@ func (s *Span) SetOperationName(operationName string) opentracing.Span {
 // SetTag implements SetTag() of opentracing.Span
 func (s *Span) SetTag(key string, value interface{}) opentracing.Span {
 	s.observer.OnSetTag(key, value)
-	if key == string(ext.SamplingPriority) && setSamplingPriority(s, value) {
+	if key == string(ext.SamplingPriority) && !setSamplingPriority(s, value) {
 		return s
 	}
 	s.Lock()
@@ -227,15 +227,20 @@ func (s *Span) serviceName() string {
 	return s.tracer.serviceName
 }
 
+// setSamplingPriority returns true if the flag was updated successfully, false otherwise.
 func setSamplingPriority(s *Span, value interface{}) bool {
 	s.Lock()
 	defer s.Unlock()
-	if val, ok := value.(uint16); ok {
-		if val > 0 {
-			s.context.flags = s.context.flags | flagDebug | flagSampled
-		} else {
-			s.context.flags = s.context.flags & (^flagSampled)
-		}
+	val, ok := value.(uint16)
+	if !ok {
+		return false
+	}
+	if val == 0 {
+		s.context.flags = s.context.flags & (^flagSampled)
+		return true
+	}
+	if s.tracer.isDebugAllowed(s.operationName) {
+		s.context.flags = s.context.flags | flagDebug | flagSampled
 		return true
 	}
 	return false
