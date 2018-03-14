@@ -1,10 +1,12 @@
 Changes by Version
 ==================
 
-2.11.3 (unreleased)
+2.12.0 (2018-03-14)
 -------------------
 
 - Nothing yet.
+- Use lock when retrieving span.Context() (#268)
+- Add Configuration support for custom Injector and Extractor (#263) <Martin Liu>
 
 
 2.11.2 (2018-01-12)
