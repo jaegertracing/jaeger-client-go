@@ -212,7 +212,8 @@ func TestParseCommaSeparatedMap(t *testing.T) {
 		out map[string]string
 	}{
 		{"hobbit=Bilbo Baggins", map[string]string{"hobbit": "Bilbo Baggins"}},
-		{"hobbit=Bilbo Baggins, dwarf= Thrain", map[string]string{"hobbit": "Bilbo Baggins", "dwarf": " Thrain"}},
+		{"hobbit=Bilbo Baggins, dwarf= Thrain", map[string]string{"hobbit": "Bilbo Baggins", "dwarf": "Thrain"}},
+		{"hobbit = Bilbo Baggins , dwarf = Thrain ", map[string]string{"hobbit": "Bilbo Baggins", "dwarf": "Thrain"}},
 		{"kevin spacey=actor", map[string]string{"kevin spacey": "actor"}},
 		{"kevin%20spacey=se7en%3Aactor", map[string]string{"kevin spacey": "se7en:actor"}},
 		{"key1=, key2=", map[string]string{"key1": "", "key2": ""}},
