@@ -206,7 +206,7 @@ func TestJaegerBaggageHeader(t *testing.T) {
 	)
 }
 
-func TestParseCommaSeperatedMap(t *testing.T) {
+func TestParseCommaSeparatedMap(t *testing.T) {
 	var testcases = []struct {
 		in  string
 		out map[string]string
