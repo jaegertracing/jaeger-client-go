@@ -28,16 +28,19 @@ import (
 func TestApplyOptions(t *testing.T) {
 	metricsFactory := metrics.NewLocalFactory(0)
 	observer := fakeObserver{}
+	sampler := &fakeSampler{}
 	contribObserver := fakeContribObserver{}
 	opts := applyOptions(
 		Metrics(metricsFactory),
 		Logger(jaeger.StdLogger),
 		Observer(observer),
+		Sampler(sampler),
 		ContribObserver(contribObserver),
 		Gen128Bit(true),
 		ZipkinSharedRPCSpan(true),
 	)
 	assert.Equal(t, jaeger.StdLogger, opts.logger)
+	assert.Equal(t, sampler, opts.sampler)
 	assert.Equal(t, metricsFactory, opts.metrics)
 	assert.Equal(t, []jaeger.Observer{observer}, opts.observers)
 	assert.Equal(t, []jaeger.ContribObserver{contribObserver}, opts.contribObservers)
@@ -57,6 +60,24 @@ func TestApplyOptionsDefaults(t *testing.T) {
 	opts := applyOptions()
 	assert.Equal(t, jaeger.NullLogger, opts.logger)
 	assert.Equal(t, metrics.NullFactory, opts.metrics)
+}
+
+type fakeSampler struct {
+	lastTraceID   jaeger.TraceID
+	lastOperation string
+}
+
+func (s *fakeSampler) IsSampled(id jaeger.TraceID, operation string) (sampled bool, tags []jaeger.Tag) {
+	s.lastTraceID = id
+	s.lastOperation = operation
+
+	return true, []jaeger.Tag{}
+}
+
+func (s *fakeSampler) Close() {}
+
+func (s *fakeSampler) Equal(other jaeger.Sampler) bool {
+	return false
 }
 
 type fakeObserver struct{}

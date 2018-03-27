@@ -286,3 +286,19 @@ func TestConfigWithExtractor(t *testing.T) {
 	_, err = tracer.Extract("custom.format", nil)
 	require.NoError(t, err)
 }
+
+func TestConfigWithSampler(t *testing.T) {
+	c := Configuration{}
+	sampler := &fakeSampler{}
+
+	tracer, closer, err := c.New("test", Sampler(sampler))
+	require.NoError(t, err)
+	defer closer.Close()
+
+	span := tracer.StartSpan("test")
+	defer span.Finish()
+
+	traceID := span.Context().(jaeger.SpanContext).TraceID()
+	require.Equal(t, traceID, sampler.lastTraceID)
+	require.Equal(t, "test", sampler.lastOperation)
+}

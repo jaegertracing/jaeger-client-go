@@ -141,9 +141,13 @@ func (c Configuration) New(
 		c.Reporter = &ReporterConfig{}
 	}
 
-	sampler, err := c.Sampler.NewSampler(serviceName, tracerMetrics)
-	if err != nil {
-		return nil, nil, err
+	sampler := opts.sampler
+	if sampler == nil {
+		s, err := c.Sampler.NewSampler(serviceName, tracerMetrics)
+		if err != nil {
+			return nil, nil, err
+		}
+		sampler = s
 	}
 
 	reporter := opts.reporter
