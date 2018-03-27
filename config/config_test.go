@@ -15,6 +15,8 @@
 package config
 
 import (
+	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -68,6 +70,155 @@ func TestDefaultSampler(t *testing.T) {
 	}
 	_, _, err := cfg.New("testService")
 	require.Error(t, err)
+}
+
+func TestServiceNameFromEnv(t *testing.T) {
+	os.Setenv(envServiceName, "my-service")
+
+	cfg, err := FromEnv()
+	assert.NoError(t, err)
+
+	_, c, err := cfg.New("")
+	defer c.Close()
+	assert.NoError(t, err)
+	os.Unsetenv(envServiceName)
+}
+
+func TestFromEnv(t *testing.T) {
+	os.Setenv(envServiceName, "my-service")
+	os.Setenv(envDisabled, "false")
+	os.Setenv(envRPCMetrics, "true")
+	os.Setenv(envTags, "KEY=VALUE")
+
+	cfg, err := FromEnv()
+	assert.NoError(t, err)
+	assert.Equal(t, "my-service", cfg.ServiceName)
+	assert.Equal(t, false, cfg.Disabled)
+	assert.Equal(t, true, cfg.RPCMetrics)
+	assert.Equal(t, "KEY", cfg.Tags[0].Key)
+	assert.Equal(t, "VALUE", cfg.Tags[0].Value)
+
+	os.Unsetenv(envServiceName)
+	os.Unsetenv(envDisabled)
+	os.Unsetenv(envRPCMetrics)
+}
+
+func TestNoServiceNameFromEnv(t *testing.T) {
+	os.Unsetenv(envServiceName)
+
+	cfg, err := FromEnv()
+	assert.NoError(t, err)
+
+	_, _, err = cfg.New("")
+	assert.Error(t, err)
+}
+
+func TestSamplerConfigFromEnv(t *testing.T) {
+	// prepare
+	os.Setenv(envSamplerType, "const")
+	os.Setenv(envSamplerParam, "1")
+	os.Setenv(envSamplerManagerHostPort, "http://themaster")
+	os.Setenv(envSamplerMaxOperations, "10")
+	os.Setenv(envSamplerRefreshInterval, "1m1s") // 61 seconds
+
+	// test
+	cfg, err := FromEnv()
+	assert.NoError(t, err)
+
+	// verify
+	assert.Equal(t, "const", cfg.Sampler.Type)
+	assert.Equal(t, float64(1), cfg.Sampler.Param)
+	assert.Equal(t, "http://themaster", cfg.Sampler.SamplingServerURL)
+	assert.Equal(t, int(10), cfg.Sampler.MaxOperations)
+	assert.Equal(t, 61000000000, int(cfg.Sampler.SamplingRefreshInterval))
+
+	// cleanup
+	os.Unsetenv(envSamplerType)
+	os.Unsetenv(envSamplerParam)
+	os.Unsetenv(envSamplerManagerHostPort)
+	os.Unsetenv(envSamplerMaxOperations)
+	os.Unsetenv(envSamplerRefreshInterval)
+}
+
+func TestReporterConfigFromEnv(t *testing.T) {
+	// prepare
+	os.Setenv(envReporterMaxQueueSize, "10")
+	os.Setenv(envReporterFlushInterval, "1m1s") // 61 seconds
+	os.Setenv(envReporterLogSpans, "true")
+	os.Setenv(envAgentHost, "nonlocalhost")
+	os.Setenv(envAgentPort, "6832")
+
+	// test
+	cfg, err := FromEnv()
+	assert.NoError(t, err)
+
+	// verify
+	assert.Equal(t, int(10), cfg.Reporter.QueueSize)
+	assert.Equal(t, 61000000000, int(cfg.Reporter.BufferFlushInterval))
+	assert.Equal(t, true, cfg.Reporter.LogSpans)
+	assert.Equal(t, "nonlocalhost:6832", cfg.Reporter.LocalAgentHostPort)
+
+	// cleanup
+	os.Unsetenv(envReporterMaxQueueSize)
+	os.Unsetenv(envReporterFlushInterval)
+	os.Unsetenv(envReporterLogSpans)
+	os.Unsetenv(envAgentHost)
+	os.Unsetenv(envAgentPort)
+}
+
+func TestParsingErrorsFromEnv(t *testing.T) {
+	os.Setenv(envAgentHost, "localhost") // we require this in order to test the parsing of the port
+
+	tests := []struct {
+		envVar string
+		value  string
+	}{
+		{
+			envVar: envRPCMetrics,
+			value:  "NOT_A_BOOLEAN",
+		},
+		{
+			envVar: envDisabled,
+			value:  "NOT_A_BOOLEAN",
+		},
+		{
+			envVar: envSamplerParam,
+			value:  "NOT_A_FLOAT",
+		},
+		{
+			envVar: envSamplerMaxOperations,
+			value:  "NOT_AN_INT",
+		},
+		{
+			envVar: envSamplerRefreshInterval,
+			value:  "NOT_A_DURATION",
+		},
+		{
+			envVar: envReporterMaxQueueSize,
+			value:  "NOT_AN_INT",
+		},
+		{
+			envVar: envReporterFlushInterval,
+			value:  "NOT_A_DURATION",
+		},
+		{
+			envVar: envReporterLogSpans,
+			value:  "NOT_A_BOOLEAN",
+		},
+		{
+			envVar: envAgentPort,
+			value:  "NOT_AN_INT",
+		},
+	}
+
+	for _, test := range tests {
+		os.Setenv(test.envVar, test.value)
+		_, err := FromEnv()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), fmt.Sprintf("cannot parse env var %s=%s", test.envVar, test.value))
+		os.Unsetenv(test.envVar)
+	}
+
 }
 
 func TestInvalidSamplerType(t *testing.T) {
@@ -301,4 +452,46 @@ func TestConfigWithSampler(t *testing.T) {
 	traceID := span.Context().(jaeger.SpanContext).TraceID()
 	require.Equal(t, traceID, sampler.lastTraceID)
 	require.Equal(t, "test", sampler.lastOperation)
+}
+
+func TestNewTracer(t *testing.T) {
+	cfg := &Configuration{ServiceName: "my-service"}
+	_, closer, err := cfg.NewTracer(Metrics(metrics.NullFactory), Logger(log.NullLogger))
+	defer closer.Close()
+
+	assert.NoError(t, err)
+}
+
+func TestNewTracerWithoutServiceName(t *testing.T) {
+	cfg := &Configuration{}
+	_, _, err := cfg.NewTracer(Metrics(metrics.NullFactory), Logger(log.NullLogger))
+	assert.Contains(t, err.Error(), "no service name provided")
+}
+
+func TestParseTags(t *testing.T) {
+	os.Setenv("existing", "not-default")
+	tags := "key=value,k1=${nonExisting:default}, k2=${withSpace:default},k3=${existing:default}"
+	ts := parseTags(tags)
+	assert.Equal(t, 4, len(ts))
+
+	assert.Equal(t, "key", ts[0].Key)
+	assert.Equal(t, "value", ts[0].Value)
+
+	assert.Equal(t, "k1", ts[1].Key)
+	assert.Equal(t, "default", ts[1].Value)
+
+	assert.Equal(t, "k2", ts[2].Key)
+	assert.Equal(t, "default", ts[2].Value)
+
+	assert.Equal(t, "k3", ts[3].Key)
+	assert.Equal(t, "not-default", ts[3].Value)
+
+	os.Unsetenv("existing")
+}
+
+func TestServiceNameViaConfiguration(t *testing.T) {
+	cfg := &Configuration{ServiceName: "my-service"}
+	_, closer, err := cfg.New("")
+	assert.NoError(t, err)
+	defer closer.Close()
 }

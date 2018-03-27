@@ -73,4 +73,10 @@ const (
 	// SamplerTypeLowerBound is the type of sampler that samples
 	// at least a fixed number of traces per second.
 	SamplerTypeLowerBound = "lowerbound"
+
+	// DefaultUDPSpanServerHost is the default host to send the spans to, via UDP
+	DefaultUDPSpanServerHost = "localhost"
+
+	// DefaultUDPSpanServerPort is the default port to send the spans to, via UDP
+	DefaultUDPSpanServerPort = 6831
 )
