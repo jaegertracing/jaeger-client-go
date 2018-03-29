@@ -983,7 +983,7 @@ func (p *Span) readField11(iprot thrift.TProtocol) error {
 
 func (p *Span) readField12(iprot thrift.TProtocol) error {
 	if v, err := iprot.ReadI64(); err != nil {
-		return thrift.PrependError("error reading field 1: ", err)
+		return thrift.PrependError("error reading field 12: ", err)
 	} else {
 		p.TraceIDHigh = &v
 	}
@@ -1178,8 +1178,8 @@ func (p *Span) writeField12(oprot thrift.TProtocol) (err error) {
 	if err := oprot.WriteFieldBegin("trace_id_high", thrift.I64, 12); err != nil {
 		return thrift.PrependError(fmt.Sprintf("%T write field begin error 1:trace_id: ", p), err)
 	}
-	if err := oprot.WriteI64(int64(p.TraceID)); err != nil {
-		return thrift.PrependError(fmt.Sprintf("%T.trace_id_high (1) field write error: ", p), err)
+	if err := oprot.WriteI64(int64(p.TraceIDHigh)); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T.trace_id_high (12) field write error: ", p), err)
 	}
 	if err := oprot.WriteFieldEnd(); err != nil {
 		return thrift.PrependError(fmt.Sprintf("%T write field end error 12:trace_id_high: ", p), err)
