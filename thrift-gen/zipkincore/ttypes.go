@@ -1178,7 +1178,7 @@ func (p *Span) writeField12(oprot thrift.TProtocol) (err error) {
 	if err := oprot.WriteFieldBegin("trace_id_high", thrift.I64, 12); err != nil {
 		return thrift.PrependError(fmt.Sprintf("%T write field begin error 1:trace_id: ", p), err)
 	}
-	if err := oprot.WriteI64(int64(p.TraceIDHigh)); err != nil {
+	if err := oprot.WriteI64(int64(*p.TraceIDHigh)); err != nil {
 		return thrift.PrependError(fmt.Sprintf("%T.trace_id_high (12) field write error: ", p), err)
 	}
 	if err := oprot.WriteFieldEnd(); err != nil {
