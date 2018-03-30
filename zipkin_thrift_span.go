@@ -46,6 +46,11 @@ var specialTagHandlers = map[string]func(*zipkinSpan, interface{}){
 func BuildZipkinThrift(s *Span) *z.Span {
 	span := &zipkinSpan{Span: s}
 	span.handleSpecialTags()
+	traceIDHigh := int64(span.context.traceID.High)
+	var ptrTraceIDHigh *int64
+	if traceIDHigh != 0 {
+		ptrTraceIDHigh = &traceIDHigh
+	}
 	parentID := int64(span.context.parentID)
 	var ptrParentID *int64
 	if parentID != 0 {
@@ -57,7 +62,8 @@ func BuildZipkinThrift(s *Span) *z.Span {
 		ServiceName: span.tracer.serviceName,
 		Ipv4:        int32(span.tracer.hostIPv4)}
 	thriftSpan := &z.Span{
-		TraceID:           int64(span.context.traceID.Low), // TODO upgrade zipkin thrift and use TraceIdHigh
+		TraceID:           int64(span.context.traceID.Low),
+		TraceIDHigh:       ptrTraceIDHigh,
 		ID:                int64(span.context.spanID),
 		ParentID:          ptrParentID,
 		Name:              span.operationName,
