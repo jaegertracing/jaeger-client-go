@@ -334,6 +334,30 @@ func TestZipkinSharedRPCSpan(t *testing.T) {
 	tc.Close()
 }
 
+type testDebugThrottler struct {
+	process Process
+}
+
+func (t *testDebugThrottler) SetProcess(process Process) {
+	t.process = process
+}
+
+func (t *testDebugThrottler) Close() error {
+	return nil
+}
+
+func (t *testDebugThrottler) IsAllowed(operation string) bool {
+	return true
+}
+
+func TestDebugThrottler(t *testing.T) {
+	throttler := &testDebugThrottler{}
+	opentracingTracer, tc := NewTracer("x", NewConstSampler(true), NewNullReporter(), TracerOptions.DebugThrottler(throttler))
+	assert.NoError(t, tc.Close())
+	tracer := opentracingTracer.(*Tracer)
+	assert.Equal(t, tracer.process, throttler.process)
+}
+
 type dummyPropagator struct{}
 type dummyCarrier struct {
 	ok bool

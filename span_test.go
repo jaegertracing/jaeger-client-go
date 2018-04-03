@@ -15,6 +15,7 @@
 package jaeger
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/opentracing/opentracing-go"
@@ -87,4 +88,28 @@ func TestSpanOperationName(t *testing.T) {
 	sp1.Finish()
 
 	assert.Equal(t, "s2", sp1.OperationName())
+}
+
+func TestBaggageContextRace(t *testing.T) {
+	tracer, closer := NewTracer("DOOP", NewConstSampler(true), NewNullReporter())
+	defer closer.Close()
+
+	sp1 := tracer.StartSpan("s1").(*Span)
+
+	var startWg, endWg sync.WaitGroup
+	startWg.Add(1)
+	endWg.Add(2)
+
+	f := func() {
+		startWg.Wait()
+		sp1.SetBaggageItem("x", "y")
+		sp1.Context().ForeachBaggageItem(func(k, v string) bool { return false })
+		endWg.Done()
+	}
+
+	go f()
+	go f()
+
+	startWg.Done()
+	endWg.Wait()
 }
