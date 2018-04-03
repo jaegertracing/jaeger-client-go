@@ -332,11 +332,10 @@ func TestRemotelyControlledSampler(t *testing.T) {
 	assert.Equal(t, testProbabilisticExpectedTags, tags)
 
 	remoteSampler.sampler = initSampler
+
 	c := make(chan time.Time)
-	remoteSampler.Lock()
-	remoteSampler.timer = &time.Ticker{C: c}
-	remoteSampler.Unlock()
-	go remoteSampler.pollController()
+	ticker := &time.Ticker{C: c}
+	go remoteSampler.pollControllerWithTicker(ticker)
 
 	c <- time.Now() // force update based on timer
 	time.Sleep(10 * time.Millisecond)
@@ -499,7 +498,7 @@ func (c *fakeSamplingManager) GetSamplingStrategy(serviceName string) (*sampling
 func TestRemotelyControlledSampler_updateSamplerFromAdaptiveSampler(t *testing.T) {
 	agent, remoteSampler, metricsFactory := initAgent(t)
 	defer agent.Close()
-	remoteSampler.Close() // stop timer-based updates, we want to call them manually
+	remoteSampler.Close() // close the second time (initAgent already called Close)
 
 	strategies := &sampling.PerOperationSamplingStrategies{
 		DefaultSamplingProbability:       testDefaultSamplingProbability,
