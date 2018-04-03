@@ -495,6 +495,18 @@ func (s *RemotelyControlledSampler) pollControllerWithTicker(ticker *time.Ticker
 	}
 }
 
+func (s *RemotelyControlledSampler) getSampler() Sampler {
+	s.Lock()
+	defer s.Unlock()
+	return s.sampler
+}
+
+func (s *RemotelyControlledSampler) setSampler(sampler Sampler) {
+	s.Lock()
+	defer s.Unlock()
+	s.sampler = sampler
+}
+
 func (s *RemotelyControlledSampler) updateSampler() {
 	res, err := s.manager.GetSamplingStrategy(s.serviceName)
 	if err != nil {
