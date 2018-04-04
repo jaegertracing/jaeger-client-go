@@ -310,7 +310,7 @@ func TestRemotelyControlledSampler(t *testing.T) {
 	agent, remoteSampler, metricsFactory := initAgent(t)
 	defer agent.Close()
 
-	initSampler, ok := remoteSampler.sampler.(*ProbabilisticSampler)
+	initSampler, ok := remoteSampler.getSampler().(*ProbabilisticSampler)
 	assert.True(t, ok)
 
 	agent.AddSamplingStrategy("client app",
@@ -320,9 +320,9 @@ func TestRemotelyControlledSampler(t *testing.T) {
 		{Name: "jaeger.sampler_queries", Tags: map[string]string{"result": "ok"}, Value: 1},
 		{Name: "jaeger.sampler_updates", Tags: map[string]string{"result": "ok"}, Value: 1},
 	}...)
-	_, ok = remoteSampler.sampler.(*ProbabilisticSampler)
+	s1, ok := remoteSampler.getSampler().(*ProbabilisticSampler)
 	assert.True(t, ok)
-	assert.NotEqual(t, initSampler, remoteSampler.sampler, "Sampler should have been updated")
+	assert.NotEqual(t, initSampler, s1, "Sampler should have been updated")
 
 	sampled, tags := remoteSampler.IsSampled(TraceID{Low: testMaxID + 10}, testOperationName)
 	assert.False(t, sampled)
@@ -331,20 +331,19 @@ func TestRemotelyControlledSampler(t *testing.T) {
 	assert.True(t, sampled)
 	assert.Equal(t, testProbabilisticExpectedTags, tags)
 
-	remoteSampler.sampler = initSampler
+	remoteSampler.setSampler(initSampler)
+
 	c := make(chan time.Time)
-	remoteSampler.Lock()
-	remoteSampler.timer = &time.Ticker{C: c}
-	remoteSampler.Unlock()
-	go remoteSampler.pollController()
+	ticker := &time.Ticker{C: c}
+	go remoteSampler.pollControllerWithTicker(ticker)
 
 	c <- time.Now() // force update based on timer
 	time.Sleep(10 * time.Millisecond)
 	remoteSampler.Close()
 
-	_, ok = remoteSampler.sampler.(*ProbabilisticSampler)
+	s2, ok := remoteSampler.getSampler().(*ProbabilisticSampler)
 	assert.True(t, ok)
-	assert.NotEqual(t, initSampler, remoteSampler.sampler, "Sampler should have been updated from timer")
+	assert.NotEqual(t, initSampler, s2, "Sampler should have been updated from timer")
 
 	assert.True(t, remoteSampler.Equal(remoteSampler))
 }
@@ -499,7 +498,7 @@ func (c *fakeSamplingManager) GetSamplingStrategy(serviceName string) (*sampling
 func TestRemotelyControlledSampler_updateSamplerFromAdaptiveSampler(t *testing.T) {
 	agent, remoteSampler, metricsFactory := initAgent(t)
 	defer agent.Close()
-	remoteSampler.Close() // stop timer-based updates, we want to call them manually
+	remoteSampler.Close() // close the second time (initAgent already called Close)
 
 	strategies := &sampling.PerOperationSamplingStrategies{
 		DefaultSamplingProbability:       testDefaultSamplingProbability,
