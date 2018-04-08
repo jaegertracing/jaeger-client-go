@@ -131,6 +131,7 @@ func (*nullCloser) Close() error { return nil }
 
 // New creates a new Jaeger Tracer, and a closer func that can be used to flush buffers
 // before shutdown.
+//
 // Deprecated: use NewTracer() function
 func (c Configuration) New(
 	serviceName string,
@@ -145,7 +146,7 @@ func (c Configuration) New(
 
 // NewTracer returns a new tracer based on the current configuration, using the given options,
 // and a closer func that can be used to flush buffers before shutdown.
-func (c *Configuration) NewTracer(options ...Option) (opentracing.Tracer, io.Closer, error) {
+func (c Configuration) NewTracer(options ...Option) (opentracing.Tracer, io.Closer, error) {
 	if c.ServiceName == "" {
 		return nil, nil, errors.New("no service name provided")
 	}

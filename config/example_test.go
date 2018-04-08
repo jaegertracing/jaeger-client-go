@@ -85,11 +85,11 @@ func ExampleConfiguration_InitGlobalTracer_production() {
 	// continue main()
 }
 
-func ExampleConfiguration_EnvironmentVariables() {
+func ExampleFromEnv() {
 	cfg, err := jaegercfg.FromEnv()
 	if err != nil {
 		// parsing errors might happen here, such as when we get a string where we expect a number
-		log.Printf("Could not initialize jaeger tracer: %s", err.Error())
+		log.Printf("Could not parse Jaeger env vars: %s", err.Error())
 		return
 	}
 
@@ -104,13 +104,13 @@ func ExampleConfiguration_EnvironmentVariables() {
 	// continue main()
 }
 
-func ExampleConfiguration_Override_EnvironmentVariables() {
+func ExampleFromEnv_override() {
 	os.Setenv("JAEGER_SERVICE_NAME", "not-effective")
 
 	cfg, err := jaegercfg.FromEnv()
 	if err != nil {
 		// parsing errors might happen here, such as when we get a string where we expect a number
-		log.Printf("Could not initialize jaeger tracer: %s", err.Error())
+		log.Printf("Could not parse Jaeger env vars: %s", err.Error())
 		return
 	}
 
