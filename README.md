@@ -70,7 +70,7 @@ It is recommended to structure your `main()` so that it calls the `Close()` func
 before exiting, e.g.
 
 ```go
-tracer, closer, err := cfg.New(...)
+tracer, closer, err := cfg.NewTracer(...)
 defer closer.Close()
 ```
 
@@ -101,8 +101,9 @@ import (
 )
 
     metricsFactory := prometheus.New()
-    tracer, closer, err := new(config.Configuration).New(
-        "your-service-name",
+    tracer, closer, err := config.Configuration{
+        ServiceName: "your-service-name",
+    }.NewTracer(
         config.Metrics(metricsFactory),
     )
 ```
