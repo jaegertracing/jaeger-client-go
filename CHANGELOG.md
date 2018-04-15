@@ -1,6 +1,16 @@
 Changes by Version
 ==================
 
+2.13.0 (2018-04-15)
+-------------------
+
+- Use value receiver for config.NewTracer() (#283) <Yuri Shkuro>
+- Lock span during jaeger thrift conversion (#273) <Won Jun Jang>
+- Fix the RemotelyControlledSampler so that it terminates go-routine on Close() (#260) (11 days ago) <Scott Kidder> <Yuri Shkuro>
+- Added support for client configuration via env vars (#275) <Juraci Paixão Kröhling>
+- Allow overriding sampler in the Config (#270) <Mike Kabischev>
+
+
 2.12.0 (2018-03-14)
 -------------------
 
