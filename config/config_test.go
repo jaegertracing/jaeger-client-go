@@ -495,3 +495,19 @@ func TestServiceNameViaConfiguration(t *testing.T) {
 	assert.NoError(t, err)
 	defer closer.Close()
 }
+
+func TestTracerTags(t *testing.T) {
+	cfg := &Configuration{Tags: []opentracing.Tag{{Key: "test", Value: 123}}}
+	_, closer, err := cfg.New("test-service")
+	assert.NoError(t, err)
+	defer closer.Close()
+}
+
+func TestThrottlerDefaultConfig(t *testing.T) {
+	cfg := &Configuration{
+		Throttler: &ThrottlerConfig{},
+	}
+	_, closer, err := cfg.New("test-service")
+	assert.NoError(t, err)
+	defer closer.Close()
+}

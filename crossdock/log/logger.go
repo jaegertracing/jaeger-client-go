@@ -24,6 +24,6 @@ var Enabled bool
 // Printf delegates to log.Printf if Enabled == true
 func Printf(msg string, args ...interface{}) {
 	if Enabled {
-		real_log.Printf(msg, args)
+		real_log.Printf(msg, args...)
 	}
 }
