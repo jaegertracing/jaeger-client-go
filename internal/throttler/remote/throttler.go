@@ -108,6 +108,9 @@ func (t *Throttler) IsAllowed(operation string) bool {
 	value, ok := t.credits[operation]
 	if !ok || value == 0 {
 		if !ok {
+			// NOTE: This appears to be a no-op at first glance, but it stores
+			// the operation key in the map. Necessary for functionality of
+			// Throttler#operations method.
 			t.credits[operation] = 0
 		}
 		if !t.synchronousInitialization {

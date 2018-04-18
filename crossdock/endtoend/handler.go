@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Uber Technologies, Inc.
+// Copyright (c) 2017-2018 Uber Technologies, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -117,7 +117,7 @@ func (h *Handler) getTracer(samplerType string) opentracing.Tracer {
 	if !ok {
 		endToEndConfig.Sampler.Type = samplerType
 		if err := h.init(endToEndConfig); err != nil {
-			log.Printf("Failed to create tracer: %s\n", err.Error())
+			log.Printf("Failed to create tracer: %s", err.Error())
 			return nil
 		}
 		tracer, _ = h.tracers[samplerType]
