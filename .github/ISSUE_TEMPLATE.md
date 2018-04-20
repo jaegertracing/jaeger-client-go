@@ -7,6 +7,7 @@ Welcome to the Jaeger project! 👋🎉
 - If you only have a question, you may get a faster response by asking in
     - our chat room https://gitter.im/jaegertracing/Lobby, or
     - the forum https://groups.google.com/d/forum/jaeger-tracing
+    (but please don't double post)
 -->
 
 ## Requirement - what kind of business use case are you trying to solve?
