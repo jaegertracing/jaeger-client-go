@@ -29,6 +29,8 @@ import (
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/internal/throttler"
 	"github.com/uber/jaeger-client-go/log"
+	"github.com/uber/jaeger-lib/metrics"
+	"github.com/uber/jaeger-lib/metrics/testutils"
 )
 
 var _ throttler.Throttler = &Throttler{}
@@ -78,15 +80,20 @@ func (h *creditHandler) setReturnEmptyResp(b bool) {
 func withHTTPServer(
 	credits float64,
 	f func(
+		m *jaeger.Metrics,
+		factory *metrics.LocalFactory,
 		handler *creditHandler,
 		server *httptest.Server,
 	),
 ) {
+	factory := metrics.NewLocalFactory(0)
+	m := jaeger.NewMetrics(factory, nil)
+
 	handler := &creditHandler{returnError: false, credits: credits}
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	f(handler, server)
+	f(m, factory, handler, server)
 }
 
 func findOperation(resp creditResponse, operation string) *operationBalance {
@@ -102,6 +109,8 @@ func TestCreditManager(t *testing.T) {
 	withHTTPServer(
 		2,
 		func(
+			m *jaeger.Metrics,
+			factory *metrics.LocalFactory,
 			handler *creditHandler,
 			server *httptest.Server,
 		) {
@@ -129,6 +138,8 @@ func TestRemoteThrottler_fetchCreditsErrors(t *testing.T) {
 	withHTTPServer(
 		2,
 		func(
+			m *jaeger.Metrics,
+			factory *metrics.LocalFactory,
 			handler *creditHandler,
 			server *httptest.Server,
 		) {
@@ -138,7 +149,7 @@ func TestRemoteThrottler_fetchCreditsErrors(t *testing.T) {
 				creditManager: creditManager,
 				service:       "svc",
 				credits:       make(map[string]float64),
-				options:       options{logger: logger, synchronousInitialization: true, metrics: jaeger.NewNullMetrics()},
+				options:       options{logger: logger, synchronousInitialization: true, metrics: m},
 			}
 			assert.False(t, throttler.IsAllowed(testOperation))
 			assert.Equal(t, "ERROR: Failed to fetch credits: Throttler UUID must be set\n", logger.String())
@@ -162,6 +173,13 @@ func TestRemoteThrottler_fetchCreditsErrors(t *testing.T) {
 			logger.Flush()
 			throttler.refreshCredits()
 			assert.Equal(t, "ERROR: Failed to fetch credits: Failed to receive credits from agent: StatusCode: 500, Body: \n", logger.String())
+
+			testutils.AssertCounterMetrics(t, factory,
+				testutils.ExpectedMetric{
+					Name:  "jaeger.throttler_updates",
+					Tags:  map[string]string{"result": "err"},
+					Value: 1,
+				})
 		})
 }
 
@@ -169,6 +187,8 @@ func TestRemotelyControlledThrottler_pollManager(t *testing.T) {
 	withHTTPServer(
 		2,
 		func(
+			m *jaeger.Metrics,
+			factory *metrics.LocalFactory,
 			handler *creditHandler,
 			server *httptest.Server,
 		) {
@@ -177,6 +197,7 @@ func TestRemotelyControlledThrottler_pollManager(t *testing.T) {
 				Options.RefreshInterval(time.Millisecond),
 				Options.HostPort(getHostPort(t, server.URL)),
 				Options.SynchronousInitialization(true),
+				Options.Metrics(m),
 			)
 			defer throttler.Close()
 			throttler.refreshCredits()
@@ -185,6 +206,12 @@ func TestRemotelyControlledThrottler_pollManager(t *testing.T) {
 			loopUntilCreditsReady(throttler)
 			assert.True(t, throttler.IsAllowed(testOperation))
 			assert.False(t, throttler.IsAllowed(testOperation))
+
+			time.Sleep(throttler.refreshInterval * 2)
+			counters, _ := factory.Snapshot()
+			counter, ok := counters["jaeger.throttler_updates|result=ok"]
+			assert.True(t, ok)
+			assert.True(t, counter >= 1)
 		})
 }
 
@@ -192,6 +219,8 @@ func TestRemotelyControlledThrottler_asynchronousInitialization(t *testing.T) {
 	withHTTPServer(
 		2,
 		func(
+			m *jaeger.Metrics,
+			factory *metrics.LocalFactory,
 			handler *creditHandler,
 			server *httptest.Server,
 		) {
