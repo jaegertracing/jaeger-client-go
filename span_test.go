@@ -19,8 +19,11 @@ import (
 	"testing"
 
 	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/uber/jaeger-client-go/internal/throttler"
 )
 
 func TestBaggageIterator(t *testing.T) {
@@ -88,6 +91,36 @@ func TestSpanOperationName(t *testing.T) {
 	sp1.Finish()
 
 	assert.Equal(t, "s2", sp1.OperationName())
+}
+
+func TestSetTag_SamplingPriority(t *testing.T) {
+	tracer, closer := NewTracer("DOOP", NewConstSampler(true), NewNullReporter(),
+		TracerOptions.DebugThrottler(throttler.DefaultThrottler{}))
+
+	sp1 := tracer.StartSpan("s1").(*Span)
+	ext.SamplingPriority.Set(sp1, 0)
+	assert.False(t, sp1.context.IsDebug())
+
+	ext.SamplingPriority.Set(sp1, 1)
+	assert.True(t, sp1.context.IsDebug())
+	assert.NotNil(t, findDomainTag(sp1, "sampling.priority"), "sampling.priority tag should be added")
+	closer.Close()
+
+	tracer, closer = NewTracer("DOOP", NewConstSampler(true), NewNullReporter(),
+		TracerOptions.DebugThrottler(testThrottler{allowAll: false}))
+	defer closer.Close()
+
+	sp1 = tracer.StartSpan("s1").(*Span)
+	ext.SamplingPriority.Set(sp1, 1)
+	assert.False(t, sp1.context.IsDebug(), "debug should not be allowed by the throttler")
+}
+
+type testThrottler struct {
+	allowAll bool
+}
+
+func (t testThrottler) IsAllowed(operation string) bool {
+	return t.allowAll
 }
 
 func TestBaggageContextRace(t *testing.T) {

@@ -34,12 +34,16 @@ const (
 )
 
 var (
-	errorUUIDNotSet = errors.New("Throttler uuid must be set")
+	errorUUIDNotSet = errors.New("Throttler UUID must be set")
 )
 
-type creditResponse struct {
+type operationBalance struct {
 	Operation string  `json:"operation"`
-	Credits   float64 `json:"credits"`
+	Balance   float64 `json:"balance"`
+}
+
+type creditResponse struct {
+	Balances []operationBalance `json:"balances"`
 }
 
 type httpCreditManagerProxy struct {
@@ -52,18 +56,19 @@ func newHTTPCreditManagerProxy(hostPort string) *httpCreditManagerProxy {
 	}
 }
 
-func (m *httpCreditManagerProxy) FetchCredits(uuid, serviceName string, operation []string) ([]creditResponse, error) {
+// N.B. Operations list must not be empty.
+func (m *httpCreditManagerProxy) FetchCredits(uuid, serviceName string, operations []string) (*creditResponse, error) {
 	params := url.Values{}
 	params.Set("service", serviceName)
 	params.Set("uuid", uuid)
-	for _, op := range operation {
-		params.Add("operation", op)
+	for _, op := range operations {
+		params.Add("operations", op)
 	}
-	var resp []creditResponse
+	var resp creditResponse
 	if err := utils.GetJSON(fmt.Sprintf("http://%s/credits?%s", m.hostPort, params.Encode()), &resp); err != nil {
 		return nil, errors.Wrap(err, "Failed to receive credits from agent")
 	}
-	return resp, nil
+	return &resp, nil
 }
 
 // Throttler retrieves credits from agent and uses it to throttle operations.
@@ -82,8 +87,6 @@ type Throttler struct {
 // NewThrottler returns a Throttler that polls agent for credits and uses them to throttle
 // the service.
 func NewThrottler(service string, options ...Option) *Throttler {
-	// TODO add metrics
-	// TODO set a limit on the max number of credits
 	opts := applyOptions(options...)
 	creditManager := newHTTPCreditManagerProxy(opts.hostPort)
 	t := &Throttler{
@@ -102,10 +105,16 @@ func NewThrottler(service string, options ...Option) *Throttler {
 func (t *Throttler) IsAllowed(operation string) bool {
 	t.mux.Lock()
 	defer t.mux.Unlock()
-	_, ok := t.credits[operation]
-	if !ok {
-		if !t.synchronousInitialization {
+	value, ok := t.credits[operation]
+	if !ok || value == 0 {
+		if !ok {
+			// NOTE: This appears to be a no-op at first glance, but it stores
+			// the operation key in the map. Necessary for functionality of
+			// Throttler#operations method.
 			t.credits[operation] = 0
+		}
+		if !t.synchronousInitialization {
+			t.metrics.ThrottledDebugSpans.Inc(1)
 			return false
 		}
 		// If it is the first time this operation is being checked, synchronously fetch
@@ -116,11 +125,13 @@ func (t *Throttler) IsAllowed(operation string) bool {
 			t.logger.Error("Failed to fetch credits: " + err.Error())
 			return false
 		}
-		if len(credits) == 0 {
+		if len(credits.Balances) == 0 {
 			// This shouldn't happen but just in case
 			return false
 		}
-		t.credits[operation] = credits[0].Credits
+		for _, opBalance := range credits.Balances {
+			t.credits[opBalance.Operation] += opBalance.Balance
+		}
 	}
 	return t.isAllowed(operation)
 }
@@ -135,13 +146,16 @@ func (t *Throttler) Close() error {
 // SetProcess implements ProcessSetter#SetProcess. It's imperative that the UUID is set before any remote
 // requests are made.
 func (t *Throttler) SetProcess(process jaeger.Process) {
-	t.uuid.Store(process.UUID)
+	if process.UUID != "" {
+		t.uuid.Store(process.UUID)
+	}
 }
 
 // N.B. This function must be called with the Write Lock
 func (t *Throttler) isAllowed(operation string) bool {
 	credits := t.credits[operation]
 	if credits < minimumCredits {
+		t.metrics.ThrottledDebugSpans.Inc(1)
 		return false
 	}
 	t.credits[operation] = credits - minimumCredits
@@ -162,27 +176,37 @@ func (t *Throttler) pollManager() {
 	}
 }
 
-func (t *Throttler) refreshCredits() {
+func (t *Throttler) operations() []string {
 	t.mux.RLock()
+	defer t.mux.RUnlock()
 	operations := make([]string, 0, len(t.credits))
 	for op := range t.credits {
 		operations = append(operations, op)
 	}
-	t.mux.RUnlock()
+	return operations
+}
+
+func (t *Throttler) refreshCredits() {
+	operations := t.operations()
+	if len(operations) == 0 {
+		return
+	}
 	newCredits, err := t.fetchCredits(operations)
 	if err != nil {
+		t.metrics.ThrottlerUpdateFailure.Inc(1)
 		t.logger.Error("Failed to fetch credits: " + err.Error())
 		return
 	}
+	t.metrics.ThrottlerUpdateSuccess.Inc(1)
 
 	t.mux.Lock()
 	defer t.mux.Unlock()
-	for _, credit := range newCredits {
-		t.credits[credit.Operation] += credit.Credits
+	for _, opBalance := range newCredits.Balances {
+		t.credits[opBalance.Operation] += opBalance.Balance
 	}
 }
 
-func (t *Throttler) fetchCredits(operations []string) ([]creditResponse, error) {
+func (t *Throttler) fetchCredits(operations []string) (*creditResponse, error) {
 	uuid := t.uuid.Load()
 	uuidStr, _ := uuid.(string)
 	if uuid == nil || uuidStr == "" {

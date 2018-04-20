@@ -38,6 +38,9 @@ const (
 	// TracerIPTagKey used to report ip of the process.
 	TracerIPTagKey = "ip"
 
+	// TracerUUIDTagKey used to report UUID of the client process.
+	TracerUUIDTagKey = "client-uuid"
+
 	// SamplerTypeTagKey reports which sampler was used on the root span.
 	SamplerTypeTagKey = "sampler.type"
 

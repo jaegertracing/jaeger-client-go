@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Uber Technologies, Inc.
+// Copyright (c) 2017-2018 Uber Technologies, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/config"
@@ -29,9 +30,11 @@ import (
 	"github.com/uber/jaeger-client-go/crossdock/log"
 )
 
-var (
+const (
 	defaultSamplerType = jaeger.SamplerTypeRemote
+)
 
+var (
 	endToEndConfig = config.Configuration{
 		Disabled: false,
 		Sampler: &config.SamplerConfig{
@@ -41,6 +44,10 @@ var (
 		},
 		Reporter: &config.ReporterConfig{
 			BufferFlushInterval: time.Second,
+		},
+		Throttler: &config.ThrottlerConfig{
+			SynchronousInitialization: true,
+			HostPort:                  "agent:5778",
 		},
 	}
 )
@@ -138,7 +145,11 @@ func generateTraces(tracer opentracing.Tracer, r *traceRequest) {
 	for i := 0; i < r.Count; i++ {
 		span := tracer.StartSpan(r.Operation)
 		for k, v := range r.Tags {
-			span.SetTag(k, v)
+			if k == string(ext.SamplingPriority) && v == "1" {
+				span.SetTag(k, uint16(1))
+			} else {
+				span.SetTag(k, v)
+			}
 		}
 		span.Finish()
 	}

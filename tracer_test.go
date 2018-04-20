@@ -16,12 +16,14 @@ package jaeger
 
 import (
 	"io"
+	"net/http"
 	"testing"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"github.com/uber/jaeger-lib/metrics"
 	"github.com/uber/jaeger-lib/metrics/testutils"
@@ -356,6 +358,47 @@ func TestDebugThrottler(t *testing.T) {
 	assert.NoError(t, tc.Close())
 	tracer := opentracingTracer.(*Tracer)
 	assert.Equal(t, tracer.process, throttler.process)
+}
+
+func TestThrottling_SamplingPriority(t *testing.T) {
+	tracer, closer := NewTracer("DOOP", NewConstSampler(true), NewNullReporter())
+
+	sp1 := tracer.StartSpan("s1", opentracing.Tags{string(ext.SamplingPriority): 0}).(*Span)
+	assert.False(t, sp1.context.IsDebug())
+
+	sp1 = tracer.StartSpan("s1", opentracing.Tags{string(ext.SamplingPriority): uint16(1)}).(*Span)
+	assert.True(t, sp1.context.IsDebug())
+
+	assert.NotNil(t, findDomainTag(sp1, "sampling.priority"), "sampling.priority tag should be added")
+	closer.Close()
+
+	tracer, closer = NewTracer("DOOP", NewConstSampler(true), NewNullReporter(),
+		TracerOptions.DebugThrottler(testThrottler{allowAll: false}))
+	defer closer.Close()
+
+	sp1 = tracer.StartSpan("s1", opentracing.Tags{string(ext.SamplingPriority): uint16(1)}).(*Span)
+	ext.SamplingPriority.Set(sp1, 1)
+	assert.False(t, sp1.context.IsDebug(), "debug should not be allowed by the throttler")
+}
+
+func TestThrottling_DebugHeader(t *testing.T) {
+	tracer, closer := NewTracer("DOOP", NewConstSampler(true), NewNullReporter())
+
+	h := http.Header{}
+	h.Add(JaegerDebugHeader, "x")
+	ctx, err := tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(h))
+	require.NoError(t, err)
+
+	sp := tracer.StartSpan("root", opentracing.ChildOf(ctx)).(*Span)
+	assert.True(t, sp.context.IsDebug())
+	closer.Close()
+
+	tracer, closer = NewTracer("DOOP", NewConstSampler(true), NewNullReporter(),
+		TracerOptions.DebugThrottler(testThrottler{allowAll: false}))
+	defer closer.Close()
+
+	sp = tracer.StartSpan("root", opentracing.ChildOf(ctx)).(*Span)
+	assert.False(t, sp.context.IsDebug(), "debug should not be allowed by the throttler")
 }
 
 type dummyPropagator struct{}
