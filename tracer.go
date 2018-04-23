@@ -154,7 +154,7 @@ func NewTracer(
 	}
 	t.process = Process{
 		Service: serviceName,
-		UUID:    uuid.NewV4().String(),
+		UUID:    uuid.Must(uuid.NewV4()).String(),
 		Tags:    t.tags,
 	}
 	if throttler, ok := t.debugThrottler.(ProcessSetter); ok {
