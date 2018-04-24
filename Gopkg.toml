@@ -4,6 +4,7 @@
 
 [[constraint]]
   name = "github.com/crossdock/crossdock-go"
+  branch = "master"
 
 [[constraint]]
   name = "github.com/opentracing/opentracing-go"
@@ -19,6 +20,7 @@
 
 [[constraint]]
   name = "github.com/uber-go/atomic"
+  version = "^1"
 
 [[constraint]]
   name = "github.com/uber/jaeger-lib"
@@ -26,3 +28,4 @@
 
 [[constraint]]
   name = "go.uber.org/zap"
+  version = "^1"
