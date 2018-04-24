@@ -15,11 +15,11 @@
 package server
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
-	"golang.org/x/net/context"
 
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/crossdock/common"
@@ -68,8 +68,6 @@ func (s *Server) callDownstream(ctx context.Context, role string, downstream *tr
 	switch downstream.Transport {
 	case tracetest.Transport_HTTP:
 		return s.callDownstreamHTTP(ctx, downstream)
-	case tracetest.Transport_TCHANNEL:
-		return s.callDownstreamTChannel(ctx, downstream)
 	case tracetest.Transport_DUMMY:
 		return &tracetest.TraceResponse{NotImplementedError: "DUMMY transport not implemented"}, nil
 	default:

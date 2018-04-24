@@ -21,12 +21,6 @@ const (
 	// DefaultServerPortHTTP is the port where HTTP server runs
 	DefaultServerPortHTTP = "8081"
 
-	// DefaultServerPortTChannel is the port where TChannel server runs
-	DefaultServerPortTChannel = "8082"
-
-	// DefaultServiceName is the service name used by TChannel server
-	DefaultServiceName = "go"
-
 	// DefaultTracerServiceName is the service name used by the tracer
 	DefaultTracerServiceName = "crossdock-go"
 )

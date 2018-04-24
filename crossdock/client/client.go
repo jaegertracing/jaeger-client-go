@@ -27,11 +27,10 @@ import (
 
 // Client is a controller for the tests
 type Client struct {
-	ClientHostPort     string
-	ServerPortHTTP     string
-	ServerPortTChannel string
-	listener           net.Listener
-	hostMapper         func(service string) string
+	ClientHostPort string
+	ServerPortHTTP string
+	listener       net.Listener
+	hostMapper     func(service string) string
 }
 
 // Start begins a blocking Crossdock client
@@ -62,7 +61,6 @@ func (c *Client) AsyncStart() error {
 func (c *Client) Listen() error {
 	c.setDefaultPort(&c.ClientHostPort, ":"+common.DefaultClientPortHTTP)
 	c.setDefaultPort(&c.ServerPortHTTP, common.DefaultServerPortHTTP)
-	c.setDefaultPort(&c.ServerPortTChannel, common.DefaultServerPortTChannel)
 
 	behaviors := crossdock.Behaviors{
 		behaviorTrace: c.trace,

@@ -16,6 +16,7 @@ package common
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 
@@ -24,7 +25,6 @@ import (
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
-	"golang.org/x/net/context"
 )
 
 // PostJSON sends a POST request to `url` with body containing JSON-serialized `req`.

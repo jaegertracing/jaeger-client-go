@@ -1,5 +1,5 @@
-hash: e19cf8b4843ebcf9adacae8a60a74c916652bb73a9ef97720afffa3420d461e5
-updated: 2018-03-26T16:09:20.858856-04:00
+hash: 7182c63e90ce7ee8f470fcc1706ed641e6c6d9380174a40706cbeca646a1aab2
+updated: 2018-04-24T15:48:07.041049-04:00
 imports:
 - name: github.com/apache/thrift
   version: b2a4d4ae21c789b689dd162deb819665567f481c
@@ -67,29 +67,12 @@ imports:
   - assert
   - require
   - suite
-- name: github.com/uber-go/atomic
-  version: 8474b86a5a6f79c443ce4b2992817ff32cf208b8
-  subpackages:
-  - utils
 - name: github.com/uber/jaeger-lib
   version: 4267858c0679cd4e47cefed8d7f70fd386cfb567
   subpackages:
   - metrics
   - metrics/prometheus
   - metrics/testutils
-- name: github.com/uber/tchannel-go
-  version: acd4eb54c11531814d9cd0344fdc53bebe86ab12
-  subpackages:
-  - atomic
-  - internal/argreader
-  - relay
-  - thrift
-  - thrift/gen-go/meta
-  - tnet
-  - tos
-  - trace/thrift/gen-go/tcollector
-  - trand
-  - typed
 - name: go.uber.org/atomic
   version: 8474b86a5a6f79c443ce4b2992817ff32cf208b8
 - name: go.uber.org/multierr
@@ -105,11 +88,8 @@ imports:
 - name: golang.org/x/net
   version: 6078986fec03a1dcc236c34816c71b0e05018fda
   subpackages:
-  - bpf
   - context
   - context/ctxhttp
-  - internal/iana
-  - internal/socket
-  - ipv4
-  - ipv6
-testImports: []
+testImports:
+- name: github.com/uber-go/atomic
+  version: 8474b86a5a6f79c443ce4b2992817ff32cf208b8

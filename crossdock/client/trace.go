@@ -15,11 +15,11 @@
 package client
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	"github.com/crossdock/crossdock-go"
-	"golang.org/x/net/context"
 
 	"github.com/uber/jaeger-client-go/crossdock/common"
 	"github.com/uber/jaeger-client-go/crossdock/log"
@@ -144,8 +144,6 @@ func (c *Client) transport2port(v string) string {
 	switch v {
 	case transportHTTP:
 		return c.ServerPortHTTP
-	case transportTChannel:
-		return c.ServerPortTChannel
 	case transportDummy:
 		return "9999"
 	default:
@@ -157,8 +155,6 @@ func transport2transport(v string) tracetest.Transport {
 	switch v {
 	case transportHTTP:
 		return tracetest.Transport_HTTP
-	case transportTChannel:
-		return tracetest.Transport_TCHANNEL
 	case transportDummy:
 		return tracetest.Transport_DUMMY
 	default:

@@ -20,7 +20,6 @@ import "errors"
 const BaggageKey = "crossdock-baggage-key"
 
 var (
-	errNoSpanObserved        = errors.New("no span found in Context")
-	errUnrecognizedProtocol  = errors.New("unrecognized protocol for downstream call")
-	errCannotStartInTChannel = errors.New("cannot start new trace in tchannel server")
+	errNoSpanObserved       = errors.New("no span found in Context")
+	errUnrecognizedProtocol = errors.New("unrecognized protocol for downstream call")
 )

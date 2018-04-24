@@ -26,9 +26,8 @@ const (
 	server3NameParam      = "s3name"
 	server3TransportParam = "s3transport"
 
-	transportHTTP     = "http"
-	transportTChannel = "tchannel"
-	transportDummy    = "dummy"
+	transportHTTP  = "http"
+	transportDummy = "dummy"
 
 	behaviorTrace = "trace"
 
