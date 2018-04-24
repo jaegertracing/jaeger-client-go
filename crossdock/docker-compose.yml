@@ -19,9 +19,9 @@ services:
             - AXIS_S1NAME=go,java,python
             - AXIS_SAMPLED=true,false
             - AXIS_S2NAME=go,java,python
-            - AXIS_S2TRANSPORT=http,tchannel
+            - AXIS_S2TRANSPORT=http
             - AXIS_S3NAME=go,java,python
-            - AXIS_S3TRANSPORT=http,tchannel
+            - AXIS_S3TRANSPORT=http
 
             - BEHAVIOR_TRACE=client,s1name,sampled,s2name,s2transport,s3name,s3transport
 
