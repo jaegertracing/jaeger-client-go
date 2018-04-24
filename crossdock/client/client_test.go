@@ -47,7 +47,8 @@ func TestCrossdock(t *testing.T) {
 	defer tCloser.Close()
 
 	s := &server.Server{
-		HostPortHTTP: "127.0.0.1:0", Tracer: tracer,
+		HostPortHTTP: "127.0.0.1:0",
+		Tracer:       tracer,
 	}
 	err := s.Start()
 	require.NoError(t, err)
