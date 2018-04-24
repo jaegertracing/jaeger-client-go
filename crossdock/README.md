@@ -26,7 +26,7 @@ from the driver is expected to have parameters defined in
   1. Whether the trace should be sampled or not
   1. For each of the servers S1-S3:
      * the name of the server (same as docker image name, same as host name)
-     * the transport to send request to that server (http or TChannel)
+     * the transport to send request to that server (only http supported)
      * the type of client to use (e.g. in Python, `urllib2` vs. `requests`)
 
 The Client translates the parameters into a "call tree" instruction set,

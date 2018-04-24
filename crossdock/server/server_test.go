@@ -15,13 +15,13 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/net/context"
 
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/crossdock/common"
@@ -36,7 +36,7 @@ func TestServerJSON(t *testing.T) {
 		jaeger.NewNullReporter())
 	defer tCloser.Close()
 
-	s := &Server{HostPortHTTP: "127.0.0.1:0", HostPortTChannel: "127.0.0.1:0", Tracer: tracer}
+	s := &Server{HostPortHTTP: "127.0.0.1:0", Tracer: tracer}
 	err := s.Start()
 	require.NoError(t, err)
 	defer s.Close()
@@ -52,8 +52,8 @@ func TestServerJSON(t *testing.T) {
 		Downstream: &tracetest.Downstream{
 			ServiceName: "go",
 			Host:        "localhost",
-			Port:        s.GetPortTChannel(),
-			Transport:   tracetest.Transport_TCHANNEL,
+			Port:        s.GetPortHTTP(),
+			Transport:   tracetest.Transport_HTTP,
 		},
 	}
 

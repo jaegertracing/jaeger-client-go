@@ -15,6 +15,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -25,8 +26,6 @@ import (
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
-	"github.com/uber/tchannel-go"
-	"golang.org/x/net/context"
 
 	"github.com/uber/jaeger-client-go/crossdock/common"
 	"github.com/uber/jaeger-client-go/crossdock/endtoend"
@@ -37,12 +36,10 @@ import (
 // Server implements S1-S3 servers
 type Server struct {
 	HostPortHTTP      string
-	HostPortTChannel  string
 	AgentHostPort     string
 	SamplingServerURL string
 	Tracer            opentracing.Tracer
 	listener          net.Listener
-	channel           *tchannel.Channel
 	eHandler          *endtoend.Handler
 }
 
@@ -51,13 +48,7 @@ func (s *Server) Start() error {
 	if s.HostPortHTTP == "" {
 		s.HostPortHTTP = ":" + common.DefaultServerPortHTTP
 	}
-	if s.HostPortTChannel == "" {
-		s.HostPortTChannel = ":" + common.DefaultServerPortTChannel
-	}
 
-	if err := s.startTChannelServer(s.Tracer); err != nil {
-		return err
-	}
 	s.eHandler = endtoend.NewHandler(s.AgentHostPort, s.SamplingServerURL)
 
 	mux := http.NewServeMux()
@@ -110,13 +101,6 @@ func (s *Server) Close() error {
 func (s *Server) GetPortHTTP() string {
 	hostPort := s.HostPortHTTP
 	hostPortSplit := strings.Split(hostPort, ":")
-	port := hostPortSplit[len(hostPortSplit)-1]
-	return port
-}
-
-// GetPortTChannel returns the actual port the server listens to
-func (s *Server) GetPortTChannel() string {
-	hostPortSplit := strings.Split(s.HostPortTChannel, ":")
 	port := hostPortSplit[len(hostPortSplit)-1]
 	return port
 }

@@ -47,19 +47,17 @@ func TestCrossdock(t *testing.T) {
 	defer tCloser.Close()
 
 	s := &server.Server{
-		HostPortHTTP:     "127.0.0.1:0",
-		HostPortTChannel: "127.0.0.1:0",
-		Tracer:           tracer,
+		HostPortHTTP: "127.0.0.1:0",
+		Tracer:       tracer,
 	}
 	err := s.Start()
 	require.NoError(t, err)
 	defer s.Close()
 
 	c := &Client{
-		ClientHostPort:     "127.0.0.1:0",
-		ServerPortHTTP:     s.GetPortHTTP(),
-		ServerPortTChannel: s.GetPortTChannel(),
-		hostMapper:         func(server string) string { return "localhost" },
+		ClientHostPort: "127.0.0.1:0",
+		ServerPortHTTP: s.GetPortHTTP(),
+		hostMapper:     func(server string) string { return "localhost" },
 	}
 	err = c.AsyncStart()
 	require.NoError(t, err)
@@ -75,12 +73,12 @@ func TestCrossdock(t *testing.T) {
 		{
 			name: behaviorTrace,
 			axes: map[string][]string{
-				server1NameParam:      {common.DefaultServiceName},
+				server1NameParam:      {common.DefaultTracerServiceName},
 				sampledParam:          {"true", "false"},
-				server2NameParam:      {common.DefaultServiceName},
-				server2TransportParam: {transportHTTP, transportTChannel, transportDummy},
-				server3NameParam:      {common.DefaultServiceName},
-				server3TransportParam: {transportHTTP, transportTChannel},
+				server2NameParam:      {common.DefaultTracerServiceName},
+				server2TransportParam: {transportHTTP, transportDummy},
+				server3NameParam:      {common.DefaultTracerServiceName},
+				server3TransportParam: {transportHTTP},
 			},
 		},
 	}
@@ -99,9 +97,8 @@ func TestCrossdock(t *testing.T) {
 
 func TestHostMapper(t *testing.T) {
 	c := &Client{
-		ClientHostPort:     "127.0.0.1:0",
-		ServerPortHTTP:     "8080",
-		ServerPortTChannel: "8081",
+		ClientHostPort: "127.0.0.1:0",
+		ServerPortHTTP: "8080",
 	}
 	assert.Equal(t, "go", c.mapServiceToHost("go"))
 	c.hostMapper = func(server string) string { return "localhost" }
