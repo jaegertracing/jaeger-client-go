@@ -156,8 +156,8 @@
     "internal/exit",
     "zapcore"
   ]
-  revision = "35aad584952c3e7020db7b839f6b102de6271f89"
-  version = "v1.7.1"
+  revision = "eeedf312bc6c57391d84767a4cd413f02a917974"
+  version = "v1.8.0"
 
 [[projects]]
   branch = "master"
@@ -171,6 +171,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "31b142ec0d6cda5d3bc7bedb33ab54e4a967ea6999cf2e5df56fc5cc031ace99"
+  inputs-digest = "8c9f47e7870fc2f7a8dabe9a6ddd41765e768e131f5529c2d560ff221f10a44a"
   solver-name = "gps-cdcl"
   solver-version = 1
