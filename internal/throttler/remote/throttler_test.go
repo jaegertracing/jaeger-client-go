@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"sync"
 	"testing"
 	"time"
 
@@ -43,9 +44,14 @@ type creditHandler struct {
 	returnError     bool
 	returnEmptyResp bool
 	credits         float64
+	lock            sync.Mutex
 }
 
 func (h *creditHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// this function can run in multiple go routines by HTTP server, so use a lock.
+	h.lock.Lock()
+	defer h.lock.Unlock()
+
 	if h.returnError {
 		w.WriteHeader(http.StatusInternalServerError)
 	} else {
@@ -70,10 +76,14 @@ func (h *creditHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *creditHandler) setReturnError(b bool) {
+	h.lock.Lock()
+	defer h.lock.Unlock()
 	h.returnError = b
 }
 
 func (h *creditHandler) setReturnEmptyResp(b bool) {
+	h.lock.Lock()
+	defer h.lock.Unlock()
 	h.returnEmptyResp = b
 }
 
@@ -207,7 +217,7 @@ func TestRemotelyControlledThrottler_pollManager(t *testing.T) {
 			assert.True(t, throttler.IsAllowed(testOperation))
 			assert.False(t, throttler.IsAllowed(testOperation))
 
-			time.Sleep(throttler.refreshInterval * 2)
+			throttler.refreshCredits()
 			counters, _ := factory.Snapshot()
 			counter, ok := counters["jaeger.throttler_updates|result=ok"]
 			assert.True(t, ok)
