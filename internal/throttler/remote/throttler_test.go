@@ -217,7 +217,7 @@ func TestRemotelyControlledThrottler_pollManager(t *testing.T) {
 			assert.True(t, throttler.IsAllowed(testOperation))
 			assert.False(t, throttler.IsAllowed(testOperation))
 
-			time.Sleep(throttler.refreshInterval * 2)
+			throttler.refreshCredits()
 			counters, _ := factory.Snapshot()
 			counter, ok := counters["jaeger.throttler_updates|result=ok"]
 			assert.True(t, ok)
