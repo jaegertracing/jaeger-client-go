@@ -16,6 +16,7 @@ var _ = thrift.ZERO
 var _ = fmt.Printf
 var _ = bytes.Equal
 
+var _ = jaeger.GoUnusedProtection__
 var _ = zipkincore.GoUnusedProtection__
 
 type Agent interface {
