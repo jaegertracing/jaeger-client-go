@@ -6,10 +6,6 @@ ALL_SRC := $(shell find . -name "*.go" | grep -v -e vendor -e thrift-gen -e ./th
         -e ".*/_.*" \
         -e ".*/mocks.*")
 
-
-x:
-	echo $(ALL_SRC)
-
 -include crossdock/rules.mk
 
 export GO15VENDOREXPERIMENT=1
