@@ -1,10 +1,6 @@
-hash: 7182c63e90ce7ee8f470fcc1706ed641e6c6d9380174a40706cbeca646a1aab2
-updated: 2018-04-24T15:48:07.041049-04:00
+hash: fd6c41bc00eee78db3b26109be1e5ac48f379ce327ff2c79da610f48d9270102
+updated: 2018-04-27T23:32:10.836621-04:00
 imports:
-- name: github.com/apache/thrift
-  version: b2a4d4ae21c789b689dd162deb819665567f481c
-  subpackages:
-  - lib/go/thrift
 - name: github.com/beorn7/perks
   version: 3a771d992973f24aa725d07868b467d1ddfceafb
   subpackages:
