@@ -6,7 +6,7 @@ package sampling
 import (
 	"bytes"
 	"fmt"
-	thrift "github.com/uber/jaeger-client-go/internal/thrift_0_10"
+	"github.com/uber/jaeger-client-go/thrift"
 )
 
 // (needed to ensure safety because of naive import list construction.)

@@ -32,7 +32,7 @@ import (
 	"testing"
 	"time"
 
-	thrift "github.com/uber/jaeger-client-go/internal/thrift_0_10"
+	"github.com/uber/jaeger-client-go/thrift"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 

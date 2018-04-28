@@ -22,7 +22,7 @@ import (
 	"net/http"
 	"time"
 
-	thrift "github.com/uber/jaeger-client-go/internal/thrift_0_10"
+	"github.com/uber/jaeger-client-go/thrift"
 
 	"github.com/uber/jaeger-client-go"
 	j "github.com/uber/jaeger-client-go/thrift-gen/jaeger"

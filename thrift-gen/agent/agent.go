@@ -6,7 +6,7 @@ package agent
 import (
 	"bytes"
 	"fmt"
-	thrift "github.com/uber/jaeger-client-go/internal/thrift_0_10"
+	"github.com/uber/jaeger-client-go/thrift"
 	"github.com/uber/jaeger-client-go/thrift-gen/jaeger"
 	"github.com/uber/jaeger-client-go/thrift-gen/zipkincore"
 )

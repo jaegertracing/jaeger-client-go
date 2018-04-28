@@ -23,7 +23,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	thrift "github.com/uber/jaeger-client-go/internal/thrift_0_10"
+	"github.com/uber/jaeger-client-go/thrift"
 
 	"github.com/uber/jaeger-client-go/thrift-gen/agent"
 	"github.com/uber/jaeger-client-go/thrift-gen/jaeger"
