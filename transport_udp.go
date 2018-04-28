@@ -18,7 +18,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/apache/thrift/lib/go/thrift"
+	thrift "github.com/uber/jaeger-client-go/internal/thrift_0_10"
 
 	j "github.com/uber/jaeger-client-go/thrift-gen/jaeger"
 	"github.com/uber/jaeger-client-go/utils"

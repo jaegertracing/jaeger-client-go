@@ -18,7 +18,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/apache/thrift/lib/go/thrift"
+	thrift "github.com/uber/jaeger-client-go/internal/thrift_0_10"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
