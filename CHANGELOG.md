@@ -1,6 +1,15 @@
 Changes by Version
 ==================
 
+2.14.0 (2018-04-30)
+-------------------
+
+- Support throttling for debug traces (#274) <Isaac Hier>
+- Remove dependency on Apache Thrift (#303) <Yuri Shkuro>
+- Remove dependency on tchannel  (#295) (#294) <Yuri Shkuro>
+- Test with Go 1.9 (#298) <Yuri Shkuro>
+
+
 2.13.0 (2018-04-15)
 -------------------
 
