@@ -18,12 +18,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/apache/thrift/lib/go/thrift"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/uber/jaeger-client-go/testutils"
-	"github.com/uber/jaeger-client-go/thrift-gen/agent"
+	"github.com/uber/jaeger-client-go/thrift"
 	j "github.com/uber/jaeger-client-go/thrift-gen/jaeger"
 )
 
@@ -57,7 +56,7 @@ func getThriftProcessByteLength(t *testing.T, process *j.Process) int {
 func TestEmitBatchOverhead(t *testing.T) {
 	transport := thrift.NewTMemoryBufferLen(1000)
 	protocolFactory := thrift.NewTCompactProtocolFactory()
-	client := agent.NewAgentClientFactory(transport, protocolFactory)
+	client := j.NewAgentClientFactory(transport, protocolFactory)
 
 	span := &Span{operationName: "test-span", tracer: jaegerTracer}
 	spanSize := getThriftSpanByteLength(t, span)

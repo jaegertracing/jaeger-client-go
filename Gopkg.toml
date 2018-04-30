@@ -1,8 +1,4 @@
 [[constraint]]
-  name = "github.com/apache/thrift"
-  version = ">=0.9.3, <0.11.0"
-
-[[constraint]]
   name = "github.com/crossdock/crossdock-go"
   branch = "master"
 

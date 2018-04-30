@@ -2,12 +2,6 @@
 
 
 [[projects]]
-  name = "github.com/apache/thrift"
-  packages = ["lib/go/thrift"]
-  revision = "b2a4d4ae21c789b689dd162deb819665567f481c"
-  version = "0.10.0"
-
-[[projects]]
   branch = "master"
   name = "github.com/beorn7/perks"
   packages = ["quantile"]
@@ -89,7 +83,7 @@
     "internal/bitbucket.org/ww/goautoneg",
     "model"
   ]
-  revision = "e5b036cc37a466a0af27d604d1ee500211d16d6a"
+  revision = "d811d2e9bf898806ecfb6ef6296774b13ffc314c"
 
 [[projects]]
   branch = "master"
@@ -171,6 +165,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "8c9f47e7870fc2f7a8dabe9a6ddd41765e768e131f5529c2d560ff221f10a44a"
+  inputs-digest = "a50aa1a3efea453448eb36bab5aeb2c0586fb8fc7ef9174be5317132c017a8bd"
   solver-name = "gps-cdcl"
   solver-version = 1
