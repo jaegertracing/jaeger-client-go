@@ -1,5 +1,5 @@
-hash: fd6c41bc00eee78db3b26109be1e5ac48f379ce327ff2c79da610f48d9270102
-updated: 2018-04-27T23:32:10.836621-04:00
+hash: 3accf84f97bff4a91162736104c0e9b9790820712bd86db6fec5e665f7196a82
+updated: 2018-04-30T11:46:43.804556-04:00
 imports:
 - name: github.com/beorn7/perks
   version: 3a771d992973f24aa725d07868b467d1ddfceafb
@@ -55,8 +55,6 @@ imports:
   - internal/util
   - nfs
   - xfs
-- name: github.com/satori/go.uuid
-  version: f58768cc1a7a7e77a3bd49e98cdd21419399b6a3
 - name: github.com/stretchr/testify
   version: 12b6f73e6084dad08a7c6e575284b177ecafbc71
   subpackages:
@@ -74,7 +72,7 @@ imports:
 - name: go.uber.org/multierr
   version: 3c4937480c32f4c13a875a1829af76c98ca3d40a
 - name: go.uber.org/zap
-  version: f85c78b1dd998214c5f2138155b320a4a43fbe36
+  version: eeedf312bc6c57391d84767a4cd413f02a917974
   subpackages:
   - buffer
   - internal/bufferpool

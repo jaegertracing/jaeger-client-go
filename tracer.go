@@ -19,12 +19,12 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"strconv"
 	"sync"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
-	"github.com/satori/go.uuid"
 
 	"github.com/uber/jaeger-client-go/internal/baggage"
 	"github.com/uber/jaeger-client-go/internal/throttler"
@@ -154,7 +154,7 @@ func NewTracer(
 	}
 	t.process = Process{
 		Service: serviceName,
-		UUID:    uuid.NewV4().String(),
+		UUID:    strconv.FormatUint(t.randomNumber(), 16),
 		Tags:    t.tags,
 	}
 	if throttler, ok := t.debugThrottler.(ProcessSetter); ok {
