@@ -16,6 +16,7 @@ import (
 
 func main() {
 	// ...
+
 	zipkinPropagator := zipkin.NewZipkinB3HTTPHeaderPropagator()
 	injector := jaeger.TracerOptions.Injector(opentracing.HTTPHeaders, zipkinPropagator)
 	extractor := jaeger.TracerOptions.Extractor(opentracing.HTTPHeaders, zipkinPropagator)
@@ -32,10 +33,14 @@ func main() {
 		extractor,
 		zipkinSharedRPCSpan,
 	)
+
+	opentracing.SetGlobalTracer(tracer)
+
+    // continue main()
 }
 ```
 
-If you'd like to follow the official guides from https://godoc.org/github.com/uber/jaeger-client-go/config#example-Configuration-InitGlobalTracer-Testing, here is an example.
+If you'd like to follow the official guides from https://godoc.org/github.com/uber/jaeger-client-go/config#example-Configuration-InitGlobalTracer-Production, here is an example.
 
 ```go
 import (
@@ -45,29 +50,42 @@ import (
 	"github.com/uber/jaeger-client-go"
 	jaegerClientConfig "github.com/uber/jaeger-client-go/config"
 	"github.com/uber/jaeger-client-go/zipkin"
+    jaegerlog "github.com/uber/jaeger-client-go/log"
+    "github.com/uber/jaeger-lib/metrics"
 )
 
-// Create jaeger config
-cfg := jaegerClientConfig.Configuration{
-  Sampler: &jaegerClientConfig.SamplerConfig{
-	Type:  "const",
-	Param: 1,
-  },
-  Reporter: &jaegerClientConfig.ReporterConfig{
-	LogSpans:            true,
-	BufferFlushInterval: 1 * time.Second,
-  },
+func main(){
+    //...
+
+    // Recommended configuration for production.
+    cfg := jaegercfg.Configuration{}
+
+   // Example logger and metrics factory. Use github.com/uber/jaeger-client-go/log
+   // and github.com/uber/jaeger-lib/metrics respectively to bind to real logging and metrics
+   // frameworks.
+   jLogger := jaegerlog.StdLogger
+   jMetricsFactory := metrics.NullFactory
+    
+   // Zipkin shares span ID between client and server spans; it must be enabled via the following option.
+   zipkinPropagator := zipkin.NewZipkinB3HTTPHeaderPropagator()
+    
+   // Create tracer and then initialize global tracer
+   closer, err := cfg.InitGlobalTracer(
+     serviceName,
+     jaegercfg.Logger(jLogger),
+     jaegercfg.Metrics(jMetricsFactory),
+     jaegercfg.Injector(opentracing.HTTPHeaders, zipkinPropagator),
+     jaegercfg.Extractor(opentracing.HTTPHeaders, zipkinPropagator),
+     jaegercfg.ZipkinSharedRPCSpan(true),
+   )
+
+   if err != nil {
+       log.Printf("Could not initialize jaeger tracer: %s", err.Error())
+       return
+   }
+   defer closer.Close()
+
+   // continue main()
 }
 
-// Zipkin shares span ID between client and server spans; it must be enabled via the following option.
-zipkinPropagator := zipkin.NewZipkinB3HTTPHeaderPropagator()
-
-//Initialize tracer
-closer, err := cfg.InitGlobalTracer(
-  serviceName,
-  jaegerClientConfig.Logger(jaeger.StdLogger),
-  jaegerClientConfig.Injector(opentracing.HTTPHeaders, zipkinPropagator),
-  jaegerClientConfig.Extractor(opentracing.HTTPHeaders, zipkinPropagator),
-  jaegerClientConfig.ZipkinSharedRPCSpan(true),
-)
 ```
