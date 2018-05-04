@@ -9,9 +9,9 @@ for use with other Zipkin collectors.
 
 // ...
 import (
-  opentracing "github.com/opentracing/opentracing-go"
-  jaeger "github.com/uber/jaeger-client-go"
-  "github.com/uber/jaeger-client-go/zipkin"
+	opentracing "github.com/opentracing/opentracing-go"
+	jaeger "github.com/uber/jaeger-client-go"
+	"github.com/uber/jaeger-client-go/zipkin"
 )
 
 func main() {
