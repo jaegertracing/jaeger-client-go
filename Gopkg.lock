@@ -52,6 +52,16 @@
   version = "v1.0.2"
 
 [[projects]]
+  name = "github.com/openzipkin/zipkin-go"
+  packages = [
+    "model",
+    "reporter",
+    "reporter/http"
+  ]
+  revision = "f197ec29e729f226d23370ea60f0e49b8f44ccf4"
+  version = "v0.1.0"
+
+[[projects]]
   name = "github.com/pkg/errors"
   packages = ["."]
   revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
@@ -159,6 +169,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "f9dcfaf37a785c5dac1e20c29605eda29a83ba9c6f8842e92960dc94c8c4ff80"
+  inputs-digest = "7ac0a85916ecff7ebae7dcacaa4e6865cbfaa38dcad664e48ad41d66a12b64f7"
   solver-name = "gps-cdcl"
   solver-version = 1

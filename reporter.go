@@ -245,10 +245,10 @@ func (r *remoteReporter) sendCloseEvent() {
 	wg.Wait()
 }
 
-// processQueue reads spans from the queue, converts them to Thrift, and stores them in an internal buffer.
-// When the buffer length reaches batchSize, it is flushed by submitting the accumulated spans to Jaeger.
-// Buffer also gets flushed automatically every batchFlushInterval seconds, just in case the tracer stopped
-// reporting new spans.
+// processQueue reads spans from the queue, converts them, and stores them in an internal buffer.
+// When the buffer length reaches batchSize, it is flushed by submitting the accumulated spans to Jaeger
+// or Zipkin. Buffer also gets flushed automatically every batchFlushInterval seconds, just in case the
+// tracer stopped reporting new spans.
 func (r *remoteReporter) processQueue() {
 	// flush causes the Sender to flush its accumulated spans and clear the buffer
 	flush := func() {
