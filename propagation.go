@@ -64,7 +64,9 @@ type textMapPropagator struct {
 	decodeValue func(string) string
 }
 
-func NewTextMapPropagator(headerKeys *HeadersConfig, metrics Metrics) *textMapPropagator {
+// NewTextMapPropagator creates a Propagator for extracting and injecting Jaeger headers into SpanContexts  using the
+// TextMap format.
+func NewTextMapPropagator(headerKeys *HeadersConfig, metrics Metrics) Propagator {
 	return &textMapPropagator{
 		headerKeys: headerKeys,
 		metrics:    metrics,
@@ -77,7 +79,9 @@ func NewTextMapPropagator(headerKeys *HeadersConfig, metrics Metrics) *textMapPr
 	}
 }
 
-func NewHTTPHeaderPropagator(headerKeys *HeadersConfig, metrics Metrics) *textMapPropagator {
+// NewHTTPHeaderPropagator creates a Propagator for extracting and injecting Jaeger headers into SpanContexts  using the
+// HTTP format.
+func NewHTTPHeaderPropagator(headerKeys *HeadersConfig, metrics Metrics) Propagator {
 	return &textMapPropagator{
 		headerKeys: headerKeys,
 		metrics:    metrics,
@@ -99,7 +103,9 @@ type binaryPropagator struct {
 	buffers sync.Pool
 }
 
-func NewBinaryPropagator(tracer *Tracer) *binaryPropagator {
+// NewBinaryPropagator creates a Propagator for extracting and injecting Jaeger headers into SpanContexts  using the
+// Binary format.
+func NewBinaryPropagator(tracer *Tracer) Propagator {
 	return &binaryPropagator{
 		tracer:  tracer,
 		buffers: sync.Pool{New: func() interface{} { return &bytes.Buffer{} }},
