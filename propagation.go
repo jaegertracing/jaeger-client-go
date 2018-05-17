@@ -51,6 +51,12 @@ type Extractor interface {
 	Extract(carrier interface{}) (SpanContext, error)
 }
 
+// Propagator is a composite type embedding both an Injector and an Extractor.
+type Propagator interface {
+	Injector
+	Extractor
+}
+
 type textMapPropagator struct {
 	headerKeys  *HeadersConfig
 	metrics     Metrics
@@ -58,7 +64,7 @@ type textMapPropagator struct {
 	decodeValue func(string) string
 }
 
-func newTextMapPropagator(headerKeys *HeadersConfig, metrics Metrics) *textMapPropagator {
+func NewTextMapPropagator(headerKeys *HeadersConfig, metrics Metrics) *textMapPropagator {
 	return &textMapPropagator{
 		headerKeys: headerKeys,
 		metrics:    metrics,
@@ -71,7 +77,7 @@ func newTextMapPropagator(headerKeys *HeadersConfig, metrics Metrics) *textMapPr
 	}
 }
 
-func newHTTPHeaderPropagator(headerKeys *HeadersConfig, metrics Metrics) *textMapPropagator {
+func NewHTTPHeaderPropagator(headerKeys *HeadersConfig, metrics Metrics) *textMapPropagator {
 	return &textMapPropagator{
 		headerKeys: headerKeys,
 		metrics:    metrics,
@@ -93,7 +99,7 @@ type binaryPropagator struct {
 	buffers sync.Pool
 }
 
-func newBinaryPropagator(tracer *Tracer) *binaryPropagator {
+func NewBinaryPropagator(tracer *Tracer) *binaryPropagator {
 	return &binaryPropagator{
 		tracer:  tracer,
 		buffers: sync.Pool{New: func() interface{} { return &bytes.Buffer{} }},
@@ -297,4 +303,45 @@ func (p *textMapPropagator) addBaggageKeyPrefix(key string) string {
 func (p *textMapPropagator) removeBaggageKeyPrefix(key string) string {
 	// TODO decodeBaggageHeaderKey add caching and escaping
 	return key[len(p.headerKeys.TraceBaggageHeaderPrefix):]
+}
+
+type compositePropagator struct {
+	propagators []Propagator
+}
+
+// NewCompositePropagator creates a Propagator that can be used to perform extraction and injection of SpanContexts from
+// and into carriers from multiple Propagators.
+func NewCompositePropagator(propagators []Propagator) Propagator {
+	return &compositePropagator{
+		propagators: propagators,
+	}
+}
+
+// Inject attempts to inject a SpanContext into a given carrier using the underlying propagators. If one of the
+// propagators is unable to inject the SpanContext, this method errors out (causing injection attempts using the
+// subsequent propagators to be skipped).
+func (p *compositePropagator) Inject(sc SpanContext, abstractCarrier interface{}) error {
+	for _, propagator := range p.propagators {
+		err := propagator.Inject(sc, abstractCarrier)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Extract attempts to extract a SpanContext from the given carrier using the underlying propagators. If multiple
+// propagators are capable of extracting a valid (different) SpanContext from the carrier, the first extracted
+// SpanContext will be returned.
+func (p *compositePropagator) Extract(abstractCarrier interface{}) (SpanContext, error) {
+	for _, propagator := range p.propagators {
+		sc, err := propagator.Extract(abstractCarrier)
+		if err == nil {
+			return sc, nil
+		}
+	}
+
+	// TODO: Figure out what we should return here in case of error.
+	return SpanContext{}, opentracing.ErrSpanContextNotFound
 }
