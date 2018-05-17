@@ -20,6 +20,7 @@ import (
 	"github.com/opentracing/opentracing-go/ext"
 
 	zipkinModel "github.com/openzipkin/zipkin-go/model"
+	"github.com/uber/jaeger-client-go/internal"
 	"github.com/uber/jaeger-client-go/internal/spanlog"
 	"github.com/uber/jaeger-client-go/utils"
 )
@@ -34,7 +35,7 @@ func BuildZipkinV2Span(span *Span) *zipkinModel.SpanModel {
 
 	localEndpoint := &zipkinModel.Endpoint{
 		ServiceName: span.tracer.serviceName,
-		IPv4:        utils.UnpackUint32AsIP(span.tracer.hostIPv4),
+		IPv4:        internal.UnpackUint32AsIP(span.tracer.hostIPv4),
 	}
 
 	kind, remoteEndpoint, tags := processTags(span)
@@ -126,9 +127,9 @@ func convertPeerIPv4(value interface{}) net.IP {
 			return ip.To4()
 		}
 	} else if val, ok := value.(uint32); ok {
-		return utils.UnpackUint32AsIP(val)
+		return internal.UnpackUint32AsIP(val)
 	} else if val, ok := value.(int32); ok {
-		return utils.UnpackUint32AsIP(uint32(val))
+		return internal.UnpackUint32AsIP(uint32(val))
 	}
 	return nil
 }

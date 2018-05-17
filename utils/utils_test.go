@@ -89,18 +89,3 @@ func TestPackIPAsUint32(t *testing.T) {
 		assert.Equal(t, test.out, ip)
 	}
 }
-
-func TestUnpackUint32AsIP(t *testing.T) {
-	tests := []struct {
-		expected net.IP
-		in       uint32
-	}{
-		{net.IPv4(1, 2, 3, 4), 1<<24 | 2<<16 | 3<<8 | 4},
-		{net.IPv4(127, 0, 0, 1), 127<<24 | 1},
-	}
-
-	for _, test := range tests {
-		ip := UnpackUint32AsIP(test.in)
-		assert.Equal(t, test.expected, ip.To16())
-	}
-}

@@ -75,13 +75,6 @@ func PackIPAsUint32(ip net.IP) uint32 {
 	return 0
 }
 
-// UnpackUint32AsIP does the reverse of PackIPAsUint32
-func UnpackUint32AsIP(ip uint32) net.IP {
-	localIP := make(net.IP, 4)
-	binary.BigEndian.PutUint32(localIP, ip)
-	return localIP
-}
-
 // TimeToMicrosecondsSinceEpochInt64 converts Go time.Time to a long
 // representing time since epoch in microseconds, which is used expected
 // in the Jaeger spans encoded as Thrift.
