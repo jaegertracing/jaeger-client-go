@@ -115,7 +115,7 @@ func processTags(s *Span) (zipkinModel.Kind, *zipkinModel.Endpoint, map[string]s
 				kind = zipkinModel.Consumer
 			}
 		default:
-			tags[string(tag.key)] = stringify(tag.value)
+			tags[tag.key] = stringify(tag.value)
 		}
 	}
 	return kind, endpoint, tags
