@@ -23,16 +23,17 @@ import (
 	"github.com/uber/jaeger-client-go"
 )
 
-type zipkinB3HTTPHeaderPropagator struct{}
+// ZipkinB3HTTPHeaderPropagator can be used to extract and inject Zipkin HTTP B3 headers into SpanContexts.
+type ZipkinB3HTTPHeaderPropagator struct{}
 
 // NewZipkinB3HTTPHeaderPropagator creates a Propagator for extracting and injecting
 // Zipkin HTTP B3 headers into SpanContexts.
-func NewZipkinB3HTTPHeaderPropagator() jaeger.Propagator {
-	return &zipkinB3HTTPHeaderPropagator{}
+func NewZipkinB3HTTPHeaderPropagator() *ZipkinB3HTTPHeaderPropagator {
+	return &ZipkinB3HTTPHeaderPropagator{}
 }
 
 // Inject conforms to the Injector interface for decoding Zipkin HTTP B3 headers
-func (p *zipkinB3HTTPHeaderPropagator) Inject(
+func (p *ZipkinB3HTTPHeaderPropagator) Inject(
 	sc jaeger.SpanContext,
 	abstractCarrier interface{},
 ) error {
@@ -56,7 +57,7 @@ func (p *zipkinB3HTTPHeaderPropagator) Inject(
 }
 
 // Extract conforms to the Extractor interface for encoding Zipkin HTTP B3 headers
-func (p *zipkinB3HTTPHeaderPropagator) Extract(abstractCarrier interface{}) (jaeger.SpanContext, error) {
+func (p *ZipkinB3HTTPHeaderPropagator) Extract(abstractCarrier interface{}) (jaeger.SpanContext, error) {
 	textMapReader, ok := abstractCarrier.(opentracing.TextMapReader)
 	if !ok {
 		return jaeger.SpanContext{}, opentracing.ErrInvalidCarrier
