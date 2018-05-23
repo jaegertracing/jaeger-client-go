@@ -194,6 +194,12 @@ func (t *Tracer) startSpanWithOptions(
 		options.StartTime = t.timeNow()
 	}
 
+	// Predicate whether the given span context is a valid reference
+	// which may be used as parent / debug ID / baggage items source
+	isValidReference := func(ctx SpanContext) bool {
+		return ctx.IsValid() || ctx.isDebugIDContainerOnly() || len(ctx.baggage) != 0
+	}
+
 	var references []Reference
 	var parent SpanContext
 	var hasParent bool // need this because `parent` is a value, not reference
@@ -205,7 +211,7 @@ func (t *Tracer) startSpanWithOptions(
 				reflect.ValueOf(ref.ReferencedContext)))
 			continue
 		}
-		if !(ctx.IsValid() || ctx.isDebugIDContainerOnly() || len(ctx.baggage) != 0) {
+		if !isValidReference(ctx) {
 			continue
 		}
 		references = append(references, Reference{Type: ref.Type, Context: ctx})
@@ -214,7 +220,7 @@ func (t *Tracer) startSpanWithOptions(
 			hasParent = ref.Type == opentracing.ChildOfRef
 		}
 	}
-	if !hasParent && parent.IsValid() {
+	if !hasParent && isValidReference(parent) {
 		// If ChildOfRef wasn't found but a FollowFromRef exists, use the context from
 		// the FollowFromRef as the parent
 		hasParent = true
