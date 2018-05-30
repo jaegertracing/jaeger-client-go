@@ -88,13 +88,9 @@ func buildTag(tag *Tag) *j.Tag {
 	jTag := &j.Tag{Key: tag.key}
 	switch value := tag.value.(type) {
 	case string:
-		vStr := truncateString(value)
-		jTag.VStr = &vStr
+		jTag.VStr = &value
 		jTag.VType = j.TagType_STRING
 	case []byte:
-		if len(value) > maxAnnotationLength {
-			value = value[:maxAnnotationLength]
-		}
 		jTag.VBinary = value
 		jTag.VType = j.TagType_BINARY
 	case int:
@@ -150,7 +146,7 @@ func buildTag(tag *Tag) *j.Tag {
 		jTag.VBool = &vBool
 		jTag.VType = j.TagType_BOOL
 	default:
-		vStr := truncateString(stringify(value))
+		vStr := stringify(value)
 		jTag.VStr = &vStr
 		jTag.VType = j.TagType_STRING
 	}
