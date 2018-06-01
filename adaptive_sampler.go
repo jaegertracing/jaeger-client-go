@@ -129,3 +129,9 @@ func (a *AdaptiveSampler) calculate() {
 	}
 	a.lastTick = now
 }
+
+func (a *AdaptiveSampler) Close() {}
+
+func (a *AdaptiveSampler) Equal(other Sampler) bool {
+	return false
+}

@@ -19,6 +19,8 @@ import (
 	"testing"
 )
 
+var _ Sampler = &AdaptiveSampler{}
+
 func TestAdaptiveSamplerV2(t *testing.T) {
 	sampler, err := NewAdaptiveSamplerV2(0.1)
 	assert.NoError(t, err)
