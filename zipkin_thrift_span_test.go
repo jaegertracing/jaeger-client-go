@@ -310,6 +310,35 @@ func TestBaggageLogs(t *testing.T) {
 	assert.NotNil(t, findAnnotation(thriftSpan, `{"event":"baggage","key":"auth.token","value":"token"}`))
 }
 
+func TestMaxAnnotationLength(t *testing.T) {
+	value := make([]byte, 512)
+	tests := []struct {
+		annotationLength int64
+		value            []byte
+		expected         []byte
+	}{
+		{256, value, value[:256]},
+		{512, value, value},
+	}
+
+	for _, test := range tests {
+		func() {
+			tracer, closer := NewTracer("DOOP",
+				NewConstSampler(true),
+				NewNullReporter(),
+				TracerOptions.MaxAnnotationLength(test.annotationLength))
+			defer closer.Close()
+			sp := tracer.StartSpan("s1").(*Span)
+			sp.SetTag("tag.string", string(test.value))
+			sp.SetTag("tag.bytes", test.value)
+			sp.Finish()
+			thriftSpan := BuildZipkinThrift(sp)
+			assert.Equal(t, test.expected, findBinaryAnnotation(thriftSpan, "tag.string").Value)
+			assert.Equal(t, test.expected, findBinaryAnnotation(thriftSpan, "tag.bytes").Value)
+		}()
+	}
+}
+
 func findAnnotation(span *zipkincore.Span, name string) *zipkincore.Annotation {
 	for _, a := range span.Annotations {
 		if a.Value == name {

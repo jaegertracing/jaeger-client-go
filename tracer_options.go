@@ -128,6 +128,12 @@ func (tracerOptions) HighTraceIDGenerator(highTraceIDGenerator func() uint64) Tr
 	}
 }
 
+func (tracerOptions) MaxAnnotationLength(maxAnnotationLength int64) TracerOption {
+	return func(tracer *Tracer) {
+		tracer.options.maxAnnotationLength = maxAnnotationLength
+	}
+}
+
 func (tracerOptions) ZipkinSharedRPCSpan(zipkinSharedRPCSpan bool) TracerOption {
 	return func(tracer *Tracer) {
 		tracer.options.zipkinSharedRPCSpan = zipkinSharedRPCSpan

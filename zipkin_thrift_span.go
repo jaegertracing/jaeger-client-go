@@ -27,9 +27,6 @@ import (
 )
 
 const (
-	// maxAnnotationLength is the max length of byte array or string allowed in the annotations
-	maxAnnotationLength = 256
-
 	// Zipkin UI does not work well with non-string tag values
 	allowPackedNumbers = false
 )
@@ -98,7 +95,7 @@ func buildAnnotations(span *zipkinSpan, endpoint *z.Endpoint) []*z.Annotation {
 			Timestamp: utils.TimeToMicrosecondsSinceEpochInt64(log.Timestamp),
 			Host:      endpoint}
 		if content, err := spanlog.MaterializeWithJSON(log.Fields); err == nil {
-			anno.Value = truncateString(string(content))
+			anno.Value = truncateString(string(content), span.maxAnnotationLength)
 		} else {
 			anno.Value = err.Error()
 		}
@@ -148,20 +145,20 @@ func buildBinaryAnnotations(span *zipkinSpan, endpoint *z.Endpoint) []*z.BinaryA
 		if _, ok := specialTagHandlers[tag.key]; ok {
 			continue
 		}
-		if anno := buildBinaryAnnotation(tag.key, tag.value, nil); anno != nil {
+		if anno := buildBinaryAnnotation(tag.key, tag.value, span.maxAnnotationLength, nil); anno != nil {
 			annotations = append(annotations, anno)
 		}
 	}
 	return annotations
 }
 
-func buildBinaryAnnotation(key string, val interface{}, endpoint *z.Endpoint) *z.BinaryAnnotation {
+func buildBinaryAnnotation(key string, val interface{}, maxAnnotationLength int64, endpoint *z.Endpoint) *z.BinaryAnnotation {
 	bann := &z.BinaryAnnotation{Key: key, Host: endpoint}
 	if value, ok := val.(string); ok {
-		bann.Value = []byte(truncateString(value))
+		bann.Value = []byte(truncateString(value, maxAnnotationLength))
 		bann.AnnotationType = z.AnnotationType_STRING
 	} else if value, ok := val.([]byte); ok {
-		if len(value) > maxAnnotationLength {
+		if len(value) > int(maxAnnotationLength) {
 			value = value[:maxAnnotationLength]
 		}
 		bann.Value = value
@@ -180,7 +177,7 @@ func buildBinaryAnnotation(key string, val interface{}, endpoint *z.Endpoint) *z
 		bann.AnnotationType = z.AnnotationType_BOOL
 	} else {
 		value := stringify(val)
-		bann.Value = []byte(truncateString(value))
+		bann.Value = []byte(truncateString(value, maxAnnotationLength))
 		bann.AnnotationType = z.AnnotationType_STRING
 	}
 	return bann
@@ -193,11 +190,11 @@ func stringify(value interface{}) string {
 	return fmt.Sprintf("%+v", value)
 }
 
-func truncateString(value string) string {
+func truncateString(value string, maxAnnotationLength int64) string {
 	// we ignore the problem of utf8 runes possibly being sliced in the middle,
 	// as it is rather expensive to iterate through each tag just to find rune
 	// boundaries.
-	if len(value) > maxAnnotationLength {
+	if len(value) > int(maxAnnotationLength) {
 		return value[:maxAnnotationLength]
 	}
 	return value
