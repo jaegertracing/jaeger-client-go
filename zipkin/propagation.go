@@ -24,19 +24,20 @@ import (
 )
 
 // Propagator is an Injector and Extractor
-type Propagator struct{
+type Propagator struct {
 	enableBaggage bool
 	baggagePrefix string
 }
 
 // NewZipkinB3HTTPHeaderPropagator creates a Propagator for extracting and injecting
-// Zipkin HTTP B3 headers into SpanContexts.
+// Zipkin HTTP B3 headers into SpanContexts. Baggage is by default enabled and uses prefix
+// 'baggage-'.
 func NewZipkinB3HTTPHeaderPropagator() Propagator {
 	return Propagator{enableBaggage: true, baggagePrefix: "baggage-"}
 }
 
-// NewZipkinB3HTTPHeaderPropagator creates a Propagator for extracting and injecting
-// Zipkin HTTP B3 headers into SpanContexts.
+// NewZipkinB3HTTPHeaderPropagatorWithBaggage creates a Propagator for extracting and injecting
+// Zipkin HTTP B3 headers into SpanContexts with baggage configuration
 func NewZipkinB3HTTPHeaderPropagatorWithBaggage(enableBaggage bool, baggagePrefix string) Propagator {
 	return Propagator{enableBaggage: enableBaggage, baggagePrefix: baggagePrefix}
 }
@@ -81,7 +82,7 @@ func (p Propagator) Extract(abstractCarrier interface{}) (jaeger.SpanContext, er
 	var spanID uint64
 	var parentID uint64
 	sampled := false
-	var baggage map[string]string = nil
+	var baggage map[string]string
 	err := textMapReader.ForeachKey(func(rawKey, value string) error {
 		key := strings.ToLower(rawKey) // TODO not necessary for plain TextMap
 		var err error

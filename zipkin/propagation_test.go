@@ -33,7 +33,7 @@ var (
 		"x-b3-traceid": "1",
 		"x-b3-spanid":  "2",
 		"x-b3-sampled": "1",
-		"baggage-foo": "bar",
+		"baggage-foo":  "bar",
 	}
 	nonRootSampledHeader = opentracing.TextMapCarrier{
 		"x-b3-traceid":      "1",
@@ -121,8 +121,8 @@ func TestCustomBaggagePrefix(t *testing.T) {
 		{
 			enableBaggage: true,
 			expectedCarrier: map[string]string{
-				"x-b3-traceid":     "0",
-				"x-b3-spanid":      "0",
+				"x-b3-traceid": "0",
+				"x-b3-spanid":  "0",
 				"x-b3-sampled": "0",
 				"emoji:)foo":   "bar",
 			},
