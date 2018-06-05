@@ -24,12 +24,21 @@ import (
 )
 
 // Propagator is an Injector and Extractor
-type Propagator struct{}
+type Propagator struct{
+	enableBaggage bool
+	baggagePrefix string
+}
 
 // NewZipkinB3HTTPHeaderPropagator creates a Propagator for extracting and injecting
 // Zipkin HTTP B3 headers into SpanContexts.
 func NewZipkinB3HTTPHeaderPropagator() Propagator {
-	return Propagator{}
+	return Propagator{enableBaggage: true, baggagePrefix: "baggage-"}
+}
+
+// NewZipkinB3HTTPHeaderPropagator creates a Propagator for extracting and injecting
+// Zipkin HTTP B3 headers into SpanContexts.
+func NewZipkinB3HTTPHeaderPropagatorWithBaggage(enableBaggage bool, baggagePrefix string) Propagator {
+	return Propagator{enableBaggage: enableBaggage, baggagePrefix: baggagePrefix}
 }
 
 // Inject conforms to the Injector interface for decoding Zipkin HTTP B3 headers
@@ -53,6 +62,12 @@ func (p Propagator) Inject(
 	} else {
 		textMapWriter.Set("x-b3-sampled", "0")
 	}
+	if p.enableBaggage {
+		sc.ForeachBaggageItem(func(k, v string) bool {
+			textMapWriter.Set(p.baggagePrefix+k, v)
+			return true
+		})
+	}
 	return nil
 }
 
@@ -66,6 +81,7 @@ func (p Propagator) Extract(abstractCarrier interface{}) (jaeger.SpanContext, er
 	var spanID uint64
 	var parentID uint64
 	sampled := false
+	var baggage map[string]string = nil
 	err := textMapReader.ForeachKey(func(rawKey, value string) error {
 		key := strings.ToLower(rawKey) // TODO not necessary for plain TextMap
 		var err error
@@ -77,6 +93,11 @@ func (p Propagator) Extract(abstractCarrier interface{}) (jaeger.SpanContext, er
 			spanID, err = strconv.ParseUint(value, 16, 64)
 		} else if key == "x-b3-sampled" && value == "1" {
 			sampled = true
+		} else if p.enableBaggage && strings.HasPrefix(key, p.baggagePrefix) {
+			if baggage == nil {
+				baggage = make(map[string]string)
+			}
+			baggage[key[len(p.baggagePrefix):]] = value
 		}
 		return err
 	})
@@ -91,5 +112,5 @@ func (p Propagator) Extract(abstractCarrier interface{}) (jaeger.SpanContext, er
 		jaeger.TraceID{Low: traceID},
 		jaeger.SpanID(spanID),
 		jaeger.SpanID(parentID),
-		sampled, nil), nil
+		sampled, baggage), nil
 }

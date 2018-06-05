@@ -23,9 +23,9 @@ import (
 )
 
 var (
-	rootSampled       = newSpanContext(1, 2, 0, true)
-	nonRootSampled    = newSpanContext(1, 2, 1, true)
-	nonRootNonSampled = newSpanContext(1, 2, 1, false)
+	rootSampled       = newSpanContext(1, 2, 0, true, map[string]string{"foo": "bar"})
+	nonRootSampled    = newSpanContext(1, 2, 1, true, nil)
+	nonRootNonSampled = newSpanContext(1, 2, 1, false, nil)
 )
 
 var (
@@ -33,6 +33,7 @@ var (
 		"x-b3-traceid": "1",
 		"x-b3-spanid":  "2",
 		"x-b3-sampled": "1",
+		"baggage-foo": "bar",
 	}
 	nonRootSampledHeader = opentracing.TextMapCarrier{
 		"x-b3-traceid":      "1",
@@ -58,13 +59,13 @@ var (
 	propagator = NewZipkinB3HTTPHeaderPropagator()
 )
 
-func newSpanContext(traceID, spanID, parentID uint64, sampled bool) jaeger.SpanContext {
+func newSpanContext(traceID, spanID, parentID uint64, sampled bool, baggage map[string]string) jaeger.SpanContext {
 	return jaeger.NewSpanContext(
 		jaeger.TraceID{Low: traceID},
 		jaeger.SpanID(spanID),
 		jaeger.SpanID(parentID),
 		sampled,
-		nil,
+		baggage,
 	)
 }
 
@@ -110,4 +111,37 @@ func TestInjectorNonRootNonSampled(t *testing.T) {
 	err := propagator.Inject(nonRootNonSampled, hdr)
 	assert.Nil(t, err)
 	assert.EqualValues(t, nonRootNonSampledHeader, hdr)
+}
+
+func TestCustomBaggagePrefix(t *testing.T) {
+	tests := []struct {
+		enableBaggage   bool
+		expectedCarrier map[string]string
+	}{
+		{
+			enableBaggage: true,
+			expectedCarrier: map[string]string{
+				"x-b3-traceid":     "0",
+				"x-b3-spanid":      "0",
+				"x-b3-sampled": "0",
+				"emoji:)foo":   "bar",
+			},
+		}, {
+			enableBaggage: false,
+			expectedCarrier: map[string]string{
+				"x-b3-traceid": "0",
+				"x-b3-spanid":  "0",
+				"x-b3-sampled": "0",
+			},
+		},
+	}
+
+	for _, test := range tests {
+		propag := NewZipkinB3HTTPHeaderPropagatorWithBaggage(test.enableBaggage, "emoji:)")
+		hdr := opentracing.TextMapCarrier{}
+		sc := newSpanContext(0, 0, 0, false, map[string]string{"foo": "bar"})
+		err := propag.Inject(sc, hdr)
+		assert.Nil(t, err)
+		assert.EqualValues(t, test.expectedCarrier, hdr)
+	}
 }
