@@ -114,34 +114,15 @@ func TestInjectorNonRootNonSampled(t *testing.T) {
 }
 
 func TestCustomBaggagePrefix(t *testing.T) {
-	tests := []struct {
-		enableBaggage   bool
-		expectedCarrier map[string]string
-	}{
-		{
-			enableBaggage: true,
-			expectedCarrier: map[string]string{
-				"x-b3-traceid": "0",
-				"x-b3-spanid":  "0",
-				"x-b3-sampled": "0",
-				"emoji:)foo":   "bar",
-			},
-		}, {
-			enableBaggage: false,
-			expectedCarrier: map[string]string{
-				"x-b3-traceid": "0",
-				"x-b3-spanid":  "0",
-				"x-b3-sampled": "0",
-			},
-		},
-	}
-
-	for _, test := range tests {
-		propag := NewZipkinB3HTTPHeaderPropagatorWithBaggage(test.enableBaggage, "emoji:)")
-		hdr := opentracing.TextMapCarrier{}
-		sc := newSpanContext(0, 0, 0, false, map[string]string{"foo": "bar"})
-		err := propag.Inject(sc, hdr)
-		assert.Nil(t, err)
-		assert.EqualValues(t, test.expectedCarrier, hdr)
-	}
+	propag := NewZipkinB3HTTPHeaderPropagatorWithBaggage("emoji:)")
+	hdr := opentracing.TextMapCarrier{}
+	sc := newSpanContext(0, 0, 0, false, map[string]string{"foo": "bar"})
+	err := propag.Inject(sc, hdr)
+	assert.Nil(t, err)
+	assert.EqualValues(t, map[string]string{
+		"x-b3-traceid": "0",
+		"x-b3-spanid":  "0",
+		"x-b3-sampled": "0",
+		"emoji:)foo":   "bar",
+	}, hdr)
 }
