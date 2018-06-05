@@ -128,9 +128,9 @@ func (tracerOptions) HighTraceIDGenerator(highTraceIDGenerator func() uint64) Tr
 	}
 }
 
-func (tracerOptions) MaxAnnotationLength(maxAnnotationLength int64) TracerOption {
+func (tracerOptions) MaxTagValueLength(maxTagValueLength int) TracerOption {
 	return func(tracer *Tracer) {
-		tracer.options.maxAnnotationLength = maxAnnotationLength
+		tracer.options.maxTagValueLength = maxTagValueLength
 	}
 }
 

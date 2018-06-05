@@ -50,7 +50,7 @@ type Tracer struct {
 		gen128Bit            bool // whether to generate 128bit trace IDs
 		zipkinSharedRPCSpan  bool
 		highTraceIDGenerator func() uint64 // custom high trace ID generator
-		maxAnnotationLength  int64
+		maxTagValueLength    int
 		// more options to come
 	}
 	// pool for Span objects
@@ -153,8 +153,8 @@ func NewTracer(
 		t.logger.Error("Overriding high trace ID generator but not generating " +
 			"128 bit trace IDs, consider enabling the \"Gen128Bit\" option")
 	}
-	if t.options.maxAnnotationLength == 0 {
-		t.options.maxAnnotationLength = DefaultMaxAnnotationLength
+	if t.options.maxTagValueLength == 0 {
+		t.options.maxTagValueLength = DefaultMaxTagValueLength
 	}
 	t.process = Process{
 		Service: serviceName,
@@ -288,7 +288,6 @@ func (t *Tracer) startSpanWithOptions(
 		newTrace,
 		rpcServer,
 		references,
-		t.options.maxAnnotationLength,
 	)
 }
 
@@ -360,14 +359,12 @@ func (t *Tracer) startSpanInternal(
 	newTrace bool,
 	rpcServer bool,
 	references []Reference,
-	maxAnnotationLength int64,
 ) *Span {
 	sp.tracer = t
 	sp.operationName = operationName
 	sp.startTime = startTime
 	sp.duration = 0
 	sp.references = references
-	sp.maxAnnotationLength = maxAnnotationLength
 	sp.firstInProcess = rpcServer || sp.context.parentID == 0
 	if len(tags) > 0 || len(internalTags) > 0 {
 		sp.tags = make([]Tag, len(internalTags), len(tags)+len(internalTags))

@@ -313,9 +313,9 @@ func TestBaggageLogs(t *testing.T) {
 func TestMaxAnnotationLength(t *testing.T) {
 	value := make([]byte, 512)
 	tests := []struct {
-		annotationLength int64
-		value            []byte
-		expected         []byte
+		tagValueLength int
+		value          []byte
+		expected       []byte
 	}{
 		{256, value, value[:256]},
 		{512, value, value},
@@ -326,7 +326,7 @@ func TestMaxAnnotationLength(t *testing.T) {
 			tracer, closer := NewTracer("DOOP",
 				NewConstSampler(true),
 				NewNullReporter(),
-				TracerOptions.MaxAnnotationLength(test.annotationLength))
+				TracerOptions.MaxTagValueLength(test.tagValueLength))
 			defer closer.Close()
 			sp := tracer.StartSpan("s1").(*Span)
 			sp.SetTag("tag.string", string(test.value))

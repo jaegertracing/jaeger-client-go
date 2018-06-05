@@ -57,9 +57,6 @@ type Span struct {
 	references []Reference
 
 	observer ContribSpanObserver
-
-	// the max length of byte array or string allowed in the annotations
-	maxAnnotationLength int64
 }
 
 // Tag is a simple key value wrapper.
