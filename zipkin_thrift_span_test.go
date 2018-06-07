@@ -17,6 +17,7 @@ package jaeger
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -310,7 +311,7 @@ func TestBaggageLogs(t *testing.T) {
 	assert.NotNil(t, findAnnotation(thriftSpan, `{"event":"baggage","key":"auth.token","value":"token"}`))
 }
 
-func TestMaxAnnotationLength(t *testing.T) {
+func TestMaxTagValueLength(t *testing.T) {
 	value := make([]byte, 512)
 	tests := []struct {
 		tagValueLength int
@@ -322,7 +323,7 @@ func TestMaxAnnotationLength(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		func() {
+		t.Run(strconv.Itoa(test.tagValueLength), func(t *testing.T) {
 			tracer, closer := NewTracer("DOOP",
 				NewConstSampler(true),
 				NewNullReporter(),
@@ -335,7 +336,7 @@ func TestMaxAnnotationLength(t *testing.T) {
 			thriftSpan := BuildZipkinThrift(sp)
 			assert.Equal(t, test.expected, findBinaryAnnotation(thriftSpan, "tag.string").Value)
 			assert.Equal(t, test.expected, findBinaryAnnotation(thriftSpan, "tag.bytes").Value)
-		}()
+		})
 	}
 }
 

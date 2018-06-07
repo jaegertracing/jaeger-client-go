@@ -17,6 +17,7 @@ package jaeger
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -328,7 +329,7 @@ func TestJaegerSpanBaggageLogs(t *testing.T) {
 	assertJaegerTag(t, fields, "value", "token")
 }
 
-func TestJaegerMaxAnnotationLength(t *testing.T) {
+func TestJaegerMaxTagValueLength(t *testing.T) {
 	value := make([]byte, 512)
 	tests := []struct {
 		tagValueLength int
@@ -340,7 +341,7 @@ func TestJaegerMaxAnnotationLength(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		func() {
+		t.Run(strconv.Itoa(test.tagValueLength), func(t *testing.T) {
 			tracer, closer := NewTracer("DOOP",
 				NewConstSampler(true),
 				NewNullReporter(),
@@ -357,7 +358,7 @@ func TestJaegerMaxAnnotationLength(t *testing.T) {
 			bytesTag := findTag(thriftSpan, "tag.bytes")
 			assert.Equal(t, j.TagType_BINARY, bytesTag.VType)
 			assert.Equal(t, test.expected, bytesTag.VBinary)
-		}()
+		})
 	}
 }
 
