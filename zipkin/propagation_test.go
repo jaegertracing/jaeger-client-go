@@ -115,9 +115,7 @@ func TestInjectorNonRootNonSampled(t *testing.T) {
 }
 
 func TestCustomBaggagePrefix(t *testing.T) {
-	propag := NewZipkinB3HTTPHeaderPropagator(func(propagator *Propagator) {
-		propagator.baggagePrefix = "emoji:)"
-	})
+	propag := NewZipkinB3HTTPHeaderPropagator(BaggagePrefix("emoji:)"))
 	hdr := opentracing.TextMapCarrier{}
 	sc := newSpanContext(1, 2, 0, true, map[string]string{"foo": "bar"})
 	err := propag.Inject(sc, hdr)
