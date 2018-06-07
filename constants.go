@@ -82,4 +82,7 @@ const (
 
 	// DefaultUDPSpanServerPort is the default port to send the spans to, via UDP
 	DefaultUDPSpanServerPort = 6831
+
+	// DefaultMaxTagValueLength is the default max length of byte array or string allowed in the tag value.
+	DefaultMaxTagValueLength = 256
 )

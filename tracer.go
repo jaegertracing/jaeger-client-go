@@ -50,6 +50,7 @@ type Tracer struct {
 		gen128Bit            bool // whether to generate 128bit trace IDs
 		zipkinSharedRPCSpan  bool
 		highTraceIDGenerator func() uint64 // custom high trace ID generator
+		maxTagValueLength    int
 		// more options to come
 	}
 	// pool for Span objects
@@ -151,6 +152,9 @@ func NewTracer(
 	} else if t.options.highTraceIDGenerator != nil {
 		t.logger.Error("Overriding high trace ID generator but not generating " +
 			"128 bit trace IDs, consider enabling the \"Gen128Bit\" option")
+	}
+	if t.options.maxTagValueLength == 0 {
+		t.options.maxTagValueLength = DefaultMaxTagValueLength
 	}
 	t.process = Process{
 		Service: serviceName,
