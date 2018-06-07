@@ -23,16 +23,26 @@ import (
 	"github.com/uber/jaeger-client-go"
 )
 
+// Option is a function that sets an option on Propagator
+type Option func(propagator *Propagator)
+
+// BaggagePrefix is a function that sets baggage prefix on Propagator
+func BaggagePrefix(prefix string) Option {
+	return func(propagator *Propagator) {
+		propagator.baggagePrefix = prefix
+	}
+}
+
 // Propagator is an Injector and Extractor
 type Propagator struct {
-	BaggagePrefix string
+	baggagePrefix string
 }
 
 // NewZipkinB3HTTPHeaderPropagator creates a Propagator for extracting and injecting
 // Zipkin HTTP B3 headers into SpanContexts. Baggage is by default enabled and uses prefix
 // 'baggage-'.
-func NewZipkinB3HTTPHeaderPropagator(opts ...func(propagator *Propagator)) Propagator {
-	p := Propagator{BaggagePrefix: "baggage-"}
+func NewZipkinB3HTTPHeaderPropagator(opts ...Option) Propagator {
+	p := Propagator{baggagePrefix: "baggage-"}
 	for _, opt := range opts {
 		opt(&p)
 	}
@@ -61,7 +71,7 @@ func (p Propagator) Inject(
 		textMapWriter.Set("x-b3-sampled", "0")
 	}
 	sc.ForeachBaggageItem(func(k, v string) bool {
-		textMapWriter.Set(p.BaggagePrefix+k, v)
+		textMapWriter.Set(p.baggagePrefix+k, v)
 		return true
 	})
 	return nil
@@ -89,11 +99,11 @@ func (p Propagator) Extract(abstractCarrier interface{}) (jaeger.SpanContext, er
 			spanID, err = strconv.ParseUint(value, 16, 64)
 		} else if key == "x-b3-sampled" && value == "1" {
 			sampled = true
-		} else if strings.HasPrefix(key, p.BaggagePrefix) {
+		} else if strings.HasPrefix(key, p.baggagePrefix) {
 			if baggage == nil {
 				baggage = make(map[string]string)
 			}
-			baggage[key[len(p.BaggagePrefix):]] = value
+			baggage[key[len(p.baggagePrefix):]] = value
 		}
 		return err
 	})
