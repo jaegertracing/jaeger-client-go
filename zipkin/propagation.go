@@ -31,14 +31,12 @@ type Propagator struct {
 // NewZipkinB3HTTPHeaderPropagator creates a Propagator for extracting and injecting
 // Zipkin HTTP B3 headers into SpanContexts. Baggage is by default enabled and uses prefix
 // 'baggage-'.
-func NewZipkinB3HTTPHeaderPropagator() Propagator {
-	return Propagator{baggagePrefix: "baggage-"}
-}
-
-// NewZipkinB3HTTPHeaderPropagatorWithBaggage creates a Propagator for extracting and injecting
-// Zipkin HTTP B3 headers into SpanContexts with baggage configuration
-func NewZipkinB3HTTPHeaderPropagatorWithBaggage(baggagePrefix string) Propagator {
-	return Propagator{baggagePrefix: baggagePrefix}
+func NewZipkinB3HTTPHeaderPropagator(opts ...func(propagator *Propagator)) Propagator {
+	p := Propagator{baggagePrefix: "baggage-"}
+	for _, opt := range opts {
+		opt(&p)
+	}
+	return p
 }
 
 // Inject conforms to the Injector interface for decoding Zipkin HTTP B3 headers

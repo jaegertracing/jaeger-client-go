@@ -19,6 +19,7 @@ import (
 
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/uber/jaeger-client-go"
 )
 
@@ -114,15 +115,26 @@ func TestInjectorNonRootNonSampled(t *testing.T) {
 }
 
 func TestCustomBaggagePrefix(t *testing.T) {
-	propag := NewZipkinB3HTTPHeaderPropagatorWithBaggage("emoji:)")
+	propag := NewZipkinB3HTTPHeaderPropagator(func(propagator *Propagator) {
+		propagator.baggagePrefix = "emoji:)"
+	})
 	hdr := opentracing.TextMapCarrier{}
-	sc := newSpanContext(0, 0, 0, false, map[string]string{"foo": "bar"})
+	sc := newSpanContext(1, 2, 0, true, map[string]string{"foo": "bar"})
 	err := propag.Inject(sc, hdr)
 	assert.Nil(t, err)
-	assert.EqualValues(t, map[string]string{
-		"x-b3-traceid": "0",
-		"x-b3-spanid":  "0",
-		"x-b3-sampled": "0",
+	m := opentracing.TextMapCarrier{
+		"x-b3-traceid": "1",
+		"x-b3-spanid":  "2",
+		"x-b3-sampled": "1",
 		"emoji:)foo":   "bar",
-	}, hdr)
+	}
+	assert.EqualValues(t, m, hdr)
+
+	sc, err = propag.Extract(m)
+	require.NoError(t, err)
+	sc.ForeachBaggageItem(func(k, v string) bool {
+		assert.Equal(t, "foo", k)
+		assert.Equal(t, "bar", v)
+		return true
+	})
 }
