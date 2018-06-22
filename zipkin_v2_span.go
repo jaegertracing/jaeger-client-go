@@ -69,7 +69,7 @@ func buildZipkinV2Annotations(span *Span) []zipkinModel.Annotation {
 			Timestamp: log.Timestamp,
 		}
 		if content, err := spanlog.MaterializeWithJSON(log.Fields); err == nil {
-			anno.Value = truncateString(string(content))
+			anno.Value = truncateString(string(content), span.tracer.options.maxTagValueLength)
 		} else {
 			anno.Value = err.Error()
 		}
