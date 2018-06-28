@@ -44,12 +44,12 @@ const (
 
 var (
 	testProbabilisticExpectedTags = []Tag{
-		{"sampler.type", "probabilistic"},
-		{"sampler.param", 0.5},
+		{key: "sampler.type", value: "probabilistic"},
+		{key: "sampler.param", value: 0.5},
 	}
 	testLowerBoundExpectedTags = []Tag{
-		{"sampler.type", "lowerbound"},
-		{"sampler.param", 0.5},
+		{key: "sampler.type", value: "lowerbound"},
+		{key: "sampler.param", value: 0.5},
 	}
 )
 
@@ -178,8 +178,8 @@ func TestRateLimitingSampler(t *testing.T) {
 	sampler = NewRateLimitingSampler(0.2)
 	_, tags := sampler.IsSampled(TraceID{}, testOperationName)
 	expectedTags := []Tag{
-		{"sampler.type", "ratelimiting"},
-		{"sampler.param", 0.2},
+		{key: "sampler.type", value: "ratelimiting"},
+		{key: "sampler.param", value: 0.2},
 	}
 	assert.Equal(t, expectedTags, tags)
 
@@ -187,8 +187,8 @@ func TestRateLimitingSampler(t *testing.T) {
 
 	_, tags = sampler.IsSampled(TraceID{}, testOperationName)
 	expectedTags = []Tag{
-		{"sampler.type", "ratelimiting"},
-		{"sampler.param", 0.3},
+		{key: "sampler.type", value: "ratelimiting"},
+		{key: "sampler.param", value: 0.3},
 	}
 	assert.Equal(t, expectedTags, tags)
 }
@@ -386,8 +386,8 @@ func TestRemotelyControlledSampler(t *testing.T) {
 
 func generateTags(key string, value float64) []Tag {
 	return []Tag{
-		{"sampler.type", key},
-		{"sampler.param", value},
+		{key: "sampler.type", value: key},
+		{key: "sampler.param", value: value},
 	}
 }
 
