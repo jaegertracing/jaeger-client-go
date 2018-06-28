@@ -22,6 +22,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/uber/jaeger-client-go/internal/ratelimiter"
 	"github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-client-go/thrift-gen/sampling"
 	"github.com/uber/jaeger-client-go/utils"
@@ -44,6 +45,8 @@ type Sampler interface {
 
 	// Close does a clean shutdown of the sampler, stopping any background
 	// go-routines it may have started.
+	//
+	// Deprecated: Sampler interface will no longer have this function in v3.0.0. Typecast to io.Closer instead.
 	Close()
 
 	// Equal checks if the `other` sampler is functionally equivalent
@@ -51,6 +54,8 @@ type Sampler interface {
 	// TODO remove this function. This function is used to determine if 2 samplers are equivalent
 	// which does not bode well with the adaptive sampler which has to create all the composite samplers
 	// for the comparison to occur. This is expensive to do if only one sampler has changed.
+	//
+	// Deprecated: Sampler interface will no longer have this function in v3.0.0
 	Equal(other Sampler) bool
 }
 
@@ -152,9 +157,14 @@ func (s *ProbabilisticSampler) Equal(other Sampler) bool {
 
 // -----------------------
 
+type rateLimiter interface {
+	CheckCredit(itemCost float64) bool
+	Update(creditsPerSecond, maxBalance float64)
+}
+
 type rateLimitingSampler struct {
 	maxTracesPerSecond float64
-	rateLimiter        utils.RateLimiter
+	rateLimiter        rateLimiter
 	tags               []Tag
 }
 
@@ -163,15 +173,21 @@ type rateLimitingSampler struct {
 // requests sampled uniformly as well, but if requests are bursty, especially sub-second, then a number of
 // sequential requests can be sampled each second.
 func NewRateLimitingSampler(maxTracesPerSecond float64) Sampler {
-	tags := []Tag{
+	return (&rateLimitingSampler{}).init(maxTracesPerSecond)
+}
+
+func (s *rateLimitingSampler) init(maxTracesPerSecond float64) *rateLimitingSampler {
+	s.tags = []Tag{
 		{key: SamplerTypeTagKey, value: SamplerTypeRateLimiting},
 		{key: SamplerParamTagKey, value: maxTracesPerSecond},
 	}
-	return &rateLimitingSampler{
-		maxTracesPerSecond: maxTracesPerSecond,
-		rateLimiter:        utils.NewRateLimiter(maxTracesPerSecond, math.Max(maxTracesPerSecond, 1.0)),
-		tags:               tags,
+	s.maxTracesPerSecond = maxTracesPerSecond
+	if s.rateLimiter == nil {
+		s.rateLimiter = ratelimiter.NewRateLimiter(maxTracesPerSecond, math.Max(maxTracesPerSecond, 1.0))
+	} else {
+		s.rateLimiter.Update(maxTracesPerSecond, math.Max(maxTracesPerSecond, 1.0))
 	}
+	return s
 }
 
 // IsSampled implements IsSampled() of Sampler.
@@ -191,16 +207,10 @@ func (s *rateLimitingSampler) Equal(other Sampler) bool {
 }
 
 func (s *rateLimitingSampler) update(maxTracesPerSecond float64) {
-	s.tags = []Tag{
-		{key: SamplerTypeTagKey, value: SamplerTypeRateLimiting},
-		{key: SamplerParamTagKey, value: maxTracesPerSecond},
+	if s.maxTracesPerSecond == maxTracesPerSecond {
+		return
 	}
-	s.maxTracesPerSecond = maxTracesPerSecond
-	if l, ok := s.rateLimiter.(*utils.RateLimiterImpl); ok {
-		l.Update(maxTracesPerSecond, math.Max(maxTracesPerSecond, 1.0))
-	} else {
-		s.rateLimiter = utils.NewRateLimiter(maxTracesPerSecond, math.Max(maxTracesPerSecond, 1.0))
-	}
+	s.init(maxTracesPerSecond)
 }
 
 // -----------------------

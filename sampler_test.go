@@ -144,6 +144,8 @@ func (l *mockRateLimiter) CheckCredit(itemCost float64) bool {
 	return l.balance >= 0
 }
 
+func (l *mockRateLimiter) Update(creditsPerSecond, maxBalance float64) {}
+
 func TestRateLimitingSampler(t *testing.T) {
 	sampler := NewRateLimitingSampler(2)
 	sampler.(*rateLimitingSampler).rateLimiter = &mockRateLimiter{balance: 2}

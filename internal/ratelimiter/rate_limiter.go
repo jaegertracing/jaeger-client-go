@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Uber Technologies, Inc.
+// Copyright (c) 2018 Uber Technologies, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,22 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package utils
+package ratelimiter
 
 import (
+	"math/rand"
 	"sync"
 	"time"
 )
 
-// RateLimiter is a filter used to check if a message that is worth itemCost units is within the rate limits.
-//
-// Deprecated: RateLimiter interface will be removed in v3.0.0
-type RateLimiter interface {
-	CheckCredit(itemCost float64) bool
-}
-
-type rateLimiter struct {
-	sync.Mutex
+// RateLimiter is a leaky bucket implementation of a RateLimiter.
+type RateLimiter struct {
+	lock sync.Mutex
 
 	creditsPerSecond float64
 	balance          float64
@@ -49,20 +44,43 @@ type rateLimiter struct {
 //
 // It can also be used to limit the rate of traffic in bytes, by setting creditsPerSecond to desired throughput
 // as bytes/second, and calling CheckCredit() with the actual message size.
-//
-// Deprecated: NewRateLimiter will no be exposed as a public API in v3.0.0
-func NewRateLimiter(creditsPerSecond, maxBalance float64) RateLimiter {
-	return &rateLimiter{
+func NewRateLimiter(creditsPerSecond, maxBalance float64) *RateLimiter {
+	return &RateLimiter{
 		creditsPerSecond: creditsPerSecond,
-		balance:          maxBalance,
+		balance:          maxBalance * rand.Float64(),
 		maxBalance:       maxBalance,
 		lastTick:         time.Now(),
-		timeNow:          time.Now}
+		timeNow:          time.Now,
+	}
 }
 
-func (b *rateLimiter) CheckCredit(itemCost float64) bool {
-	b.Lock()
-	defer b.Unlock()
+// Update updates the rate limiter with new configurations. This allows the balance to carry over as the rate changes.
+func (b *RateLimiter) Update(creditsPerSecond, maxBalance float64) {
+	b.lock.Lock()
+	defer b.lock.Unlock()
+	b.updateBalance()
+	b.creditsPerSecond = creditsPerSecond
+	// The new balance should be proportional to the old balance.
+	b.balance = maxBalance * b.balance / b.maxBalance
+	b.maxBalance = maxBalance
+}
+
+// CheckCredit returns true if the RateLimiter has enough credit balance for the itemCost.
+// TODO Change API to accept the timestamp here, since it's always available when starting the span.
+func (b *RateLimiter) CheckCredit(itemCost float64) bool {
+	b.lock.Lock()
+	defer b.lock.Unlock()
+	b.updateBalance()
+	// if we have enough credits to pay for current item, then reduce balance and allow
+	if b.balance >= itemCost {
+		b.balance -= itemCost
+		return true
+	}
+	return false
+}
+
+// NB: this function should only be called while holding the lock
+func (b *RateLimiter) updateBalance() {
 	// calculate how much time passed since the last tick, and update current tick
 	currentTime := b.timeNow()
 	elapsedTime := currentTime.Sub(b.lastTick)
@@ -72,10 +90,4 @@ func (b *rateLimiter) CheckCredit(itemCost float64) bool {
 	if b.balance > b.maxBalance {
 		b.balance = b.maxBalance
 	}
-	// if we have enough credits to pay for current item, then reduce balance and allow
-	if b.balance >= itemCost {
-		b.balance -= itemCost
-		return true
-	}
-	return false
 }
