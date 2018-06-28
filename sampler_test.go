@@ -135,15 +135,28 @@ func TestProbabilisticSamplerPerformance(t *testing.T) {
 	// Sampled: 999829 rate= 0.009998290
 }
 
+type mockRateLimiter struct {
+	balance int
+}
+
+func (l *mockRateLimiter) CheckCredit(itemCost float64) bool {
+	l.balance--
+	return l.balance >= 0
+}
+
 func TestRateLimitingSampler(t *testing.T) {
 	sampler := NewRateLimitingSampler(2)
+	sampler.(*rateLimitingSampler).rateLimiter = &mockRateLimiter{balance: 2}
 	sampler2 := NewRateLimitingSampler(2)
+	sampler2.(*rateLimitingSampler).rateLimiter = &mockRateLimiter{balance: 2}
 	sampler3 := NewRateLimitingSampler(3)
+	sampler3.(*rateLimitingSampler).rateLimiter = &mockRateLimiter{balance: 2}
 	assert.True(t, sampler.Equal(sampler2))
 	assert.False(t, sampler.Equal(sampler3))
 	assert.False(t, sampler.Equal(NewConstSampler(false)))
 
 	sampler = NewRateLimitingSampler(2)
+	sampler.(*rateLimitingSampler).rateLimiter = &mockRateLimiter{balance: 2}
 	sampled, _ := sampler.IsSampled(TraceID{}, testOperationName)
 	assert.True(t, sampled)
 	sampled, _ = sampler.IsSampled(TraceID{}, testOperationName)
@@ -151,11 +164,31 @@ func TestRateLimitingSampler(t *testing.T) {
 	sampled, _ = sampler.IsSampled(TraceID{}, testOperationName)
 	assert.False(t, sampled)
 
+	// Test rate < 1
 	sampler = NewRateLimitingSampler(0.1)
+	sampler.(*rateLimitingSampler).rateLimiter = &mockRateLimiter{balance: 1}
 	sampled, _ = sampler.IsSampled(TraceID{}, testOperationName)
 	assert.True(t, sampled)
 	sampled, _ = sampler.IsSampled(TraceID{}, testOperationName)
 	assert.False(t, sampled)
+
+	// Test update
+	sampler = NewRateLimitingSampler(0.2)
+	_, tags := sampler.IsSampled(TraceID{}, testOperationName)
+	expectedTags := []Tag{
+		{"sampler.type", "ratelimiting"},
+		{"sampler.param", 0.2},
+	}
+	assert.Equal(t, expectedTags, tags)
+
+	sampler.(*rateLimitingSampler).update(0.3)
+
+	_, tags = sampler.IsSampled(TraceID{}, testOperationName)
+	expectedTags = []Tag{
+		{"sampler.type", "ratelimiting"},
+		{"sampler.param", 0.3},
+	}
+	assert.Equal(t, expectedTags, tags)
 }
 
 func TestGuaranteedThroughputProbabilisticSamplerUpdate(t *testing.T) {
@@ -194,6 +227,7 @@ func TestAdaptiveSampler(t *testing.T) {
 	sampler, err := NewAdaptiveSampler(strategies, testDefaultMaxOperations)
 	require.NoError(t, err)
 	defer sampler.Close()
+	sampler.(*adaptiveSampler).samplers[testOperationName].lowerBoundSampler.rateLimiter = &mockRateLimiter{balance: 1}
 
 	sampled, tags := sampler.IsSampled(TraceID{Low: testMaxID + 10}, testOperationName)
 	assert.True(t, sampled)
@@ -437,11 +471,7 @@ func TestRemotelyControlledSampler_updateSampler(t *testing.T) {
 			assert.NotEqual(t, initSampler, sampler.sampler, "Sampler should have been updated")
 			assert.Equal(t, test.expectedDefaultProbability, s.defaultSampler.SamplingRate())
 
-			// First call is always sampled
-			sampled, tags := sampler.IsSampled(TraceID{Low: testMaxID + 10}, testOperationName)
-			assert.True(t, sampled)
-
-			sampled, tags = sampler.IsSampled(TraceID{Low: testMaxID - 10}, testOperationName)
+			sampled, tags := sampler.IsSampled(TraceID{Low: testMaxID - 10}, testOperationName)
 			assert.True(t, sampled)
 			assert.Equal(t, test.expectedTags, tags)
 		})

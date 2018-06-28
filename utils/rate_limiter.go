@@ -15,6 +15,7 @@
 package utils
 
 import (
+	"math/rand"
 	"sync"
 	"time"
 )
@@ -24,8 +25,9 @@ type RateLimiter interface {
 	CheckCredit(itemCost float64) bool
 }
 
-type rateLimiter struct {
-	sync.Mutex
+// RateLimiterImpl is a leaky bucket implementation of a RateLimiter.
+type RateLimiterImpl struct {
+	lock sync.Mutex
 
 	creditsPerSecond float64
 	balance          float64
@@ -47,18 +49,42 @@ type rateLimiter struct {
 //
 // It can also be used to limit the rate of traffic in bytes, by setting creditsPerSecond to desired throughput
 // as bytes/second, and calling CheckCredit() with the actual message size.
-func NewRateLimiter(creditsPerSecond, maxBalance float64) RateLimiter {
-	return &rateLimiter{
+func NewRateLimiter(creditsPerSecond, maxBalance float64) *RateLimiterImpl {
+	return &RateLimiterImpl{
 		creditsPerSecond: creditsPerSecond,
-		balance:          maxBalance,
+		balance:          maxBalance * rand.Float64(),
 		maxBalance:       maxBalance,
 		lastTick:         time.Now(),
-		timeNow:          time.Now}
+		timeNow:          time.Now,
+	}
 }
 
-func (b *rateLimiter) CheckCredit(itemCost float64) bool {
-	b.Lock()
-	defer b.Unlock()
+// Update updates the rate limiter with new configurations. This allows the balance to carry over as the rate changes.
+func (b *RateLimiterImpl) Update(creditsPerSecond, maxBalance float64) {
+	b.lock.Lock()
+	defer b.lock.Unlock()
+	b.updateBalance()
+	b.creditsPerSecond = creditsPerSecond
+	// The new balance should be proportional to the old balance.
+	b.balance = maxBalance * b.balance / b.maxBalance
+	b.maxBalance = maxBalance
+}
+
+// CheckCredit returns true if the RateLimiter has enough credit balance for the itemCost.
+func (b *RateLimiterImpl) CheckCredit(itemCost float64) bool {
+	b.lock.Lock()
+	defer b.lock.Unlock()
+	b.updateBalance()
+	// if we have enough credits to pay for current item, then reduce balance and allow
+	if b.balance >= itemCost {
+		b.balance -= itemCost
+		return true
+	}
+	return false
+}
+
+// NB: this function should only be called while holding the lock
+func (b *RateLimiterImpl) updateBalance() {
 	// calculate how much time passed since the last tick, and update current tick
 	currentTime := b.timeNow()
 	elapsedTime := currentTime.Sub(b.lastTick)
@@ -68,10 +94,4 @@ func (b *rateLimiter) CheckCredit(itemCost float64) bool {
 	if b.balance > b.maxBalance {
 		b.balance = b.maxBalance
 	}
-	// if we have enough credits to pay for current item, then reduce balance and allow
-	if b.balance >= itemCost {
-		b.balance -= itemCost
-		return true
-	}
-	return false
 }
