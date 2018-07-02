@@ -22,17 +22,30 @@ import (
 
 // RateLimiter is a leaky bucket implementation of a RateLimiter.
 type RateLimiter struct {
-	lock sync.Mutex
-
+	lock             sync.Mutex
+	options          Options
 	creditsPerSecond float64
 	balance          float64
 	maxBalance       float64
 	lastTick         time.Time
-
-	timeNow func() time.Time
 }
 
-// NewRateLimiter creates a new rate limiter based on leaky bucket algorithm, formulated in terms of a
+// Options control behavior of the rate limiter.
+type Options struct {
+	RandomNumber func() float64
+	TimeNow      func() time.Time
+}
+
+func (o *Options) applyDefaults() {
+	if o.RandomNumber == nil {
+		o.RandomNumber = rand.Float64
+	}
+	if o.TimeNow == nil {
+		o.TimeNow = time.Now
+	}
+}
+
+// New creates a new rate limiter based on leaky bucket algorithm, formulated in terms of a
 // credits balance that is replenished every time CheckCredit() method is called (tick) by the amount proportional
 // to the time elapsed since the last tick, up to max of creditsPerSecond. A call to CheckCredit() takes a cost
 // of an item we want to pay with the balance. If the balance exceeds the cost of the item, the item is "purchased"
@@ -44,13 +57,14 @@ type RateLimiter struct {
 //
 // It can also be used to limit the rate of traffic in bytes, by setting creditsPerSecond to desired throughput
 // as bytes/second, and calling CheckCredit() with the actual message size.
-func NewRateLimiter(creditsPerSecond, maxBalance float64) *RateLimiter {
+func New(creditsPerSecond, maxBalance float64, options Options) *RateLimiter {
+	(&options).applyDefaults()
 	return &RateLimiter{
 		creditsPerSecond: creditsPerSecond,
-		balance:          maxBalance * rand.Float64(),
+		balance:          maxBalance * options.RandomNumber(),
 		maxBalance:       maxBalance,
 		lastTick:         time.Now(),
-		timeNow:          time.Now,
+		options:          options,
 	}
 }
 
@@ -82,7 +96,7 @@ func (b *RateLimiter) CheckCredit(itemCost float64) bool {
 // NB: this function should only be called while holding the lock
 func (b *RateLimiter) updateBalance() {
 	// calculate how much time passed since the last tick, and update current tick
-	currentTime := b.timeNow()
+	currentTime := b.options.TimeNow()
 	elapsedTime := currentTime.Sub(b.lastTick)
 	b.lastTick = currentTime
 	// calculate how much credit have we accumulated since the last tick

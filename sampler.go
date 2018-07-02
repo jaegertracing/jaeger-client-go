@@ -183,7 +183,7 @@ func (s *rateLimitingSampler) init(maxTracesPerSecond float64) *rateLimitingSamp
 	}
 	s.maxTracesPerSecond = maxTracesPerSecond
 	if s.rateLimiter == nil {
-		s.rateLimiter = ratelimiter.NewRateLimiter(maxTracesPerSecond, math.Max(maxTracesPerSecond, 1.0))
+		s.rateLimiter = ratelimiter.New(maxTracesPerSecond, math.Max(maxTracesPerSecond, 1.0), ratelimiter.Options{})
 	} else {
 		s.rateLimiter.Update(maxTracesPerSecond, math.Max(maxTracesPerSecond, 1.0))
 	}
