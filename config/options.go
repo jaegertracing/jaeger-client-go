@@ -33,6 +33,7 @@ type Options struct {
 	contribObservers    []jaeger.ContribObserver
 	observers           []jaeger.Observer
 	gen128Bit           bool
+	poolSpans           bool
 	zipkinSharedRPCSpan bool
 	tags                []opentracing.Tag
 	injectors           map[interface{}]jaeger.Injector
@@ -89,6 +90,13 @@ func ContribObserver(observer jaeger.ContribObserver) Option {
 func Gen128Bit(gen128Bit bool) Option {
 	return func(c *Options) {
 		c.gen128Bit = gen128Bit
+	}
+}
+
+// PoolSpans specifies whether to pool spans
+func PoolSpans(poolSpans bool) Option {
+	return func(c *Options) {
+		c.poolSpans = poolSpans
 	}
 }
 
