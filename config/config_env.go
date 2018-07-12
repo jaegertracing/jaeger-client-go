@@ -16,6 +16,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -41,6 +42,9 @@ const (
 	envReporterMaxQueueSize   = "JAEGER_REPORTER_MAX_QUEUE_SIZE"
 	envReporterFlushInterval  = "JAEGER_REPORTER_FLUSH_INTERVAL"
 	envReporterLogSpans       = "JAEGER_REPORTER_LOG_SPANS"
+	envEndpoint               = "JAEGER_ENDPOINT"
+	envUser                   = "JAEGER_USER"
+	envPassword               = "JAEGER_PASSWORD"
 	envAgentHost              = "JAEGER_AGENT_HOST"
 	envAgentPort              = "JAEGER_AGENT_PORT"
 )
@@ -157,11 +161,17 @@ func reporterConfigFromEnv() (*ReporterConfig, error) {
 
 	host := jaeger.DefaultUDPSpanServerHost
 	if e := os.Getenv(envAgentHost); e != "" {
+		if ep := os.Getenv(envEndpoint); ep != "" {
+			return nil, errors.Errorf("cannot set env vars %s and %s together", envAgentHost, envEndpoint)
+		}
 		host = e
 	}
 
 	port := jaeger.DefaultUDPSpanServerPort
 	if e := os.Getenv(envAgentPort); e != "" {
+		if ep := os.Getenv(envEndpoint); ep != "" {
+			return nil, errors.Errorf("cannot set env vars %s and %s together", envAgentPort, envEndpoint)
+		}
 		if value, err := strconv.ParseInt(e, 10, 0); err == nil {
 			port = int(value)
 		} else {
@@ -172,6 +182,28 @@ func reporterConfigFromEnv() (*ReporterConfig, error) {
 	// the side effect of this is that we are building the default value, even if none of the env vars
 	// were not explicitly passed
 	rc.LocalAgentHostPort = fmt.Sprintf("%s:%d", host, port)
+
+	if e := os.Getenv(envEndpoint); e != "" {
+		u, err := url.ParseRequestURI(e)
+		if err != nil {
+			return nil, errors.Wrapf(err, "cannot parse env var %s=%s", envEndpoint, e)
+		}
+		rc.CollectorEndpoint = fmt.Sprintf("%s", u)
+	}
+
+	if e := os.Getenv(envUser); e != "" {
+		if p := os.Getenv(envPassword); p == "" {
+			return nil, errors.Errorf("you must set env var %s when using %s", envPassword, envUser)
+		}
+		rc.User = e
+	}
+
+	if e := os.Getenv(envPassword); e != "" {
+		if u := os.Getenv(envUser); u == "" {
+			return nil, errors.Errorf("you must set env var %s when using %s", envUser, envPassword)
+		}
+		rc.Password = e
+	}
 
 	return rc, nil
 }
