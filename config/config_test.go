@@ -249,17 +249,14 @@ func TestParsingUserPasswordErrorEnv(t *testing.T) {
 	tests := []struct {
 		envVar string
 		value  string
-		err    string
 	}{
 		{
 			envVar: envUser,
 			value:  "user",
-			err:    fmt.Sprintf("you must set env var %s when using %s", envPassword, envUser),
 		},
 		{
 			envVar: envPassword,
 			value:  "password",
-			err:    fmt.Sprintf("you must set env var %s when using %s", envUser, envPassword),
 		},
 	}
 
@@ -267,7 +264,8 @@ func TestParsingUserPasswordErrorEnv(t *testing.T) {
 		os.Setenv(test.envVar, test.value)
 		_, err := FromEnv()
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), test.err)
+		assert.Contains(t, err.Error(), fmt.Sprintf("you must set %s and %s env vars together", envUser,
+			envPassword))
 		os.Unsetenv(test.envVar)
 	}
 }

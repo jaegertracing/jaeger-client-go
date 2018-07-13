@@ -160,8 +160,9 @@ func reporterConfigFromEnv() (*ReporterConfig, error) {
 	}
 
 	host := jaeger.DefaultUDPSpanServerHost
+	ep := os.Getenv(envEndpoint)
 	if e := os.Getenv(envAgentHost); e != "" {
-		if ep := os.Getenv(envEndpoint); ep != "" {
+		if ep != "" {
 			return nil, errors.Errorf("cannot set env vars %s and %s together", envAgentHost, envEndpoint)
 		}
 		host = e
@@ -169,7 +170,7 @@ func reporterConfigFromEnv() (*ReporterConfig, error) {
 
 	port := jaeger.DefaultUDPSpanServerPort
 	if e := os.Getenv(envAgentPort); e != "" {
-		if ep := os.Getenv(envEndpoint); ep != "" {
+		if ep != "" {
 			return nil, errors.Errorf("cannot set env vars %s and %s together", envAgentPort, envEndpoint)
 		}
 		if value, err := strconv.ParseInt(e, 10, 0); err == nil {
@@ -183,26 +184,21 @@ func reporterConfigFromEnv() (*ReporterConfig, error) {
 	// were not explicitly passed
 	rc.LocalAgentHostPort = fmt.Sprintf("%s:%d", host, port)
 
-	if e := os.Getenv(envEndpoint); e != "" {
-		u, err := url.ParseRequestURI(e)
+	if ep != "" {
+		u, err := url.ParseRequestURI(ep)
 		if err != nil {
-			return nil, errors.Wrapf(err, "cannot parse env var %s=%s", envEndpoint, e)
+			return nil, errors.Wrapf(err, "cannot parse env var %s=%s", envEndpoint, ep)
 		}
 		rc.CollectorEndpoint = fmt.Sprintf("%s", u)
 	}
 
-	if e := os.Getenv(envUser); e != "" {
-		if p := os.Getenv(envPassword); p == "" {
-			return nil, errors.Errorf("you must set env var %s when using %s", envPassword, envUser)
-		}
-		rc.User = e
-	}
-
-	if e := os.Getenv(envPassword); e != "" {
-		if u := os.Getenv(envUser); u == "" {
-			return nil, errors.Errorf("you must set env var %s when using %s", envUser, envPassword)
-		}
-		rc.Password = e
+	user := os.Getenv(envUser)
+	pswd := os.Getenv(envPassword)
+	if  user != "" && pswd == "" || user == "" && pswd != "" {
+		return nil, errors.Errorf("you must set %s and %s env vars together", envUser, envPassword)
+	} else {
+		rc.User = user
+		rc.Password = pswd
 	}
 
 	return rc, nil
