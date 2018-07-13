@@ -194,12 +194,11 @@ func reporterConfigFromEnv() (*ReporterConfig, error) {
 
 	user := os.Getenv(envUser)
 	pswd := os.Getenv(envPassword)
-	if  user != "" && pswd == "" || user == "" && pswd != "" {
+	if user != "" && pswd == "" || user == "" && pswd != "" {
 		return nil, errors.Errorf("you must set %s and %s env vars together", envUser, envPassword)
-	} else {
-		rc.User = user
-		rc.Password = pswd
 	}
+	rc.User = user
+	rc.Password = pswd
 
 	return rc, nil
 }
