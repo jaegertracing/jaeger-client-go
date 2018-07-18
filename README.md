@@ -159,6 +159,8 @@ The remote reporter uses "transports" to actually send the spans out
 of process. Currently the supported transports include:
   * [Jaeger Thrift](https://github.com/jaegertracing/jaeger-idl/blob/master/thrift/agent.thrift) over UDP or HTTP,
   * [Zipkin Thrift](https://github.com/jaegertracing/jaeger-idl/blob/master/thrift/zipkincore.thrift) over HTTP.
+  * [Zipkin v2 Reporter](./zipkin/reporter.go) that can send spans using any
+	  Zipkin Reporter instance, which support a variety of transports
 
 ### Sampling
 

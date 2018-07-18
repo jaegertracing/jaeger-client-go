@@ -12,6 +12,11 @@ import:
   - metrics
 - package: github.com/pkg/errors
   version: ~0.8.0
+- package: github.com/openzipkin/zipkin-go
+  version: ~0.1.0
+  subpackages:
+  - reporter
+  - model
 testImport:
 - package: github.com/stretchr/testify
   subpackages:
@@ -20,3 +25,7 @@ testImport:
   - suite
 - package: github.com/prometheus/client_golang
   version: v0.8.0
+- package: github.com/openzipkin/zipkin-go
+  version: ~0.1.0
+  subpackages:
+  - reporter/http
