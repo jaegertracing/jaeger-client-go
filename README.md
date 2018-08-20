@@ -59,7 +59,8 @@ JAEGER_REPORTER_MAX_QUEUE_SIZE | The reporter's maximum queue size
 JAEGER_REPORTER_FLUSH_INTERVAL | The reporter's flush interval (ms)
 JAEGER_SAMPLER_TYPE | The sampler type
 JAEGER_SAMPLER_PARAM | The sampler parameter (number)
-JAEGER_SAMPLER_MANAGER_HOST_PORT | The host name and port when using the remote controlled sampler
+JAEGER_SAMPLER_MANAGER_HOST_PORT | The host name and port when using the remote controlled sampler (deprecated, use JAEGER_CONFIG_MANAGER_HOST_PORT)
+JAEGER_CONFIG_MANAGER_HOST_PORT | The host name and port when using remote sampling configuration
 JAEGER_SAMPLER_MAX_OPERATIONS | The maximum number of operations that the sampler will keep track of
 JAEGER_SAMPLER_REFRESH_INTERVAL | How often the remotely controlled sampler will poll jaeger-agent for the appropriate sampling strategy
 JAEGER_TAGS | A comma separated list of `name = value` tracer level tags, which get added to all reported spans. The value can also refer to an environment variable using the format `${envVarName:default}`, where the `:default` is optional, and identifies a value to be used if the environment variable cannot be found

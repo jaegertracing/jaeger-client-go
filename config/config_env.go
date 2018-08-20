@@ -36,6 +36,7 @@ const (
 	envTags                   = "JAEGER_TAGS"
 	envSamplerType            = "JAEGER_SAMPLER_TYPE"
 	envSamplerParam           = "JAEGER_SAMPLER_PARAM"
+	envConfigManagerHostPort  = "JAEGER_CONFIG_MANAGER_HOST_PORT"
 	envSamplerManagerHostPort = "JAEGER_SAMPLER_MANAGER_HOST_PORT"
 	envSamplerMaxOperations   = "JAEGER_SAMPLER_MAX_OPERATIONS"
 	envSamplerRefreshInterval = "JAEGER_SAMPLER_REFRESH_INTERVAL"
@@ -108,8 +109,14 @@ func samplerConfigFromEnv() (*SamplerConfig, error) {
 		}
 	}
 
-	if e := os.Getenv(envSamplerManagerHostPort); e != "" {
+	if e := os.Getenv(envConfigManagerHostPort); e != "" {
 		sc.SamplingServerURL = e
+	} else {
+		// deprecated
+		if e = os.Getenv(envSamplerManagerHostPort); e != "" {
+			jaeger.StdLogger.Infof("deprecated: Please use JAEGER_CONFIG_MANAGER_HOST_PORT")
+			sc.SamplingServerURL = e
+		}
 	}
 
 	if e := os.Getenv(envSamplerMaxOperations); e != "" {
