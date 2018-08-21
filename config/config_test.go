@@ -116,9 +116,11 @@ func TestNoServiceNameFromEnv(t *testing.T) {
 
 func TestSamplerConfigFromEnv(t *testing.T) {
 	// prepare
+	testMgrHostPort := "http://themaster:80"
 	os.Setenv(envSamplerType, "const")
 	os.Setenv(envSamplerParam, "1")
-	os.Setenv(envSamplerManagerHostPort, "http://themaster")
+	os.Setenv(envConfigManagerHostPort, testMgrHostPort)
+	os.Setenv(envSamplerManagerHostPort, testMgrHostPort) // deprecated
 	os.Setenv(envSamplerMaxOperations, "10")
 	os.Setenv(envSamplerRefreshInterval, "1m1s") // 61 seconds
 
@@ -129,7 +131,7 @@ func TestSamplerConfigFromEnv(t *testing.T) {
 	// verify
 	assert.Equal(t, "const", cfg.Sampler.Type)
 	assert.Equal(t, float64(1), cfg.Sampler.Param)
-	assert.Equal(t, "http://themaster", cfg.Sampler.SamplingServerURL)
+	assert.Equal(t, testMgrHostPort, cfg.Sampler.SamplingServerURL)
 	assert.Equal(t, int(10), cfg.Sampler.MaxOperations)
 	assert.Equal(t, 61000000000, int(cfg.Sampler.SamplingRefreshInterval))
 
