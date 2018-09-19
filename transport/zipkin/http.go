@@ -84,6 +84,14 @@ func HTTPBasicAuth(username string, password string) HTTPOption {
 	}
 }
 
+// HTTPRoundTripper configures the underlying Transport on the *http.Client
+// that is used
+func HTTPRoundTripper(transport http.RoundTripper) HTTPOption {
+	return func(c *HTTPTransport) {
+		c.client.Transport = transport
+	}
+}
+
 // NewHTTPTransport returns a new HTTP-backend transport. url should be an http
 // url to handle post request, typically something like:
 //     http://hostname:9411/api/v1/spans

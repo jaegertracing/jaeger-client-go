@@ -84,12 +84,16 @@ func TestHttpTransport(t *testing.T) {
 }
 
 func TestHTTPOptions(t *testing.T) {
+	roundTripper := &http.Transport{
+		MaxIdleConns: 80000,
+	}
 	sender, err := NewHTTPTransport(
 		"some url",
 		HTTPLogger(log.StdLogger),
 		HTTPBatchSize(123),
 		HTTPTimeout(123*time.Millisecond),
 		HTTPBasicAuth("urundai", "kuzhambu"),
+		HTTPRoundTripper(roundTripper),
 	)
 	require.NoError(t, err)
 	assert.Equal(t, log.StdLogger, sender.logger)
@@ -97,6 +101,7 @@ func TestHTTPOptions(t *testing.T) {
 	assert.Equal(t, 123*time.Millisecond, sender.client.Timeout)
 	assert.Equal(t, "urundai", sender.httpCredentials.username)
 	assert.Equal(t, "kuzhambu", sender.httpCredentials.password)
+	assert.Equal(t, roundTripper, sender.client.Transport)
 }
 
 type httpServer struct {
