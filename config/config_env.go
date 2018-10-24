@@ -164,7 +164,7 @@ func reporterConfigFromEnv() (*ReporterConfig, error) {
 		if err != nil {
 			return nil, errors.Wrapf(err, "cannot parse env var %s=%s", envEndpoint, e)
 		}
-		rc.CollectorEndpoint = fmt.Sprintf("%s", u)
+		rc.CollectorEndpoint = u.String()
 		user := os.Getenv(envUser)
 		pswd := os.Getenv(envPassword)
 		if user != "" && pswd == "" || user == "" && pswd != "" {
