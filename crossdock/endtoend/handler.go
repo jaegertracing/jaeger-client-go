@@ -38,8 +38,8 @@ var (
 	endToEndConfig = config.Configuration{
 		Disabled: false,
 		Sampler: &config.SamplerConfig{
-			Type:  defaultSamplerType,
-			Param: 1.0,
+			Type:                    defaultSamplerType,
+			Param:                   1.0,
 			SamplingRefreshInterval: 5 * time.Second,
 		},
 		Reporter: &config.ReporterConfig{
