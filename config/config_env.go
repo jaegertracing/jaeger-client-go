@@ -187,7 +187,7 @@ func reporterConfigFromEnv() (*ReporterConfig, error) {
 			}
 		}
 		// the side effect of this is that we are building the default value, even if none of the env vars
-		// were not explicitly passed
+		// were explicitly passed
 		rc.LocalAgentHostPort = fmt.Sprintf("%s:%d", host, port)
 	}
 
