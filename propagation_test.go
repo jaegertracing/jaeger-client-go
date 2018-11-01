@@ -118,10 +118,10 @@ func TestSpanPropagator(t *testing.T) {
 	}
 
 	metricsFactory.AssertCounterMetrics(t, []metricstest.ExpectedMetric{
-		{Name: "jaeger.started_spans", Tags: map[string]string{"sampled": "y"}, Value: 1 + 2*len(tests)},
-		{Name: "jaeger.finished_spans", Value: 1 + len(tests)},
-		{Name: "jaeger.traces", Tags: map[string]string{"state": "started", "sampled": "y"}, Value: 1},
-		{Name: "jaeger.traces", Tags: map[string]string{"state": "joined", "sampled": "y"}, Value: len(tests)},
+		{Name: "started_spans", Tags: map[string]string{"sampled": "y"}, Value: 1 + 2*len(tests)},
+		{Name: "finished_spans", Value: 1 + len(tests)},
+		{Name: "traces", Tags: map[string]string{"state": "started", "sampled": "y"}, Value: 1},
+		{Name: "traces", Tags: map[string]string{"state": "joined", "sampled": "y"}, Value: len(tests)},
 	}...)
 }
 
@@ -150,7 +150,7 @@ func TestDecodingError(t *testing.T) {
 	_, err := tracer.Extract(opentracing.HTTPHeaders, tmc)
 	assert.Error(t, err)
 
-	metricsFactory.AssertCounterMetrics(t, metricstest.ExpectedMetric{Name: "jaeger.span_context_decoding_errors", Value: 1})
+	metricsFactory.AssertCounterMetrics(t, metricstest.ExpectedMetric{Name: "span_context_decoding_errors", Value: 1})
 }
 
 func TestBaggagePropagationHTTP(t *testing.T) {
@@ -213,7 +213,7 @@ func TestJaegerBaggageHeader(t *testing.T) {
 			// ensure that traces.started counter is incremented, not traces.joined
 			metricsFactory.AssertCounterMetrics(t,
 				metricstest.ExpectedMetric{
-					Name: "jaeger.traces", Tags: map[string]string{"state": "started", "sampled": "y"}, Value: 1,
+					Name: "traces", Tags: map[string]string{"state": "started", "sampled": "y"}, Value: 1,
 				},
 			)
 		})
@@ -286,7 +286,7 @@ func TestDebugCorrelationID(t *testing.T) {
 			// ensure that traces.started counter is incremented, not traces.joined
 			metricsFactory.AssertCounterMetrics(t,
 				metricstest.ExpectedMetric{
-					Name: "jaeger.traces", Tags: map[string]string{"state": "started", "sampled": "y"}, Value: 1,
+					Name: "traces", Tags: map[string]string{"state": "started", "sampled": "y"}, Value: 1,
 				},
 			)
 		})

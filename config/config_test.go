@@ -346,7 +346,7 @@ func TestInitGlobalTracer(t *testing.T) {
 		{
 			cfg: Configuration{
 				Sampler: &SamplerConfig{
-					Type:                    "remote",
+					Type: "remote",
 					SamplingRefreshInterval: 1,
 				},
 			},
@@ -436,7 +436,7 @@ func TestBaggageRestrictionsConfig(t *testing.T) {
 	require.NoError(t, err)
 	defer closer.Close()
 
-	metricName := "jaeger.baggage_restrictions_updates"
+	metricName := "baggage_restrictions_updates"
 	metricTags := map[string]string{"result": "err"}
 	key := metrics.GetKey(metricName, metricTags, "|", "=")
 	for i := 0; i < 100; i++ {
