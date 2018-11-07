@@ -186,8 +186,6 @@ func reporterConfigFromEnv() (*ReporterConfig, error) {
 				return nil, errors.Wrapf(err, "cannot parse env var %s=%s", envAgentPort, e)
 			}
 		}
-		// the side effect of this is that we are building the default value, even if none of the env vars
-		// were explicitly passed
 		rc.LocalAgentHostPort = fmt.Sprintf("%s:%d", host, port)
 	}
 
