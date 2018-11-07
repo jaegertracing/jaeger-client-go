@@ -148,8 +148,6 @@ func TestReporterConfigFromEnv(t *testing.T) {
 	os.Setenv(envReporterLogSpans, "true")
 	os.Setenv(envAgentHost, "nonlocalhost")
 	os.Setenv(envAgentPort, "6832")
-	os.Setenv(envUser, "user")
-	os.Setenv(envPassword, "password")
 
 	// test
 	cfg, err := FromEnv()
@@ -162,9 +160,9 @@ func TestReporterConfigFromEnv(t *testing.T) {
 	assert.Equal(t, "nonlocalhost:6832", cfg.Reporter.LocalAgentHostPort)
 
 	// Test HTTP transport
-	os.Unsetenv(envAgentHost)
-	os.Unsetenv(envAgentPort)
 	os.Setenv(envEndpoint, "http://1.2.3.4:5678/api/traces")
+	os.Setenv(envUser, "user")
+	os.Setenv(envPassword, "password")
 
 	// test
 	cfg, err = FromEnv()
@@ -172,6 +170,9 @@ func TestReporterConfigFromEnv(t *testing.T) {
 
 	// verify
 	assert.Equal(t, "http://1.2.3.4:5678/api/traces", cfg.Reporter.CollectorEndpoint)
+	assert.Equal(t, "user", cfg.Reporter.User)
+	assert.Equal(t, "password", cfg.Reporter.Password)
+	assert.Equal(t, "", cfg.Reporter.LocalAgentHostPort)
 
 	// cleanup
 	os.Unsetenv(envReporterMaxQueueSize)
@@ -259,41 +260,13 @@ func TestParsingUserPasswordErrorEnv(t *testing.T) {
 			value:  "password",
 		},
 	}
-
+	os.Setenv(envEndpoint, "http://localhost:8080")
 	for _, test := range tests {
 		os.Setenv(test.envVar, test.value)
 		_, err := FromEnv()
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), fmt.Sprintf("you must set %s and %s env vars together", envUser,
 			envPassword))
-		os.Unsetenv(test.envVar)
-	}
-}
-
-func TestHostPortEndpointEnvError(t *testing.T) {
-	tests := []struct {
-		envVar string
-		value  string
-		err    string
-	}{
-		{
-			envVar: envAgentHost,
-			value:  "user",
-			err:    fmt.Sprintf("cannot set env vars %s and %s together", envAgentHost, envEndpoint),
-		},
-		{
-			envVar: envAgentPort,
-			value:  "password",
-			err:    fmt.Sprintf("cannot set env vars %s and %s together", envAgentPort, envEndpoint),
-		},
-	}
-
-	os.Setenv(envEndpoint, "http://1.2.3.4:5678/api/traces")
-	for _, test := range tests {
-		os.Setenv(test.envVar, test.value)
-		_, err := FromEnv()
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), test.err)
 		os.Unsetenv(test.envVar)
 	}
 	os.Unsetenv(envEndpoint)
