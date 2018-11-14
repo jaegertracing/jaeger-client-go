@@ -77,6 +77,46 @@ func (s *Span) SetOperationName(operationName string) opentracing.Span {
 	return s
 }
 
+// SetContext sets or changes the context.
+func (s *Span) SetContext(context SpanContext) opentracing.Span {
+	s.Lock()
+	defer s.Unlock()
+	s.context = context
+	return s
+}
+
+// SetStartTime sets or changes start date.
+func (s *Span) SetStartTime(time time.Time) opentracing.Span {
+	s.Lock()
+	defer s.Unlock()
+	s.startTime = time
+	return s
+}
+
+// SetStartTime sets or changes duration.
+func (s *Span) SetDuration(duration time.Duration) opentracing.Span {
+	s.Lock()
+	defer s.Unlock()
+	s.duration = duration
+	return s
+}
+
+// SetTracer sets or changes the tracer.
+func (s *Span) SetTracer(tracer opentracing.Tracer) opentracing.Span {
+	s.Lock()
+	defer s.Unlock()
+	s.tracer = tracer.(*Tracer)
+	return s
+}
+
+// SetObserver sets or changes the observer.
+func (s *Span) SetObserver(observer ContribSpanObserver) opentracing.Span {
+	s.Lock()
+	defer s.Unlock()
+	s.observer = observer
+	return s
+}
+
 // SetTag implements SetTag() of opentracing.Span
 func (s *Span) SetTag(key string, value interface{}) opentracing.Span {
 	s.observer.OnSetTag(key, value)

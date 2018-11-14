@@ -17,6 +17,7 @@ package jaeger
 import (
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
@@ -91,6 +92,43 @@ func TestSpanOperationName(t *testing.T) {
 	sp1.Finish()
 
 	assert.Equal(t, "s2", sp1.OperationName())
+}
+
+func TestSpan_SetStartTime(t *testing.T) {
+	tracer, closer := NewTracer("DOOP", NewConstSampler(true), NewNullReporter())
+	defer closer.Close()
+
+	sp1 := tracer.StartSpan("s1").(*Span)
+	startTime := sp1.startTime
+	newStartTime := sp1.startTime.AddDate(0, 0, 1)
+	sp1.SetStartTime(newStartTime)
+	sp1.Finish()
+
+	assert.True(t, startTime.Before(sp1.startTime))
+}
+
+func TestSpan_SetDuration(t *testing.T) {
+	tracer, closer := NewTracer("DOOP", NewConstSampler(true), NewNullReporter())
+	defer closer.Close()
+
+	sp1 := tracer.StartSpan("s1").(*Span)
+	initialDuration := sp1.duration
+	newDuration := time.Duration(initialDuration + time.Second)
+	sp1.Finish()
+	sp1.SetDuration(newDuration)
+	assert.True(t, initialDuration < sp1.duration)
+}
+
+func TestSpan_SetObserver(t *testing.T) {
+	tracer, closer := NewTracer("DOOP", NewConstSampler(true), NewNullReporter())
+	defer closer.Close()
+
+	sp1 := tracer.StartSpan("s1").(*Span)
+	initialObserver := sp1.observer
+	sp1.SetObserver(&testSpanObserver{})
+	sp1.Finish()
+
+	assert.NotEqual(t, initialObserver, sp1.observer)
 }
 
 func TestSetTag_SamplingPriority(t *testing.T) {
