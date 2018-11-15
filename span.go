@@ -93,7 +93,7 @@ func (s *Span) SetStartTime(time time.Time) opentracing.Span {
 	return s
 }
 
-// SetStartTime sets or changes duration.
+// SetDuration sets or changes duration.
 func (s *Span) SetDuration(duration time.Duration) opentracing.Span {
 	s.Lock()
 	defer s.Unlock()
