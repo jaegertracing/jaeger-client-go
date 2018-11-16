@@ -113,5 +113,8 @@ install-ci: install-dep-ci install
 .PHONY: test-ci
 test-ci:
 	@./scripts/cover.sh $(shell go list $(PACKAGES))
+ifeq ($(CI_SKIP_LINT),true)
+	echo 'skipping lint'
+else
 	make lint
-
+endif

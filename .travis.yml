@@ -18,6 +18,11 @@ matrix:
     env:
     - TESTS=true
     - USE_DEP=true
+  - go: 1.10.5
+    env:
+    - TESTS=true
+    - USE_DEP=true
+    - CI_SKIP_LINT=true
 
 services:
   - docker
