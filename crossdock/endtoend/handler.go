@@ -138,7 +138,10 @@ func (h *Handler) GenerateTraces(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Tracer is not initialized", http.StatusInternalServerError)
 		return
 	}
+	log.Printf("Received GenerateTraces request: %+v\n", req)
 	generateTraces(tracer, &req)
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Success"))
 }
 
 func generateTraces(tracer opentracing.Tracer, r *traceRequest) {
