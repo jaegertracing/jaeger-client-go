@@ -46,6 +46,17 @@ var (
 		"x-b3-parentspanid": "1",
 		"x-b3-sampled":      "0",
 	}
+	rootSampledBooleanHeader = opentracing.TextMapCarrier{
+		"x-b3-traceid": "1",
+		"x-b3-spanid":  "2",
+		"x-b3-sampled": "true",
+	}
+	nonRootSampledBooleanHeader = opentracing.TextMapCarrier{
+		"x-b3-traceid":      "1",
+		"x-b3-spanid":       "2",
+		"x-b3-parentspanid": "1",
+		"x-b3-sampled":      "true",
+	}
 	invalidHeader = opentracing.TextMapCarrier{
 		"x-b3-traceid":      "jdkafhsd",
 		"x-b3-spanid":       "afsdfsdf",
@@ -89,6 +100,18 @@ func TestExtractorNonRootNonSampled(t *testing.T) {
 	ctx, err := propagator.Extract(nonRootNonSampledHeader)
 	assert.Nil(t, err)
 	assert.EqualValues(t, nonRootNonSampled, ctx)
+}
+
+func TestExtractorRootSampledBoolean(t *testing.T) {
+	ctx, err := propagator.Extract(rootSampledBooleanHeader)
+	assert.Nil(t, err)
+	assert.EqualValues(t, rootSampled, ctx)
+}
+
+func TestExtractorNonRootSampledBoolean(t *testing.T) {
+	ctx, err := propagator.Extract(nonRootSampledBooleanHeader)
+	assert.Nil(t, err)
+	assert.EqualValues(t, nonRootSampled, ctx)
 }
 
 func TestInjectorRootSampled(t *testing.T) {
