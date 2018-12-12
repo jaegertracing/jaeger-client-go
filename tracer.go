@@ -132,8 +132,9 @@ func NewTracer(
 
 		t.randomNumber = func() uint64 {
 			generator := pool.Get().(rand.Source)
-			defer pool.Put(generator)
-			return uint64(generator.Int63())
+			number := uint64(generator.Int63())
+			pool.Put(generator)
+			return number
 		}
 	}
 	if t.timeNow == nil {
