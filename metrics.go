@@ -97,7 +97,7 @@ type Metrics struct {
 func NewMetrics(factory metrics.Factory, globalTags map[string]string) *Metrics {
 	m := &Metrics{}
 	// TODO the namespace "jaeger" should be configurable (e.g. in all-in-one "jaeger-client" would make more sense)
-	metrics.Init(m, factory.Namespace("jaeger", nil), globalTags)
+	metrics.Init(m, factory.Namespace(metrics.NSOptions{Name: "jaeger"}), globalTags)
 	return m
 }
 
