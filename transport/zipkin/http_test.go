@@ -134,11 +134,11 @@ func TestHTTPErrorLogging(t *testing.T) {
 			URL: s.SpanURL(),
 		},
 		{ // bad URL path
-			URL:                   s.httpServer.URL + "/bad_suffix",
+			URL: s.httpServer.URL + "/bad_suffix",
 			expectErrorSubstrings: []string{"error from collector: code=404"},
 		},
 		{ // bad URL scheme
-			URL:                   "badscheme://localhost:10001",
+			URL: "badscheme://localhost:10001",
 			expectErrorSubstrings: []string{"error when flushing the buffer"},
 		},
 	}
