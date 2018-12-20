@@ -116,11 +116,11 @@
   name = "github.com/uber/jaeger-lib"
   packages = [
     "metrics",
-    "metrics/prometheus",
-    "metrics/testutils"
+    "metrics/metricstest",
+    "metrics/prometheus"
   ]
-  revision = "4267858c0679cd4e47cefed8d7f70fd386cfb567"
-  version = "v1.4.0"
+  revision = "0e30338a695636fe5bcf7301e8030ce8dd2a8530"
+  version = "v2.0.0"
 
 [[projects]]
   name = "go.uber.org/atomic"
@@ -159,6 +159,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "f9dcfaf37a785c5dac1e20c29605eda29a83ba9c6f8842e92960dc94c8c4ff80"
+  inputs-digest = "6d9f4397c5091bc5a3b0e91e62196bfb0883df2c194998a9d5c0868f6cfba281"
   solver-name = "gps-cdcl"
   solver-version = 1

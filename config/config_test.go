@@ -25,7 +25,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/uber/jaeger-lib/metrics"
-	"github.com/uber/jaeger-lib/metrics/testutils"
+	"github.com/uber/jaeger-lib/metrics/metricstest"
 
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/log"
@@ -392,7 +392,7 @@ func TestConfigWithReporter(t *testing.T) {
 }
 
 func TestConfigWithRPCMetrics(t *testing.T) {
-	metrics := metrics.NewLocalFactory(0)
+	metrics := metricstest.NewFactory(0)
 	c := Configuration{
 		Sampler: &SamplerConfig{
 			Type:  "const",
@@ -412,8 +412,8 @@ func TestConfigWithRPCMetrics(t *testing.T) {
 
 	tracer.StartSpan("test", ext.SpanKindRPCServer).Finish()
 
-	testutils.AssertCounterMetrics(t, metrics,
-		testutils.ExpectedMetric{
+	metrics.AssertCounterMetrics(t,
+		metricstest.ExpectedMetric{
 			Name:  "jaeger-rpc.requests",
 			Tags:  map[string]string{"component": "jaeger", "endpoint": "test", "error": "false"},
 			Value: 1,
@@ -422,7 +422,7 @@ func TestConfigWithRPCMetrics(t *testing.T) {
 }
 
 func TestBaggageRestrictionsConfig(t *testing.T) {
-	m := metrics.NewLocalFactory(0)
+	m := metricstest.NewFactory(0)
 	c := Configuration{
 		BaggageRestrictions: &BaggageRestrictionsConfig{
 			HostPort:        "not:1929213",
@@ -448,8 +448,8 @@ func TestBaggageRestrictionsConfig(t *testing.T) {
 		time.Sleep(time.Millisecond)
 	}
 
-	testutils.AssertCounterMetrics(t, m,
-		testutils.ExpectedMetric{
+	m.AssertCounterMetrics(t,
+		metricstest.ExpectedMetric{
 			Name:  metricName,
 			Tags:  metricTags,
 			Value: 1,
