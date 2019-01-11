@@ -96,7 +96,7 @@ type Metrics struct {
 // NewMetrics creates a new Metrics struct and initializes it.
 func NewMetrics(factory metrics.Factory, globalTags map[string]string) *Metrics {
 	m := &Metrics{}
-	_ = metrics.Init(m, factory, globalTags)
+	metrics.MustInit(m, factory, globalTags)
 	return m
 }
 

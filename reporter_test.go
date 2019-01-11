@@ -28,7 +28,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/uber/jaeger-lib/metrics"
-	mTestutils "github.com/uber/jaeger-lib/metrics/metricstest"
+	"github.com/uber/jaeger-lib/metrics/metricstest"
 
 	"github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-client-go/testutils"
@@ -41,7 +41,7 @@ type reporterSuite struct {
 	serviceName    string
 	reporter       *remoteReporter
 	sender         *fakeSender
-	metricsFactory *mTestutils.Factory
+	metricsFactory *metricstest.Factory
 	logger         *log.BytesBufferLogger
 }
 
@@ -51,7 +51,7 @@ func makeReporterSuite(t *testing.T, opts ...ReporterOption) *reporterSuite {
 
 func makeReporterSuiteWithSender(t *testing.T, sender *fakeSender, opts ...ReporterOption) *reporterSuite {
 	s := &reporterSuite{
-		metricsFactory: mTestutils.NewFactory(0),
+		metricsFactory: metricstest.NewFactory(0),
 		serviceName:    "DOOP",
 		sender:         sender,
 		logger:         &log.BytesBufferLogger{},
@@ -152,12 +152,12 @@ func TestRemoteReporterDroppedSpans(t *testing.T) {
 	s.tracer.StartSpan("s2").Finish() // this span should be dropped since the queue is full
 
 	s.metricsFactory.AssertCounterMetrics(t,
-		mTestutils.ExpectedMetric{
+		metricstest.ExpectedMetric{
 			Name:  "reporter_spans",
 			Tags:  map[string]string{"result": "ok"},
 			Value: 0,
 		},
-		mTestutils.ExpectedMetric{
+		metricstest.ExpectedMetric{
 			Name:  "reporter_spans",
 			Tags:  map[string]string{"result": "dropped"},
 			Value: 1,
@@ -213,7 +213,7 @@ func testRemoteReporterWithSender(
 	senderFactory func(m *Metrics) (Transport, error),
 	getBatches func() []*j.Batch,
 ) {
-	metricsFactory := mTestutils.NewFactory(0)
+	metricsFactory := metricstest.NewFactory(0)
 	metrics := NewMetrics(metricsFactory, nil)
 
 	sender, err := senderFactory(metrics)
@@ -249,7 +249,7 @@ func testRemoteReporterWithSender(
 	assert.NotNil(t, tag)
 	assert.Equal(t, "downstream", *tag.VStr)
 
-	metricsFactory.AssertCounterMetrics(t, []mTestutils.ExpectedMetric{
+	metricsFactory.AssertCounterMetrics(t, []metricstest.ExpectedMetric{
 		{Name: "reporter_spans", Tags: map[string]string{"result": "ok"}, Value: 1},
 		{Name: "reporter_spans", Tags: map[string]string{"result": "err"}, Value: 0},
 	}...)
