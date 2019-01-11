@@ -346,7 +346,7 @@ func TestInitGlobalTracer(t *testing.T) {
 		{
 			cfg: Configuration{
 				Sampler: &SamplerConfig{
-					Type: "remote",
+					Type:                    "remote",
 					SamplingRefreshInterval: 1,
 				},
 			},
