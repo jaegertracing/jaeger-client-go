@@ -36,7 +36,7 @@ type Metrics struct {
 	SpansStartedSampled metrics.Counter `metric:"started_spans" tags:"sampled=y" help:"Number of sampled spans started by this tracer"`
 
 	// Number of unsampled spans started by this tracer
-	SpansStartedNotSampled metrics.Counter `metric:"started_spans" tags:"sampled=n" help:"Number of unsampled spans started by this tracer`
+	SpansStartedNotSampled metrics.Counter `metric:"started_spans" tags:"sampled=n" help:"Number of unsampled spans started by this tracer"`
 
 	// Number of spans finished by this tracer
 	SpansFinished metrics.Counter `metric:"finished_spans" help:"Number of spans finished by this tracer"`
@@ -96,7 +96,7 @@ type Metrics struct {
 // NewMetrics creates a new Metrics struct and initializes it.
 func NewMetrics(factory metrics.Factory, globalTags map[string]string) *Metrics {
 	m := &Metrics{}
-	metrics.Init(m, factory, globalTags)
+	_ = metrics.Init(m, factory, globalTags)
 	return m
 }
 
