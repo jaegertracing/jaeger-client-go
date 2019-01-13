@@ -21,14 +21,14 @@ import (
 
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/stretchr/testify/assert"
-	"github.com/uber/jaeger-lib/metrics/metricstest"
+	u "github.com/uber/jaeger-lib/metrics/metricstest"
 
 	"github.com/opentracing/opentracing-go/ext"
 	jaeger "github.com/uber/jaeger-client-go"
 )
 
 func ExampleObserver() {
-	metricsFactory := metricstest.NewFactory(0)
+	metricsFactory := u.NewFactory(0)
 	metricsObserver := NewObserver(
 		metricsFactory,
 		DefaultNameNormalizer,
@@ -53,14 +53,14 @@ func ExampleObserver() {
 }
 
 type testTracer struct {
-	metrics *metricstest.Factory
+	metrics *u.Factory
 	tracer  opentracing.Tracer
 }
 
 func withTestTracer(runTest func(tt *testTracer)) {
 	sampler := jaeger.NewConstSampler(true)
 	reporter := jaeger.NewInMemoryReporter()
-	metrics := metricstest.NewFactory(time.Minute)
+	metrics := u.NewFactory(time.Minute)
 	observer := NewObserver(metrics, DefaultNameNormalizer)
 	tracer, closer := jaeger.NewTracer(
 		"test",
@@ -110,11 +110,11 @@ func TestObserver(t *testing.T) {
 		}
 
 		testTracer.metrics.AssertCounterMetrics(t,
-			metricstest.ExpectedMetric{Name: "requests", Tags: endpointTags("local-span", "error", "false"), Value: 0},
-			metricstest.ExpectedMetric{Name: "requests", Tags: endpointTags("get-user", "error", "false"), Value: 1},
-			metricstest.ExpectedMetric{Name: "requests", Tags: endpointTags("get-user", "error", "true"), Value: 1},
-			metricstest.ExpectedMetric{Name: "requests", Tags: endpointTags("get-user-override", "error", "false"), Value: 1},
-			metricstest.ExpectedMetric{Name: "requests", Tags: endpointTags("get-user-client", "error", "false"), Value: 0},
+			u.ExpectedMetric{Name: "requests", Tags: endpointTags("local-span", "error", "false"), Value: 0},
+			u.ExpectedMetric{Name: "requests", Tags: endpointTags("get-user", "error", "false"), Value: 1},
+			u.ExpectedMetric{Name: "requests", Tags: endpointTags("get-user", "error", "true"), Value: 1},
+			u.ExpectedMetric{Name: "requests", Tags: endpointTags("get-user-override", "error", "false"), Value: 1},
+			u.ExpectedMetric{Name: "requests", Tags: endpointTags("get-user-client", "error", "false"), Value: 0},
 		)
 		// TODO something wrong with string generation, .P99 should not be appended to the tag
 		// as a result we cannot use u.AssertGaugeMetrics
@@ -128,17 +128,17 @@ func TestTags(t *testing.T) {
 	type tagTestCase struct {
 		key     string
 		value   interface{}
-		metrics []metricstest.ExpectedMetric
+		metrics []u.ExpectedMetric
 	}
 
 	testCases := []tagTestCase{
-		{key: "something", value: 42, metrics: []metricstest.ExpectedMetric{
+		{key: "something", value: 42, metrics: []u.ExpectedMetric{
 			{Name: "requests", Value: 1, Tags: tags("error", "false")},
 		}},
-		{key: "error", value: true, metrics: []metricstest.ExpectedMetric{
+		{key: "error", value: true, metrics: []u.ExpectedMetric{
 			{Name: "requests", Value: 1, Tags: tags("error", "true")},
 		}},
-		{key: "error", value: "true", metrics: []metricstest.ExpectedMetric{
+		{key: "error", value: "true", metrics: []u.ExpectedMetric{
 			{Name: "requests", Value: 1, Tags: tags("error", "true")},
 		}},
 	}
@@ -151,7 +151,7 @@ func TestTags(t *testing.T) {
 		}
 		for _, v := range values {
 			testCases = append(testCases, tagTestCase{
-				key: "http.status_code", value: v, metrics: []metricstest.ExpectedMetric{
+				key: "http.status_code", value: v, metrics: []u.ExpectedMetric{
 					{Name: "http_requests", Value: 1, Tags: tags("status_code", fmt.Sprintf("%dxx", i))},
 				},
 			})
