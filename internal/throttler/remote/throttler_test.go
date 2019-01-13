@@ -185,7 +185,7 @@ func TestRemoteThrottler_fetchCreditsErrors(t *testing.T) {
 
 			factory.AssertCounterMetrics(t,
 				metricstest.ExpectedMetric{
-					Name:  "throttler_updates",
+					Name:  "jaeger_tracer.throttler_updates",
 					Tags:  map[string]string{"result": "err"},
 					Value: 1,
 				})
@@ -218,7 +218,7 @@ func TestRemotelyControlledThrottler_pollManager(t *testing.T) {
 
 			throttler.refreshCredits()
 			counters, _ := factory.Snapshot()
-			counter, ok := counters["throttler_updates|result=ok"]
+			counter, ok := counters["jaeger_tracer.throttler_updates|result=ok"]
 			assert.True(t, ok)
 			assert.True(t, counter >= 1)
 		})

@@ -96,7 +96,8 @@ type Metrics struct {
 // NewMetrics creates a new Metrics struct and initializes it.
 func NewMetrics(factory metrics.Factory, globalTags map[string]string) *Metrics {
 	m := &Metrics{}
-	metrics.MustInit(m, factory, globalTags)
+	// TODO the namespace "jaeger" should be configurable
+	metrics.MustInit(m, factory.Namespace(metrics.NSOptions{Name: "jaeger_tracer"}), globalTags)
 	return m
 }
 

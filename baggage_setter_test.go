@@ -52,11 +52,11 @@ func TestTruncateBaggage(t *testing.T) {
 
 		factory.AssertCounterMetrics(t,
 			metricstest.ExpectedMetric{
-				Name:  "baggage_truncations",
+				Name:  "jaeger_tracer.baggage_truncations",
 				Value: 1,
 			},
 			metricstest.ExpectedMetric{
-				Name:  "baggage_updates",
+				Name:  "jaeger_tracer.baggage_updates",
 				Tags:  map[string]string{"result": "ok"},
 				Value: 1,
 			},
@@ -84,7 +84,7 @@ func TestInvalidBaggage(t *testing.T) {
 
 		factory.AssertCounterMetrics(t,
 			metricstest.ExpectedMetric{
-				Name:  "baggage_updates",
+				Name:  "jaeger_tracer.baggage_updates",
 				Tags:  map[string]string{"result": "err"},
 				Value: 1,
 			},
