@@ -32,14 +32,14 @@ func TestNewMetrics(t *testing.T) {
 	m.ReporterQueueLength.Update(11)
 	factory.AssertCounterMetrics(t,
 		metricstest.ExpectedMetric{
-			Name:  "jaeger_tracer.started_spans",
+			Name:  "jaeger.tracer.started_spans",
 			Tags:  map[string]string{"lib": "jaeger", "sampled": "y"},
 			Value: 1,
 		},
 	)
 	factory.AssertGaugeMetrics(t,
 		metricstest.ExpectedMetric{
-			Name:  "jaeger_tracer.reporter_queue_length",
+			Name:  "jaeger.tracer.reporter_queue_length",
 			Tags:  map[string]string{"lib": "jaeger"},
 			Value: 11,
 		},

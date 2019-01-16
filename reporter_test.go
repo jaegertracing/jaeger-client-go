@@ -116,7 +116,7 @@ func TestRemoteReporterAppendAndPeriodicFlush(t *testing.T) {
 	s.sender.assertBufferedSpans(t, 1)
 	// here we wait for periodic flush to occur
 	s.sender.assertFlushedSpans(t, 1)
-	s.assertCounter(t, "jaeger_tracer.reporter_spans", map[string]string{"result": "ok"}, 1)
+	s.assertCounter(t, "jaeger.tracer.reporter_spans", map[string]string{"result": "ok"}, 1)
 }
 
 func TestRemoteReporterFlushViaAppend(t *testing.T) {
@@ -127,8 +127,8 @@ func TestRemoteReporterFlushViaAppend(t *testing.T) {
 	s.sender.assertFlushedSpans(t, 2)
 	s.tracer.StartSpan("sp3").Finish()
 	s.sender.assertBufferedSpans(t, 1)
-	s.assertCounter(t, "jaeger_tracer.reporter_spans", map[string]string{"result": "ok"}, 2)
-	s.assertCounter(t, "jaeger_tracer.reporter_spans", map[string]string{"result": "err"}, 0)
+	s.assertCounter(t, "jaeger.tracer.reporter_spans", map[string]string{"result": "ok"}, 2)
+	s.assertCounter(t, "jaeger.tracer.reporter_spans", map[string]string{"result": "err"}, 0)
 }
 
 func TestRemoteReporterFailedFlushViaAppend(t *testing.T) {
@@ -137,8 +137,8 @@ func TestRemoteReporterFailedFlushViaAppend(t *testing.T) {
 	s.tracer.StartSpan("sp2").Finish()
 	s.sender.assertFlushedSpans(t, 2)
 	s.assertLogs(t, "ERROR: error reporting span \"sp2\": flush error\n")
-	s.assertCounter(t, "jaeger_tracer.reporter_spans", map[string]string{"result": "err"}, 2)
-	s.assertCounter(t, "jaeger_tracer.reporter_spans", map[string]string{"result": "ok"}, 0)
+	s.assertCounter(t, "jaeger.tracer.reporter_spans", map[string]string{"result": "err"}, 2)
+	s.assertCounter(t, "jaeger.tracer.reporter_spans", map[string]string{"result": "ok"}, 0)
 	s.close() // causes explicit flush that also fails with the same error
 	s.assertLogs(t, "ERROR: error reporting span \"sp2\": flush error\nERROR: error when flushing the buffer: flush error\n")
 }
@@ -153,12 +153,12 @@ func TestRemoteReporterDroppedSpans(t *testing.T) {
 
 	s.metricsFactory.AssertCounterMetrics(t,
 		metricstest.ExpectedMetric{
-			Name:  "jaeger_tracer.reporter_spans",
+			Name:  "jaeger.tracer.reporter_spans",
 			Tags:  map[string]string{"result": "ok"},
 			Value: 0,
 		},
 		metricstest.ExpectedMetric{
-			Name:  "jaeger_tracer.reporter_spans",
+			Name:  "jaeger.tracer.reporter_spans",
 			Tags:  map[string]string{"result": "dropped"},
 			Value: 1,
 		},
@@ -250,8 +250,8 @@ func testRemoteReporterWithSender(
 	assert.Equal(t, "downstream", *tag.VStr)
 
 	metricsFactory.AssertCounterMetrics(t, []metricstest.ExpectedMetric{
-		{Name: "jaeger_tracer.reporter_spans", Tags: map[string]string{"result": "ok"}, Value: 1},
-		{Name: "jaeger_tracer.reporter_spans", Tags: map[string]string{"result": "err"}, Value: 0},
+		{Name: "jaeger.tracer.reporter_spans", Tags: map[string]string{"result": "ok"}, Value: 1},
+		{Name: "jaeger.tracer.reporter_spans", Tags: map[string]string{"result": "err"}, Value: 0},
 	}...)
 }
 

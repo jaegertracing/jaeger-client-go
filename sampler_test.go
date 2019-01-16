@@ -317,8 +317,8 @@ func TestRemotelyControlledSampler(t *testing.T) {
 		getSamplingStrategyResponse(sampling.SamplingStrategyType_PROBABILISTIC, testDefaultSamplingProbability))
 	remoteSampler.updateSampler()
 	metricsFactory.AssertCounterMetrics(t, []mTestutils.ExpectedMetric{
-		{Name: "jaeger_tracer.sampler_queries", Tags: map[string]string{"result": "ok"}, Value: 1},
-		{Name: "jaeger_tracer.sampler_updates", Tags: map[string]string{"result": "ok"}, Value: 1},
+		{Name: "jaeger.tracer.sampler_queries", Tags: map[string]string{"result": "ok"}, Value: 1},
+		{Name: "jaeger.tracer.sampler_updates", Tags: map[string]string{"result": "ok"}, Value: 1},
 	}...)
 	s1, ok := remoteSampler.getSampler().(*ProbabilisticSampler)
 	assert.True(t, ok)
@@ -428,7 +428,7 @@ func TestRemotelyControlledSampler_updateSampler(t *testing.T) {
 
 			metricsFactory.AssertCounterMetrics(t,
 				mTestutils.ExpectedMetric{
-					Name: "jaeger_tracer.sampler_updates", Tags: map[string]string{"result": "ok"}, Value: 1,
+					Name: "jaeger.tracer.sampler_updates", Tags: map[string]string{"result": "ok"}, Value: 1,
 				},
 			)
 
@@ -485,7 +485,7 @@ func TestSamplerQueryError(t *testing.T) {
 	assert.Equal(t, initSampler, sampler.sampler, "Sampler should not have been updated due to query error")
 
 	metricsFactory.AssertCounterMetrics(t,
-		mTestutils.ExpectedMetric{Name: "jaeger_tracer.sampler_queries", Tags: map[string]string{"result": "err"}, Value: 1},
+		mTestutils.ExpectedMetric{Name: "jaeger.tracer.sampler_queries", Tags: map[string]string{"result": "err"}, Value: 1},
 	)
 }
 
@@ -538,8 +538,8 @@ func TestRemotelyControlledSampler_updateSamplerFromAdaptiveSampler(t *testing.T
 	remoteSampler.updateSampler()
 
 	metricsFactory.AssertCounterMetrics(t,
-		mTestutils.ExpectedMetric{Name: "jaeger_tracer.sampler_queries", Tags: map[string]string{"result": "ok"}, Value: 3},
-		mTestutils.ExpectedMetric{Name: "jaeger_tracer.sampler_updates", Tags: map[string]string{"result": "ok"}, Value: 3},
+		mTestutils.ExpectedMetric{Name: "jaeger.tracer.sampler_queries", Tags: map[string]string{"result": "ok"}, Value: 3},
+		mTestutils.ExpectedMetric{Name: "jaeger.tracer.sampler_updates", Tags: map[string]string{"result": "ok"}, Value: 3},
 	)
 }
 

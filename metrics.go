@@ -97,7 +97,7 @@ type Metrics struct {
 func NewMetrics(factory metrics.Factory, globalTags map[string]string) *Metrics {
 	m := &Metrics{}
 	// TODO the namespace "jaeger" should be configurable
-	metrics.MustInit(m, factory.Namespace(metrics.NSOptions{Name: "jaeger_tracer"}), globalTags)
+	metrics.MustInit(m, factory.Namespace(metrics.NSOptions{Name: "jaeger"}).Namespace(metrics.NSOptions{Name: "tracer"}), globalTags)
 	return m
 }
 
