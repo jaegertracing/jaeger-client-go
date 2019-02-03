@@ -78,7 +78,7 @@ func Observer(observer jaeger.Observer) Option {
 	}
 }
 
-// ContribObserver can be registered with the Tracer to recieve notifications
+// ContribObserver can be registered with the Tracer to receive notifications
 // about new spans.
 func ContribObserver(observer jaeger.ContribObserver) Option {
 	return func(c *Options) {
