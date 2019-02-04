@@ -49,7 +49,7 @@ const (
 
 	// TraceContextHeaderName is the http header name used to propagate tracing context.
 	// This must be in lower-case to avoid mismatches when decoding incoming headers.
-	TraceContextHeaderName = "uber-trace-id"
+	TraceContextHeaderName = "trace-id"
 
 	// TracerStateHeaderName is deprecated.
 	// Deprecated: use TraceContextHeaderName
@@ -57,7 +57,7 @@ const (
 
 	// TraceBaggageHeaderPrefix is the prefix for http headers used to propagate baggage.
 	// This must be in lower-case to avoid mismatches when decoding incoming headers.
-	TraceBaggageHeaderPrefix = "uberctx-"
+	TraceBaggageHeaderPrefix = "baggage-ctx-"
 
 	// SamplerTypeConst is the type of sampler that always makes the same decision.
 	SamplerTypeConst = "const"
