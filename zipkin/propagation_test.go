@@ -15,6 +15,7 @@
 package zipkin
 
 import (
+	"strconv"
 	"testing"
 
 	opentracing "github.com/opentracing/opentracing-go"
@@ -62,6 +63,16 @@ var (
 		"x-b3-spanid":       "afsdfsdf",
 		"x-b3-parentspanid": "hiagggdf",
 		"x-b3-sampled":      "sdfgsdfg",
+	}
+	sampled128bitTraceID = opentracing.TextMapCarrier{
+		"x-b3-traceid": "463ac35c9f6413ad48485a3953bb6124",
+		"x-b3-spanid":  "2",
+		"x-b3-sampled": "1",
+	}
+	invalidTraceID = opentracing.TextMapCarrier{
+		"x-b3-traceid": "00000000000000000000000000000000",
+		"x-b3-spanid":  "2",
+		"x-b3-sampled": "1",
 	}
 )
 
@@ -133,4 +144,23 @@ func TestInjectorNonRootNonSampled(t *testing.T) {
 	err := propagator.Inject(nonRootNonSampled, hdr)
 	assert.Nil(t, err)
 	assert.EqualValues(t, nonRootNonSampledHeader, hdr)
+}
+
+func Test128bitTraceID(t *testing.T) {
+	spanCtx, err := propagator.Extract(sampled128bitTraceID)
+	assert.Nil(t, err)
+
+	high, _ := strconv.ParseUint("463ac35c9f6413ad", 16, 64)
+	low, _ := strconv.ParseUint("48485a3953bb6124", 16, 64)
+	assert.EqualValues(t, jaeger.TraceID{High: high, Low: low}, spanCtx.TraceID())
+
+	hdr := opentracing.TextMapCarrier{}
+	err = propagator.Inject(spanCtx, hdr)
+	assert.Nil(t, err)
+	assert.EqualValues(t, sampled128bitTraceID["x-b3-traceid"], hdr["x-b3-traceid"])
+}
+
+func TestInvalid128bitTraceID(t *testing.T) {
+	_, err := propagator.Extract(invalidTraceID)
+	assert.EqualError(t, err, opentracing.ErrSpanContextNotFound.Error())
 }
