@@ -152,11 +152,12 @@ func Test128bitTraceID(t *testing.T) {
 
 	high, _ := strconv.ParseUint("463ac35c9f6413ad", 16, 64)
 	low, _ := strconv.ParseUint("48485a3953bb6124", 16, 64)
-	assert.EqualValues(t, spanCtx.TraceID(), jaeger.TraceID{High: high, Low: low})
+	assert.EqualValues(t, jaeger.TraceID{High: high, Low: low}, spanCtx.TraceID())
 
 	hdr := opentracing.TextMapCarrier{}
-	propagator.Inject(spanCtx, hdr)
-	assert.EqualValues(t, hdr["x-b3-traceid"], sampled128bitTraceID["x-b3-traceid"])
+	err = propagator.Inject(spanCtx, hdr)
+	assert.Nil(t, err)
+	assert.EqualValues(t, sampled128bitTraceID["x-b3-traceid"], hdr["x-b3-traceid"])
 }
 
 func TestInvalid128bitTraceID(t *testing.T) {
