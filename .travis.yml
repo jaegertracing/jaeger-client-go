@@ -7,18 +7,18 @@ dist: trusty
 
 matrix:
   include:
-  - go: 1.11.1
+  - go: 1.11.5
     env:
     - TESTS=true
     - COVERAGE=true
-  - go: 1.11.1
+  - go: 1.11.5
     env:
     - CROSSDOCK=true
-  - go: 1.11.1
+  - go: 1.11.5
     env:
     - TESTS=true
     - USE_DEP=true
-  - go: 1.10.5
+  - go: 1.10.8
     env:
     - TESTS=true
     - USE_DEP=true
