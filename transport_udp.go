@@ -18,10 +18,11 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/uber/jaeger-client-go/udp"
+
 	"github.com/uber/jaeger-client-go/thrift"
 
 	j "github.com/uber/jaeger-client-go/thrift-gen/jaeger"
-	"github.com/uber/jaeger-client-go/utils"
 )
 
 // Empirically obtained constant for how many bytes in the message are used for envelope.
@@ -35,7 +36,7 @@ const emitBatchOverhead = 30
 var errSpanTooLarge = errors.New("Span is too large")
 
 type udpSender struct {
-	client          *utils.AgentClientUDP
+	client          *udp.AgentClientUDP
 	maxPacketSize   int                   // max size of datagram in bytes
 	maxSpanBytes    int                   // max number of bytes to record spans (excluding envelope) in the datagram
 	byteBufferSize  int                   // current number of span bytes accumulated in the buffer
@@ -52,7 +53,7 @@ func NewUDPTransport(hostPort string, maxPacketSize int) (Transport, error) {
 		hostPort = fmt.Sprintf("%s:%d", DefaultUDPSpanServerHost, DefaultUDPSpanServerPort)
 	}
 	if maxPacketSize == 0 {
-		maxPacketSize = utils.UDPPacketMaxLength
+		maxPacketSize = udp.UDPPacketMaxLength
 	}
 
 	protocolFactory := thrift.NewTCompactProtocolFactory()
@@ -61,7 +62,7 @@ func NewUDPTransport(hostPort string, maxPacketSize int) (Transport, error) {
 	thriftBuffer := thrift.NewTMemoryBufferLen(maxPacketSize)
 	thriftProtocol := protocolFactory.GetProtocol(thriftBuffer)
 
-	client, err := utils.NewAgentClientUDP(hostPort, maxPacketSize)
+	client, err := udp.NewAgentClientUDP(hostPort, maxPacketSize)
 	if err != nil {
 		return nil, err
 	}

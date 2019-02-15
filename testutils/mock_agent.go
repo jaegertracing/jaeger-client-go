@@ -23,13 +23,14 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/uber/jaeger-client-go/udp"
+
 	"github.com/uber/jaeger-client-go/thrift"
 
 	"github.com/uber/jaeger-client-go/thrift-gen/agent"
 	"github.com/uber/jaeger-client-go/thrift-gen/jaeger"
 	"github.com/uber/jaeger-client-go/thrift-gen/sampling"
 	"github.com/uber/jaeger-client-go/thrift-gen/zipkincore"
-	"github.com/uber/jaeger-client-go/utils"
 )
 
 // StartMockAgent runs a mock representation of jaeger-agent.
@@ -83,7 +84,7 @@ func (s *MockAgent) SpanServerAddr() string {
 
 // SpanServerClient returns a UDP client that can be used to send spans to the MockAgent
 func (s *MockAgent) SpanServerClient() (agent.Agent, error) {
-	return utils.NewAgentClientUDP(s.SpanServerAddr(), 0)
+	return udp.NewAgentClientUDP(s.SpanServerAddr(), 0)
 }
 
 // SamplingServerAddr returns the host:port of HTTP server exposing sampling strategy endpoint
@@ -94,8 +95,8 @@ func (s *MockAgent) SamplingServerAddr() string {
 func (s *MockAgent) serve(started *sync.WaitGroup) {
 	handler := agent.NewAgentProcessor(s)
 	protocolFact := thrift.NewTCompactProtocolFactory()
-	buf := make([]byte, utils.UDPPacketMaxLength, utils.UDPPacketMaxLength)
-	trans := thrift.NewTMemoryBufferLen(utils.UDPPacketMaxLength)
+	buf := make([]byte, udp.UDPPacketMaxLength)
+	trans := thrift.NewTMemoryBufferLen(udp.UDPPacketMaxLength)
 
 	atomic.StoreUint32(&s.serving, 1)
 	started.Done()

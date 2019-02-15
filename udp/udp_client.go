@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Uber Technologies, Inc.
+// Copyright (c) 2019 Uber Technologies, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package utils
+package udp
 
 import (
 	"errors"
@@ -21,10 +21,10 @@ import (
 	"net"
 
 	"github.com/uber/jaeger-client-go/thrift"
-
 	"github.com/uber/jaeger-client-go/thrift-gen/agent"
 	"github.com/uber/jaeger-client-go/thrift-gen/jaeger"
 	"github.com/uber/jaeger-client-go/thrift-gen/zipkincore"
+	"github.com/uber/jaeger-client-go/utils"
 )
 
 // UDPPacketMaxLength is the max size of UDP packet we want to send, synced with jaeger-agent
@@ -46,21 +46,12 @@ func NewAgentClientUDP(hostPort string, maxPacketSize int) (*AgentClientUDP, err
 	if maxPacketSize == 0 {
 		maxPacketSize = UDPPacketMaxLength
 	}
-
 	thriftBuffer := thrift.NewTMemoryBufferLen(maxPacketSize)
 	protocolFactory := thrift.NewTCompactProtocolFactory()
 	client := agent.NewAgentClientFactory(thriftBuffer, protocolFactory)
 
-	destAddr, err := net.ResolveUDPAddr("udp", hostPort)
+	connUDP, err := utils.GetUDPConnection(hostPort, maxPacketSize)
 	if err != nil {
-		return nil, err
-	}
-
-	connUDP, err := net.DialUDP(destAddr.Network(), nil, destAddr)
-	if err != nil {
-		return nil, err
-	}
-	if err := connUDP.SetWriteBuffer(maxPacketSize); err != nil {
 		return nil, err
 	}
 
@@ -68,7 +59,8 @@ func NewAgentClientUDP(hostPort string, maxPacketSize int) (*AgentClientUDP, err
 		connUDP:       connUDP,
 		client:        client,
 		maxPacketSize: maxPacketSize,
-		thriftBuffer:  thriftBuffer}
+		thriftBuffer:  thriftBuffer,
+	}
 	return clientUDP, nil
 }
 
