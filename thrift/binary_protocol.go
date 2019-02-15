@@ -86,8 +86,7 @@ func (p *TBinaryProtocol) WriteMessageBegin(name string, typeId TMessageType, se
 		if e != nil {
 			return e
 		}
-		e = p.WriteI32(seqId)
-		return e
+		return p.WriteI32(seqId)
 	} else {
 		e := p.WriteString(name)
 		if e != nil {
@@ -97,10 +96,8 @@ func (p *TBinaryProtocol) WriteMessageBegin(name string, typeId TMessageType, se
 		if e != nil {
 			return e
 		}
-		e = p.WriteI32(seqId)
-		return e
+		return p.WriteI32(seqId)
 	}
-	return nil
 }
 
 func (p *TBinaryProtocol) WriteMessageEnd() error {

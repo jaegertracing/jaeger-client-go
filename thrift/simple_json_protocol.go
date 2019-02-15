@@ -166,10 +166,7 @@ func (p *TSimpleJSONProtocol) WriteMessageBegin(name string, typeId TMessageType
 	if e := p.WriteByte(int8(typeId)); e != nil {
 		return e
 	}
-	if e := p.WriteI32(seqId); e != nil {
-		return e
-	}
-	return nil
+	return p.WriteI32(seqId)
 }
 
 func (p *TSimpleJSONProtocol) WriteMessageEnd() error {
@@ -177,10 +174,7 @@ func (p *TSimpleJSONProtocol) WriteMessageEnd() error {
 }
 
 func (p *TSimpleJSONProtocol) WriteStructBegin(name string) error {
-	if e := p.OutputObjectBegin(); e != nil {
-		return e
-	}
-	return nil
+	return p.OutputObjectBegin()
 }
 
 func (p *TSimpleJSONProtocol) WriteStructEnd() error {
@@ -188,10 +182,7 @@ func (p *TSimpleJSONProtocol) WriteStructEnd() error {
 }
 
 func (p *TSimpleJSONProtocol) WriteFieldBegin(name string, typeId TType, id int16) error {
-	if e := p.WriteString(name); e != nil {
-		return e
-	}
-	return nil
+	return p.WriteString(name)
 }
 
 func (p *TSimpleJSONProtocol) WriteFieldEnd() error {
@@ -707,10 +698,7 @@ func (p *TSimpleJSONProtocol) OutputObjectEnd() error {
 		return NewTProtocolException(e)
 	}
 	p.dumpContext = p.dumpContext[:len(p.dumpContext)-1]
-	if e := p.OutputPostValue(); e != nil {
-		return e
-	}
-	return nil
+	return p.OutputPostValue()
 }
 
 func (p *TSimpleJSONProtocol) OutputListBegin() error {
@@ -729,10 +717,7 @@ func (p *TSimpleJSONProtocol) OutputListEnd() error {
 		return NewTProtocolException(e)
 	}
 	p.dumpContext = p.dumpContext[:len(p.dumpContext)-1]
-	if e := p.OutputPostValue(); e != nil {
-		return e
-	}
-	return nil
+	return p.OutputPostValue()
 }
 
 func (p *TSimpleJSONProtocol) OutputElemListBegin(elemType TType, size int) error {
@@ -742,10 +727,7 @@ func (p *TSimpleJSONProtocol) OutputElemListBegin(elemType TType, size int) erro
 	if e := p.WriteByte(int8(elemType)); e != nil {
 		return e
 	}
-	if e := p.WriteI64(int64(size)); e != nil {
-		return e
-	}
-	return nil
+	return p.WriteI64(int64(size))
 }
 
 func (p *TSimpleJSONProtocol) ParsePreValue() error {
@@ -1083,6 +1065,9 @@ func (p *TSimpleJSONProtocol) readSingleValue() (interface{}, TType, error) {
 		return nil, VOID, NewTProtocolException(e)
 	}
 	b, e := p.reader.Peek(1)
+	if e != nil {
+		return nil, VOID, NewTProtocolException(e)
+	}
 	if len(b) > 0 {
 		c := b[0]
 		switch c {

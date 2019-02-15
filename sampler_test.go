@@ -205,6 +205,7 @@ func TestAdaptiveSampler(t *testing.T) {
 
 	sampled, tags = sampler.IsSampled(TraceID{Low: testMaxID + 10}, testOperationName)
 	assert.False(t, sampled)
+	assert.NotEqual(t, testProbabilisticExpectedTags, tags)
 
 	// This operation is seen for the first time by the sampler
 	sampled, tags = sampler.IsSampled(TraceID{Low: testMaxID}, testFirstTimeOperationName)
@@ -438,10 +439,10 @@ func TestRemotelyControlledSampler_updateSampler(t *testing.T) {
 			assert.Equal(t, test.expectedDefaultProbability, s.defaultSampler.SamplingRate())
 
 			// First call is always sampled
-			sampled, tags := sampler.IsSampled(TraceID{Low: testMaxID + 10}, testOperationName)
+			sampled, _ := sampler.IsSampled(TraceID{Low: testMaxID + 10}, testOperationName)
 			assert.True(t, sampled)
 
-			sampled, tags = sampler.IsSampled(TraceID{Low: testMaxID - 10}, testOperationName)
+			sampled, tags := sampler.IsSampled(TraceID{Low: testMaxID - 10}, testOperationName)
 			assert.True(t, sampled)
 			assert.Equal(t, test.expectedTags, tags)
 		})
