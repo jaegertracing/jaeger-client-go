@@ -34,7 +34,9 @@ import (
 func TestThriftFirstInProcessSpan(t *testing.T) {
 	tracer, closer := NewTracer("DOOP",
 		NewConstSampler(true),
-		NewNullReporter())
+		NewNullReporter(),
+		TracerOptions.Gen128Bit(true),
+	)
 	defer closer.Close()
 
 	sp1 := tracer.StartSpan("s1").(*Span)
@@ -62,6 +64,7 @@ func TestThriftFirstInProcessSpan(t *testing.T) {
 		hostname := findBinaryAnnotation(thriftSpan, TracerHostnameTagKey)
 		check(t, version)
 		check(t, hostname)
+		assert.NotNil(t, thriftSpan.TraceIDHigh)
 	}
 }
 

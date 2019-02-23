@@ -59,7 +59,7 @@ func BuildZipkinThrift(s *Span) *z.Span {
 		ServiceName: span.tracer.serviceName,
 		Ipv4:        int32(span.tracer.hostIPv4)}
 	thriftSpan := &z.Span{
-		TraceID:           int64(span.context.traceID.Low), // TODO upgrade zipkin thrift and use TraceIdHigh
+		TraceID:           int64(span.context.traceID.Low),
 		TraceIDHigh:       ptrTraceIDHigh,
 		ID:                int64(span.context.spanID),
 		ParentID:          ptrParentID,
