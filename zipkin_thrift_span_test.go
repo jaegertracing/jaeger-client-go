@@ -34,9 +34,7 @@ import (
 func TestThriftFirstInProcessSpan(t *testing.T) {
 	tracer, closer := NewTracer("DOOP",
 		NewConstSampler(true),
-		NewNullReporter(),
-		TracerOptions.Gen128Bit(true),
-	)
+		NewNullReporter())
 	defer closer.Close()
 
 	sp1 := tracer.StartSpan("s1").(*Span)
@@ -64,8 +62,39 @@ func TestThriftFirstInProcessSpan(t *testing.T) {
 		hostname := findBinaryAnnotation(thriftSpan, TracerHostnameTagKey)
 		check(t, version)
 		check(t, hostname)
-		assert.NotNil(t, thriftSpan.TraceIDHigh)
 	}
+}
+
+func Test128bitTraceIDs(t *testing.T) {
+	tracer128, closer128 := NewTracer("OneTwentyEight",
+		NewConstSampler(true),
+		NewNullReporter(),
+		TracerOptions.Gen128Bit(true),
+	)
+	defer closer128.Close()
+
+	tracer64, closer64 := NewTracer("SixtyFour",
+		NewConstSampler(true),
+		NewNullReporter(),
+		TracerOptions.Gen128Bit(false),
+	)
+	defer closer64.Close()
+
+	sp1 := tracer128.StartSpan("s1").(*Span)
+	sp2 := tracer128.StartSpan("sp2", opentracing.ChildOf(sp1.Context())).(*Span)
+	sp2.Finish()
+	sp1.Finish()
+
+	thriftSpan1 := BuildZipkinThrift(sp1)
+	assert.NotNil(t, thriftSpan1.TraceIDHigh)
+
+	thriftSpan2 := BuildZipkinThrift(sp2)
+	assert.NotNil(t, thriftSpan2.TraceIDHigh)
+
+	sp3 := tracer64.StartSpan("s3").(*Span)
+	sp3.Finish()
+	thriftSpan3 := BuildZipkinThrift(sp3)
+	assert.Nil(t, thriftSpan3.TraceIDHigh)
 }
 
 func TestThriftForceSampled(t *testing.T) {
