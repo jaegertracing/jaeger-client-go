@@ -236,7 +236,7 @@ func TestParseCommaSeperatedMap(t *testing.T) {
 	}
 
 	for _, testcase := range testcases {
-		m := (&textMapPropagator{
+		m := (&TextMapPropagator{
 			headerKeys: getDefaultHeadersConfig(),
 		}).parseCommaSeparatedMap(testcase.in)
 		assert.Equal(t, testcase.out, m)
