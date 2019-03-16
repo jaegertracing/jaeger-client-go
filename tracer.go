@@ -86,7 +86,7 @@ func NewTracer(
 		injectors:     make(map[interface{}]Injector),
 		extractors:    make(map[interface{}]Extractor),
 		metrics:       *NewNullMetrics(),
-		spanAllocator: spanSimpleAllocator{},
+		spanAllocator: simpleSpanAllocator{},
 	}
 
 	for _, option := range options {

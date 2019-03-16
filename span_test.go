@@ -16,9 +16,10 @@ package jaeger
 
 import (
 	"sync"
+	"sync/atomic"
 	"testing"
 
-	"github.com/opentracing/opentracing-go"
+	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -88,7 +89,7 @@ func TestSpanOperationName(t *testing.T) {
 
 	sp1 := tracer.StartSpan("s1").(*Span)
 	sp1.SetOperationName("s2")
-	defer sp1.Finish()
+	sp1.Finish()
 
 	assert.Equal(t, "s2", sp1.OperationName())
 }
@@ -145,4 +146,24 @@ func TestBaggageContextRace(t *testing.T) {
 
 	startWg.Done()
 	endWg.Wait()
+}
+
+func TestSpanLifecycle(t *testing.T) {
+	service := "DOOP"
+	tracer, closer := NewTracer(service, NewConstSampler(true), NewNullReporter(), TracerOptions.PoolSpans(true))
+	// After closing all contexts will be released
+	defer closer.Close()
+
+	sp1 := tracer.StartSpan("s1").(*Span)
+	sp1.LogEvent("foo")
+	assert.True(t, sp1.tracer != nil, "invalid span initalisation")
+
+	sp1.Retain() // After this we are responsible for the span releasing
+	assert.Equal(t, int32(1), atomic.LoadInt32(&sp1.referenceCounter))
+
+	sp1.Finish() // The span is still alive
+	assert.True(t, sp1.tracer != nil, "invalid span finishing")
+
+	sp1.Release() // Now we will kill the object and return it in the pool
+	assert.True(t, sp1.tracer == nil, "span must be released")
 }

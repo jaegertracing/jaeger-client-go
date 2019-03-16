@@ -52,17 +52,11 @@ func TestBuildJaegerThrift(t *testing.T) {
 	ext.PeerService.Set(sp1, "svc")
 	sp2 := tracer.StartSpan("sp2", opentracing.ChildOf(sp1.Context())).(*Span)
 	ext.SpanKindRPCClient.Set(sp2)
-
-	// NOTE: method Finish releas the memory or return span into the pool
-	sp2.Retain().Finish()
-	sp1.Retain().Finish()
+	sp2.Finish()
+	sp1.Finish()
 
 	jaegerSpan1 := BuildJaegerThrift(sp1)
 	jaegerSpan2 := BuildJaegerThrift(sp2)
-
-	sp2.Release()
-	sp1.Release()
-
 	assert.Equal(t, "sp1", jaegerSpan1.OperationName)
 	assert.Equal(t, "sp2", jaegerSpan2.OperationName)
 	assert.EqualValues(t, 0, jaegerSpan1.ParentSpanId)
@@ -92,8 +86,7 @@ func TestBuildJaegerProcessThrift(t *testing.T) {
 	defer closer.Close()
 
 	sp := tracer.StartSpan("sp1").(*Span)
-	sp.Retain().Finish() // Need to release the memory after the converting into the Thrift object
-	defer sp.Release()
+	sp.Finish()
 
 	process := BuildJaegerProcessThrift(sp)
 	assert.Equal(t, process.ServiceName, "DOOP")
@@ -246,17 +239,7 @@ func TestBuildLogs(t *testing.T) {
 	}
 	for i, test := range tests {
 		testName := fmt.Sprintf("test-%02d", i)
-		sp := tracer.StartSpan(testName, opentracing.ChildOf(root.Context())).(*Span)
-
-		// Note: some of the tests run span Finish function which releases the allocated
-		// span object So we have to retain the object do not destroy it in memory prematurely
-		sp.Retain(1)
-
-		// Before release reduce the counter
-		defer func() {
-			sp.Retain(-1).Release()
-		}()
-
+		sp := tracer.StartSpan(testName, opentracing.ChildOf(root.Context()))
 		if test.disableSampling {
 			ext.SamplingPriority.Set(sp, 0)
 		}
@@ -265,7 +248,7 @@ func TestBuildLogs(t *testing.T) {
 		} else if test.field != (log.Field{}) {
 			sp.LogFields(test.field)
 		}
-		jaegerSpan := BuildJaegerThrift(sp)
+		jaegerSpan := BuildJaegerThrift(sp.(*Span))
 		if test.disableSampling {
 			assert.Equal(t, 0, len(jaegerSpan.Logs), testName)
 			continue
@@ -335,8 +318,7 @@ func TestJaegerSpanBaggageLogs(t *testing.T) {
 	sp := tracer.StartSpan("s1").(*Span)
 	sp.SetBaggageItem("auth.token", "token")
 	ext.SpanKindRPCServer.Set(sp)
-	sp.Retain().Finish()
-	defer sp.Release()
+	sp.Finish()
 
 	jaegerSpan := BuildJaegerThrift(sp)
 	require.Len(t, jaegerSpan.Logs, 1)
@@ -368,8 +350,7 @@ func TestJaegerMaxTagValueLength(t *testing.T) {
 			sp := tracer.StartSpan("s1").(*Span)
 			sp.SetTag("tag.string", string(test.value))
 			sp.SetTag("tag.bytes", test.value)
-			sp.Retain().Finish()
-			defer sp.Release()
+			sp.Finish()
 			thriftSpan := BuildJaegerThrift(sp)
 			stringTag := findTag(thriftSpan, "tag.string")
 			assert.Equal(t, j.TagType_STRING, stringTag.VType)

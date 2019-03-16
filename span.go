@@ -26,6 +26,10 @@ import (
 
 // Span implements opentracing.Span
 type Span struct {
+	// referenceCounter used to increase the lifetime of
+	// the object before return it into the pool.
+	referenceCounter int32
+
 	sync.RWMutex
 
 	tracer *Tracer
@@ -58,10 +62,6 @@ type Span struct {
 	references []Reference
 
 	observer ContribSpanObserver
-
-	// retainCounter used to increase the lifetime of
-	// the object before return it into the pool.
-	retainCounter int32
 }
 
 // Tag is a simple key value wrapper.
@@ -179,9 +179,8 @@ func (s *Span) BaggageItem(key string) string {
 }
 
 // Finish implements opentracing.Span API
-// After finishing of the Span object it returns back to the allocator
-// so after that, the Span object should no longer be used because
-// it won't be valid anymore.
+// After finishing the Span object it returns back to the allocator unless the reporter retains it again,
+// so after that, the Span object should no longer be used because it won't be valid anymore.
 func (s *Span) Finish() {
 	s.FinishWithOptions(opentracing.FinishOptions{})
 }
@@ -235,27 +234,16 @@ func (s *Span) OperationName() string {
 }
 
 // Retain increases object counter to increase the lifetime of the object
-func (s *Span) Retain(count ...int32) *Span {
-	counter := int32(1)
-	if len(count) > 0 && count[0] != 0 {
-		counter = count[0]
-	}
-	atomic.AddInt32(&s.retainCounter, counter)
+func (s *Span) Retain() *Span {
+	atomic.AddInt32(&s.referenceCounter, 1)
 	return s
 }
 
 // Release decrements object counter and return to the
 // allocator manager  when counter will below zero
-func (s *Span) Release(count ...int32) {
-	counter := int32(-1)
-	if len(count) > 0 && count[0] != 0 {
-		counter = -count[0]
-	}
-
-	if atomic.AddInt32(&s.retainCounter, counter) < 0 {
-		if tr := s.tracer; tr != nil {
-			tr.spanAllocator.Put(s)
-		}
+func (s *Span) Release() {
+	if atomic.AddInt32(&s.referenceCounter, -1) == -1 {
+		s.tracer.spanAllocator.Put(s)
 	}
 }
 
@@ -268,18 +256,12 @@ func (s *Span) reset() {
 	s.startTime = time.Time{}
 	s.duration = 0
 	s.observer = nil
-	atomic.StoreInt32(&s.retainCounter, 0)
+	atomic.StoreInt32(&s.referenceCounter, 0)
 
 	// Note: To reuse memory we can save the pointers on the heap
-	if len(s.tags) > 0 {
-		s.tags = s.tags[:0]
-	}
-	if len(s.logs) > 0 {
-		s.logs = s.logs[:0]
-	}
-	if len(s.references) > 0 {
-		s.references = s.references[:0]
-	}
+	s.tags = s.tags[:0]
+	s.logs = s.logs[:0]
+	s.references = s.references[:0]
 }
 
 func (s *Span) serviceName() string {
@@ -288,12 +270,12 @@ func (s *Span) serviceName() string {
 
 // setSamplingPriority returns true if the flag was updated successfully, false otherwise.
 func setSamplingPriority(s *Span, value interface{}) bool {
-	s.Lock()
-	defer s.Unlock()
 	val, ok := value.(uint16)
 	if !ok {
 		return false
 	}
+	s.Lock()
+	defer s.Unlock()
 	if val == 0 {
 		s.context.flags = s.context.flags & (^flagSampled)
 		return true

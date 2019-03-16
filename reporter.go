@@ -124,13 +124,11 @@ func (r *InMemoryReporter) Reset() {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	if len(r.spans) > 0 {
-		// Before reset the collection need to release Span memory
-		for _, span := range r.spans {
-			span.(*Span).Release()
-		}
-		r.spans = r.spans[:0]
+	// Before reset the collection need to release Span memory
+	for _, span := range r.spans {
+		span.(*Span).Release()
 	}
+	r.spans = r.spans[:0]
 }
 
 // ------------------------------

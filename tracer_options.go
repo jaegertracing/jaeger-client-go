@@ -82,9 +82,9 @@ func (tracerOptions) RandomNumber(randomNumber func() uint64) TracerOption {
 func (tracerOptions) PoolSpans(poolSpans bool) TracerOption {
 	return func(tracer *Tracer) {
 		if poolSpans {
-			tracer.spanAllocator = newSpanSyncPool()
+			tracer.spanAllocator = newSyncPollSpanAllocator()
 		} else {
-			tracer.spanAllocator = spanSimpleAllocator{}
+			tracer.spanAllocator = simpleSpanAllocator{}
 		}
 	}
 }

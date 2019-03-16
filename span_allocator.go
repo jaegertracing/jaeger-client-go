@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Uber Technologies, Inc.
+// Copyright (c) 2019 The Jaeger Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,44 +20,37 @@ import "sync"
 type SpanAllocator interface {
 	Get() *Span
 	Put(*Span)
-	IsPool() bool
 }
 
-type spanSyncPool struct {
+type syncPollSpanAllocator struct {
 	spanPool sync.Pool
 }
 
-func newSpanSyncPool() SpanAllocator {
-	return &spanSyncPool{
+func newSyncPollSpanAllocator() SpanAllocator {
+	return &syncPollSpanAllocator{
 		spanPool: sync.Pool{New: func() interface{} {
 			return &Span{}
 		}},
 	}
 }
 
-func (pool *spanSyncPool) Get() *Span {
+func (pool *syncPollSpanAllocator) Get() *Span {
 	return pool.spanPool.Get().(*Span)
 }
 
-func (pool *spanSyncPool) Put(span *Span) {
+func (pool *syncPollSpanAllocator) Put(span *Span) {
 	span.reset()
 	pool.spanPool.Put(span)
 }
 
-func (pool *spanSyncPool) IsPool() bool {
-	return true
-}
+type simpleSpanAllocator struct{}
 
-type spanSimpleAllocator struct{}
-
-func (pool spanSimpleAllocator) Get() *Span {
+func (pool simpleSpanAllocator) Get() *Span {
 	return &Span{}
 }
 
-func (pool spanSimpleAllocator) Put(span *Span) {
-	span.reset()
-}
-
-func (pool spanSimpleAllocator) IsPool() bool {
-	return false
+func (pool simpleSpanAllocator) Put(span *Span) {
+	// @comment https://github.com/jaegertracing/jaeger-client-go/pull/381#issuecomment-475904351
+	// since finished spans are not reused, no need to reset them
+	// span.reset()
 }

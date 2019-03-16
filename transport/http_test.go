@@ -45,9 +45,8 @@ func TestHTTPTransport(t *testing.T) {
 	)
 	defer closer.Close()
 
-	span := tracer.StartSpan("root").(*jaeger.Span)
-	span.Retain().Finish()
-	defer span.Release()
+	span := tracer.StartSpan("root")
+	span.Finish()
 
 	// Need to yield to the select loop to accept the send request, and then
 	// yield again to the send operation to write to the socket. I think the

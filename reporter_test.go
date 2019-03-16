@@ -143,14 +143,14 @@ func TestRemoteReporterFailedFlushViaAppend(t *testing.T) {
 	s.assertLogs(t, "ERROR: error reporting span \"sp2\": flush error\nERROR: error when flushing the buffer: flush error\n")
 }
 
-func TestRemoteReporterAppendWithPollAllocator(t *testing.T) {
-	s := makeReporterSuiteWithSender(t, &fakeSender{bufferSize: 10}, ReporterOptions.BufferFlushInterval(time.Millisecond*10))
+func TestRemoteReporterAppendWithPoolAllocator(t *testing.T) {
+	s := makeReporterSuiteWithSender(t, &fakeSender{bufferSize: 100}, ReporterOptions.BufferFlushInterval(time.Millisecond*10))
 	TracerOptions.PoolSpans(true)(s.tracer.(*Tracer))
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 100; i++ {
 		s.tracer.StartSpan("sp").Finish()
 	}
 	time.Sleep(time.Second)
-	s.sender.assertFlushedSpans(t, 1000)
+	s.sender.assertFlushedSpans(t, 100)
 	s.close() // causes explicit flush that also fails with the same error
 }
 
@@ -312,10 +312,6 @@ func (s *fakeSender) Append(span *Span) (int, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	// Validation of span
-	if span.tracer == nil {
-		return 0, s.appendErr
-	}
 	s.spans = append(s.spans, span)
 	if n := len(s.spans); n == s.bufferSize {
 		return s.flushNoLock()

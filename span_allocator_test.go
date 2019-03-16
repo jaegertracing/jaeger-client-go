@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Uber Technologies, Inc.
+// Copyright (c) 2019 The Jaeger Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,11 +21,11 @@ func BenchmarkSpanAllocator(b *testing.B) {
 	b.ReportAllocs()
 
 	b.Run("SyncPool", func(b *testing.B) {
-		benchSpanAllocator(newSpanSyncPool(), b)
+		benchSpanAllocator(newSyncPollSpanAllocator(), b)
 	})
 
 	b.Run("Simple", func(b *testing.B) {
-		benchSpanAllocator(spanSimpleAllocator{}, b)
+		benchSpanAllocator(simpleSpanAllocator{}, b)
 	})
 }
 
