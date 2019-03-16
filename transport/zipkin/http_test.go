@@ -60,8 +60,9 @@ func TestHttpTransport(t *testing.T) {
 		jaeger.NewRemoteReporter(sender),
 	)
 
-	span := tracer.StartSpan("root")
-	span.Finish()
+	span := tracer.StartSpan("root").(*jaeger.Span)
+	span.Retain().Finish()
+	defer span.Release()
 
 	closer.Close()
 

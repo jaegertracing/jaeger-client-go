@@ -47,15 +47,14 @@ type Tracer struct {
 	randomNumber func() uint64
 
 	options struct {
-		poolSpans            bool
 		gen128Bit            bool // whether to generate 128bit trace IDs
 		zipkinSharedRPCSpan  bool
 		highTraceIDGenerator func() uint64 // custom high trace ID generator
 		maxTagValueLength    int
 		// more options to come
 	}
-	// pool for Span objects
-	spanPool sync.Pool
+	// allocator of Span objects
+	spanAllocator SpanAllocator
 
 	injectors  map[interface{}]Injector
 	extractors map[interface{}]Extractor
@@ -81,15 +80,13 @@ func NewTracer(
 	options ...TracerOption,
 ) (opentracing.Tracer, io.Closer) {
 	t := &Tracer{
-		serviceName: serviceName,
-		sampler:     sampler,
-		reporter:    reporter,
-		injectors:   make(map[interface{}]Injector),
-		extractors:  make(map[interface{}]Extractor),
-		metrics:     *NewNullMetrics(),
-		spanPool: sync.Pool{New: func() interface{} {
-			return &Span{}
-		}},
+		serviceName:   serviceName,
+		sampler:       sampler,
+		reporter:      reporter,
+		injectors:     make(map[interface{}]Injector),
+		extractors:    make(map[interface{}]Extractor),
+		metrics:       *NewNullMetrics(),
+		spanAllocator: spanSimpleAllocator{},
 	}
 
 	for _, option := range options {
@@ -349,15 +346,7 @@ func (t *Tracer) Tags() []opentracing.Tag {
 // newSpan returns an instance of a clean Span object.
 // If options.PoolSpans is true, the spans are retrieved from an object pool.
 func (t *Tracer) newSpan() *Span {
-	if !t.options.poolSpans {
-		return &Span{}
-	}
-	sp := t.spanPool.Get().(*Span)
-	sp.context = emptyContext
-	sp.tracer = nil
-	sp.tags = nil
-	sp.logs = nil
-	return sp
+	return t.spanAllocator.Get()
 }
 
 func (t *Tracer) startSpanInternal(
@@ -412,12 +401,15 @@ func (t *Tracer) startSpanInternal(
 
 func (t *Tracer) reportSpan(sp *Span) {
 	t.metrics.SpansFinished.Inc(1)
+
+	// Note: if the reporter is processing Span asynchronously need to Retain() it
+	// otherwise, in the racing condition will be rewritten span data before it will be sent
+	// * To remove object use method span.Release()
 	if sp.context.IsSampled() {
 		t.reporter.Report(sp)
 	}
-	if t.options.poolSpans {
-		t.spanPool.Put(sp)
-	}
+
+	sp.Release()
 }
 
 // randomID generates a random trace/span ID, using tracer.random() generator.

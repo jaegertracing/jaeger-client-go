@@ -36,7 +36,17 @@ func TestSpanPropagator(t *testing.T) {
 	const op = "test"
 	reporter := NewInMemoryReporter()
 	metricsFactory, metrics := initMetrics()
-	tracer, closer := NewTracer("x", NewConstSampler(true), reporter, TracerOptions.Metrics(metrics), TracerOptions.ZipkinSharedRPCSpan(true))
+	tracer, closer := NewTracer("x",
+		NewConstSampler(true),
+		reporter,
+		TracerOptions.Metrics(metrics),
+		TracerOptions.ZipkinSharedRPCSpan(true),
+	)
+
+	// Note: the closing of the main tracer object Close also and
+	// related containers as reporter, sampler, logger & etc.
+	// So need to close it after related containers no longer used
+	defer closer.Close()
 
 	mapc := opentracing.TextMapCarrier(make(map[string]string))
 	httpc := opentracing.HTTPHeadersCarrier(http.Header{})
@@ -65,7 +75,6 @@ func TestSpanPropagator(t *testing.T) {
 		child.Finish()
 	}
 	sp.Finish()
-	closer.Close()
 
 	otSpans := reporter.GetSpans()
 	require.Equal(t, len(tests)+1, len(otSpans), "unexpected number of spans reporter")

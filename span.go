@@ -16,6 +16,7 @@ package jaeger
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
@@ -57,6 +58,10 @@ type Span struct {
 	references []Reference
 
 	observer ContribSpanObserver
+
+	// retainCounter used to increase the lifetime of
+	// the object before return it into the pool.
+	retainCounter int32
 }
 
 // Tag is a simple key value wrapper.
@@ -174,6 +179,9 @@ func (s *Span) BaggageItem(key string) string {
 }
 
 // Finish implements opentracing.Span API
+// After finishing of the Span object it returns back to the allocator
+// so after that, the Span object should no longer be used because
+// it won't be valid anymore.
 func (s *Span) Finish() {
 	s.FinishWithOptions(opentracing.FinishOptions{})
 }
@@ -197,6 +205,7 @@ func (s *Span) FinishWithOptions(options opentracing.FinishOptions) {
 	}
 	s.Unlock()
 	// call reportSpan even for non-sampled traces, to return span to the pool
+	// and update metrics counter
 	s.tracer.reportSpan(s)
 }
 
@@ -223,6 +232,54 @@ func (s *Span) OperationName() string {
 	s.RLock()
 	defer s.RUnlock()
 	return s.operationName
+}
+
+// Retain increases object counter to increase the lifetime of the object
+func (s *Span) Retain(count ...int32) *Span {
+	counter := int32(1)
+	if len(count) > 0 && count[0] != 0 {
+		counter = count[0]
+	}
+	atomic.AddInt32(&s.retainCounter, counter)
+	return s
+}
+
+// Release decrements object counter and return to the
+// allocator manager  when counter will below zero
+func (s *Span) Release(count ...int32) {
+	counter := int32(-1)
+	if len(count) > 0 && count[0] != 0 {
+		counter = -count[0]
+	}
+
+	if atomic.AddInt32(&s.retainCounter, counter) < 0 {
+		if tr := s.tracer; tr != nil {
+			tr.spanAllocator.Put(s)
+		}
+	}
+}
+
+// reset span state and release unused data
+func (s *Span) reset() {
+	s.firstInProcess = false
+	s.context = emptyContext
+	s.operationName = ""
+	s.tracer = nil
+	s.startTime = time.Time{}
+	s.duration = 0
+	s.observer = nil
+	atomic.StoreInt32(&s.retainCounter, 0)
+
+	// Note: To reuse memory we can save the pointers on the heap
+	if len(s.tags) > 0 {
+		s.tags = s.tags[:0]
+	}
+	if len(s.logs) > 0 {
+		s.logs = s.logs[:0]
+	}
+	if len(s.references) > 0 {
+		s.references = s.references[:0]
+	}
 }
 
 func (s *Span) serviceName() string {

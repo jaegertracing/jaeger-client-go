@@ -126,9 +126,9 @@ func (c nonJaegerSpanContext) ForeachBaggageItem(handler func(k, v string) bool)
 
 func (s *tracerSuite) TestStartSpanWithMultipleReferences() {
 	s.metricsFactory.Clear()
-	sp1 := s.tracer.StartSpan("A")
-	sp2 := s.tracer.StartSpan("B")
-	sp3 := s.tracer.StartSpan("C")
+	sp1 := s.tracer.StartSpan("A").(*Span)
+	sp2 := s.tracer.StartSpan("B").(*Span)
+	sp3 := s.tracer.StartSpan("C").(*Span)
 	sp4 := s.tracer.StartSpan(
 		"D",
 		opentracing.ChildOf(sp1.Context()),
@@ -136,40 +136,46 @@ func (s *tracerSuite) TestStartSpanWithMultipleReferences() {
 		opentracing.FollowsFrom(sp3.Context()),
 		opentracing.FollowsFrom(nonJaegerSpanContext{}),
 		opentracing.FollowsFrom(SpanContext{}), // Empty span context should be excluded
-	)
+	).(*Span)
 	// Should use the first ChildOf ref span as the parent
-	s.Equal(sp1.(*Span).context.spanID, sp4.(*Span).context.parentID)
-	sp4.Finish()
-	s.NotNil(sp4.(*Span).duration)
-	sp3.Finish()
-	sp2.Finish()
-	sp1.Finish()
+	s.Equal(sp1.context.spanID, sp4.context.parentID)
+	sp4.Retain().Finish()
+	s.NotNil(sp4.duration)
+	sp3.Retain().Finish()
+	sp2.Retain().Finish()
+	sp1.Retain().Finish()
 	s.metricsFactory.AssertCounterMetrics(s.T(), []metricstest.ExpectedMetric{
 		{Name: "jaeger.tracer.started_spans", Tags: map[string]string{"sampled": "y"}, Value: 4},
 		{Name: "jaeger.tracer.traces", Tags: map[string]string{"sampled": "y", "state": "started"}, Value: 3},
 		{Name: "jaeger.tracer.finished_spans", Value: 4},
 	}...)
-	assert.Len(s.T(), sp4.(*Span).references, 3)
+	assert.Len(s.T(), sp4.references, 3)
+	sp4.Release()
+	sp3.Release()
+	sp2.Release()
+	sp1.Release()
 }
 
 func (s *tracerSuite) TestStartSpanWithOnlyFollowFromReference() {
 	s.metricsFactory.Clear()
-	sp1 := s.tracer.StartSpan("A")
+	sp1 := s.tracer.StartSpan("A").(*Span)
 	sp2 := s.tracer.StartSpan(
 		"B",
 		opentracing.FollowsFrom(sp1.Context()),
-	)
+	).(*Span)
 	// Should use the first ChildOf ref span as the parent
-	s.Equal(sp1.(*Span).context.spanID, sp2.(*Span).context.parentID)
-	sp2.Finish()
-	s.NotNil(sp2.(*Span).duration)
-	sp1.Finish()
+	s.Equal(sp1.context.spanID, sp2.context.parentID)
+	sp2.Retain().Finish()
+	s.NotNil(sp2.duration)
+	sp1.Retain().Finish()
 	s.metricsFactory.AssertCounterMetrics(s.T(), []metricstest.ExpectedMetric{
 		{Name: "jaeger.tracer.started_spans", Tags: map[string]string{"sampled": "y"}, Value: 2},
 		{Name: "jaeger.tracer.traces", Tags: map[string]string{"sampled": "y", "state": "started"}, Value: 1},
 		{Name: "jaeger.tracer.finished_spans", Value: 2},
 	}...)
-	assert.Len(s.T(), sp2.(*Span).references, 1)
+	assert.Len(s.T(), sp2.references, 1)
+	sp2.Release()
+	sp1.Release()
 }
 
 func (s *tracerSuite) TestTraceStartedOrJoinedMetrics() {
@@ -183,16 +189,19 @@ func (s *tracerSuite) TestTraceStartedOrJoinedMetrics() {
 	for _, test := range tests {
 		s.metricsFactory.Clear()
 		s.tracer.(*Tracer).sampler = NewConstSampler(test.sampled)
-		sp1 := s.tracer.StartSpan("parent", ext.RPCServerOption(nil))
-		sp2 := s.tracer.StartSpan("child1", opentracing.ChildOf(sp1.Context()))
-		sp3 := s.tracer.StartSpan("child2", ext.RPCServerOption(sp2.Context()))
-		s.Equal(sp2.(*Span).context.spanID, sp3.(*Span).context.spanID)
-		s.Equal(sp2.(*Span).context.parentID, sp3.(*Span).context.parentID)
-		sp3.Finish()
-		sp2.Finish()
-		sp1.Finish()
+		sp1 := s.tracer.StartSpan("parent", ext.RPCServerOption(nil)).(*Span)
+		sp2 := s.tracer.StartSpan("child1", opentracing.ChildOf(sp1.Context())).(*Span)
+		sp3 := s.tracer.StartSpan("child2", ext.RPCServerOption(sp2.Context())).(*Span)
+		s.Equal(sp2.context.spanID, sp3.context.spanID)
+		s.Equal(sp2.context.parentID, sp3.context.parentID)
+		sp3.Retain().Finish()
+		sp2.Retain().Finish()
+		sp1.Retain().Finish()
 		s.Equal(test.sampled, sp1.Context().(SpanContext).IsSampled())
 		s.Equal(test.sampled, sp2.Context().(SpanContext).IsSampled())
+		sp3.Release()
+		sp2.Release()
+		sp1.Release()
 
 		s.metricsFactory.AssertCounterMetrics(s.T(), []metricstest.ExpectedMetric{
 			{Name: "jaeger.tracer.started_spans", Tags: map[string]string{"sampled": test.label}, Value: 3},
@@ -263,7 +272,7 @@ func TestTracerOptions(t *testing.T) {
 	assert.Equal(t, uint64(1), tracer.randomNumber())
 	assert.Equal(t, uint64(1), tracer.randomNumber())
 	assert.Equal(t, uint64(1), tracer.randomNumber()) // always 1
-	assert.Equal(t, true, tracer.options.poolSpans)
+	assert.Equal(t, true, tracer.spanAllocator.IsPool())
 	assert.Equal(t, opentracing.Tag{Key: "tag_key", Value: "tag_value"}, tracer.Tags()[0])
 }
 
@@ -296,8 +305,10 @@ func TestEmptySpanContextAsParent(t *testing.T) {
 	tracer, tc := NewTracer("x", NewConstSampler(true), NewNullReporter())
 	defer tc.Close()
 
-	span := tracer.StartSpan("test", opentracing.ChildOf(emptyContext))
+	span := tracer.StartSpan("test", opentracing.ChildOf(emptyContext)).(*Span)
+	span.Retain().Finish()
 	ctx := span.Context().(SpanContext)
+	span.Release()
 	assert.True(t, ctx.traceID.IsValid())
 	assert.True(t, ctx.IsValid())
 }
@@ -306,9 +317,10 @@ func TestGen128Bit(t *testing.T) {
 	tracer, tc := NewTracer("x", NewConstSampler(true), NewNullReporter(), TracerOptions.Gen128Bit(true))
 	defer tc.Close()
 
-	span := tracer.StartSpan("test", opentracing.ChildOf(emptyContext))
-	defer span.Finish()
+	span := tracer.StartSpan("test", opentracing.ChildOf(emptyContext)).(*Span)
+	span.Retain().Finish()
 	traceID := span.Context().(SpanContext).TraceID()
+	span.Release()
 	assert.True(t, traceID.High != 0)
 	assert.True(t, traceID.Low != 0)
 }

@@ -39,8 +39,10 @@ func TestThriftFirstInProcessSpan(t *testing.T) {
 
 	sp1 := tracer.StartSpan("s1").(*Span)
 	sp2 := tracer.StartSpan("sp2", opentracing.ChildOf(sp1.Context())).(*Span)
-	sp2.Finish()
-	sp1.Finish()
+	sp2.Retain().Finish()
+	sp1.Retain().Finish()
+	defer sp2.Release()
+	defer sp1.Release()
 
 	tests := []struct {
 		span     *Span
@@ -82,8 +84,10 @@ func Test128bitTraceIDs(t *testing.T) {
 
 	sp1 := tracer128.StartSpan("s1").(*Span)
 	sp2 := tracer128.StartSpan("sp2", opentracing.ChildOf(sp1.Context())).(*Span)
-	sp2.Finish()
-	sp1.Finish()
+	sp2.Retain().Finish()
+	sp1.Retain().Finish()
+	defer sp2.Release()
+	defer sp1.Release()
 
 	thriftSpan1 := BuildZipkinThrift(sp1)
 	assert.NotNil(t, thriftSpan1.TraceIDHigh)
@@ -92,7 +96,8 @@ func Test128bitTraceIDs(t *testing.T) {
 	assert.NotNil(t, thriftSpan2.TraceIDHigh)
 
 	sp3 := tracer64.StartSpan("s3").(*Span)
-	sp3.Finish()
+	sp3.Retain().Finish()
+	defer sp3.Release()
 	thriftSpan3 := BuildZipkinThrift(sp3)
 	assert.Nil(t, thriftSpan3.TraceIDHigh)
 }
@@ -246,7 +251,12 @@ func TestThriftSpanLogs(t *testing.T) {
 
 	for i, test := range tests {
 		testName := fmt.Sprintf("test-%02d", i)
-		sp := tracer.StartSpan(testName, opentracing.ChildOf(root.Context()))
+		sp := tracer.StartSpan(testName, opentracing.ChildOf(root.Context())).(*Span)
+		sp.Retain()
+		defer func() {
+			sp.Retain(-1).Release()
+		}()
+
 		if test.disableSampling {
 			ext.SamplingPriority.Set(sp, 0)
 		}
@@ -255,7 +265,7 @@ func TestThriftSpanLogs(t *testing.T) {
 		} else if len(test.fields) > 0 {
 			sp.LogFields(test.fields...)
 		}
-		thriftSpan := BuildZipkinThrift(sp.(*Span))
+		thriftSpan := BuildZipkinThrift(sp)
 		if test.disableSampling {
 			assert.Equal(t, 0, len(thriftSpan.Annotations), testName)
 			continue
@@ -287,8 +297,9 @@ func TestThriftLocalComponentSpan(t *testing.T) {
 		if test.addComponentTag {
 			ext.Component.Set(sp, "c1")
 		}
-		sp.Finish()
+		sp.Retain().Finish()
 		thriftSpan := BuildZipkinThrift(sp)
+		sp.Release()
 
 		anno := findBinaryAnnotation(thriftSpan, "lc")
 		require.NotNil(t, anno)
@@ -307,7 +318,8 @@ func TestSpecialTags(t *testing.T) {
 	ext.PeerService.Set(sp, "peer")
 	ext.PeerPort.Set(sp, 80)
 	ext.PeerHostIPv4.Set(sp, 2130706433)
-	sp.Finish()
+	sp.Retain().Finish()
+	defer sp.Release()
 
 	thriftSpan := BuildZipkinThrift(sp)
 	// Special tags should not be copied over to binary annotations
@@ -337,7 +349,8 @@ func TestBaggageLogs(t *testing.T) {
 	sp := tracer.StartSpan("s1").(*Span)
 	sp.SetBaggageItem("auth.token", "token")
 	ext.SpanKindRPCServer.Set(sp)
-	sp.Finish()
+	sp.Retain().Finish()
+	defer sp.Release()
 
 	thriftSpan := BuildZipkinThrift(sp)
 	assert.NotNil(t, findAnnotation(thriftSpan, `{"event":"baggage","key":"auth.token","value":"token"}`))
@@ -364,7 +377,8 @@ func TestMaxTagValueLength(t *testing.T) {
 			sp := tracer.StartSpan("s1").(*Span)
 			sp.SetTag("tag.string", string(test.value))
 			sp.SetTag("tag.bytes", test.value)
-			sp.Finish()
+			sp.Retain().Finish()
+			defer sp.Release()
 			thriftSpan := BuildZipkinThrift(sp)
 			assert.Equal(t, test.expected, findBinaryAnnotation(thriftSpan, "tag.string").Value)
 			assert.Equal(t, test.expected, findBinaryAnnotation(thriftSpan, "tag.bytes").Value)

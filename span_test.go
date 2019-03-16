@@ -88,7 +88,7 @@ func TestSpanOperationName(t *testing.T) {
 
 	sp1 := tracer.StartSpan("s1").(*Span)
 	sp1.SetOperationName("s2")
-	sp1.Finish()
+	defer sp1.Finish()
 
 	assert.Equal(t, "s2", sp1.OperationName())
 }
