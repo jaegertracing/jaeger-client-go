@@ -20,13 +20,14 @@ import (
 
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/uber/jaeger-client-go"
 )
 
 var (
-	rootSampled       = newSpanContext(1, 2, 0, true)
-	nonRootSampled    = newSpanContext(1, 2, 1, true)
-	nonRootNonSampled = newSpanContext(1, 2, 1, false)
+	rootSampled       = newSpanContext(1, 2, 0, true, map[string]string{"foo": "bar"})
+	nonRootSampled    = newSpanContext(1, 2, 1, true, nil)
+	nonRootNonSampled = newSpanContext(1, 2, 1, false, nil)
 )
 
 var (
@@ -34,6 +35,7 @@ var (
 		"x-b3-traceid": "1",
 		"x-b3-spanid":  "2",
 		"x-b3-sampled": "1",
+		"baggage-foo":  "bar",
 	}
 	nonRootSampledHeader = opentracing.TextMapCarrier{
 		"x-b3-traceid":      "1",
@@ -51,6 +53,7 @@ var (
 		"x-b3-traceid": "1",
 		"x-b3-spanid":  "2",
 		"x-b3-sampled": "true",
+		"baggage-foo":  "bar",
 	}
 	nonRootSampledBooleanHeader = opentracing.TextMapCarrier{
 		"x-b3-traceid":      "1",
@@ -80,13 +83,13 @@ var (
 	propagator = NewZipkinB3HTTPHeaderPropagator()
 )
 
-func newSpanContext(traceID, spanID, parentID uint64, sampled bool) jaeger.SpanContext {
+func newSpanContext(traceID, spanID, parentID uint64, sampled bool, baggage map[string]string) jaeger.SpanContext {
 	return jaeger.NewSpanContext(
 		jaeger.TraceID{Low: traceID},
 		jaeger.SpanID(spanID),
 		jaeger.SpanID(parentID),
 		sampled,
-		nil,
+		baggage,
 	)
 }
 
@@ -144,6 +147,29 @@ func TestInjectorNonRootNonSampled(t *testing.T) {
 	err := propagator.Inject(nonRootNonSampled, hdr)
 	assert.Nil(t, err)
 	assert.EqualValues(t, nonRootNonSampledHeader, hdr)
+}
+
+func TestCustomBaggagePrefix(t *testing.T) {
+	propag := NewZipkinB3HTTPHeaderPropagator(BaggagePrefix("emoji:)"))
+	hdr := opentracing.TextMapCarrier{}
+	sc := newSpanContext(1, 2, 0, true, map[string]string{"foo": "bar"})
+	err := propag.Inject(sc, hdr)
+	assert.Nil(t, err)
+	m := opentracing.TextMapCarrier{
+		"x-b3-traceid": "1",
+		"x-b3-spanid":  "2",
+		"x-b3-sampled": "1",
+		"emoji:)foo":   "bar",
+	}
+	assert.EqualValues(t, m, hdr)
+
+	sc, err = propag.Extract(m)
+	require.NoError(t, err)
+	sc.ForeachBaggageItem(func(k, v string) bool {
+		assert.Equal(t, "foo", k)
+		assert.Equal(t, "bar", v)
+		return true
+	})
 }
 
 func Test128bitTraceID(t *testing.T) {
