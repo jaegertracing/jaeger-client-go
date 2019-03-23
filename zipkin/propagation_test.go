@@ -53,6 +53,7 @@ var (
 		"x-b3-traceid": "1",
 		"x-b3-spanid":  "2",
 		"x-b3-sampled": "true",
+		"baggage-foo":  "bar",
 	}
 	nonRootSampledBooleanHeader = opentracing.TextMapCarrier{
 		"x-b3-traceid":      "1",
