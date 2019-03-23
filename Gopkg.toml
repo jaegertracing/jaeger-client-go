@@ -25,3 +25,7 @@
 [[constraint]]
   name = "go.uber.org/zap"
   version = "^1"
+
+[prune]
+  go-tests = true
+  unused-packages = true
