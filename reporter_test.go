@@ -28,7 +28,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/uber/jaeger-lib/metrics"
-	mTestutils "github.com/uber/jaeger-lib/metrics/testutils"
+	"github.com/uber/jaeger-lib/metrics/metricstest"
 
 	"github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-client-go/testutils"
@@ -41,7 +41,7 @@ type reporterSuite struct {
 	serviceName    string
 	reporter       *remoteReporter
 	sender         *fakeSender
-	metricsFactory *metrics.LocalFactory
+	metricsFactory *metricstest.Factory
 	logger         *log.BytesBufferLogger
 }
 
@@ -51,7 +51,7 @@ func makeReporterSuite(t *testing.T, opts ...ReporterOption) *reporterSuite {
 
 func makeReporterSuiteWithSender(t *testing.T, sender *fakeSender, opts ...ReporterOption) *reporterSuite {
 	s := &reporterSuite{
-		metricsFactory: metrics.NewLocalFactory(0),
+		metricsFactory: metricstest.NewFactory(0),
 		serviceName:    "DOOP",
 		sender:         sender,
 		logger:         &log.BytesBufferLogger{},
@@ -116,7 +116,7 @@ func TestRemoteReporterAppendAndPeriodicFlush(t *testing.T) {
 	s.sender.assertBufferedSpans(t, 1)
 	// here we wait for periodic flush to occur
 	s.sender.assertFlushedSpans(t, 1)
-	s.assertCounter(t, "jaeger.reporter_spans", map[string]string{"result": "ok"}, 1)
+	s.assertCounter(t, "jaeger.tracer.reporter_spans", map[string]string{"result": "ok"}, 1)
 }
 
 func TestRemoteReporterFlushViaAppend(t *testing.T) {
@@ -127,8 +127,8 @@ func TestRemoteReporterFlushViaAppend(t *testing.T) {
 	s.sender.assertFlushedSpans(t, 2)
 	s.tracer.StartSpan("sp3").Finish()
 	s.sender.assertBufferedSpans(t, 1)
-	s.assertCounter(t, "jaeger.reporter_spans", map[string]string{"result": "ok"}, 2)
-	s.assertCounter(t, "jaeger.reporter_spans", map[string]string{"result": "err"}, 0)
+	s.assertCounter(t, "jaeger.tracer.reporter_spans", map[string]string{"result": "ok"}, 2)
+	s.assertCounter(t, "jaeger.tracer.reporter_spans", map[string]string{"result": "err"}, 0)
 }
 
 func TestRemoteReporterFailedFlushViaAppend(t *testing.T) {
@@ -137,8 +137,8 @@ func TestRemoteReporterFailedFlushViaAppend(t *testing.T) {
 	s.tracer.StartSpan("sp2").Finish()
 	s.sender.assertFlushedSpans(t, 2)
 	s.assertLogs(t, "ERROR: error reporting span \"sp2\": flush error\n")
-	s.assertCounter(t, "jaeger.reporter_spans", map[string]string{"result": "err"}, 2)
-	s.assertCounter(t, "jaeger.reporter_spans", map[string]string{"result": "ok"}, 0)
+	s.assertCounter(t, "jaeger.tracer.reporter_spans", map[string]string{"result": "err"}, 2)
+	s.assertCounter(t, "jaeger.tracer.reporter_spans", map[string]string{"result": "ok"}, 0)
 	s.close() // causes explicit flush that also fails with the same error
 	s.assertLogs(t, "ERROR: error reporting span \"sp2\": flush error\nERROR: error when flushing the buffer: flush error\n")
 }
@@ -151,14 +151,14 @@ func TestRemoteReporterDroppedSpans(t *testing.T) {
 	s.tracer.StartSpan("s1").Finish() // this span should be added to the queue
 	s.tracer.StartSpan("s2").Finish() // this span should be dropped since the queue is full
 
-	mTestutils.AssertCounterMetrics(t, s.metricsFactory,
-		mTestutils.ExpectedMetric{
-			Name:  "jaeger.reporter_spans",
+	s.metricsFactory.AssertCounterMetrics(t,
+		metricstest.ExpectedMetric{
+			Name:  "jaeger.tracer.reporter_spans",
 			Tags:  map[string]string{"result": "ok"},
 			Value: 0,
 		},
-		mTestutils.ExpectedMetric{
-			Name:  "jaeger.reporter_spans",
+		metricstest.ExpectedMetric{
+			Name:  "jaeger.tracer.reporter_spans",
 			Tags:  map[string]string{"result": "dropped"},
 			Value: 1,
 		},
@@ -213,7 +213,7 @@ func testRemoteReporterWithSender(
 	senderFactory func(m *Metrics) (Transport, error),
 	getBatches func() []*j.Batch,
 ) {
-	metricsFactory := metrics.NewLocalFactory(0)
+	metricsFactory := metricstest.NewFactory(0)
 	metrics := NewMetrics(metricsFactory, nil)
 
 	sender, err := senderFactory(metrics)
@@ -249,9 +249,9 @@ func testRemoteReporterWithSender(
 	assert.NotNil(t, tag)
 	assert.Equal(t, "downstream", *tag.VStr)
 
-	mTestutils.AssertCounterMetrics(t, metricsFactory, []mTestutils.ExpectedMetric{
-		{Name: "jaeger.reporter_spans", Tags: map[string]string{"result": "ok"}, Value: 1},
-		{Name: "jaeger.reporter_spans", Tags: map[string]string{"result": "err"}, Value: 0},
+	metricsFactory.AssertCounterMetrics(t, []metricstest.ExpectedMetric{
+		{Name: "jaeger.tracer.reporter_spans", Tags: map[string]string{"result": "ok"}, Value: 1},
+		{Name: "jaeger.tracer.reporter_spans", Tags: map[string]string{"result": "err"}, Value: 0},
 	}...)
 }
 

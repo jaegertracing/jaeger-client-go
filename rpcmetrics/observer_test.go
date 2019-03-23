@@ -21,15 +21,14 @@ import (
 
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/stretchr/testify/assert"
-	"github.com/uber/jaeger-lib/metrics"
-	u "github.com/uber/jaeger-lib/metrics/testutils"
+	u "github.com/uber/jaeger-lib/metrics/metricstest"
 
 	"github.com/opentracing/opentracing-go/ext"
 	jaeger "github.com/uber/jaeger-client-go"
 )
 
 func ExampleObserver() {
-	metricsFactory := metrics.NewLocalFactory(0)
+	metricsFactory := u.NewFactory(0)
 	metricsObserver := NewObserver(
 		metricsFactory,
 		DefaultNameNormalizer,
@@ -54,14 +53,14 @@ func ExampleObserver() {
 }
 
 type testTracer struct {
-	metrics *metrics.LocalFactory
+	metrics *u.Factory
 	tracer  opentracing.Tracer
 }
 
 func withTestTracer(runTest func(tt *testTracer)) {
 	sampler := jaeger.NewConstSampler(true)
 	reporter := jaeger.NewInMemoryReporter()
-	metrics := metrics.NewLocalFactory(time.Minute)
+	metrics := u.NewFactory(time.Minute)
 	observer := NewObserver(metrics, DefaultNameNormalizer)
 	tracer, closer := jaeger.NewTracer(
 		"test",
@@ -110,8 +109,7 @@ func TestObserver(t *testing.T) {
 			span.FinishWithOptions(finishOptions)
 		}
 
-		u.AssertCounterMetrics(t,
-			testTracer.metrics,
+		testTracer.metrics.AssertCounterMetrics(t,
 			u.ExpectedMetric{Name: "requests", Tags: endpointTags("local-span", "error", "false"), Value: 0},
 			u.ExpectedMetric{Name: "requests", Tags: endpointTags("get-user", "error", "false"), Value: 1},
 			u.ExpectedMetric{Name: "requests", Tags: endpointTags("get-user", "error", "true"), Value: 1},
@@ -170,7 +168,7 @@ func TestTags(t *testing.T) {
 				span := testTracer.tracer.StartSpan("span", ext.SpanKindRPCServer)
 				span.SetTag(testCase.key, testCase.value)
 				span.Finish()
-				u.AssertCounterMetrics(t, testTracer.metrics, testCase.metrics...)
+				testTracer.metrics.AssertCounterMetrics(t, testCase.metrics...)
 			})
 		})
 	}

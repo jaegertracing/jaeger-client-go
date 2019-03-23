@@ -59,8 +59,7 @@ func (p Propagator) Inject(
 		return opentracing.ErrInvalidCarrier
 	}
 
-	// TODO this needs to change to support 128bit IDs
-	textMapWriter.Set("x-b3-traceid", strconv.FormatUint(sc.TraceID().Low, 16))
+	textMapWriter.Set("x-b3-traceid", sc.TraceID().String())
 	if sc.ParentID() != 0 {
 		textMapWriter.Set("x-b3-parentspanid", strconv.FormatUint(uint64(sc.ParentID()), 16))
 	}
@@ -83,7 +82,7 @@ func (p Propagator) Extract(abstractCarrier interface{}) (jaeger.SpanContext, er
 	if !ok {
 		return jaeger.SpanContext{}, opentracing.ErrInvalidCarrier
 	}
-	var traceID uint64
+	var traceID jaeger.TraceID
 	var spanID uint64
 	var parentID uint64
 	sampled := false
@@ -92,12 +91,12 @@ func (p Propagator) Extract(abstractCarrier interface{}) (jaeger.SpanContext, er
 		key := strings.ToLower(rawKey) // TODO not necessary for plain TextMap
 		var err error
 		if key == "x-b3-traceid" {
-			traceID, err = strconv.ParseUint(value, 16, 64)
+			traceID, err = jaeger.TraceIDFromString(value)
 		} else if key == "x-b3-parentspanid" {
 			parentID, err = strconv.ParseUint(value, 16, 64)
 		} else if key == "x-b3-spanid" {
 			spanID, err = strconv.ParseUint(value, 16, 64)
-		} else if key == "x-b3-sampled" && value == "1" {
+		} else if key == "x-b3-sampled" && (value == "1" || value == "true") {
 			sampled = true
 		} else if strings.HasPrefix(key, p.baggagePrefix) {
 			if baggage == nil {
@@ -111,11 +110,11 @@ func (p Propagator) Extract(abstractCarrier interface{}) (jaeger.SpanContext, er
 	if err != nil {
 		return jaeger.SpanContext{}, err
 	}
-	if traceID == 0 {
+	if !traceID.IsValid() {
 		return jaeger.SpanContext{}, opentracing.ErrSpanContextNotFound
 	}
 	return jaeger.NewSpanContext(
-		jaeger.TraceID{Low: traceID},
+		traceID,
 		jaeger.SpanID(spanID),
 		jaeger.SpanID(parentID),
 		sampled, baggage), nil

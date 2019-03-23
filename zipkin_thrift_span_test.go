@@ -17,6 +17,7 @@ package jaeger
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -62,6 +63,38 @@ func TestThriftFirstInProcessSpan(t *testing.T) {
 		check(t, version)
 		check(t, hostname)
 	}
+}
+
+func Test128bitTraceIDs(t *testing.T) {
+	tracer128, closer128 := NewTracer("OneTwentyEight",
+		NewConstSampler(true),
+		NewNullReporter(),
+		TracerOptions.Gen128Bit(true),
+	)
+	defer closer128.Close()
+
+	tracer64, closer64 := NewTracer("SixtyFour",
+		NewConstSampler(true),
+		NewNullReporter(),
+		TracerOptions.Gen128Bit(false),
+	)
+	defer closer64.Close()
+
+	sp1 := tracer128.StartSpan("s1").(*Span)
+	sp2 := tracer128.StartSpan("sp2", opentracing.ChildOf(sp1.Context())).(*Span)
+	sp2.Finish()
+	sp1.Finish()
+
+	thriftSpan1 := BuildZipkinThrift(sp1)
+	assert.NotNil(t, thriftSpan1.TraceIDHigh)
+
+	thriftSpan2 := BuildZipkinThrift(sp2)
+	assert.NotNil(t, thriftSpan2.TraceIDHigh)
+
+	sp3 := tracer64.StartSpan("s3").(*Span)
+	sp3.Finish()
+	thriftSpan3 := BuildZipkinThrift(sp3)
+	assert.Nil(t, thriftSpan3.TraceIDHigh)
 }
 
 func TestThriftForceSampled(t *testing.T) {
@@ -308,6 +341,35 @@ func TestBaggageLogs(t *testing.T) {
 
 	thriftSpan := BuildZipkinThrift(sp)
 	assert.NotNil(t, findAnnotation(thriftSpan, `{"event":"baggage","key":"auth.token","value":"token"}`))
+}
+
+func TestMaxTagValueLength(t *testing.T) {
+	value := make([]byte, 512)
+	tests := []struct {
+		tagValueLength int
+		value          []byte
+		expected       []byte
+	}{
+		{256, value, value[:256]},
+		{512, value, value},
+	}
+
+	for _, test := range tests {
+		t.Run(strconv.Itoa(test.tagValueLength), func(t *testing.T) {
+			tracer, closer := NewTracer("DOOP",
+				NewConstSampler(true),
+				NewNullReporter(),
+				TracerOptions.MaxTagValueLength(test.tagValueLength))
+			defer closer.Close()
+			sp := tracer.StartSpan("s1").(*Span)
+			sp.SetTag("tag.string", string(test.value))
+			sp.SetTag("tag.bytes", test.value)
+			sp.Finish()
+			thriftSpan := BuildZipkinThrift(sp)
+			assert.Equal(t, test.expected, findBinaryAnnotation(thriftSpan, "tag.string").Value)
+			assert.Equal(t, test.expected, findBinaryAnnotation(thriftSpan, "tag.bytes").Value)
+		})
+	}
 }
 
 func findAnnotation(span *zipkincore.Span, name string) *zipkincore.Annotation {

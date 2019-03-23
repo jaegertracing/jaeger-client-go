@@ -27,7 +27,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/uber-go/atomic"
 	"github.com/uber/jaeger-lib/metrics"
-	"github.com/uber/jaeger-lib/metrics/testutils"
+	"github.com/uber/jaeger-lib/metrics/metricstest"
 
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/internal/baggage"
@@ -71,12 +71,12 @@ func withHTTPServer(
 	restrictions []*thrift.BaggageRestriction,
 	f func(
 		metrics *jaeger.Metrics,
-		factory *metrics.LocalFactory,
+		factory *metricstest.Factory,
 		handler *baggageHandler,
 		server *httptest.Server,
 	),
 ) {
-	factory := metrics.NewLocalFactory(0)
+	factory := metricstest.NewFactory(0)
 	m := jaeger.NewMetrics(factory, nil)
 
 	handler := &baggageHandler{returnError: atomic.NewBool(true), restrictions: restrictions}
@@ -91,7 +91,7 @@ func TestNewRemoteRestrictionManager(t *testing.T) {
 		testRestrictions,
 		func(
 			metrics *jaeger.Metrics,
-			factory *metrics.LocalFactory,
+			factory *metricstest.Factory,
 			handler *baggageHandler,
 			server *httptest.Server,
 		) {
@@ -119,9 +119,9 @@ func TestNewRemoteRestrictionManager(t *testing.T) {
 			restriction = mgr.GetRestriction(service, badKey)
 			assert.EqualValues(t, baggage.NewRestriction(false, 0), restriction)
 
-			testutils.AssertCounterMetrics(t, factory,
-				testutils.ExpectedMetric{
-					Name:  "jaeger.baggage_restrictions_updates",
+			factory.AssertCounterMetrics(t,
+				metricstest.ExpectedMetric{
+					Name:  "jaeger.tracer.baggage_restrictions_updates",
 					Tags:  map[string]string{"result": "ok"},
 					Value: 1,
 				},
@@ -134,7 +134,7 @@ func TestDenyBaggageOnInitializationFailure(t *testing.T) {
 		testRestrictions,
 		func(
 			m *jaeger.Metrics,
-			factory *metrics.LocalFactory,
+			factory *metricstest.Factory,
 			handler *baggageHandler,
 			server *httptest.Server,
 		) {
@@ -147,7 +147,7 @@ func TestDenyBaggageOnInitializationFailure(t *testing.T) {
 			)
 			require.False(t, mgr.isReady())
 
-			metricName := "jaeger.baggage_restrictions_updates"
+			metricName := "jaeger.tracer.baggage_restrictions_updates"
 			metricTags := map[string]string{"result": "err"}
 			key := metrics.GetKey(metricName, metricTags, "|", "=")
 			for i := 0; i < 100; i++ {
@@ -159,8 +159,8 @@ func TestDenyBaggageOnInitializationFailure(t *testing.T) {
 				time.Sleep(time.Millisecond)
 			}
 
-			testutils.AssertCounterMetrics(t, factory,
-				testutils.ExpectedMetric{
+			factory.AssertCounterMetrics(t,
+				metricstest.ExpectedMetric{
 					Name:  metricName,
 					Tags:  metricTags,
 					Value: 1,
@@ -194,7 +194,7 @@ func TestAllowBaggageOnInitializationFailure(t *testing.T) {
 		testRestrictions,
 		func(
 			metrics *jaeger.Metrics,
-			factory *metrics.LocalFactory,
+			factory *metricstest.Factory,
 			handler *baggageHandler,
 			server *httptest.Server,
 		) {

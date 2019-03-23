@@ -25,10 +25,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/uber/jaeger-lib/metrics"
-	"github.com/uber/jaeger-lib/metrics/testutils"
+	"github.com/uber/jaeger-lib/metrics/metricstest"
 
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-client-go/log"
+	"github.com/uber/jaeger-client-go/transport"
 )
 
 func TestNewSamplerConst(t *testing.T) {
@@ -158,12 +159,28 @@ func TestReporterConfigFromEnv(t *testing.T) {
 	assert.Equal(t, true, cfg.Reporter.LogSpans)
 	assert.Equal(t, "nonlocalhost:6832", cfg.Reporter.LocalAgentHostPort)
 
+	// Test HTTP transport
+	os.Setenv(envEndpoint, "http://1.2.3.4:5678/api/traces")
+	os.Setenv(envUser, "user")
+	os.Setenv(envPassword, "password")
+
+	// test
+	cfg, err = FromEnv()
+	assert.NoError(t, err)
+
+	// verify
+	assert.Equal(t, "http://1.2.3.4:5678/api/traces", cfg.Reporter.CollectorEndpoint)
+	assert.Equal(t, "user", cfg.Reporter.User)
+	assert.Equal(t, "password", cfg.Reporter.Password)
+	assert.Equal(t, "", cfg.Reporter.LocalAgentHostPort)
+
 	// cleanup
 	os.Unsetenv(envReporterMaxQueueSize)
 	os.Unsetenv(envReporterFlushInterval)
 	os.Unsetenv(envReporterLogSpans)
-	os.Unsetenv(envAgentHost)
-	os.Unsetenv(envAgentPort)
+	os.Unsetenv(envEndpoint)
+	os.Unsetenv(envUser)
+	os.Unsetenv(envPassword)
 }
 
 func TestParsingErrorsFromEnv(t *testing.T) {
@@ -209,16 +226,50 @@ func TestParsingErrorsFromEnv(t *testing.T) {
 			envVar: envAgentPort,
 			value:  "NOT_AN_INT",
 		},
+		{
+			envVar: envEndpoint,
+			value:  "NOT_A_URL",
+		},
 	}
 
 	for _, test := range tests {
 		os.Setenv(test.envVar, test.value)
+		if test.envVar == envEndpoint {
+			os.Unsetenv(envAgentHost)
+			os.Unsetenv(envAgentPort)
+		}
 		_, err := FromEnv()
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), fmt.Sprintf("cannot parse env var %s=%s", test.envVar, test.value))
 		os.Unsetenv(test.envVar)
 	}
 
+}
+
+func TestParsingUserPasswordErrorEnv(t *testing.T) {
+	tests := []struct {
+		envVar string
+		value  string
+	}{
+		{
+			envVar: envUser,
+			value:  "user",
+		},
+		{
+			envVar: envPassword,
+			value:  "password",
+		},
+	}
+	os.Setenv(envEndpoint, "http://localhost:8080")
+	for _, test := range tests {
+		os.Setenv(test.envVar, test.value)
+		_, err := FromEnv()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), fmt.Sprintf("you must set %s and %s env vars together", envUser,
+			envPassword))
+		os.Unsetenv(test.envVar)
+	}
+	os.Unsetenv(envEndpoint)
 }
 
 func TestInvalidSamplerType(t *testing.T) {
@@ -228,6 +279,22 @@ func TestInvalidSamplerType(t *testing.T) {
 	rcs, ok := s.(*jaeger.RemotelyControlledSampler)
 	require.True(t, ok, "converted to RemotelyControlledSampler")
 	rcs.Close()
+}
+
+func TestUDPTransportType(t *testing.T) {
+	rc := &ReporterConfig{LocalAgentHostPort: "localhost:1234"}
+	expect, _ := jaeger.NewUDPTransport(rc.LocalAgentHostPort, 0)
+	sender, err := rc.newTransport()
+	require.NoError(t, err)
+	require.IsType(t, expect, sender)
+}
+
+func TestHTTPTransportType(t *testing.T) {
+	rc := &ReporterConfig{CollectorEndpoint: "http://1.2.3.4:5678/api/traces"}
+	expect := transport.NewHTTPTransport(rc.CollectorEndpoint)
+	sender, err := rc.newTransport()
+	require.NoError(t, err)
+	require.IsType(t, expect, sender)
 }
 
 func TestDefaultConfig(t *testing.T) {
@@ -279,7 +346,7 @@ func TestInitGlobalTracer(t *testing.T) {
 		{
 			cfg: Configuration{
 				Sampler: &SamplerConfig{
-					Type: "remote",
+					Type:                    "remote",
 					SamplingRefreshInterval: 1,
 				},
 			},
@@ -325,7 +392,7 @@ func TestConfigWithReporter(t *testing.T) {
 }
 
 func TestConfigWithRPCMetrics(t *testing.T) {
-	metrics := metrics.NewLocalFactory(0)
+	metrics := metricstest.NewFactory(0)
 	c := Configuration{
 		Sampler: &SamplerConfig{
 			Type:  "const",
@@ -345,8 +412,8 @@ func TestConfigWithRPCMetrics(t *testing.T) {
 
 	tracer.StartSpan("test", ext.SpanKindRPCServer).Finish()
 
-	testutils.AssertCounterMetrics(t, metrics,
-		testutils.ExpectedMetric{
+	metrics.AssertCounterMetrics(t,
+		metricstest.ExpectedMetric{
 			Name:  "jaeger-rpc.requests",
 			Tags:  map[string]string{"component": "jaeger", "endpoint": "test", "error": "false"},
 			Value: 1,
@@ -355,7 +422,7 @@ func TestConfigWithRPCMetrics(t *testing.T) {
 }
 
 func TestBaggageRestrictionsConfig(t *testing.T) {
-	m := metrics.NewLocalFactory(0)
+	m := metricstest.NewFactory(0)
 	c := Configuration{
 		BaggageRestrictions: &BaggageRestrictionsConfig{
 			HostPort:        "not:1929213",
@@ -369,7 +436,7 @@ func TestBaggageRestrictionsConfig(t *testing.T) {
 	require.NoError(t, err)
 	defer closer.Close()
 
-	metricName := "jaeger.baggage_restrictions_updates"
+	metricName := "jaeger.tracer.baggage_restrictions_updates"
 	metricTags := map[string]string{"result": "err"}
 	key := metrics.GetKey(metricName, metricTags, "|", "=")
 	for i := 0; i < 100; i++ {
@@ -381,8 +448,8 @@ func TestBaggageRestrictionsConfig(t *testing.T) {
 		time.Sleep(time.Millisecond)
 	}
 
-	testutils.AssertCounterMetrics(t, m,
-		testutils.ExpectedMetric{
+	m.AssertCounterMetrics(t,
+		metricstest.ExpectedMetric{
 			Name:  metricName,
 			Tags:  metricTags,
 			Value: 1,
