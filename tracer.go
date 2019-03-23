@@ -319,7 +319,11 @@ func (t *Tracer) Extract(
 	carrier interface{},
 ) (opentracing.SpanContext, error) {
 	if extractor, ok := t.extractors[format]; ok {
-		return extractor.Extract(carrier)
+		spanCtx, err := extractor.Extract(carrier)
+		if err != nil {
+			return nil, err // ensure returned spanCtx is nil
+		}
+		return spanCtx, nil
 	}
 	return nil, opentracing.ErrUnsupportedFormat
 }

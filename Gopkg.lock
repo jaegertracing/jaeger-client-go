@@ -54,11 +54,12 @@
   version = "v1.0.1"
 
 [[projects]]
-  digest = "1:11e62d6050198055e6cd87ed57e5d8c669e84f839c16e16f192374d913d1a70d"
+  digest = "1:727b8f567a30d0739d6c26b9472b3422b351c93cf62095164c845a54b16fc18e"
   name = "github.com/opentracing/opentracing-go"
   packages = [
     ".",
     "ext",
+    "harness",
     "log",
   ]
   pruneopts = "UT"
@@ -204,6 +205,7 @@
     "github.com/crossdock/crossdock-go",
     "github.com/opentracing/opentracing-go",
     "github.com/opentracing/opentracing-go/ext",
+    "github.com/opentracing/opentracing-go/harness",
     "github.com/opentracing/opentracing-go/log",
     "github.com/pkg/errors",
     "github.com/prometheus/client_golang/prometheus",

@@ -22,6 +22,7 @@ import (
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
+	"github.com/opentracing/opentracing-go/harness"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -423,4 +424,36 @@ func (p *dummyPropagator) Extract(carrier interface{}) (SpanContext, error) {
 		return emptyContext, nil
 	}
 	return emptyContext, opentracing.ErrSpanContextNotFound
+}
+
+func TestAPI(t *testing.T) {
+	harness.RunAPIChecks(
+		t,
+		func() (opentracing.Tracer, func()) {
+			tracer, closer := NewTracer("DOOP", // respect the classics, man!
+				NewConstSampler(true),
+				NewNullReporter(),
+			)
+
+			return tracer, func() { closer.Close() }
+		},
+		harness.CheckEverything(),
+		harness.UseProbe(&jaegerProbe{}),
+	)
+}
+
+type jaegerProbe struct{}
+
+// SameTrace helps tests assert that this tracer's spans are from the same trace.
+func (jp *jaegerProbe) SameTrace(first, second opentracing.Span) bool {
+	firstCtx := first.Context().(SpanContext)
+	secondCtx := second.Context().(SpanContext)
+	return firstCtx.traceID == secondCtx.traceID
+}
+
+// SameSpanContext helps tests assert that a span and a context are from the same trace and span.
+func (jp *jaegerProbe) SameSpanContext(first opentracing.Span, second opentracing.SpanContext) bool {
+	firstCtx := first.Context().(SpanContext)
+	secondCtx := second.(SpanContext)
+	return firstCtx.traceID == secondCtx.traceID && firstCtx.spanID == secondCtx.spanID
 }
