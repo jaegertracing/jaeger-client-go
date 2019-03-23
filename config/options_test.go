@@ -38,6 +38,7 @@ func TestApplyOptions(t *testing.T) {
 		Sampler(sampler),
 		ContribObserver(contribObserver),
 		Gen128Bit(true),
+		PoolSpans(true),
 		ZipkinSharedRPCSpan(true),
 		MaxTagValueLength(1024),
 	)
@@ -47,6 +48,7 @@ func TestApplyOptions(t *testing.T) {
 	assert.Equal(t, []jaeger.Observer{observer}, opts.observers)
 	assert.Equal(t, []jaeger.ContribObserver{contribObserver}, opts.contribObservers)
 	assert.True(t, opts.gen128Bit)
+	assert.True(t, opts.poolSpans)
 	assert.True(t, opts.zipkinSharedRPCSpan)
 	assert.Equal(t, 1024, opts.maxTagValueLength)
 }
