@@ -65,7 +65,6 @@ func TestSpanPropagator(t *testing.T) {
 		child.Finish()
 	}
 	sp.Finish()
-	closer.Close()
 
 	otSpans := reporter.GetSpans()
 	require.Equal(t, len(tests)+1, len(otSpans), "unexpected number of spans reporter")
@@ -74,6 +73,8 @@ func TestSpanPropagator(t *testing.T) {
 	for i, s := range otSpans {
 		spans[i] = s.(*Span)
 	}
+
+	closer.Close()
 
 	// The last span is the original one.
 	exp, spans := spans[len(spans)-1], spans[:len(spans)-1]

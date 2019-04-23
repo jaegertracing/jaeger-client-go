@@ -50,6 +50,7 @@ func (s *tracerSuite) SetupTest() {
 		TracerOptions.Metrics(metrics),
 		TracerOptions.ZipkinSharedRPCSpan(true),
 		TracerOptions.BaggageRestrictionManager(baggage.NewDefaultRestrictionManager(0)),
+		TracerOptions.PoolSpans(false),
 	)
 	s.NotNil(s.tracer)
 }
@@ -246,6 +247,10 @@ func TestTracerOptions(t *testing.T) {
 	rnd := func() uint64 {
 		return 1
 	}
+	isPoolAllocator := func(allocator SpanAllocator) bool {
+		_, ok := allocator.(*syncPollSpanAllocator)
+		return ok
+	}
 
 	openTracer, closer := NewTracer("DOOP", // respect the classics, man!
 		NewConstSampler(true),
@@ -264,7 +269,7 @@ func TestTracerOptions(t *testing.T) {
 	assert.Equal(t, uint64(1), tracer.randomNumber())
 	assert.Equal(t, uint64(1), tracer.randomNumber())
 	assert.Equal(t, uint64(1), tracer.randomNumber()) // always 1
-	assert.Equal(t, true, tracer.options.poolSpans)
+	assert.Equal(t, true, isPoolAllocator(tracer.spanAllocator))
 	assert.Equal(t, opentracing.Tag{Key: "tag_key", Value: "tag_value"}, tracer.Tags()[0])
 }
 
