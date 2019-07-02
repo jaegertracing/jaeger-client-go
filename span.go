@@ -64,6 +64,40 @@ type Span struct {
 	observer ContribSpanObserver
 }
 
+func NewSpan(tracer *Tracer, context SpanContext, operationName string, startTime time.Time, tags []Tag, logs []opentracing.LogRecord, references []Reference) (*Span, error) {
+	span := Span{
+		tracer:        tracer,
+		context:       context,
+		operationName: operationName,
+		startTime:     startTime,
+		tags:          tags,
+		logs:          logs,
+		references:    references,
+	}
+
+	opentracingReferences := make([]opentracing.SpanReference, len(references))
+	for i, r := range references {
+		opentracingReferences[i] = opentracing.SpanReference{
+			Type:              r.Type,
+			ReferencedContext: r.Context,
+		}
+	}
+
+	opentracingTags := make(map[string]interface{})
+	for _, tag := range tags {
+		opentracingTags[tag.key] = tag.value
+	}
+
+	startSpanOptions := opentracing.StartSpanOptions{
+		References: opentracingReferences,
+		StartTime:  startTime,
+		Tags:       opentracingTags,
+	}
+	span.observer = tracer.observer.OnStartSpan(&span, operationName, startSpanOptions)
+
+	return &span, nil
+}
+
 // Tag is a simple key value wrapper.
 // TODO deprecate in the next major release, use opentracing.Tag instead.
 type Tag struct {
