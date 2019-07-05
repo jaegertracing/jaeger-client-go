@@ -79,8 +79,18 @@ func TestSpanProperties(t *testing.T) {
 	defer closer.Close()
 
 	sp1 := tracer.StartSpan("s1").(*Span)
+	sp1.SetTag("foo", "bar")
+	var expectedTags = make(opentracing.Tags)
+	expectedTags["foo"] = "bar"
+	expectedTags["sampler.type"] = "const"
+	expectedTags["sampler.param"] = true
+
 	assert.Equal(t, tracer, sp1.Tracer())
 	assert.NotNil(t, sp1.Context())
+	assert.Equal(t, sp1.context, sp1.SpanContext())
+	assert.Equal(t, sp1.startTime, sp1.StartTime())
+	assert.Equal(t, sp1.duration, sp1.Duration())
+	assert.Equal(t, sp1.Tags(), expectedTags)
 }
 
 func TestSpanOperationName(t *testing.T) {

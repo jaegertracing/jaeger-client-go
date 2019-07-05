@@ -96,6 +96,38 @@ func (s *Span) SetTag(key string, value interface{}) opentracing.Span {
 	return s
 }
 
+// SpanContext returns span context
+func (s *Span) SpanContext() SpanContext {
+	s.Lock()
+	defer s.Unlock()
+	return s.context
+}
+
+// StartTime returns span start time
+func (s *Span) StartTime() time.Time {
+	s.Lock()
+	defer s.Unlock()
+	return s.startTime
+}
+
+// Duration returns span duration
+func (s *Span) Duration() time.Duration {
+	s.Lock()
+	defer s.Unlock()
+	return s.duration
+}
+
+// Tags returns tags for span
+func (s *Span) Tags() opentracing.Tags {
+	s.Lock()
+	defer s.Unlock()
+	var result = make(opentracing.Tags)
+	for _, tag := range s.tags {
+		result[tag.key] = tag.value
+	}
+	return result
+}
+
 func (s *Span) setTagNoLocking(key string, value interface{}) {
 	s.tags = append(s.tags, Tag{key: key, value: value})
 }
