@@ -87,7 +87,7 @@ func TestSpanProperties(t *testing.T) {
 
 	assert.Equal(t, tracer, sp1.Tracer())
 	assert.NotNil(t, sp1.Context())
-	assert.Equal(t, sp1.context, sp1.Context())
+	assert.Equal(t, sp1.context, sp1.SpanContext())
 	assert.Equal(t, sp1.startTime, sp1.StartTime())
 	assert.Equal(t, sp1.duration, sp1.Duration())
 	assert.Equal(t, sp1.Tags(), expectedTags)
