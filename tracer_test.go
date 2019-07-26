@@ -15,6 +15,7 @@
 package jaeger
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"testing"
@@ -404,6 +405,57 @@ func TestThrottling_DebugHeader(t *testing.T) {
 
 	sp = tracer.StartSpan("root", opentracing.ChildOf(ctx)).(*Span)
 	assert.False(t, sp.context.IsDebug(), "debug should not be allowed by the throttler")
+}
+
+func TestSetGetTag(t *testing.T) {
+	opentracer, tc := NewTracer("x", NewConstSampler(true), NewNullReporter())
+	tracer := opentracer.(*Tracer)
+	defer tc.Close()
+	tags := tracer.Tags()
+	for _, tag := range tags {
+		fmt.Println("key : ", tag.Key, " value : ", tag.Value.(string))
+	}
+	fmt.Println("hostIPv4 : ", tracer.hostIPv4)
+
+	opentracer, tc = NewTracer("x", NewConstSampler(true), NewNullReporter(), TracerOptions.Tag(TracerIPTagKey, "11.22.33.44"))
+	tracer = opentracer.(*Tracer)
+	defer tc.Close()
+	tags = tracer.Tags()
+	for _, tag := range tags {
+		fmt.Println("key : ", tag.Key, " value : ", tag.Value.(string))
+	}
+	fmt.Println("hostIPv4 : ", tracer.hostIPv4)
+
+	opentracer, tc = NewTracer("x", NewConstSampler(true), NewNullReporter(), TracerOptions.Tag(TracerIPTagKey, "an invalid input"))
+	tracer = opentracer.(*Tracer)
+	defer tc.Close()
+	tags = tracer.Tags()
+	for _, tag := range tags {
+		fmt.Println("key : ", tag.Key, " value : ", tag.Value.(string))
+	}
+	fmt.Println("hostIPv4 : ", tracer.hostIPv4)
+
+	opentracer, tc = NewTracer("x", NewConstSampler(true), NewNullReporter(), TracerOptions.Tag(TracerIPTagKey, nil))
+	tracer = opentracer.(*Tracer)
+	defer tc.Close()
+	tags = tracer.Tags()
+	for _, tag := range tags {
+		fmt.Println("key : ", tag.Key, " value : ", tag.Value.(string))
+	}
+	fmt.Println("hostIPv4 : ", tracer.hostIPv4)
+
+	type empty struct {
+	}
+
+	opentracer, tc = NewTracer("x", NewConstSampler(true), NewNullReporter(), TracerOptions.Tag(TracerIPTagKey, new(empty)))
+	tracer = opentracer.(*Tracer)
+	defer tc.Close()
+	tags = tracer.Tags()
+	for _, tag := range tags {
+		fmt.Println("key : ", tag.Key, " value : ", tag.Value.(string))
+	}
+	fmt.Println("hostIPv4 : ", tracer.hostIPv4)
+
 }
 
 type dummyPropagator struct{}

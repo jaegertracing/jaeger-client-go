@@ -145,8 +145,17 @@ func NewTracer(
 	if hostname, err := os.Hostname(); err == nil {
 		t.tags = append(t.tags, Tag{key: TracerHostnameTagKey, value: hostname})
 	}
-	if ip, err := utils.HostIP(); err == nil {
-		t.tags = append(t.tags, Tag{key: TracerIPTagKey, value: ip.String()})
+	ipval := t.getTag(TracerIPTagKey)
+	if ipStr, ok := ipval.(string); ok {
+		ipv4, err := utils.ParseIPToUint32(ipStr)
+		if err != nil {
+			t.hostIPv4 = 0
+			t.logger.Error("Unable to convert the specific ip to uint32: " + err.Error())
+		} else {
+			t.hostIPv4 = ipv4
+		}
+	} else if ip, err := utils.HostIP(); err == nil {
+		t.setTag(TracerIPTagKey, ip.String())
 		t.hostIPv4 = utils.PackIPAsUint32(ip)
 	} else {
 		t.logger.Error("Unable to determine this host's IP address: " + err.Error())
@@ -345,6 +354,28 @@ func (t *Tracer) Tags() []opentracing.Tag {
 		tags[i] = opentracing.Tag{Key: tag.key, Value: tag.value}
 	}
 	return tags
+}
+
+// getTag returns the value of specific tag, if not exists, return nil.
+func (t *Tracer) getTag(key string) interface{} {
+	for _, tag := range t.tags {
+		if tag.key == key {
+			return tag.value
+		}
+	}
+	return nil
+}
+
+// setTag set the value of specific tag
+func (t *Tracer) setTag(key string, value interface{}) {
+	for i, tag := range t.tags {
+		if tag.key == key {
+			t.tags[i].value = value
+			return
+		}
+	}
+	t.tags = append(t.tags, Tag{key, value})
+	return
 }
 
 // newSpan returns an instance of a clean Span object.
