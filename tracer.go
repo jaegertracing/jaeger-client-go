@@ -375,7 +375,6 @@ func (t *Tracer) setTag(key string, value interface{}) {
 		}
 	}
 	t.tags = append(t.tags, Tag{key, value})
-	return
 }
 
 // newSpan returns an instance of a clean Span object.
