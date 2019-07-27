@@ -15,7 +15,6 @@
 package jaeger
 
 import (
-	"fmt"
 	"io"
 	"net/http"
 	"testing"
@@ -411,51 +410,29 @@ func TestSetGetTag(t *testing.T) {
 	opentracer, tc := NewTracer("x", NewConstSampler(true), NewNullReporter())
 	tracer := opentracer.(*Tracer)
 	defer tc.Close()
-	tags := tracer.Tags()
-	for _, tag := range tags {
-		fmt.Println("key : ", tag.Key, " value : ", tag.Value.(string))
-	}
-	fmt.Println("hostIPv4 : ", tracer.hostIPv4)
+	value, ok := tracer.getTag(TracerIPTagKey)
+	assert.True(t, ok)
+	_, ok = value.(string)
+	assert.True(t, ok)
+	assert.True(t, tracer.hostIPv4 != 0)
 
-	opentracer, tc = NewTracer("x", NewConstSampler(true), NewNullReporter(), TracerOptions.Tag(TracerIPTagKey, "11.22.33.44"))
+	ipStr := "11.22.33.44"
+	opentracer, tc = NewTracer("x", NewConstSampler(true), NewNullReporter(), TracerOptions.Tag(TracerIPTagKey, ipStr))
 	tracer = opentracer.(*Tracer)
 	defer tc.Close()
-	tags = tracer.Tags()
-	for _, tag := range tags {
-		fmt.Println("key : ", tag.Key, " value : ", tag.Value.(string))
-	}
-	fmt.Println("hostIPv4 : ", tracer.hostIPv4)
+	value, ok = tracer.getTag(TracerIPTagKey)
+	assert.True(t, ok)
+	assert.True(t, value == ipStr)
+	assert.True(t, tracer.hostIPv4 != 0)
 
-	opentracer, tc = NewTracer("x", NewConstSampler(true), NewNullReporter(), TracerOptions.Tag(TracerIPTagKey, "an invalid input"))
+	ipStrInvalid := "an invalid input"
+	opentracer, tc = NewTracer("x", NewConstSampler(true), NewNullReporter(), TracerOptions.Tag(TracerIPTagKey, ipStrInvalid))
 	tracer = opentracer.(*Tracer)
 	defer tc.Close()
-	tags = tracer.Tags()
-	for _, tag := range tags {
-		fmt.Println("key : ", tag.Key, " value : ", tag.Value.(string))
-	}
-	fmt.Println("hostIPv4 : ", tracer.hostIPv4)
-
-	opentracer, tc = NewTracer("x", NewConstSampler(true), NewNullReporter(), TracerOptions.Tag(TracerIPTagKey, nil))
-	tracer = opentracer.(*Tracer)
-	defer tc.Close()
-	tags = tracer.Tags()
-	for _, tag := range tags {
-		fmt.Println("key : ", tag.Key, " value : ", tag.Value.(string))
-	}
-	fmt.Println("hostIPv4 : ", tracer.hostIPv4)
-
-	type empty struct {
-	}
-
-	opentracer, tc = NewTracer("x", NewConstSampler(true), NewNullReporter(), TracerOptions.Tag(TracerIPTagKey, new(empty)))
-	tracer = opentracer.(*Tracer)
-	defer tc.Close()
-	tags = tracer.Tags()
-	for _, tag := range tags {
-		fmt.Println("key : ", tag.Key, " value : ", tag.Value.(string))
-	}
-	fmt.Println("hostIPv4 : ", tracer.hostIPv4)
-
+	value, ok = tracer.getTag(TracerIPTagKey)
+	assert.True(t, ok)
+	assert.True(t, value == ipStrInvalid)
+	assert.True(t, tracer.hostIPv4 == 0)
 }
 
 type dummyPropagator struct{}
