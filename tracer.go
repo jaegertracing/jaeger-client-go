@@ -221,7 +221,8 @@ func (t *Tracer) startSpanWithOptions(
 
 	var references []Reference
 	var parent SpanContext
-	var hasParent bool // need this because `parent` is a value, not reference
+	var hasParent bool             // need this because `parent` is a value, not reference
+	var selfReference *SpanContext // self references skip the ID generation
 	for _, ref := range options.References {
 		ctx, ok := ref.ReferencedContext.(SpanContext)
 		if !ok {
@@ -234,6 +235,13 @@ func (t *Tracer) startSpanWithOptions(
 			continue
 		}
 		references = append(references, Reference{Type: ref.Type, Context: ctx})
+
+		// if
+		if ref.Type == SelfRef {
+			selfReference = &ctx
+			break
+		}
+
 		if !hasParent {
 			parent = ctx
 			hasParent = ref.Type == opentracing.ChildOfRef
@@ -253,42 +261,46 @@ func (t *Tracer) startSpanWithOptions(
 	var samplerTags []Tag
 	var ctx SpanContext
 	newTrace := false
-	if !hasParent || !parent.IsValid() {
-		newTrace = true
-		ctx.traceID.Low = t.randomID()
-		if t.options.gen128Bit {
-			ctx.traceID.High = t.options.highTraceIDGenerator()
-		}
-		ctx.spanID = SpanID(ctx.traceID.Low)
-		ctx.parentID = 0
-		ctx.flags = byte(0)
-		if hasParent && parent.isDebugIDContainerOnly() && t.isDebugAllowed(operationName) {
-			ctx.flags |= (flagSampled | flagDebug)
-			samplerTags = []Tag{{key: JaegerDebugHeader, value: parent.debugID}}
-		} else if sampled, tags := t.sampler.IsSampled(ctx.traceID, operationName); sampled {
-			ctx.flags |= flagSampled
-			samplerTags = tags
-		}
-	} else {
-		ctx.traceID = parent.traceID
-		if rpcServer && t.options.zipkinSharedRPCSpan {
-			// Support Zipkin's one-span-per-RPC model
-			ctx.spanID = parent.spanID
-			ctx.parentID = parent.parentID
+	if selfReference == nil {
+		if !hasParent || !parent.IsValid() {
+			newTrace = true
+			ctx.traceID.Low = t.randomID()
+			if t.options.gen128Bit {
+				ctx.traceID.High = t.options.highTraceIDGenerator()
+			}
+			ctx.spanID = SpanID(ctx.traceID.Low)
+			ctx.parentID = 0
+			ctx.flags = byte(0)
+			if hasParent && parent.isDebugIDContainerOnly() && t.isDebugAllowed(operationName) {
+				ctx.flags |= (flagSampled | flagDebug)
+				samplerTags = []Tag{{key: JaegerDebugHeader, value: parent.debugID}}
+			} else if sampled, tags := t.sampler.IsSampled(ctx.traceID, operationName); sampled {
+				ctx.flags |= flagSampled
+				samplerTags = tags
+			}
 		} else {
-			ctx.spanID = SpanID(t.randomID())
-			ctx.parentID = parent.spanID
+			ctx.traceID = parent.traceID
+			if rpcServer && t.options.zipkinSharedRPCSpan {
+				// Support Zipkin's one-span-per-RPC model
+				ctx.spanID = parent.spanID
+				ctx.parentID = parent.parentID
+			} else {
+				ctx.spanID = SpanID(t.randomID())
+				ctx.parentID = parent.spanID
+			}
+			ctx.flags = parent.flags
 		}
-		ctx.flags = parent.flags
-	}
-	if hasParent {
-		// copy baggage items
-		if l := len(parent.baggage); l > 0 {
-			ctx.baggage = make(map[string]string, len(parent.baggage))
-			for k, v := range parent.baggage {
-				ctx.baggage[k] = v
+		if hasParent {
+			// copy baggage items
+			if l := len(parent.baggage); l > 0 {
+				ctx.baggage = make(map[string]string, len(parent.baggage))
+				for k, v := range parent.baggage {
+					ctx.baggage[k] = v
+				}
 			}
 		}
+	} else {
+		ctx = *selfReference
 	}
 
 	sp := t.newSpan()
