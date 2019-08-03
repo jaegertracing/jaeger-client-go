@@ -112,6 +112,12 @@ func TestNoServiceNameFromEnv(t *testing.T) {
 
 	_, _, err = cfg.New("")
 	assert.Error(t, err)
+
+	// However, if Disabled, then empty service name is irrelevant (issue #350)
+	cfg.Disabled = true
+	tr, _, err := cfg.New("")
+	assert.NoError(t, err)
+	assert.Equal(t, &opentracing.NoopTracer{}, tr)
 }
 
 func TestSamplerConfigFromEnv(t *testing.T) {
