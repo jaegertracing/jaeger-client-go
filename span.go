@@ -24,8 +24,6 @@ import (
 	"github.com/opentracing/opentracing-go/log"
 )
 
-const SelfRef opentracing.SpanReferenceType = 99
-
 // Span implements opentracing.Span
 type Span struct {
 	// referenceCounter used to increase the lifetime of

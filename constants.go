@@ -14,6 +14,8 @@
 
 package jaeger
 
+import "github.com/opentracing/opentracing-go"
+
 const (
 	// JaegerClientVersion is the version of the client library reported as Span tag.
 	JaegerClientVersion = "Go-2.16.1dev"
@@ -85,4 +87,6 @@ const (
 
 	// DefaultMaxTagValueLength is the default max length of byte array or string allowed in the tag value.
 	DefaultMaxTagValueLength = 256
+
+	SelfRef opentracing.SpanReferenceType = 99
 )
