@@ -221,29 +221,30 @@ func (t *Tracer) startSpanWithOptions(
 
 	var references []Reference
 	var parent SpanContext
-	var hasParent bool             // need this because `parent` is a value, not reference
-	var selfReference *SpanContext // self references skip the ID generation
+	var hasParent bool // need this because `parent` is a value, not reference
+	var ctx SpanContext
+	var isSelfRef bool
 	for _, ref := range options.References {
-		ctx, ok := ref.ReferencedContext.(SpanContext)
+		ctxRef, ok := ref.ReferencedContext.(SpanContext)
 		if !ok {
 			t.logger.Error(fmt.Sprintf(
 				"Reference contains invalid type of SpanReference: %s",
 				reflect.ValueOf(ref.ReferencedContext)))
 			continue
 		}
-		if !isValidReference(ctx) {
+		if !isValidReference(ctxRef) {
 			continue
 		}
-		references = append(references, Reference{Type: ref.Type, Context: ctx})
+		references = append(references, Reference{Type: ref.Type, Context: ctxRef})
 
-		// if
 		if ref.Type == SelfRef {
-			selfReference = &ctx
+			isSelfRef = true
+			ctx = ctxRef
 			break
 		}
 
 		if !hasParent {
-			parent = ctx
+			parent = ctxRef
 			hasParent = ref.Type == opentracing.ChildOfRef
 		}
 	}
@@ -259,9 +260,8 @@ func (t *Tracer) startSpanWithOptions(
 	}
 
 	var samplerTags []Tag
-	var ctx SpanContext
 	newTrace := false
-	if selfReference == nil {
+	if !isSelfRef {
 		if !hasParent || !parent.IsValid() {
 			newTrace = true
 			ctx.traceID.Low = t.randomID()
@@ -299,8 +299,6 @@ func (t *Tracer) startSpanWithOptions(
 				}
 			}
 		}
-	} else {
-		ctx = *selfReference
 	}
 
 	sp := t.newSpan()

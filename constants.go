@@ -88,5 +88,7 @@ const (
 	// DefaultMaxTagValueLength is the default max length of byte array or string allowed in the tag value.
 	DefaultMaxTagValueLength = 256
 
+	// SelfRef is a jaeger specific reference type that supports creating a span
+	// with an already defined context.
 	SelfRef opentracing.SpanReferenceType = 99
 )
