@@ -237,15 +237,14 @@ func (t *Tracer) startSpanWithOptions(
 		}
 		references = append(references, Reference{Type: ref.Type, Context: ctxRef})
 
-		if ref.Type == SelfRef {
-			isSelfRef = true
-			ctx = ctxRef
-			break
-		}
-
 		if !hasParent {
 			parent = ctxRef
 			hasParent = ref.Type == opentracing.ChildOfRef
+		}
+
+		if ref.Type == SelfRef {
+			isSelfRef = true
+			ctx = ctxRef
 		}
 	}
 	if !hasParent && isValidReference(parent) {
