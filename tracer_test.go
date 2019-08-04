@@ -237,6 +237,27 @@ func (s *tracerSuite) TestRandomIDNotZero() {
 	rng.Seed(1) // for test coverage
 }
 
+func (s *tracerSuite) TestReferenceSelfUsesProvidedContext() {
+	ctx := NewSpanContext(
+		TraceID{
+			High: 1,
+			Low:  2,
+		},
+		SpanID(2),
+		SpanID(1),
+		false,
+		nil,
+	)
+	sp1 := s.tracer.StartSpan(
+		"continued_span",
+		opentracing.SpanReference{
+			Type:              SelfRef,
+			ReferencedContext: ctx,
+		},
+	)
+	s.Equal(ctx, sp1.(*Span).context)
+}
+
 func TestTracerOptions(t *testing.T) {
 	t1, e := time.Parse(time.RFC3339, "2012-11-01T22:08:41+00:00")
 	assert.NoError(t, e)
