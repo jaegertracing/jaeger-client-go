@@ -465,6 +465,9 @@ func (t *Tracer) isDebugAllowed(operation string) bool {
 	return t.debugThrottler.IsAllowed(operation)
 }
 
+// SelfRef creates an opentracing compliant SpanReference from a jaeger
+// SpanContext. This is a factory function in order to encapsulate jaeger specific
+// types.
 func SelfRef(ctx SpanContext) opentracing.SpanReference {
 	return opentracing.SpanReference{
 		Type:              selfRefType,
