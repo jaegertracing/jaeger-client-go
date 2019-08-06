@@ -235,16 +235,18 @@ func (t *Tracer) startSpanWithOptions(
 		if !isValidReference(ctxRef) {
 			continue
 		}
+
+		if ref.Type == selfRefType {
+			isSelfRef = true
+			ctx = ctxRef
+			continue
+		}
+
 		references = append(references, Reference{Type: ref.Type, Context: ctxRef})
 
 		if !hasParent {
 			parent = ctxRef
 			hasParent = ref.Type == opentracing.ChildOfRef
-		}
-
-		if ref.Type == SelfRef {
-			isSelfRef = true
-			ctx = ctxRef
 		}
 	}
 	if !hasParent && isValidReference(parent) {
@@ -461,4 +463,11 @@ func (t *Tracer) setBaggage(sp *Span, key, value string) {
 // (NB) span must hold the lock before making this call
 func (t *Tracer) isDebugAllowed(operation string) bool {
 	return t.debugThrottler.IsAllowed(operation)
+}
+
+func SelfRef(ctx SpanContext) opentracing.SpanReference {
+	return opentracing.SpanReference{
+		Type:              selfRefType,
+		ReferencedContext: ctx,
+	}
 }

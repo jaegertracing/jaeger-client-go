@@ -250,10 +250,7 @@ func (s *tracerSuite) TestReferenceSelfUsesProvidedContext() {
 	)
 	sp1 := s.tracer.StartSpan(
 		"continued_span",
-		opentracing.SpanReference{
-			Type:              SelfRef,
-			ReferencedContext: ctx,
-		},
+		SelfRef(ctx),
 	)
 	s.Equal(ctx, sp1.(*Span).context)
 }
