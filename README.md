@@ -262,7 +262,6 @@ bypasses trace and span id generation.
 
 
 Usage requires passing in a `SpanContext` and the jaeger `Self` reference type:
-
 ```
 span := tracer.StartSpan(
     "continued_span",
