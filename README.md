@@ -265,10 +265,7 @@ Usage requires passing in a `SpanContext` and the jaeger `Self` reference type:
 ```
 span := tracer.StartSpan(
     "continued_span",
-    opentracing.SpanReferenceType{
-        Type: jaeger.SelfRef,
-        ReferencedContext: yourSpanContext,
-    },
+    SelfRef(yourSpanContext),
 )
 ...
 defer span.finish()
