@@ -253,6 +253,24 @@ by a lot of Zipkin tracers. This means that you can use Jaeger in conjunction wi
 
 However it is not the default propagation format, see [here](zipkin/README.md#NewZipkinB3HTTPHeaderPropagator) how to set it up.
 
+## SelfRef
+
+Jaeger Tracer supports an additional [reference](https://github.com/opentracing/specification/blob/1.1/specification.md#references-between-spans)
+type call `Self`. This allows a caller to provide an already established `SpanContext`.
+This allows loading and continuing spans/traces from offline (ie log-based) storage. The `Self` reference
+bypasses trace and span id generation.
+
+
+Usage requires passing in a `SpanContext` and the jaeger `Self` reference type:
+```
+span := tracer.StartSpan(
+    "continued_span",
+    SelfRef(yourSpanContext),
+)
+...
+defer span.finish()
+```
+
 ## License
 
 [Apache 2.0 License](LICENSE).
