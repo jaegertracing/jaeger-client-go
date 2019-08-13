@@ -14,7 +14,11 @@
 
 package jaeger
 
-import "github.com/opentracing/opentracing-go"
+import (
+	"fmt"
+
+	"github.com/opentracing/opentracing-go"
+)
 
 const (
 	// JaegerClientVersion is the version of the client library reported as Span tag.
@@ -94,4 +98,9 @@ const (
 	// SelfRefType is a jaeger specific reference type that supports creating a span
 	// with an already defined context.
 	selfRefType opentracing.SpanReferenceType = 99
+)
+
+var (
+	// DefaultSamplingServerURL is the default url to fetch sampling config from, via http
+	DefaultSamplingServerURL = fmt.Sprintf("http://localhost:%d/sampling", DefaultSamplingServerPort)
 )
