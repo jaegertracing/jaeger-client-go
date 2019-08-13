@@ -147,6 +147,21 @@ func TestSamplerConfigFromEnv(t *testing.T) {
 	os.Unsetenv(envSamplerRefreshInterval)
 }
 
+func TestSamplerConfigOnAgentFromEnv(t *testing.T) {
+	// prepare
+	os.Setenv(envAgentHost, "theagent")
+
+	// test
+	cfg, err := FromEnv()
+	assert.NoError(t, err)
+
+	// verify
+	assert.Equal(t, "http://theagent:5778/sampling", cfg.Sampler.SamplingServerURL)
+
+	// cleanup
+	os.Unsetenv(envAgentHost)
+}
+
 func TestReporterConfigFromEnv(t *testing.T) {
 	// prepare
 	os.Setenv(envReporterMaxQueueSize, "10")
