@@ -28,7 +28,6 @@ import (
 )
 
 const (
-	defaultSamplingServerURL       = "http://localhost:5778/sampling"
 	defaultSamplingRefreshInterval = time.Minute
 	defaultMaxOperations           = 2000
 )
@@ -435,7 +434,7 @@ func applySamplerOptions(opts ...SamplerOption) samplerOptions {
 		options.maxOperations = defaultMaxOperations
 	}
 	if options.samplingServerURL == "" {
-		options.samplingServerURL = defaultSamplingServerURL
+		options.samplingServerURL = DefaultSamplingServerURL
 	}
 	if options.metrics == nil {
 		options.metrics = NewNullMetrics()
