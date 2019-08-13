@@ -85,6 +85,9 @@ const (
 	// DefaultUDPSpanServerPort is the default port to send the spans to, via UDP
 	DefaultUDPSpanServerPort = 6831
 
+	// DefaultSamplingServerPort is the default port to fetch sampling config from, via http
+	DefaultSamplingServerPort = 5778
+
 	// DefaultMaxTagValueLength is the default max length of byte array or string allowed in the tag value.
 	DefaultMaxTagValueLength = 256
 
