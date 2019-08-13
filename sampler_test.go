@@ -448,6 +448,57 @@ func TestRemotelyControlledSampler_updateSampler(t *testing.T) {
 	}
 }
 
+func TestRemotelyControlledSampler_updateDefaultRate(t *testing.T) {
+	agent, sampler, _ := initAgent(t)
+	defer agent.Close()
+
+	res := &sampling.SamplingStrategyResponse{
+		StrategyType: sampling.SamplingStrategyType_PROBABILISTIC,
+		OperationSampling: &sampling.PerOperationSamplingStrategies{
+			DefaultSamplingProbability: 0.5,
+		},
+	}
+	agent.AddSamplingStrategy("client app", res)
+	sampler.updateSampler()
+
+	// Check what rate we get for a specific operation
+	sampled, tags := sampler.IsSampled(TraceID{}, testOperationName)
+	assert.True(t, sampled)
+	assert.Equal(t, generateTags("probabilistic", 0.5), tags)
+
+	// Change the default and update
+	res.OperationSampling.DefaultSamplingProbability = 0.1
+	sampler.updateSampler()
+
+	// Check sampling rate has changed
+	sampled, tags = sampler.IsSampled(TraceID{}, testOperationName)
+	assert.True(t, sampled)
+	assert.Equal(t, generateTags("probabilistic", 0.1), tags)
+
+	// Add an operation-specific rate
+	res.OperationSampling.PerOperationStrategies = []*sampling.OperationSamplingStrategy{{
+		Operation: testOperationName,
+		ProbabilisticSampling: &sampling.ProbabilisticSamplingStrategy{
+			SamplingRate: 0.2,
+		},
+	}}
+	sampler.updateSampler()
+
+	// Check we get the requested rate
+	sampled, tags = sampler.IsSampled(TraceID{}, testOperationName)
+	assert.True(t, sampled)
+	assert.Equal(t, generateTags("probabilistic", 0.2), tags)
+
+	// Now remove the operation-specific rate
+	res.OperationSampling.PerOperationStrategies = nil
+	sampler.updateSampler()
+
+	// Check we get the default rate
+	sampled, tags = sampler.IsSampled(TraceID{}, testOperationName)
+	assert.True(t, sampled)
+	assert.Equal(t, generateTags("probabilistic", 0.1), tags)
+}
+
 func TestMaxOperations(t *testing.T) {
 	samplingRates := []*sampling.OperationSamplingStrategy{
 		{
