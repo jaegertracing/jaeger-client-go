@@ -344,8 +344,6 @@ func TestRemotelyControlledSampler(t *testing.T) {
 	s2, ok := remoteSampler.getSampler().(*ProbabilisticSampler)
 	assert.True(t, ok)
 	assert.NotEqual(t, initSampler, s2, "Sampler should have been updated from timer")
-
-	assert.True(t, remoteSampler.Equal(remoteSampler))
 }
 
 func generateTags(key string, value float64) []Tag {
@@ -578,7 +576,7 @@ func TestRemotelyControlledSampler_updateSamplerFromAdaptiveSampler(t *testing.T
 	remoteSampler.updateSampler()
 
 	// Sampler should have been updated to ratelimiting
-	_, ok = remoteSampler.sampler.(*rateLimitingSampler)
+	_, ok = remoteSampler.sampler.(*RateLimitingSampler)
 	require.True(t, ok)
 
 	// Overwrite the sampler with an adaptive sampler
@@ -674,7 +672,13 @@ func TestRemotelyControlledSampler_updateRateLimitingOrProbabilisticSampler(t *t
 			if testCase.referenceEquivalence {
 				assert.Equal(t, testCase.expectedSampler, remoteSampler.sampler)
 			} else {
-				assert.True(t, testCase.expectedSampler.Equal(remoteSampler.sampler))
+				if rls, ok := testCase.expectedSampler.(*RateLimitingSampler); ok {
+					assert.True(t, rls.Equal(remoteSampler.sampler))
+				} else if ps, ok := testCase.expectedSampler.(*ProbabilisticSampler); ok {
+					assert.True(t, ps.Equal(remoteSampler.sampler))
+				} else {
+					assert.Fail(t, "Unknown sampler", testCase.expectedSampler)
+				}
 			}
 		})
 	}
