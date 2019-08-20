@@ -17,14 +17,16 @@ package jaeger
 import (
 	"errors"
 	"fmt"
+	"go.uber.org/atomic"
 	"strconv"
 	"strings"
 )
 
 const (
-	flagSampled  = byte(1)
-	flagDebug    = byte(2)
-	flagFirehose = byte(8)
+	flagUnsampled = 0
+	flagSampled   = 1
+	flagDebug     = 2
+	flagFirehose  = 8
 )
 
 var (
@@ -56,9 +58,6 @@ type SpanContext struct {
 	// Should be 0 if the current span is a root span.
 	parentID SpanID
 
-	// flags is a bitmap containing such bits as 'sampled' and 'debug'.
-	flags byte
-
 	// Distributed Context baggage. The is a snapshot in time.
 	baggage map[string]string
 
@@ -67,6 +66,92 @@ type SpanContext struct {
 	//
 	// See JaegerDebugHeader in constants.go
 	debugID string
+
+	// samplingState is shared across all spans
+	samplingState *samplingState
+}
+
+type samplingState struct {
+	flags atomic.Int32 // Only lower 8 bits are used. We use an int32 instead of a byte to use CAS operations
+}
+
+func (s *samplingState) setSampled() {
+	// TODO: add tests for all these transitions
+	swapped := s.flags.CAS(flagUnsampled, flagSampled)
+	if swapped {
+		return
+	}
+	swapped = s.flags.CAS(flagDebug, flagDebug|flagSampled)
+	if swapped {
+		return
+	}
+	swapped = s.flags.CAS(flagFirehose, flagFirehose|flagSampled)
+	if swapped {
+		return
+	}
+	s.flags.CAS(flagFirehose|flagDebug, flagDebug|flagFirehose|flagSampled)
+}
+
+func (s *samplingState) setDebug() {
+	swapped := s.flags.CAS(flagUnsampled, flagSampled|flagDebug)
+	if swapped {
+		return
+	}
+
+	swapped = s.flags.CAS(flagSampled, flagSampled|flagDebug)
+	if swapped {
+		return
+	}
+
+	swapped = s.flags.CAS(flagFirehose, flagFirehose|flagDebug)
+	if swapped {
+		return
+	}
+
+	s.flags.CAS(flagFirehose|flagSampled, flagFirehose|flagSampled|flagDebug)
+}
+
+func (s *samplingState) setFirehose() {
+	swapped := s.flags.CAS(flagUnsampled, flagUnsampled|flagFirehose)
+	if swapped {
+		return
+	}
+
+	swapped = s.flags.CAS(flagSampled, flagSampled|flagFirehose)
+	if swapped {
+		return
+	}
+
+	swapped = s.flags.CAS(flagDebug, flagDebug|flagFirehose)
+	if swapped {
+		return
+	}
+
+	s.flags.CAS(flagDebug|flagSampled, flagDebug|flagUnsampled|flagFirehose)
+}
+
+func (s *samplingState) resetFlags() {
+	s.flags.Store(flagUnsampled)
+}
+
+func (s *samplingState) setFromFlags(flags byte) {
+	s.flags.Store(int32(flags))
+}
+
+func (s *samplingState) getFlags() byte {
+	return byte(s.flags.Load())
+}
+
+func (s *samplingState) isSampled() bool {
+	return s.flags.Load()&flagSampled == flagSampled
+}
+
+func (s *samplingState) isDebug() bool {
+	return s.flags.Load()&flagDebug == flagDebug
+}
+
+func (s *samplingState) isFirehose() bool {
+	return s.flags.Load()&flagFirehose == flagFirehose
 }
 
 // ForeachBaggageItem implements ForeachBaggageItem() of opentracing.SpanContext
@@ -81,17 +166,17 @@ func (c SpanContext) ForeachBaggageItem(handler func(k, v string) bool) {
 // IsSampled returns whether this trace was chosen for permanent storage
 // by the sampling mechanism of the tracer.
 func (c SpanContext) IsSampled() bool {
-	return (c.flags & flagSampled) == flagSampled
+	return c.samplingState.isSampled()
 }
 
 // IsDebug indicates whether sampling was explicitly requested by the service.
 func (c SpanContext) IsDebug() bool {
-	return (c.flags & flagDebug) == flagDebug
+	return c.samplingState.isDebug()
 }
 
 // IsFirehose indicates whether the firehose flag was set
 func (c SpanContext) IsFirehose() bool {
-	return (c.flags & flagFirehose) == flagFirehose
+	return c.samplingState.isFirehose()
 }
 
 // IsValid indicates whether this context actually represents a valid trace.
@@ -101,9 +186,9 @@ func (c SpanContext) IsValid() bool {
 
 func (c SpanContext) String() string {
 	if c.traceID.High == 0 {
-		return fmt.Sprintf("%x:%x:%x:%x", c.traceID.Low, uint64(c.spanID), uint64(c.parentID), c.flags)
+		return fmt.Sprintf("%x:%x:%x:%x", c.traceID.Low, uint64(c.spanID), uint64(c.parentID), c.samplingState.flags.Load())
 	}
-	return fmt.Sprintf("%x%016x:%x:%x:%x", c.traceID.High, c.traceID.Low, uint64(c.spanID), uint64(c.parentID), c.flags)
+	return fmt.Sprintf("%x%016x:%x:%x:%x", c.traceID.High, c.traceID.Low, uint64(c.spanID), uint64(c.parentID), c.samplingState.flags.Load())
 }
 
 // ContextFromString reconstructs the Context encoded in a string
@@ -130,7 +215,8 @@ func ContextFromString(value string) (SpanContext, error) {
 	if err != nil {
 		return emptyContext, err
 	}
-	context.flags = byte(flags)
+	context.samplingState = &samplingState{}
+	context.samplingState.setFromFlags(byte(flags))
 	return context, nil
 }
 
@@ -151,16 +237,17 @@ func (c SpanContext) ParentID() SpanID {
 
 // NewSpanContext creates a new instance of SpanContext
 func NewSpanContext(traceID TraceID, spanID, parentID SpanID, sampled bool, baggage map[string]string) SpanContext {
-	flags := byte(0)
+	samplingState := &samplingState{}
 	if sampled {
-		flags = flagSampled
+		samplingState.setSampled()
 	}
+
 	return SpanContext{
-		traceID:  traceID,
-		spanID:   spanID,
-		parentID: parentID,
-		flags:    flags,
-		baggage:  baggage}
+		traceID:       traceID,
+		spanID:        spanID,
+		parentID:      parentID,
+		samplingState: samplingState,
+		baggage:       baggage}
 }
 
 // CopyFrom copies data from ctx into this context, including span identity and baggage.
@@ -169,7 +256,7 @@ func (c *SpanContext) CopyFrom(ctx *SpanContext) {
 	c.traceID = ctx.traceID
 	c.spanID = ctx.spanID
 	c.parentID = ctx.parentID
-	c.flags = ctx.flags
+	c.samplingState = ctx.samplingState
 	if l := len(ctx.baggage); l > 0 {
 		c.baggage = make(map[string]string, l)
 		for k, v := range ctx.baggage {
@@ -193,7 +280,7 @@ func (c SpanContext) WithBaggageItem(key, value string) SpanContext {
 		newBaggage[key] = value
 	}
 	// Use positional parameters so the compiler will help catch new fields.
-	return SpanContext{c.traceID, c.spanID, c.parentID, c.flags, newBaggage, ""}
+	return SpanContext{c.traceID, c.spanID, c.parentID, newBaggage, "", c.samplingState}
 }
 
 // isDebugIDContainerOnly returns true when the instance of the context is only

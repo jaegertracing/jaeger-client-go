@@ -233,6 +233,7 @@
     "github.com/uber/jaeger-lib/metrics",
     "github.com/uber/jaeger-lib/metrics/metricstest",
     "github.com/uber/jaeger-lib/metrics/prometheus",
+    "go.uber.org/atomic",
     "go.uber.org/zap",
     "go.uber.org/zap/zapcore",
   ]

@@ -306,17 +306,14 @@ func setSamplingPriority(s *Span, value interface{}) bool {
 	if !ok {
 		return false
 	}
-	s.Lock()
-	defer s.Unlock()
 	if val == 0 {
-		s.context.flags = s.context.flags & (^flagSampled)
+		s.context.samplingState.resetFlags()
 		return true
 	}
 	if s.tracer.options.noDebugFlagOnForcedSampling {
-		s.context.flags = s.context.flags | flagSampled
-		return true
+		s.context.samplingState.setSampled()
 	} else if s.tracer.isDebugAllowed(s.operationName) {
-		s.context.flags = s.context.flags | flagDebug | flagSampled
+		s.context.samplingState.setDebug()
 		return true
 	}
 	return false
@@ -326,5 +323,5 @@ func setSamplingPriority(s *Span, value interface{}) bool {
 func EnableFirehose(s *Span) {
 	s.Lock()
 	defer s.Unlock()
-	s.context.flags |= flagFirehose
+	s.context.samplingState.setFirehose()
 }
