@@ -44,6 +44,15 @@ type Sampler interface {
 	// Close does a clean shutdown of the sampler, stopping any background
 	// go-routines it may have started.
 	Close()
+
+	// Equal checks if the `other` sampler is functionally equivalent
+	// to this sampler.
+	// TODO remove this function. This function is used to determine if 2 samplers are equivalent
+	// which does not bode well with the adaptive sampler which has to create all the composite samplers
+	// for the comparison to occur. This is expensive to do if only one sampler has changed.
+	//
+	// Deprecated: Use the type's Equals if you require this
+	Equal(other Sampler) bool
 }
 
 // -----------------------
@@ -331,6 +340,15 @@ func (s *adaptiveSampler) Close() {
 	s.defaultSampler.Close()
 }
 
+func (s *adaptiveSampler) Equal(other Sampler) bool {
+	// NB The Equal() function is overly expensive for adaptiveSampler since it's composed of multiple
+	// samplers which all need to be initialized before this function can be called for a comparison.
+	// Therefore, adaptiveSampler uses the update() function to only alter the samplers that need
+	// changing. Hence this function always returns false so that the update function can be called.
+	// Once the Equal() function is removed from the Sampler API, this will no longer be needed.
+	return false
+}
+
 func (s *adaptiveSampler) update(strategies *sampling.PerOperationSamplingStrategies) {
 	s.Lock()
 	defer s.Unlock()
@@ -450,6 +468,25 @@ func (s *RemotelyControlledSampler) Close() {
 	wg.Add(1)
 	s.doneChan <- &wg
 	wg.Wait()
+}
+
+// Equal implements Equal() of Sampler.
+func (s *RemotelyControlledSampler) Equal(other Sampler) bool {
+	// NB The Equal() function is expensive and will be removed. See adaptiveSampler.Equal() for
+	// more information.
+	if o, ok := other.(*RemotelyControlledSampler); ok {
+		s.RLock()
+		o.RLock()
+		defer s.RUnlock()
+		defer o.RUnlock()
+		if s, ok := s.sampler.(*ProbabilisticSampler); ok {
+			return s.Equal(o)
+		}
+		if s, ok := s.sampler.(*RateLimitingSampler); ok {
+			return s.Equal(o)
+		}
+	}
+	return false
 }
 
 func (s *RemotelyControlledSampler) pollController() {

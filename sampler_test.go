@@ -679,6 +679,9 @@ func TestRemotelyControlledSampler_updateRateLimitingOrProbabilisticSampler(t *t
 				} else {
 					assert.Fail(t, "Unknown sampler", testCase.expectedSampler)
 				}
+
+				// TODO: Remove after removing deprecated Equal
+				assert.True(t, testCase.expectedSampler.Equal(remoteSampler.sampler))
 			}
 		})
 	}
