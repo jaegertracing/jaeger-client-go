@@ -319,7 +319,7 @@ func setSamplingPriority(s *Span, value interface{}) bool {
 	return false
 }
 
-// SetFirehose sets the firehose tag on the span context
-func SetFirehose(s *Span) {
+// EnableFirehose sets the firehose tag on the span context
+func EnableFirehose(s *Span) {
 	s.context.flags |= flagFirehose
 }

@@ -107,7 +107,7 @@ func TestSpanContext_Flags(t *testing.T) {
 		},
 
 		"IsFirehose Only": {
-			in:           "1:1:1:4",
+			in:           "1:1:1:8",
 			sampledFlag:  false,
 			debugFlag:    false,
 			firehoseFlag: true,
@@ -121,21 +121,21 @@ func TestSpanContext_Flags(t *testing.T) {
 		},
 
 		"Sampled And Firehose": {
-			in:           "1:1:1:5",
+			in:           "1:1:1:9",
 			sampledFlag:  true,
 			debugFlag:    false,
 			firehoseFlag: true,
 		},
 
 		"Debug And Firehose": {
-			in:           "1:1:1:6",
+			in:           "1:1:1:10",
 			sampledFlag:  false,
 			debugFlag:    true,
 			firehoseFlag: true,
 		},
 
 		"Sampled And Debug And Firehose": {
-			in:           "1:1:1:7",
+			in:           "1:1:1:11",
 			sampledFlag:  true,
 			debugFlag:    true,
 			firehoseFlag: true,

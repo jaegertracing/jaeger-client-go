@@ -127,14 +127,13 @@ func TestSetTag_SamplingPriority(t *testing.T) {
 }
 
 func TestSetFirehoseMode(t *testing.T) {
-	tracer, closer := NewTracer("DOOP", NewConstSampler(true), NewNullReporter(),
-		TracerOptions.DebugThrottler(throttler.DefaultThrottler{}))
+	tracer, closer := NewTracer("DOOP", NewConstSampler(true), NewNullReporter())
 	defer closer.Close()
 
 	sp1 := tracer.StartSpan("s1").(*Span)
 	assert.False(t, sp1.context.IsFirehose())
 
-	SetFirehose(sp1)
+	EnableFirehose(sp1)
 
 	assert.True(t, sp1.context.IsFirehose())
 }

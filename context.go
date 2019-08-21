@@ -24,7 +24,7 @@ import (
 const (
 	flagSampled  = byte(1)
 	flagDebug    = byte(2)
-	flagFirehose = byte(4)
+	flagFirehose = byte(8)
 )
 
 var (
