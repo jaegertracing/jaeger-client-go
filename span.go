@@ -318,3 +318,8 @@ func setSamplingPriority(s *Span, value interface{}) bool {
 	}
 	return false
 }
+
+// EnableFirehose enables firehose flag on the span context
+func EnableFirehose(s *Span) {
+	s.context.flags |= flagFirehose
+}

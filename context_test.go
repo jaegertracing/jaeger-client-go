@@ -78,21 +78,79 @@ func TestSpanContext_WithBaggageItem(t *testing.T) {
 	assert.Equal(t, map[string]string{"some-KEY": "Some-Other-Value"}, ctx.baggage)
 }
 
-func TestSpanContext_SampledDebug(t *testing.T) {
-	ctx, err := ContextFromString("1:1:1:1")
-	require.NoError(t, err)
-	assert.True(t, ctx.IsSampled())
-	assert.False(t, ctx.IsDebug())
+func TestSpanContext_Flags(t *testing.T) {
 
-	ctx, err = ContextFromString("1:1:1:3")
-	require.NoError(t, err)
-	assert.True(t, ctx.IsSampled())
-	assert.True(t, ctx.IsDebug())
+	var tests = map[string]struct {
+		in           string
+		sampledFlag  bool
+		debugFlag    bool
+		firehoseFlag bool
+	}{
+		"None": {
+			in:           "1:1:1:0",
+			sampledFlag:  false,
+			debugFlag:    false,
+			firehoseFlag: false,
+		},
+		"Sampled Only": {
+			in:           "1:1:1:1",
+			sampledFlag:  true,
+			debugFlag:    false,
+			firehoseFlag: false,
+		},
 
-	ctx, err = ContextFromString("1:1:1:0")
-	require.NoError(t, err)
-	assert.False(t, ctx.IsSampled())
-	assert.False(t, ctx.IsDebug())
+		"Debug Only": {
+			in:           "1:1:1:2",
+			sampledFlag:  false,
+			debugFlag:    true,
+			firehoseFlag: false,
+		},
+
+		"IsFirehose Only": {
+			in:           "1:1:1:8",
+			sampledFlag:  false,
+			debugFlag:    false,
+			firehoseFlag: true,
+		},
+
+		"Sampled And Debug": {
+			in:           "1:1:1:3",
+			sampledFlag:  true,
+			debugFlag:    true,
+			firehoseFlag: false,
+		},
+
+		"Sampled And Firehose": {
+			in:           "1:1:1:9",
+			sampledFlag:  true,
+			debugFlag:    false,
+			firehoseFlag: true,
+		},
+
+		"Debug And Firehose": {
+			in:           "1:1:1:10",
+			sampledFlag:  false,
+			debugFlag:    true,
+			firehoseFlag: true,
+		},
+
+		"Sampled And Debug And Firehose": {
+			in:           "1:1:1:11",
+			sampledFlag:  true,
+			debugFlag:    true,
+			firehoseFlag: true,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctx, err := ContextFromString(tc.in)
+			require.NoError(t, err)
+			assert.Equal(t, tc.sampledFlag, ctx.IsSampled())
+			assert.Equal(t, tc.debugFlag, ctx.IsDebug())
+			assert.Equal(t, tc.firehoseFlag, ctx.IsFirehose())
+		})
+	}
 }
 
 func TestSpanContext_CopyFrom(t *testing.T) {

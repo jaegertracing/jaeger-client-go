@@ -126,6 +126,18 @@ func TestSetTag_SamplingPriority(t *testing.T) {
 	assert.False(t, sp1.context.IsDebug(), "debug should not be allowed by the throttler")
 }
 
+func TestSetFirehoseMode(t *testing.T) {
+	tracer, closer := NewTracer("DOOP", NewConstSampler(true), NewNullReporter())
+	defer closer.Close()
+
+	sp1 := tracer.StartSpan("s1").(*Span)
+	assert.False(t, sp1.context.IsFirehose())
+
+	EnableFirehose(sp1)
+
+	assert.True(t, sp1.context.IsFirehose())
+}
+
 type testThrottler struct {
 	allowAll bool
 }
