@@ -33,6 +33,8 @@ services:
             - REPORT=compact
     go:
         build: .
+        links:
+            - "jaeger:jaeger-agent"
         ports:
             - "8080-8082"
 
@@ -40,20 +42,43 @@ services:
         image: jaegertracing/xdock-java
         ports:
             - "8080-8082"
-#       Udp sender needs to know agent's address
+        links:
+            - "jaeger:jaeger-agent"
         depends_on:
-            - jaeger-agent
+            # Udp sender needs to know agent's address
+            - jaeger
 
     python:
         image: jaegertracing/xdock-py
+        links:
+            - "jaeger:jaeger-agent"
         ports:
             - "8080:8082"
 
     test_driver:
         image: jaegertracing/test-driver
         depends_on:
-            - jaeger-query
-            - jaeger-collector
-            - jaeger-agent
+            - jaeger
         ports:
             - "8080"
+        environment:
+            - JAEGER_QUERY_HC_HOST_PORT=jaeger-query:14269
+
+    jaeger:
+        image: jaegertracing/all-in-one
+        ports:
+            - "14269"
+            - "14268:14268"
+            - "14267"
+            - "14250"
+            - "9411:9411"
+            - "16686:16686"
+            - "16687"
+            - "5775:5775/udp"
+            - "6831:6831/udp"
+            - "6832:6832/udp"
+            - "5778:5778"
+        environment:
+            - COLLECTOR_ZIPKIN_HTTP_PORT=9411
+            - LOG_LEVEL=debug
+        restart: on-failure
