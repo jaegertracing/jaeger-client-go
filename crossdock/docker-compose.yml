@@ -57,6 +57,10 @@ services:
 
     test_driver:
         image: jaegertracing/test-driver
+        links:
+            - "jaeger:jaeger-agent"
+            - "jaeger:jaeger-collector"
+            - "jaeger:jaeger-query"
         depends_on:
             - jaeger
         ports:
