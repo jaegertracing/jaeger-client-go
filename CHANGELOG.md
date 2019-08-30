@@ -1,11 +1,16 @@
 Changes by Version
 ==================
 
-2.16.1 (unreleased)
+2.17.0 (2019-08-30)
 -------------------
-
-- Nothing yet.
-
+- Add a flag for firehose mode (#419) <Prithvi Raj>
+- Default sampling server URL to agent (#414) <Bryan Boreham>
+- Update default sampling rate when sampling strategy is refreshed (#413) <Bryan Boreham>
+- Support "Self" Span Reference (#411) <dm03514>
+- Don't complain about blank service name if tracing is Disabled (#410) Yuri <Shkuro>
+- Use IP address from tag if exist (#402) <NikoKVCS>
+- Expose span data to custom reporters [fixes #394] (#399) <Curtis Allen>
+- Fix the span allocation in the pool (#381) <Dmitry Ponomarev>
 
 2.16.0 (2019-03-24)
 -------------------
