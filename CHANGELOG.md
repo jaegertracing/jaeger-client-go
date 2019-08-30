@@ -1,6 +1,12 @@
 Changes by Version
 ==================
 
+2.17.1 (unreleased)
+-------------------
+
+- Nothing yet.
+
+
 2.17.0 (2019-08-30)
 -------------------
 - Add a flag for firehose mode (#419) <Prithvi Raj>
@@ -11,6 +17,7 @@ Changes by Version
 - Use IP address from tag if exist (#402) <NikoKVCS>
 - Expose span data to custom reporters [fixes #394] (#399) <Curtis Allen>
 - Fix the span allocation in the pool (#381) <Dmitry Ponomarev>
+
 
 2.16.0 (2019-03-24)
 -------------------
