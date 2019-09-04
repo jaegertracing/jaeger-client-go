@@ -19,7 +19,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -105,25 +105,78 @@ func TestSpanOperationName(t *testing.T) {
 }
 
 func TestSetTag_SamplingPriority(t *testing.T) {
-	tracer, closer := NewTracer("DOOP", NewConstSampler(true), NewNullReporter(),
-		TracerOptions.DebugThrottler(throttler.DefaultThrottler{}))
+	type testCase struct {
+		noDebugFlagOnForcedSampling bool
+		throttler                   throttler.Throttler
+		samplingPriority            uint16
+		expDebugSpan                bool
+		expSamplingTag              bool
+	}
 
-	sp1 := tracer.StartSpan("s1").(*Span)
-	ext.SamplingPriority.Set(sp1, 0)
-	assert.False(t, sp1.context.IsDebug())
+	testSuite := map[string]testCase{
+		"Sampling priority 0 with debug flag and default throttler": {
+			noDebugFlagOnForcedSampling: false,
+			throttler:                   throttler.DefaultThrottler{},
+			samplingPriority:            0,
+			expDebugSpan:                false,
+			expSamplingTag:              false,
+		},
+		"Sampling priority 1 with debug flag and default throttler": {
+			noDebugFlagOnForcedSampling: false,
+			throttler:                   throttler.DefaultThrottler{},
+			samplingPriority:            1,
+			expDebugSpan:                true,
+			expSamplingTag:              true,
+		},
+		"Sampling priority 1 with debug flag and test throttler": {
+			noDebugFlagOnForcedSampling: false,
+			throttler:                   testThrottler{allowAll: false},
+			samplingPriority:            1,
+			expDebugSpan:                false,
+			expSamplingTag:              false,
+		},
+		"Sampling priority 0 without debug flag and default throttler": {
+			noDebugFlagOnForcedSampling: true,
+			throttler:                   throttler.DefaultThrottler{},
+			samplingPriority:            0,
+			expDebugSpan:                false,
+			expSamplingTag:              false,
+		},
+		"Sampling priority 1 without debug flag and default throttler": {
+			noDebugFlagOnForcedSampling: true,
+			throttler:                   throttler.DefaultThrottler{},
+			samplingPriority:            1,
+			expDebugSpan:                false,
+			expSamplingTag:              true,
+		},
+		"Sampling priority 1 without debug flag and test throttler": {
+			noDebugFlagOnForcedSampling: true,
+			throttler:                   testThrottler{allowAll: false},
+			samplingPriority:            1,
+			expDebugSpan:                false,
+			expSamplingTag:              true,
+		},
+	}
 
-	ext.SamplingPriority.Set(sp1, 1)
-	assert.True(t, sp1.context.IsDebug())
-	assert.NotNil(t, findDomainTag(sp1, "sampling.priority"), "sampling.priority tag should be added")
-	closer.Close()
+	for name, testCase := range testSuite {
+		t.Run(name, func(t *testing.T) {
+			tracer, closer := NewTracer(
+				"DOOP",
+				NewConstSampler(true),
+				NewNullReporter(),
+				TracerOptions.DebugThrottler(testCase.throttler),
+				TracerOptions.NoDebugFlagOnForcedSampling(testCase.noDebugFlagOnForcedSampling),
+			)
 
-	tracer, closer = NewTracer("DOOP", NewConstSampler(true), NewNullReporter(),
-		TracerOptions.DebugThrottler(testThrottler{allowAll: false}))
-	defer closer.Close()
-
-	sp1 = tracer.StartSpan("s1").(*Span)
-	ext.SamplingPriority.Set(sp1, 1)
-	assert.False(t, sp1.context.IsDebug(), "debug should not be allowed by the throttler")
+			sp1 := tracer.StartSpan("s1").(*Span)
+			ext.SamplingPriority.Set(sp1, testCase.samplingPriority)
+			assert.Equal(t, testCase.expDebugSpan, sp1.context.IsDebug())
+			if testCase.expSamplingTag {
+				assert.NotNil(t, findDomainTag(sp1, "sampling.priority"), "sampling.priority tag should be added")
+			}
+			closer.Close()
+		})
+	}
 }
 
 func TestSetFirehoseMode(t *testing.T) {

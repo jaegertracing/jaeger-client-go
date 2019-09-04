@@ -47,10 +47,11 @@ type Tracer struct {
 	randomNumber func() uint64
 
 	options struct {
-		gen128Bit            bool // whether to generate 128bit trace IDs
-		zipkinSharedRPCSpan  bool
-		highTraceIDGenerator func() uint64 // custom high trace ID generator
-		maxTagValueLength    int
+		gen128Bit                   bool // whether to generate 128bit trace IDs
+		zipkinSharedRPCSpan         bool
+		highTraceIDGenerator        func() uint64 // custom high trace ID generator
+		maxTagValueLength           int
+		noDebugFlagOnForcedSampling bool
 		// more options to come
 	}
 	// allocator of Span objects

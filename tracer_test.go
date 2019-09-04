@@ -278,6 +278,7 @@ func TestTracerOptions(t *testing.T) {
 		TracerOptions.RandomNumber(rnd),
 		TracerOptions.PoolSpans(true),
 		TracerOptions.Tag("tag_key", "tag_value"),
+		TracerOptions.NoDebugFlagOnForcedSampling(true),
 	)
 	defer closer.Close()
 
@@ -289,6 +290,7 @@ func TestTracerOptions(t *testing.T) {
 	assert.Equal(t, uint64(1), tracer.randomNumber()) // always 1
 	assert.Equal(t, true, isPoolAllocator(tracer.spanAllocator))
 	assert.Equal(t, opentracing.Tag{Key: "tag_key", Value: "tag_value"}, tracer.Tags()[0])
+	assert.True(t, tracer.options.noDebugFlagOnForcedSampling)
 }
 
 func TestInjectorExtractorOptions(t *testing.T) {

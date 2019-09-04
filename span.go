@@ -312,7 +312,10 @@ func setSamplingPriority(s *Span, value interface{}) bool {
 		s.context.flags = s.context.flags & (^flagSampled)
 		return true
 	}
-	if s.tracer.isDebugAllowed(s.operationName) {
+	if s.tracer.options.noDebugFlagOnForcedSampling {
+		s.context.flags = s.context.flags | flagSampled
+		return true
+	} else if s.tracer.isDebugAllowed(s.operationName) {
 		s.context.flags = s.context.flags | flagDebug | flagSampled
 		return true
 	}
@@ -321,5 +324,7 @@ func setSamplingPriority(s *Span, value interface{}) bool {
 
 // EnableFirehose enables firehose flag on the span context
 func EnableFirehose(s *Span) {
+	s.Lock()
+	defer s.Unlock()
 	s.context.flags |= flagFirehose
 }
