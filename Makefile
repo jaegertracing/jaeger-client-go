@@ -1,5 +1,5 @@
 PROJECT_ROOT=github.com/uber/jaeger-client-go
-PACKAGES := $(shell glide novendor | grep -v -e ./thrift-gen/... -e ./thrift/...)
+PACKAGES := $(go list ./... | awk -F/ 'NR>1 {print "./"$4"/..."}' | grep -v -e ./thrift-gen/... -e ./thrift/... | sort -u)
 # all .go files that don't exist in hidden directories
 ALL_SRC := $(shell find . -name "*.go" | grep -v -e vendor -e thrift-gen -e ./thrift/ \
         -e ".*/\..*" \
@@ -56,19 +56,22 @@ lint:
 
 .PHONY: install
 install:
-	glide --version || go get github.com/Masterminds/glide
 ifeq ($(USE_DEP),true)
 	dep ensure
-else
+endif
+ifeq ($(USE_GLIDE),true)
+	glide --version || go get github.com/Masterminds/glide
 	glide install
 endif
 
 
 .PHONY: cover
 cover:
-	./scripts/cover.sh $(shell go list $(PACKAGES))
-	go tool cover -html=cover.out -o cover.html
+	$(GOTEST) -cover -coverprofile cover.out $(PACKAGES)
 
+.PHONY: cover-html
+cover-html: cover
+	go tool cover -html=cover.out -o cover.html
 
 # This is not part of the regular test target because we don't want to slow it
 # down.
@@ -112,8 +115,7 @@ install-ci: install-dep-ci install
 	go get golang.org/x/lint/golint
 
 .PHONY: test-ci
-test-ci:
-	@./scripts/cover.sh $(shell go list $(PACKAGES))
+test-ci: cover
 ifeq ($(CI_SKIP_LINT),true)
 	echo 'skipping lint'
 else
