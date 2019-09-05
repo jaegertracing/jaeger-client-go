@@ -19,23 +19,20 @@ file for details.
 
 ## Getting Started
 
-This library uses [glide](https://github.com/Masterminds/glide) to manage dependencies.
+This library uses Go modules to manage dependencies.
 
-To get started, make sure you clone the Git repository into the correct location
-`github.com/uber/jaeger-client-go` relative to `$GOPATH`:
+To get started, clone the Git repository into any location (does not need to be under `$GOPATH`):
 
 ```
-mkdir -p $GOPATH/src/github.com/uber
-cd $GOPATH/src/github.com/uber
+cd you-dev-root
 git clone git@github.com:jaegertracing/jaeger-client-go.git jaeger-client-go
 cd jaeger-client-go
-```
-
-Then install dependencies and run the tests:
-
-```
 git submodule update --init --recursive
-glide install
+```
+
+Go will download dependencies automatically when you run the tests:
+
+```
 make test
 ```
 
@@ -45,13 +42,13 @@ This projects follows the following pattern for grouping imports in Go files:
   * imports from standard library
   * imports from other projects
   * imports from `jaeger-client-go` project
-  
+
 For example:
 
 ```go
 import (
 	"fmt"
- 
+
 	"github.com/uber/jaeger-lib/metrics"
 	"go.uber.org/zap"
 
