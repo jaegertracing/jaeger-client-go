@@ -60,7 +60,7 @@ lint:
 install:
 	@echo install: USE_DEP=$(USE_DEP) USE_GLIDE=$(USE_GLIDE)
 ifeq ($(USE_DEP),true)
-	make install-dep
+	dep version || make install-dep
 	dep ensure
 endif
 ifeq ($(USE_GLIDE),true)
