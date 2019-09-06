@@ -550,6 +550,19 @@ func TestNewTracer(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestNewTracerWithNoDebugFlagOnForcedSampling(t *testing.T) {
+	cfg := &Configuration{ServiceName: "my-service"}
+	tracer, closer, err := cfg.NewTracer(Metrics(metrics.NullFactory), Logger(log.NullLogger), NoDebugFlagOnForcedSampling(true))
+	defer closer.Close()
+
+	span := tracer.StartSpan("testSpan").(*jaeger.Span)
+	ext.SamplingPriority.Set(span, 1)
+
+	assert.NoError(t, err)
+	assert.False(t, span.SpanContext().IsDebug())
+	assert.True(t, span.SpanContext().IsSampled())
+}
+
 func TestNewTracerWithoutServiceName(t *testing.T) {
 	cfg := &Configuration{}
 	_, _, err := cfg.NewTracer(Metrics(metrics.NullFactory), Logger(log.NullLogger))
