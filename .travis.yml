@@ -10,19 +10,16 @@ matrix:
   - go: 1.12.x
     env:
     - TESTS=true
-    - COVERAGE=true
-    - GO111MODULE=on
-  - go: 1.12.x
-    env:
-    - CROSSDOCK=true
-    - GO111MODULE=on
-  - go: 1.12.x
-    env:
-    - TESTS=true
     - USE_DEP=true
+    - COVERAGE=true
+  - go: 1.12.x
+    env:
+    - USE_DEP=true
+    - CROSSDOCK=true
   - go: 1.12.x
     env:
     - TESTS=true
+    - USE_DEP=false
     - USE_GLIDE=true
   - go: 1.11.x
     env:
