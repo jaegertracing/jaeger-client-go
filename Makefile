@@ -6,7 +6,10 @@ ALL_SRC := $(shell find . -name "*.go" | grep -v -e vendor -e thrift-gen -e ./th
         -e ".*/_.*" \
         -e ".*/mocks.*")
 
-USE_DEP := true
+USE_DEP = true
+
+x:
+	echo $(USE_DEP)
 
 -include crossdock/rules.mk
 
@@ -58,7 +61,9 @@ lint:
 
 .PHONY: install
 install:
+	@echo install: USE_DEP=$(USE_DEP) USE_GLIDE=$(USE_GLIDE)
 ifeq ($(USE_DEP),true)
+	make install-dep
 	dep ensure
 endif
 ifeq ($(USE_GLIDE),true)
@@ -104,13 +109,13 @@ idl-submodule:
 thrift-image:
 	$(THRIFT) -version
 
-.PHONY: install-dep-ci
-install-dep-ci:
+.PHONY: install-dep
+install-dep:
 	- curl -L -s https://github.com/golang/dep/releases/download/v0.5.0/dep-linux-amd64 -o $$GOPATH/bin/dep
 	- chmod +x $$GOPATH/bin/dep
 
 .PHONY: install-ci
-install-ci: install-dep-ci install
+install-ci: install
 	go get github.com/wadey/gocovmerge
 	go get github.com/mattn/goveralls
 	go get golang.org/x/tools/cmd/cover
