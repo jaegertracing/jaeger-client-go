@@ -6,10 +6,7 @@ ALL_SRC := $(shell find . -name "*.go" | grep -v -e vendor -e thrift-gen -e ./th
         -e ".*/_.*" \
         -e ".*/mocks.*")
 
-USE_DEP = true
-
-x:
-	echo $(USE_DEP)
+USE_DEP := true
 
 -include crossdock/rules.mk
 
