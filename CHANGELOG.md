@@ -1,14 +1,15 @@
 Changes by Version
 ==================
 
-2.17.1 (unreleased)
+2.18.0 (2019-09-09)
 -------------------
 
-- Nothing yet.
+- Add option "noDebugFlagOnForcedSampling" for tracer initialization [resolves #422] (#423) <Jun Guo>
 
 
 2.17.0 (2019-08-30)
 -------------------
+
 - Add a flag for firehose mode (#419) <Prithvi Raj>
 - Default sampling server URL to agent (#414) <Bryan Boreham>
 - Update default sampling rate when sampling strategy is refreshed (#413) <Bryan Boreham>
