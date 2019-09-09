@@ -15,19 +15,20 @@ Please see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Installation
 
-We recommended using a dependency manager like [glide](https://github.com/Masterminds/glide)
+We recommended using a dependency manager like [dep](https://golang.github.io/dep/)
 and [semantic versioning](http://semver.org/) when including this library into an application.
 For example, Jaeger backend imports this library like this:
 
-```yaml
-- package: github.com/uber/jaeger-client-go
-  version: ^2.7.0
+```toml
+[[constraint]]
+  name = "github.com/uber/jaeger-client-go"
+  version = "2.17"
 ```
 
 If you instead want to use the latest version in `master`, you can pull it via `go get`.
 Note that during `go get` you may see build errors due to incompatible dependencies, which is why
 we recommend using semantic versions for dependencies.  The error  may be fixed by running
-`make install` (it will install `glide` if you don't have it):
+`make install` (it will install `dep` if you don't have it):
 
 ```shell
 go get -u github.com/uber/jaeger-client-go/
@@ -222,7 +223,7 @@ import (
 )
 
 span := opentracing.SpanFromContext(ctx)
-ext.SamplingPriority.Set(span, 1)    
+ext.SamplingPriority.Set(span, 1)
 ```
 
 #### Via HTTP Headers
