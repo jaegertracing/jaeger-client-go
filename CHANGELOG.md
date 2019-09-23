@@ -1,10 +1,10 @@
 Changes by Version
 ==================
 
-2.18.2 (unreleased)
+2.19.0 (2019-09-23)
 -------------------
 
-- Nothing yet.
+- Upgrade jaeger-lib to 2.2 and unpin Prom client (#434) -- Yuri Shkuro
 
 
 2.18.1 (2019-09-16)
