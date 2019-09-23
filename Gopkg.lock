@@ -146,7 +146,6 @@
   version = "v1.4.0"
 
 [[projects]]
-  branch = "upgrade-prom-client"
   digest = "1:0ec60ffd594af00ba1660bc746aa0e443d27dd4003dee55f9d08a0b4ff5431a3"
   name = "github.com/uber/jaeger-lib"
   packages = [
@@ -155,8 +154,8 @@
     "metrics/prometheus",
   ]
   pruneopts = "UT"
-  revision = "475deea40f6ef4b21f141b886c6532bba7cfa44e"
-  source = "https://github.com/yurishkuro/jaeger-lib.git"
+  revision = "a87ae9d84fb038a8d79266298970720be7c80fcd"
+  version = "v2.2.0"
 
 [[projects]]
   digest = "1:a5158647b553c61877aa9ae74f4015000294e47981e6b8b07525edcbb0747c81"
@@ -198,15 +197,15 @@
     "context/ctxhttp",
   ]
   pruneopts = "UT"
-  revision = "1a5e07d1ff72da30f660d3c95b312a20be31173c"
+  revision = "aa69164e4478b84860dc6769c710c699c67058a3"
 
 [[projects]]
   branch = "master"
-  digest = "1:acf58f4e36b62166974a0761d5f525d78835b0965cfc87fecf640936ec6a9832"
+  digest = "1:712252802d318c8107d8f2136b99aa10feb17eca715245ed915199fbfc260155"
   name = "golang.org/x/sys"
   packages = ["windows"]
   pruneopts = "UT"
-  revision = "2dccfee4fd3e23e10ba17b9d696cf2388c28764b"
+  revision = "0a153f010e6963173baba2306531d173aa843137"
 
 [[projects]]
   digest = "1:4d2e5a73dc1500038e504a8d78b986630e3626dc027bc030ba5c75da257cdb96"

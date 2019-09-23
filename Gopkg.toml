@@ -16,9 +16,7 @@
 
 [[constraint]]
   name = "github.com/uber/jaeger-lib"
-#  version = "^2.2"
-  source = "https://github.com/yurishkuro/jaeger-lib.git"
-  branch = "upgrade-prom-client"
+  version = "^2.2"
 
 [[constraint]]
   name = "go.uber.org/zap"
