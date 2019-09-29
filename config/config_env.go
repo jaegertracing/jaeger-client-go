@@ -52,7 +52,10 @@ const (
 // FromEnv uses environment variables to set the tracer's Configuration
 func FromEnv() (*Configuration, error) {
 	c := &Configuration{}
+	return c.FromEnv()
+}
 
+func (c *Configuration) FromEnv() (*Configuration, error) {
 	if e := os.Getenv(envServiceName); e != "" {
 		c.ServiceName = e
 	}
