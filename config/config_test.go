@@ -87,26 +87,32 @@ func TestServiceNameFromEnv(t *testing.T) {
 
 
 func TestConfigFromEnv(t *testing.T) {
+	//Prepare
 	os.Setenv(envServiceName, "my-service")
 	os.Setenv(envDisabled, "false")
 	os.Setenv(envRPCMetrics, "true")
 	os.Setenv(envTags, "KEY=VALUE")
 
+	//existing config data
 	cfg := &Configuration{
 		ServiceName:         "my-config-service",
 		Disabled:            true,
 		RPCMetrics:          false,
-		Tags:                []opentracing.Tag{{"KEY-CONFIG","KEY-VALUE"}},
+		Tags:                []opentracing.Tag{opentracing.Tag{Key: "KEY01", Value: "VALUE01"}},
 	}
 
+	// test
 	cfg, err := cfg.FromEnv()
 	assert.NoError(t, err)
+
+	// verify
 	assert.Equal(t, "my-service", cfg.ServiceName)
 	assert.Equal(t, false, cfg.Disabled)
 	assert.Equal(t, true, cfg.RPCMetrics)
 	assert.Equal(t, "KEY", cfg.Tags[0].Key)
 	assert.Equal(t, "VALUE", cfg.Tags[0].Value)
 
+	//cleanup
 	os.Unsetenv(envServiceName)
 	os.Unsetenv(envDisabled)
 	os.Unsetenv(envRPCMetrics)
@@ -121,6 +127,7 @@ func TestSamplerConfig(t *testing.T) {
 	os.Setenv(envSamplerMaxOperations, "10")
 	os.Setenv(envSamplerRefreshInterval, "1m1s") // 61 seconds
 
+	//existing SamplerConfig data
 	sc := SamplerConfig{
 		Type:                    "const-sample-config",
 		Param:                   2,
@@ -159,6 +166,7 @@ func TestReporter(t *testing.T) {
 	os.Setenv(envUser, "user")
 	os.Setenv(envPassword, "password")
 
+	// Existing ReporterConfig data
 	rc := ReporterConfig{
 		QueueSize:           20,
 		BufferFlushInterval: 2,
@@ -181,11 +189,12 @@ func TestReporter(t *testing.T) {
 	assert.Equal(t, "user01", cfg.User)
 	assert.Equal(t,"password01", cfg.Password)
 
-	// verifying JAEGAR-ENDPOINT env set
+	// Prepare
 	os.Setenv(envEndpoint, "http://1.2.3.4:5678/api/traces")
 	os.Setenv(envUser, "user")
 	os.Setenv(envPassword, "password")
 
+	// Existing ReprterConfig data for JAEGAR-ENDPOINT validation check
 	rc = ReporterConfig{
 		QueueSize:           20,
 		BufferFlushInterval: 2,
@@ -196,15 +205,15 @@ func TestReporter(t *testing.T) {
 		Password:            "password",
 	}
 
+	// test
 	cfg, err = rc.reporterConfigFromEnv()
 	assert.NoError(t, err)
 
+	// verify
 	assert.Equal(t, "http://1.2.3.4:5678/api/traces", cfg.CollectorEndpoint)
 	assert.Equal(t, "localhost", cfg.LocalAgentHostPort)
 	assert.Equal(t, "user", cfg.User)
 	assert.Equal(t,"password", cfg.Password)
-
-
 
 	// cleanup
 	os.Unsetenv(envReporterMaxQueueSize)
