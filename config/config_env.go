@@ -80,13 +80,21 @@ func (c *Configuration) FromEnv() (*Configuration, error) {
 		c.Tags = parseTags(e)
 	}
 
-	if s, err := samplerConfigFromEnv(); err == nil {
+	if c.Sampler == nil {
+		c.Sampler = &SamplerConfig{}
+	}
+
+	if s, err := c.Sampler.samplerConfigFromEnv(); err == nil {
 		c.Sampler = s
 	} else {
 		return nil, errors.Wrap(err, "cannot obtain sampler config from env")
 	}
 
-	if r, err := reporterConfigFromEnv(); err == nil {
+	if c.Reporter == nil {
+		c.Reporter = &ReporterConfig{}
+	}
+
+	if r, err := c.Reporter.reporterConfigFromEnv(); err == nil {
 		c.Reporter = r
 	} else {
 		return nil, errors.Wrap(err, "cannot obtain reporter config from env")
@@ -96,9 +104,7 @@ func (c *Configuration) FromEnv() (*Configuration, error) {
 }
 
 // samplerConfigFromEnv creates a new SamplerConfig based on the environment variables
-func samplerConfigFromEnv() (*SamplerConfig, error) {
-	sc := &SamplerConfig{}
-
+func (sc *SamplerConfig) samplerConfigFromEnv() (*SamplerConfig, error) {
 	if e := os.Getenv(envSamplerType); e != "" {
 		sc.Type = e
 	}
@@ -138,9 +144,7 @@ func samplerConfigFromEnv() (*SamplerConfig, error) {
 }
 
 // reporterConfigFromEnv creates a new ReporterConfig based on the environment variables
-func reporterConfigFromEnv() (*ReporterConfig, error) {
-	rc := &ReporterConfig{}
-
+func (rc *ReporterConfig) reporterConfigFromEnv() (*ReporterConfig, error) {
 	if e := os.Getenv(envReporterMaxQueueSize); e != "" {
 		if value, err := strconv.ParseInt(e, 10, 0); err == nil {
 			rc.QueueSize = int(value)
