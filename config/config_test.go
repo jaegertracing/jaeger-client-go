@@ -87,13 +87,6 @@ func TestServiceNameFromEnv(t *testing.T) {
 
 
 func TestConfigFromEnv(t *testing.T) {
-	//Prepare
-	os.Setenv(envServiceName, "my-service")
-	os.Setenv(envDisabled, "false")
-	os.Setenv(envRPCMetrics, "true")
-	os.Setenv(envTags, "KEY=VALUE")
-
-	//existing config data
 	cfg := &Configuration{
 		ServiceName:         "my-config-service",
 		Disabled:            true,
@@ -106,13 +99,30 @@ func TestConfigFromEnv(t *testing.T) {
 	assert.NoError(t, err)
 
 	// verify
+	assert.Equal(t, "my-config-service", cfg.ServiceName)
+	assert.Equal(t, true, cfg.Disabled)
+	assert.Equal(t, false, cfg.RPCMetrics)
+	assert.Equal(t, "KEY01", cfg.Tags[0].Key)
+	assert.Equal(t, "VALUE01", cfg.Tags[0].Value)
+
+	// prepare
+	os.Setenv(envServiceName, "my-service")
+	os.Setenv(envDisabled, "false")
+	os.Setenv(envRPCMetrics, "true")
+	os.Setenv(envTags, "KEY=VALUE")
+
+	// test with env set
+	cfg, err = cfg.FromEnv()
+	assert.NoError(t, err)
+
+	// verify
 	assert.Equal(t, "my-service", cfg.ServiceName)
 	assert.Equal(t, false, cfg.Disabled)
 	assert.Equal(t, true, cfg.RPCMetrics)
 	assert.Equal(t, "KEY", cfg.Tags[0].Key)
 	assert.Equal(t, "VALUE", cfg.Tags[0].Value)
 
-	//cleanup
+	// cleanup
 	os.Unsetenv(envServiceName)
 	os.Unsetenv(envDisabled)
 	os.Unsetenv(envRPCMetrics)
