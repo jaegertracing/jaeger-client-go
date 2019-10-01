@@ -36,7 +36,7 @@ const (
 	envTags                   = "JAEGER_TAGS"
 	envSamplerType            = "JAEGER_SAMPLER_TYPE"
 	envSamplerParam           = "JAEGER_SAMPLER_PARAM"
-	envSamplerManagerHostPort = "JAEGER_SAMPLER_MANAGER_HOST_PORT"
+	envSamplerManagerHostPort = "JAEGER_CONFIG_MGR_HOST_PORT"
 	envSamplerMaxOperations   = "JAEGER_SAMPLER_MAX_OPERATIONS"
 	envSamplerRefreshInterval = "JAEGER_SAMPLER_REFRESH_INTERVAL"
 	envReporterMaxQueueSize   = "JAEGER_REPORTER_MAX_QUEUE_SIZE"

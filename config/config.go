@@ -73,7 +73,7 @@ type SamplerConfig struct {
 	Param float64 `yaml:"param"`
 
 	// SamplingServerURL is the address of jaeger-agent's HTTP sampling server
-	// Can be set by exporting an environment variable named JAEGER_SAMPLER_MANAGER_HOST_PORT
+	// Can be set by exporting an environment variable named JAEGER_CONFIG_MGR_HOST_PORT
 	SamplingServerURL string `yaml:"samplingServerURL"`
 
 	// MaxOperations is the maximum number of operations that the sampler
