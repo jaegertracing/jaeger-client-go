@@ -55,6 +55,7 @@ func FromEnv() (*Configuration, error) {
 	return c.FromEnv()
 }
 
+// FromEnv uses environment variables and overrides existing tracer's Configuration
 func (c *Configuration) FromEnv() (*Configuration, error) {
 	if e := os.Getenv(envServiceName); e != "" {
 		c.ServiceName = e
