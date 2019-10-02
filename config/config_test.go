@@ -85,13 +85,12 @@ func TestServiceNameFromEnv(t *testing.T) {
 	os.Unsetenv(envServiceName)
 }
 
-
 func TestConfigFromEnv(t *testing.T) {
 	cfg := &Configuration{
-		ServiceName:         "my-config-service",
-		Disabled:            true,
-		RPCMetrics:          false,
-		Tags:                []opentracing.Tag{opentracing.Tag{Key: "KEY01", Value: "VALUE01"}},
+		ServiceName: "my-config-service",
+		Disabled:    true,
+		RPCMetrics:  false,
+		Tags:        []opentracing.Tag{opentracing.Tag{Key: "KEY01", Value: "VALUE01"}},
 	}
 
 	// test
@@ -197,7 +196,7 @@ func TestReporter(t *testing.T) {
 	assert.Equal(t, true, cfg.LogSpans)
 	assert.Equal(t, "nonlocalhost:6832", cfg.LocalAgentHostPort)
 	assert.Equal(t, "user01", cfg.User)
-	assert.Equal(t,"password01", cfg.Password)
+	assert.Equal(t, "password01", cfg.Password)
 
 	// Prepare
 	os.Setenv(envEndpoint, "http://1.2.3.4:5678/api/traces")
@@ -223,7 +222,7 @@ func TestReporter(t *testing.T) {
 	assert.Equal(t, "http://1.2.3.4:5678/api/traces", cfg.CollectorEndpoint)
 	assert.Equal(t, "localhost", cfg.LocalAgentHostPort)
 	assert.Equal(t, "user", cfg.User)
-	assert.Equal(t,"password", cfg.Password)
+	assert.Equal(t, "password", cfg.Password)
 
 	// cleanup
 	os.Unsetenv(envReporterMaxQueueSize)
