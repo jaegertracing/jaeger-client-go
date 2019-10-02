@@ -85,6 +85,156 @@ func TestServiceNameFromEnv(t *testing.T) {
 	os.Unsetenv(envServiceName)
 }
 
+func TestConfigFromEnv(t *testing.T) {
+	cfg := &Configuration{
+		ServiceName: "my-config-service",
+		Disabled:    true,
+		RPCMetrics:  false,
+		Tags:        []opentracing.Tag{{Key: "KEY01", Value: "VALUE01"}},
+	}
+
+	// test
+	cfg, err := cfg.FromEnv()
+	assert.NoError(t, err)
+
+	// verify
+	assert.Equal(t, "my-config-service", cfg.ServiceName)
+	assert.Equal(t, true, cfg.Disabled)
+	assert.Equal(t, false, cfg.RPCMetrics)
+	assert.Equal(t, "KEY01", cfg.Tags[0].Key)
+	assert.Equal(t, "VALUE01", cfg.Tags[0].Value)
+
+	// prepare
+	os.Setenv(envServiceName, "my-service")
+	os.Setenv(envDisabled, "false")
+	os.Setenv(envRPCMetrics, "true")
+	os.Setenv(envTags, "KEY=VALUE")
+
+	// test with env set
+	cfg, err = cfg.FromEnv()
+	assert.NoError(t, err)
+
+	// verify
+	assert.Equal(t, "my-service", cfg.ServiceName)
+	assert.Equal(t, false, cfg.Disabled)
+	assert.Equal(t, true, cfg.RPCMetrics)
+	assert.Equal(t, "KEY", cfg.Tags[0].Key)
+	assert.Equal(t, "VALUE", cfg.Tags[0].Value)
+
+	// cleanup
+	os.Unsetenv(envServiceName)
+	os.Unsetenv(envDisabled)
+	os.Unsetenv(envRPCMetrics)
+	os.Unsetenv(envTags)
+}
+
+func TestSamplerConfig(t *testing.T) {
+	// prepare
+	os.Setenv(envSamplerType, "const")
+	os.Setenv(envSamplerParam, "1")
+	os.Setenv(envSamplerManagerHostPort, "http://themaster")
+	os.Setenv(envSamplerMaxOperations, "10")
+	os.Setenv(envSamplerRefreshInterval, "1m1s") // 61 seconds
+
+	//existing SamplerConfig data
+	sc := SamplerConfig{
+		Type:                    "const-sample-config",
+		Param:                   2,
+		SamplingServerURL:       "http://themaster-sample-config",
+		MaxOperations:           20,
+		SamplingRefreshInterval: 2,
+	}
+
+	// test
+	cfg, err := sc.samplerConfigFromEnv()
+	assert.NoError(t, err)
+
+	// verify
+	assert.Equal(t, "const", cfg.Type)
+	assert.Equal(t, float64(1), cfg.Param)
+	assert.Equal(t, "http://themaster", cfg.SamplingServerURL)
+	assert.Equal(t, int(10), cfg.MaxOperations)
+	assert.Equal(t, 61000000000, int(cfg.SamplingRefreshInterval))
+
+	// cleanup
+	os.Unsetenv(envSamplerType)
+	os.Unsetenv(envSamplerParam)
+	os.Unsetenv(envSamplerManagerHostPort)
+	os.Unsetenv(envSamplerMaxOperations)
+	os.Unsetenv(envSamplerRefreshInterval)
+
+}
+
+func TestReporter(t *testing.T) {
+	// prepare
+	os.Setenv(envReporterMaxQueueSize, "10")
+	os.Setenv(envReporterFlushInterval, "1m1s") // 61 seconds
+	os.Setenv(envReporterLogSpans, "true")
+	os.Setenv(envAgentHost, "nonlocalhost")
+	os.Setenv(envAgentPort, "6832")
+	os.Setenv(envUser, "user")
+	os.Setenv(envPassword, "password")
+
+	// Existing ReporterConfig data
+	rc := ReporterConfig{
+		QueueSize:           20,
+		BufferFlushInterval: 2,
+		LogSpans:            false,
+		LocalAgentHostPort:  "localhost01",
+		CollectorEndpoint:   "9999",
+		User:                "user01",
+		Password:            "password01",
+	}
+
+	// test
+	cfg, err := rc.reporterConfigFromEnv()
+	assert.NoError(t, err)
+
+	// verify
+	assert.Equal(t, int(10), cfg.QueueSize)
+	assert.Equal(t, 61000000000, int(cfg.BufferFlushInterval))
+	assert.Equal(t, true, cfg.LogSpans)
+	assert.Equal(t, "nonlocalhost:6832", cfg.LocalAgentHostPort)
+	assert.Equal(t, "user01", cfg.User)
+	assert.Equal(t, "password01", cfg.Password)
+
+	// Prepare
+	os.Setenv(envEndpoint, "http://1.2.3.4:5678/api/traces")
+	os.Setenv(envUser, "user")
+	os.Setenv(envPassword, "password")
+
+	// Existing ReprterConfig data for JAEGAR-ENDPOINT validation check
+	rc = ReporterConfig{
+		QueueSize:           20,
+		BufferFlushInterval: 2,
+		LogSpans:            false,
+		LocalAgentHostPort:  "localhost",
+		CollectorEndpoint:   "9999",
+		User:                "user",
+		Password:            "password",
+	}
+
+	// test
+	cfg, err = rc.reporterConfigFromEnv()
+	assert.NoError(t, err)
+
+	// verify
+	assert.Equal(t, "http://1.2.3.4:5678/api/traces", cfg.CollectorEndpoint)
+	assert.Equal(t, "localhost", cfg.LocalAgentHostPort)
+	assert.Equal(t, "user", cfg.User)
+	assert.Equal(t, "password", cfg.Password)
+
+	// cleanup
+	os.Unsetenv(envReporterMaxQueueSize)
+	os.Unsetenv(envReporterFlushInterval)
+	os.Unsetenv(envReporterLogSpans)
+	os.Unsetenv(envEndpoint)
+	os.Unsetenv(envUser)
+	os.Unsetenv(envPassword)
+	os.Unsetenv(envAgentHost)
+	os.Unsetenv(envAgentPort)
+}
+
 func TestFromEnv(t *testing.T) {
 	os.Setenv(envServiceName, "my-service")
 	os.Setenv(envDisabled, "false")
@@ -102,6 +252,7 @@ func TestFromEnv(t *testing.T) {
 	os.Unsetenv(envServiceName)
 	os.Unsetenv(envDisabled)
 	os.Unsetenv(envRPCMetrics)
+	os.Unsetenv(envTags)
 }
 
 func TestNoServiceNameFromEnv(t *testing.T) {
