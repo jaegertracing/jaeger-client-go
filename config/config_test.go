@@ -90,7 +90,7 @@ func TestConfigFromEnv(t *testing.T) {
 		ServiceName: "my-config-service",
 		Disabled:    true,
 		RPCMetrics:  false,
-		Tags:        []opentracing.Tag{opentracing.Tag{Key: "KEY01", Value: "VALUE01"}},
+		Tags:        []opentracing.Tag{{Key: "KEY01", Value: "VALUE01"}},
 	}
 
 	// test
