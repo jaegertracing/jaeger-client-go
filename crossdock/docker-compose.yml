@@ -8,19 +8,19 @@ services:
             - go
             - java
             - python
-
+            - nodejs
         environment:
-            - WAIT_FOR=test_driver,go,java,python
+            - WAIT_FOR=test_driver,go,java,python,nodejs
             - WAIT_FOR_TIMEOUT=60s
 
             - CALL_TIMEOUT=60s
 
             - AXIS_CLIENT=go
-            - AXIS_S1NAME=go,java,python
+            - AXIS_S1NAME=go,java,python,nodejs
             - AXIS_SAMPLED=true,false
-            - AXIS_S2NAME=go,java,python
+            - AXIS_S2NAME=go,java,python,nodejs
             - AXIS_S2TRANSPORT=http
-            - AXIS_S3NAME=go,java,python
+            - AXIS_S3NAME=go,java,python,nodejs
             - AXIS_S3TRANSPORT=http
 
             - BEHAVIOR_TRACE=client,s1name,sampled,s2name,s2transport,s3name,s3transport
@@ -54,6 +54,13 @@ services:
             - "jaeger:jaeger-agent"
         ports:
             - "8080:8082"
+
+    nodejs:
+        image: jaegertracing/xdock-node
+        links:
+            - "jaeger:jaeger-agent"
+        ports:
+            - "8080-8082"
 
     test_driver:
         image: jaegertracing/test-driver
