@@ -305,7 +305,6 @@ func (t *Tracer) startSpanWithOptions(
 
 	sp := t.newSpan()
 	sp.context = ctx
-	sp.context.samplingState = ctx.samplingState
 	sp.observer = t.observer.OnStartSpan(sp, operationName, options)
 	return t.startSpanInternal(
 		sp,
