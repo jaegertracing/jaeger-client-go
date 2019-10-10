@@ -307,13 +307,14 @@ func setSamplingPriority(s *Span, value interface{}) bool {
 		return false
 	}
 	if val == 0 {
-		s.context.samplingState.resetFlags()
+		// TODO: Add test to verify that only sampled is reset
+		s.context.samplingState.resetSampled()
 		return true
 	}
 	if s.tracer.options.noDebugFlagOnForcedSampling {
 		s.context.samplingState.setSampled()
 	} else if s.tracer.isDebugAllowed(s.operationName) {
-		s.context.samplingState.setDebug()
+		s.context.samplingState.setDebugAndSampled()
 		return true
 	}
 	return false

@@ -274,7 +274,7 @@ func (t *Tracer) startSpanWithOptions(
 			ctx.parentID = 0
 			ctx.samplingState = &samplingState{}
 			if hasParent && parent.isDebugIDContainerOnly() && t.isDebugAllowed(operationName) {
-				ctx.samplingState.setDebug()
+				ctx.samplingState.setDebugAndSampled()
 				samplerTags = []Tag{{key: JaegerDebugHeader, value: parent.debugID}}
 			} else if sampled, tags := t.sampler.IsSampled(ctx.traceID, operationName); sampled {
 				ctx.samplingState.setSampled()

@@ -193,7 +193,7 @@ func (p *BinaryPropagator) Inject(
 	if err := binary.Write(carrier, binary.BigEndian, sc.parentID); err != nil {
 		return err
 	}
-	if err := binary.Write(carrier, binary.BigEndian, sc.samplingState.getFlags()); err != nil {
+	if err := binary.Write(carrier, binary.BigEndian, sc.samplingState.flags()); err != nil {
 		return err
 	}
 
@@ -238,7 +238,7 @@ func (p *BinaryPropagator) Extract(abstractCarrier interface{}) (SpanContext, er
 	if err := binary.Read(carrier, binary.BigEndian, &flags); err != nil {
 		return emptyContext, opentracing.ErrSpanContextCorrupted
 	}
-	ctx.samplingState.setFromFlags(flags)
+	ctx.samplingState.setFlags(flags)
 
 	// Handle the baggage items
 	var numBaggage int32

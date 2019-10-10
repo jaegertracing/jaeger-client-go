@@ -72,86 +72,63 @@ type SpanContext struct {
 }
 
 type samplingState struct {
-	flags atomic.Int32 // Only lower 8 bits are used. We use an int32 instead of a byte to use CAS operations
+	_flags atomic.Int32 // Only lower 8 bits are used. We use an int32 instead of a byte to use CAS operations
+}
+
+func (s *samplingState) setFlag(newFlag int32) {
+	swapped := false
+	for !swapped {
+		old := s._flags.Load()
+		swapped = s._flags.CAS(old, old|newFlag)
+	}
+}
+
+func (s *samplingState) resetFlag(newFlag int32) {
+	swapped := false
+	for !swapped {
+		old := s._flags.Load()
+		swapped = s._flags.CAS(old, old&^newFlag)
+	}
 }
 
 func (s *samplingState) setSampled() {
-	// TODO: add tests for all these transitions
-	swapped := s.flags.CAS(flagUnsampled, flagSampled)
-	if swapped {
-		return
-	}
-	swapped = s.flags.CAS(flagDebug, flagDebug|flagSampled)
-	if swapped {
-		return
-	}
-	swapped = s.flags.CAS(flagFirehose, flagFirehose|flagSampled)
-	if swapped {
-		return
-	}
-	s.flags.CAS(flagFirehose|flagDebug, flagDebug|flagFirehose|flagSampled)
+	s.setFlag(flagSampled)
 }
 
-func (s *samplingState) setDebug() {
-	swapped := s.flags.CAS(flagUnsampled, flagSampled|flagDebug)
-	if swapped {
-		return
-	}
+func (s *samplingState) resetSampled() {
+	s.resetFlag(flagSampled)
+}
 
-	swapped = s.flags.CAS(flagSampled, flagSampled|flagDebug)
-	if swapped {
-		return
-	}
-
-	swapped = s.flags.CAS(flagFirehose, flagFirehose|flagDebug)
-	if swapped {
-		return
-	}
-
-	s.flags.CAS(flagFirehose|flagSampled, flagFirehose|flagSampled|flagDebug)
+func (s *samplingState) setDebugAndSampled() {
+	s.setFlag(flagDebug | flagSampled)
 }
 
 func (s *samplingState) setFirehose() {
-	swapped := s.flags.CAS(flagUnsampled, flagUnsampled|flagFirehose)
-	if swapped {
-		return
-	}
-
-	swapped = s.flags.CAS(flagSampled, flagSampled|flagFirehose)
-	if swapped {
-		return
-	}
-
-	swapped = s.flags.CAS(flagDebug, flagDebug|flagFirehose)
-	if swapped {
-		return
-	}
-
-	s.flags.CAS(flagDebug|flagSampled, flagDebug|flagUnsampled|flagFirehose)
+	s.setFlag(flagFirehose)
 }
 
 func (s *samplingState) resetFlags() {
-	s.flags.Store(flagUnsampled)
+	s._flags.Store(flagUnsampled)
 }
 
-func (s *samplingState) setFromFlags(flags byte) {
-	s.flags.Store(int32(flags))
+func (s *samplingState) setFlags(flags byte) {
+	s._flags.Store(int32(flags))
 }
 
-func (s *samplingState) getFlags() byte {
-	return byte(s.flags.Load())
+func (s *samplingState) flags() byte {
+	return byte(s._flags.Load())
 }
 
 func (s *samplingState) isSampled() bool {
-	return s.flags.Load()&flagSampled == flagSampled
+	return s._flags.Load()&flagSampled == flagSampled
 }
 
 func (s *samplingState) isDebug() bool {
-	return s.flags.Load()&flagDebug == flagDebug
+	return s._flags.Load()&flagDebug == flagDebug
 }
 
 func (s *samplingState) isFirehose() bool {
-	return s.flags.Load()&flagFirehose == flagFirehose
+	return s._flags.Load()&flagFirehose == flagFirehose
 }
 
 // ForeachBaggageItem implements ForeachBaggageItem() of opentracing.SpanContext
@@ -186,9 +163,9 @@ func (c SpanContext) IsValid() bool {
 
 func (c SpanContext) String() string {
 	if c.traceID.High == 0 {
-		return fmt.Sprintf("%x:%x:%x:%x", c.traceID.Low, uint64(c.spanID), uint64(c.parentID), c.samplingState.flags.Load())
+		return fmt.Sprintf("%x:%x:%x:%x", c.traceID.Low, uint64(c.spanID), uint64(c.parentID), c.samplingState._flags.Load())
 	}
-	return fmt.Sprintf("%x%016x:%x:%x:%x", c.traceID.High, c.traceID.Low, uint64(c.spanID), uint64(c.parentID), c.samplingState.flags.Load())
+	return fmt.Sprintf("%x%016x:%x:%x:%x", c.traceID.High, c.traceID.Low, uint64(c.spanID), uint64(c.parentID), c.samplingState._flags.Load())
 }
 
 // ContextFromString reconstructs the Context encoded in a string
@@ -216,7 +193,7 @@ func ContextFromString(value string) (SpanContext, error) {
 		return emptyContext, err
 	}
 	context.samplingState = &samplingState{}
-	context.samplingState.setFromFlags(byte(flags))
+	context.samplingState.setFlags(byte(flags))
 	return context, nil
 }
 
