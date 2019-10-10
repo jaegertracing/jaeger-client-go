@@ -107,10 +107,6 @@ func (s *samplingState) setFirehose() {
 	s.setFlag(flagFirehose)
 }
 
-func (s *samplingState) resetFlags() {
-	s._flags.Store(flagUnsampled)
-}
-
 func (s *samplingState) setFlags(flags byte) {
 	s._flags.Store(int32(flags))
 }
