@@ -23,7 +23,6 @@ import (
 )
 
 const (
-	flagUnsampled = 0
 	flagSampled   = 1
 	flagDebug     = 2
 	flagFirehose  = 8
