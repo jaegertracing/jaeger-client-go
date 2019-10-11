@@ -46,7 +46,7 @@ func TestTraceField(t *testing.T) {
 		}
 		assert.Equal(
 			t,
-			map[string]struct{}{"span": {}, "trace": {}},
+			map[string]struct{}{"span": {}, "trace": {}, "sampled": {}},
 			keys,
 			"Expected to log span and trace IDs.",
 		)
