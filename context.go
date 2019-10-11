@@ -17,9 +17,10 @@ package jaeger
 import (
 	"errors"
 	"fmt"
-	"go.uber.org/atomic"
 	"strconv"
 	"strings"
+
+	"go.uber.org/atomic"
 )
 
 const (
@@ -205,6 +206,11 @@ func (c SpanContext) SpanID() SpanID {
 // ParentID returns the parent span ID of this span context
 func (c SpanContext) ParentID() SpanID {
 	return c.parentID
+}
+
+// Flags returns the bitmap containing such bits as 'sampled' and 'debug'.
+func (c SpanContext) Flags() byte {
+	return c.samplingState.flags()
 }
 
 // NewSpanContext creates a new instance of SpanContext
