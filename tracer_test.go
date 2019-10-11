@@ -214,13 +214,11 @@ func (s *tracerSuite) TestSetOperationName() {
 func (s *tracerSuite) TestSamplerEffects() {
 	s.tracer.(*Tracer).sampler = NewConstSampler(true)
 	sp := s.tracer.StartSpan("test")
-	flags := sp.(*Span).context.flags
-	s.EqualValues(flagSampled, flags&flagSampled)
+	s.True(sp.(*Span).context.IsSampled())
 
 	s.tracer.(*Tracer).sampler = NewConstSampler(false)
 	sp = s.tracer.StartSpan("test")
-	flags = sp.(*Span).context.flags
-	s.EqualValues(0, flags&flagSampled)
+	s.False(sp.(*Span).context.IsSampled())
 }
 
 func (s *tracerSuite) TestRandomIDNotZero() {

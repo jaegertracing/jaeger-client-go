@@ -272,12 +272,12 @@ func (t *Tracer) startSpanWithOptions(
 			}
 			ctx.spanID = SpanID(ctx.traceID.Low)
 			ctx.parentID = 0
-			ctx.flags = byte(0)
+			ctx.samplingState = &samplingState{}
 			if hasParent && parent.isDebugIDContainerOnly() && t.isDebugAllowed(operationName) {
-				ctx.flags |= (flagSampled | flagDebug)
+				ctx.samplingState.setDebugAndSampled()
 				samplerTags = []Tag{{key: JaegerDebugHeader, value: parent.debugID}}
 			} else if sampled, tags := t.sampler.IsSampled(ctx.traceID, operationName); sampled {
-				ctx.flags |= flagSampled
+				ctx.samplingState.setSampled()
 				samplerTags = tags
 			}
 		} else {
@@ -290,7 +290,7 @@ func (t *Tracer) startSpanWithOptions(
 				ctx.spanID = SpanID(t.randomID())
 				ctx.parentID = parent.spanID
 			}
-			ctx.flags = parent.flags
+			ctx.samplingState = parent.samplingState
 		}
 		if hasParent {
 			// copy baggage items
