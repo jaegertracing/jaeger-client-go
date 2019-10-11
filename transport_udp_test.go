@@ -53,13 +53,18 @@ func getThriftProcessByteLength(t *testing.T, process *j.Process) int {
 	return transport.Len()
 }
 
+func newSpan() *Span {
+	span := &Span{operationName: "test-span", tracer: jaegerTracer}
+	span.context.samplingState = &samplingState{}
+	return span
+}
+
 func TestEmitBatchOverhead(t *testing.T) {
 	transport := thrift.NewTMemoryBufferLen(1000)
 	protocolFactory := thrift.NewTCompactProtocolFactory()
 	client := j.NewAgentClientFactory(transport, protocolFactory)
 
-	span := &Span{operationName: "test-span", tracer: jaegerTracer}
-	span.context.samplingState = &samplingState{}
+	span := newSpan()
 	spanSize := getThriftSpanByteLength(t, span)
 
 	tests := []int{1, 2, 14, 15, 377, 500, 65000, 0xFFFF}
@@ -88,8 +93,7 @@ func TestUDPSenderFlush(t *testing.T) {
 	require.NoError(t, err)
 	defer agent.Close()
 
-	span := &Span{operationName: "test-span", tracer: jaegerTracer}
-	span.context.samplingState = &samplingState{}
+	span := newSpan()
 	spanSize := getThriftSpanByteLength(t, span)
 	processSize := getThriftProcessByteLengthFromTracer(t, jaegerTracer)
 
@@ -135,8 +139,7 @@ func TestUDPSenderAppend(t *testing.T) {
 	require.NoError(t, err)
 	defer agent.Close()
 
-	span := &Span{operationName: "test-span", tracer: jaegerTracer}
-	span.context.samplingState = &samplingState{}
+	span := newSpan()
 	spanSize := getThriftSpanByteLength(t, span)
 	processSize := getThriftProcessByteLengthFromTracer(t, jaegerTracer)
 
@@ -211,8 +214,7 @@ func TestUDPSenderHugeSpan(t *testing.T) {
 	require.NoError(t, err)
 	defer agent.Close()
 
-	span := &Span{operationName: "test-span", tracer: jaegerTracer}
-	span.context.samplingState = &samplingState{}
+	span := newSpan()
 	spanSize := getThriftSpanByteLength(t, span)
 
 	sender, err := NewUDPTransport(agent.SpanServerAddr(), spanSize/2+emitBatchOverhead)

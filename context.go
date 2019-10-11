@@ -23,9 +23,9 @@ import (
 )
 
 const (
-	flagSampled   = 1
-	flagDebug     = 2
-	flagFirehose  = 8
+	flagSampled  = 1
+	flagDebug    = 2
+	flagFirehose = 8
 )
 
 var (
@@ -71,22 +71,22 @@ type SpanContext struct {
 }
 
 type samplingState struct {
-	_flags atomic.Int32 // Only lower 8 bits are used. We use an int32 instead of a byte to use CAS operations
+	stateFlags atomic.Int32 // Only lower 8 bits are used. We use an int32 instead of a byte to use CAS operations
 }
 
 func (s *samplingState) setFlag(newFlag int32) {
 	swapped := false
 	for !swapped {
-		old := s._flags.Load()
-		swapped = s._flags.CAS(old, old|newFlag)
+		old := s.stateFlags.Load()
+		swapped = s.stateFlags.CAS(old, old|newFlag)
 	}
 }
 
 func (s *samplingState) resetFlag(newFlag int32) {
 	swapped := false
 	for !swapped {
-		old := s._flags.Load()
-		swapped = s._flags.CAS(old, old&^newFlag)
+		old := s.stateFlags.Load()
+		swapped = s.stateFlags.CAS(old, old&^newFlag)
 	}
 }
 
@@ -107,23 +107,23 @@ func (s *samplingState) setFirehose() {
 }
 
 func (s *samplingState) setFlags(flags byte) {
-	s._flags.Store(int32(flags))
+	s.stateFlags.Store(int32(flags))
 }
 
 func (s *samplingState) flags() byte {
-	return byte(s._flags.Load())
+	return byte(s.stateFlags.Load())
 }
 
 func (s *samplingState) isSampled() bool {
-	return s._flags.Load()&flagSampled == flagSampled
+	return s.stateFlags.Load()&flagSampled == flagSampled
 }
 
 func (s *samplingState) isDebug() bool {
-	return s._flags.Load()&flagDebug == flagDebug
+	return s.stateFlags.Load()&flagDebug == flagDebug
 }
 
 func (s *samplingState) isFirehose() bool {
-	return s._flags.Load()&flagFirehose == flagFirehose
+	return s.stateFlags.Load()&flagFirehose == flagFirehose
 }
 
 // ForeachBaggageItem implements ForeachBaggageItem() of opentracing.SpanContext
@@ -158,9 +158,9 @@ func (c SpanContext) IsValid() bool {
 
 func (c SpanContext) String() string {
 	if c.traceID.High == 0 {
-		return fmt.Sprintf("%x:%x:%x:%x", c.traceID.Low, uint64(c.spanID), uint64(c.parentID), c.samplingState._flags.Load())
+		return fmt.Sprintf("%x:%x:%x:%x", c.traceID.Low, uint64(c.spanID), uint64(c.parentID), c.samplingState.stateFlags.Load())
 	}
-	return fmt.Sprintf("%x%016x:%x:%x:%x", c.traceID.High, c.traceID.Low, uint64(c.spanID), uint64(c.parentID), c.samplingState._flags.Load())
+	return fmt.Sprintf("%x%016x:%x:%x:%x", c.traceID.High, c.traceID.Low, uint64(c.spanID), uint64(c.parentID), c.samplingState.stateFlags.Load())
 }
 
 // ContextFromString reconstructs the Context encoded in a string

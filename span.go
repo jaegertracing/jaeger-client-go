@@ -301,13 +301,22 @@ func (s *Span) serviceName() string {
 }
 
 // setSamplingPriority returns true if the flag was updated successfully, false otherwise.
+// The behavior of setSamplingPriority is surprising
+// If noDebugFlagOnForcedSampling is set
+//     setSamplingPriority(span, 1) always sets only flagSampled
+// If noDebugFlagOnForcedSampling is unset, and isDebugAllowed passes
+//     setSamplingPriority(span, 1) sets both flagSampled and flagDebug
+// However,
+//     setSamplingPriority(span, 0) always only resets flagSampled
+//
+// This means that doing a setSamplingPriority(span, 1) followed by setSamplingPriority(span, 0) can
+// leave flagDebug set
 func setSamplingPriority(s *Span, value interface{}) bool {
 	val, ok := value.(uint16)
 	if !ok {
 		return false
 	}
 	if val == 0 {
-		// TODO: Add test to verify that only sampled is reset
 		s.context.samplingState.resetSampled()
 		return true
 	}

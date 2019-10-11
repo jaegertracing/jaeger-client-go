@@ -179,6 +179,22 @@ func TestSetTag_SamplingPriority(t *testing.T) {
 	}
 }
 
+func TestResetDebugFlagOnly(t *testing.T) {
+	tracer, closer := NewTracer(
+		"Arwen",
+		NewConstSampler(true),
+		NewNullReporter(),
+	)
+	defer closer.Close()
+
+	span := tracer.StartSpan("breakfast").(*Span)
+	ext.SamplingPriority.Set(span, 1)
+	assert.Equal(t, byte(flagSampled|flagDebug), span.context.samplingState.flags())
+
+	ext.SamplingPriority.Set(span, 0)
+	assert.Equal(t, byte(flagDebug), span.context.samplingState.flags(), "Should reset only sampled flag")
+}
+
 func TestSetFirehoseMode(t *testing.T) {
 	tracer, closer := NewTracer("DOOP", NewConstSampler(true), NewNullReporter())
 	defer closer.Close()
