@@ -82,7 +82,7 @@ func (s *samplingState) setFlag(newFlag int32) {
 	}
 }
 
-func (s *samplingState) resetFlag(newFlag int32) {
+func (s *samplingState) unsetFlag(newFlag int32) {
 	swapped := false
 	for !swapped {
 		old := s.stateFlags.Load()
@@ -94,8 +94,8 @@ func (s *samplingState) setSampled() {
 	s.setFlag(flagSampled)
 }
 
-func (s *samplingState) resetSampled() {
-	s.resetFlag(flagSampled)
+func (s *samplingState) unsetSampled() {
+	s.unsetFlag(flagSampled)
 }
 
 func (s *samplingState) setDebugAndSampled() {

@@ -317,7 +317,7 @@ func setSamplingPriority(s *Span, value interface{}) bool {
 		return false
 	}
 	if val == 0 {
-		s.context.samplingState.resetSampled()
+		s.context.samplingState.unsetSampled()
 		return true
 	}
 	if s.tracer.options.noDebugFlagOnForcedSampling {

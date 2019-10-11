@@ -179,7 +179,7 @@ func TestSetTag_SamplingPriority(t *testing.T) {
 	}
 }
 
-func TestResetDebugFlagOnly(t *testing.T) {
+func TestUnsetSampledFlagOnly(t *testing.T) {
 	tracer, closer := NewTracer(
 		"Arwen",
 		NewConstSampler(true),
