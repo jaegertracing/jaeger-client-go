@@ -38,7 +38,7 @@ type Tracer struct {
 	serviceName string
 	hostIPv4    uint32 // this is for zipkin endpoint conversion
 
-	sampler  Sampler
+	sampler  SamplerV2
 	reporter Reporter
 	metrics  Metrics
 	logger   log.Logger
@@ -82,7 +82,7 @@ func NewTracer(
 ) (opentracing.Tracer, io.Closer) {
 	t := &Tracer{
 		serviceName:   serviceName,
-		sampler:       sampler,
+		sampler:       samplerV1toV2(sampler),
 		reporter:      reporter,
 		injectors:     make(map[interface{}]Injector),
 		extractors:    make(map[interface{}]Extractor),
@@ -261,7 +261,7 @@ func (t *Tracer) startSpanWithOptions(
 		rpcServer = (v == ext.SpanKindRPCServerEnum || v == string(ext.SpanKindRPCServerEnum))
 	}
 
-	var samplerTags []Tag
+	var internalTags []Tag
 	newTrace := false
 	if !isSelfRef {
 		if !hasParent || !parent.IsValid() {
@@ -275,10 +275,7 @@ func (t *Tracer) startSpanWithOptions(
 			ctx.samplingState = &samplingState{}
 			if hasParent && parent.isDebugIDContainerOnly() && t.isDebugAllowed(operationName) {
 				ctx.samplingState.setDebugAndSampled()
-				samplerTags = []Tag{{key: JaegerDebugHeader, value: parent.debugID}}
-			} else if sampled, tags := t.sampler.IsSampled(ctx.traceID, operationName); sampled {
-				ctx.samplingState.setSampled()
-				samplerTags = tags
+				internalTags = append(internalTags, Tag{key: JaegerDebugHeader, value: parent.debugID})
 			}
 		} else {
 			ctx.traceID = parent.traceID
@@ -291,6 +288,9 @@ func (t *Tracer) startSpanWithOptions(
 				ctx.parentID = parent.spanID
 			}
 			ctx.samplingState = parent.samplingState
+			if parent.remote {
+				ctx.samplingState.setFinal()
+			}
 		}
 		if hasParent {
 			// copy baggage items
@@ -305,17 +305,30 @@ func (t *Tracer) startSpanWithOptions(
 
 	sp := t.newSpan()
 	sp.context = ctx
+	sp.tracer = t
+	sp.operationName = operationName
+	sp.startTime = options.StartTime
+	sp.duration = 0
+	sp.references = references
+	sp.firstInProcess = rpcServer || sp.context.parentID == 0
+
+	if !sp.isSamplingFinalized() {
+		decision := t.sampler.OnCreateSpan(sp)
+		sp.applySamplingDecision(decision, false)
+	}
 	sp.observer = t.observer.OnStartSpan(sp, operationName, options)
-	return t.startSpanInternal(
-		sp,
-		operationName,
-		options.StartTime,
-		samplerTags,
-		options.Tags,
-		newTrace,
-		rpcServer,
-		references,
-	)
+
+	if tagsTotalLength := len(options.Tags)+len(internalTags); tagsTotalLength > 0 {
+		if sp.tags == nil || cap(sp.tags) < tagsTotalLength {
+			sp.tags = make([]Tag, 0, tagsTotalLength)
+		}
+		sp.tags = append(sp.tags, internalTags...)
+		for k, v := range options.Tags {
+			sp.setTagInternal(k, v, false)
+		}
+	}
+	t.emitNewSpanMetrics(sp, newTrace)
+	return sp
 }
 
 // Inject implements Inject() method of opentracing.Tracer
@@ -340,6 +353,7 @@ func (t *Tracer) Extract(
 		if err != nil {
 			return nil, err // ensure returned spanCtx is nil
 		}
+		spanCtx.remote = true
 		return spanCtx, nil
 	}
 	return nil, opentracing.ErrUnsupportedFormat
@@ -350,10 +364,10 @@ func (t *Tracer) Close() error {
 	t.reporter.Close()
 	t.sampler.Close()
 	if mgr, ok := t.baggageRestrictionManager.(io.Closer); ok {
-		mgr.Close()
+		_ = mgr.Close()
 	}
 	if throttler, ok := t.debugThrottler.(io.Closer); ok {
-		throttler.Close()
+		_ = throttler.Close()
 	}
 	return nil
 }
@@ -368,6 +382,7 @@ func (t *Tracer) Tags() []opentracing.Tag {
 }
 
 // getTag returns the value of specific tag, if not exists, return nil.
+// TODO only used by tests, move there.
 func (t *Tracer) getTag(key string) (interface{}, bool) {
 	for _, tag := range t.tags {
 		if tag.key == key {
@@ -383,34 +398,8 @@ func (t *Tracer) newSpan() *Span {
 	return t.spanAllocator.Get()
 }
 
-func (t *Tracer) startSpanInternal(
-	sp *Span,
-	operationName string,
-	startTime time.Time,
-	internalTags []Tag,
-	tags opentracing.Tags,
-	newTrace bool,
-	rpcServer bool,
-	references []Reference,
-) *Span {
-	sp.tracer = t
-	sp.operationName = operationName
-	sp.startTime = startTime
-	sp.duration = 0
-	sp.references = references
-	sp.firstInProcess = rpcServer || sp.context.parentID == 0
-	if len(tags) > 0 || len(internalTags) > 0 {
-		sp.tags = make([]Tag, len(internalTags), len(tags)+len(internalTags))
-		copy(sp.tags, internalTags)
-		for k, v := range tags {
-			sp.observer.OnSetTag(k, v)
-			if k == string(ext.SamplingPriority) && !setSamplingPriority(sp, v) {
-				continue
-			}
-			sp.setTagNoLocking(k, v)
-		}
-	}
-	// emit metrics
+func (t *Tracer) emitNewSpanMetrics(sp *Span, newTrace bool) {
+	// TODO how should emit metrics for delayed sampling?
 	if sp.context.IsSampled() {
 		t.metrics.SpansStartedSampled.Inc(1)
 		if newTrace {
@@ -430,7 +419,6 @@ func (t *Tracer) startSpanInternal(
 			t.metrics.TracesJoinedNotSampled.Inc(1)
 		}
 	}
-	return sp
 }
 
 func (t *Tracer) reportSpan(sp *Span) {
