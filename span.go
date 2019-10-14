@@ -46,6 +46,9 @@ type Span struct {
 	// and the ingress spans when the process joins another trace.
 	firstInProcess bool
 
+	// newTrace indicates that this is the root span for the whole trace (used in metrics)
+	newTrace bool
+
 	// startTime is the timestamp indicating when the span began, with microseconds precision.
 	startTime time.Time
 
@@ -237,8 +240,12 @@ func (s *Span) FinishWithOptions(options opentracing.FinishOptions) {
 	}
 	s.observer.OnFinish(options)
 	s.Lock()
+	s.duration = options.FinishTime.Sub(s.startTime)
+	if !s.isSamplingFinalized() {
+		decision := s.tracer.sampler.OnFinishSpan(s)
+		s.applySamplingDecision(decision, false)
+	}
 	if s.context.IsSampled() {
-		s.duration = options.FinishTime.Sub(s.startTime)
 		// Note: bulk logs are not subject to maxLogsPerSpan limit
 		if options.LogRecords != nil {
 			s.logs = append(s.logs, options.LogRecords...)

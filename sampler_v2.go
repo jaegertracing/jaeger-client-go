@@ -24,6 +24,7 @@ type SamplerV2 interface {
 	OnCreateSpan(span *Span) SamplingDecision
 	OnSetOperationName(span *Span, operationName string) SamplingDecision
 	OnSetTag(span *Span, key string, value interface{}) SamplingDecision
+	OnFinishSpan(span *Span) SamplingDecision
 
 	// Close does a clean shutdown of the sampler, stopping any background
 	// go-routines it may have started.
@@ -62,6 +63,10 @@ func (s *legacySamplerV1Base) OnSetOperationName(span *Span, operationName strin
 }
 
 func (s *legacySamplerV1Base) OnSetTag(span *Span, key string, value interface{}) SamplingDecision {
+	return SamplingDecision{sample: false, retryable: true}
+}
+
+func (s *legacySamplerV1Base) OnFinishSpan(span *Span) SamplingDecision {
 	return SamplingDecision{sample: false, retryable: true}
 }
 

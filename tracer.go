@@ -398,15 +398,22 @@ func (t *Tracer) newSpan() *Span {
 	return t.spanAllocator.Get()
 }
 
+// emitNewSpanMetrics generates metrics on the number of started spans and traces/
+// newTrace param: we cannot simply check for parentID==0 because in Zipkin model the
+// server-side RPC span has the exact same trace/span/parent IDs as the
+// calling client-side span, but obviously the server side span is
+// no longer a root span of the trace.
 func (t *Tracer) emitNewSpanMetrics(sp *Span, newTrace bool) {
-	// TODO how should emit metrics for delayed sampling?
-	if sp.context.IsSampled() {
+	if !sp.isSamplingFinalized() {
+		t.metrics.SpansStartedDelayedSampling.Inc(1)
+		if newTrace {
+			t.metrics.TracesStartedDelayedSampling.Inc(1)
+		} else if sp.firstInProcess {
+			// this is not possible, because sampling decision inherited from upstream is final
+		}
+	} else if sp.context.IsSampled() {
 		t.metrics.SpansStartedSampled.Inc(1)
 		if newTrace {
-			// We cannot simply check for parentID==0 because in Zipkin model the
-			// server-side RPC span has the exact same trace/span/parent IDs as the
-			// calling client-side span, but obviously the server side span is
-			// no longer a root span of the trace.
 			t.metrics.TracesStartedSampled.Inc(1)
 		} else if sp.firstInProcess {
 			t.metrics.TracesJoinedSampled.Inc(1)
@@ -422,11 +429,17 @@ func (t *Tracer) emitNewSpanMetrics(sp *Span, newTrace bool) {
 }
 
 func (t *Tracer) reportSpan(sp *Span) {
-	t.metrics.SpansFinished.Inc(1)
+	if !sp.isSamplingFinalized() {
+		t.metrics.SpansFinishedDelayedSampling.Inc(1)
+	} else if sp.context.IsSampled() {
+		t.metrics.SpansFinishedSampled.Inc(1)
+	} else {
+		t.metrics.SpansFinishedNotSampled.Inc(1)
+	}
 
-	// Note: if the reporter is processing Span asynchronously need to Retain() it
-	// otherwise, in the racing condition will be rewritten span data before it will be sent
-	// * To remove object use method span.Release()
+	// Note: if the reporter is processing Span asynchronously then it needs to Retain() the span,
+	// and then Release() it when no longer needed.
+	// Otherwise, the span may be reused for another trace and its data may be overwritten.
 	if sp.context.IsSampled() {
 		t.reporter.Report(sp)
 	}
