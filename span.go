@@ -46,9 +46,6 @@ type Span struct {
 	// and the ingress spans when the process joins another trace.
 	firstInProcess bool
 
-	// newTrace indicates that this is the root span for the whole trace (used in metrics)
-	newTrace bool
-
 	// startTime is the timestamp indicating when the span began, with microseconds precision.
 	startTime time.Time
 
