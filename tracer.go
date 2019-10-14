@@ -398,7 +398,7 @@ func (t *Tracer) newSpan() *Span {
 	return t.spanAllocator.Get()
 }
 
-// emitNewSpanMetrics generates metrics on the number of started spans and traces/
+// emitNewSpanMetrics generates metrics on the number of started spans and traces.
 // newTrace param: we cannot simply check for parentID==0 because in Zipkin model the
 // server-side RPC span has the exact same trace/span/parent IDs as the
 // calling client-side span, but obviously the server side span is
