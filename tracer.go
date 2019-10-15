@@ -408,9 +408,8 @@ func (t *Tracer) emitNewSpanMetrics(sp *Span, newTrace bool) {
 		t.metrics.SpansStartedDelayedSampling.Inc(1)
 		if newTrace {
 			t.metrics.TracesStartedDelayedSampling.Inc(1)
-		} else if sp.firstInProcess {
-			// this is not possible, because sampling decision inherited from upstream is final
 		}
+		// joining a trace is not possible, because sampling decision inherited from upstream is final
 	} else if sp.context.IsSampled() {
 		t.metrics.SpansStartedSampled.Inc(1)
 		if newTrace {
