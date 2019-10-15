@@ -198,13 +198,13 @@ func (s *RateLimitingSampler) Equal(other Sampler) bool {
 
 // -----------------------
 
-// GuaranteedThroughputProbabilisticSampler is a sampler that leverages both probabilisticSampler and
+// GuaranteedThroughputProbabilisticSampler is a sampler that leverages both ProbabilisticSampler and
 // RateLimitingSampler. The RateLimitingSampler is used as a guaranteed lower bound sampler such that
 // every operation is sampled at least once in a time interval defined by the lowerBound. ie a lowerBound
 // of 1.0 / (60 * 10) will sample an operation at least once every 10 minutes.
 //
-// The probabilisticSampler is given higher priority when tags are emitted, ie. if IsSampled() for both
-// samplers return true, the tags for probabilisticSampler will be used.
+// The ProbabilisticSampler is given higher priority when tags are emitted, ie. if IsSampled() for both
+// samplers return true, the tags for ProbabilisticSampler will be used.
 type GuaranteedThroughputProbabilisticSampler struct {
 	probabilisticSampler *ProbabilisticSampler
 	lowerBoundSampler    Sampler
@@ -214,7 +214,7 @@ type GuaranteedThroughputProbabilisticSampler struct {
 }
 
 // NewGuaranteedThroughputProbabilisticSampler returns a delegating sampler that applies both
-// probabilisticSampler and RateLimitingSampler.
+// ProbabilisticSampler and RateLimitingSampler.
 func NewGuaranteedThroughputProbabilisticSampler(
 	lowerBound, samplingRate float64,
 ) (*GuaranteedThroughputProbabilisticSampler, error) {
@@ -284,9 +284,9 @@ type AdaptiveSampler struct {
 	maxOperations  int
 }
 
-// NewAdaptiveSampler returns a delegating sampler that applies both probabilisticSampler and
-// RateLimitingSampler via the guaranteedThroughputProbabilisticSampler. This sampler keeps track of all
-// operations and delegates calls to the respective guaranteedThroughputProbabilisticSampler.
+// NewAdaptiveSampler returns a delegating sampler that applies both ProbabilisticSampler and
+// RateLimitingSampler via the GuaranteedThroughputProbabilisticSampler. This sampler keeps track of all
+// operations and delegates calls to the respective GuaranteedThroughputProbabilisticSampler.
 // TODO (breaking change) remove error from return value
 func NewAdaptiveSampler(strategies *sampling.PerOperationSamplingStrategies, maxOperations int) (*AdaptiveSampler, error) {
 	return newAdaptiveSampler(strategies, maxOperations), nil

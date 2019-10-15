@@ -117,7 +117,7 @@ func TestRemotelyControlledSampler(t *testing.T) {
 	assert.True(t, remoteSampler.Equal(remoteSampler))
 }
 
-func generateSamplerTags(key string, value interface{}) []Tag {
+func makeSamplerTags(key string, value interface{}) []Tag {
 	return []Tag{
 		{"sampler.type", key},
 		{"sampler.param", value},
@@ -135,7 +135,7 @@ func TestRemotelyControlledSampler_updateSampler(t *testing.T) {
 			probabilities:              map[string]float64{testOperationName: 1.1},
 			defaultProbability:         testDefaultSamplingProbability,
 			expectedDefaultProbability: testDefaultSamplingProbability,
-			expectedTags:               generateSamplerTags("probabilistic", 1.0),
+			expectedTags:               makeSamplerTags("probabilistic", 1.0),
 		},
 		{
 			probabilities:              map[string]float64{testOperationName: testDefaultSamplingProbability},
@@ -162,7 +162,7 @@ func TestRemotelyControlledSampler_updateSampler(t *testing.T) {
 			probabilities:              map[string]float64{"new op": 1.1},
 			defaultProbability:         1.1,
 			expectedDefaultProbability: 1.0,
-			expectedTags:               generateSamplerTags("probabilistic", 1.0),
+			expectedTags:               makeSamplerTags("probabilistic", 1.0),
 		},
 	}
 
@@ -233,7 +233,7 @@ func TestRemotelyControlledSampler_updateDefaultRate(t *testing.T) {
 	// Check what rate we get for a specific operation
 	decision := sampler.OnCreateSpan(makeSpan(0, testOperationName))
 	assert.True(t, decision.sample)
-	assert.Equal(t, generateSamplerTags("probabilistic", 0.5), decision.tags)
+	assert.Equal(t, makeSamplerTags("probabilistic", 0.5), decision.tags)
 
 	// Change the default and update
 	res.OperationSampling.DefaultSamplingProbability = 0.1
@@ -242,7 +242,7 @@ func TestRemotelyControlledSampler_updateDefaultRate(t *testing.T) {
 	// Check sampling rate has changed
 	decision = sampler.OnCreateSpan(makeSpan(0, testOperationName))
 	assert.True(t, decision.sample)
-	assert.Equal(t, generateSamplerTags("probabilistic", 0.1), decision.tags)
+	assert.Equal(t, makeSamplerTags("probabilistic", 0.1), decision.tags)
 
 	// Add an operation-specific rate
 	res.OperationSampling.PerOperationStrategies = []*sampling.OperationSamplingStrategy{{
@@ -256,7 +256,7 @@ func TestRemotelyControlledSampler_updateDefaultRate(t *testing.T) {
 	// Check we get the requested rate
 	decision = sampler.OnCreateSpan(makeSpan(0, testOperationName))
 	assert.True(t, decision.sample)
-	assert.Equal(t, generateSamplerTags("probabilistic", 0.2), decision.tags)
+	assert.Equal(t, makeSamplerTags("probabilistic", 0.2), decision.tags)
 
 	// Now remove the operation-specific rate
 	res.OperationSampling.PerOperationStrategies = nil
@@ -266,7 +266,7 @@ func TestRemotelyControlledSampler_updateDefaultRate(t *testing.T) {
 	assert.True(t, decision.sample)
 	decision = sampler.OnCreateSpan(makeSpan(0, testOperationName))
 	assert.True(t, decision.sample)
-	assert.Equal(t, generateSamplerTags("probabilistic", 0.1), decision.tags)
+	assert.Equal(t, makeSamplerTags("probabilistic", 0.1), decision.tags)
 }
 
 func TestSamplerQueryError(t *testing.T) {

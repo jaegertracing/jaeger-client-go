@@ -99,7 +99,7 @@ func (s *RemotelyControlledSampler) Close() {
 
 // Equal implements Equal() of Sampler.
 func (s *RemotelyControlledSampler) Equal(other Sampler) bool {
-	// NB The Equal() function is expensive and will be removed. See adaptiveSampler.Equal() for
+	// NB The Equal() function is expensive and will be removed. See AdaptiveSampler.Equal() for
 	// more information.
 	if o, ok := other.(*RemotelyControlledSampler); ok {
 		s.RLock()

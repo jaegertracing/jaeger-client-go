@@ -66,7 +66,7 @@ func TestSamplerTags(t *testing.T) {
 	}
 	for _, test := range tests {
 		decision := test.sampler.OnCreateSpan(makeSpan(0, testOperationName))
-		assert.Equal(t, generateSamplerTags(test.typeTag, test.paramTag), decision.tags)
+		assert.Equal(t, makeSamplerTags(test.typeTag, test.paramTag), decision.tags)
 	}
 }
 
