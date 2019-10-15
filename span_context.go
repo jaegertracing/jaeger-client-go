@@ -69,10 +69,19 @@ type SpanContext struct {
 
 	// samplingState is shared across all spans
 	samplingState *samplingState
+
+	// remote indicates that span context represents a remote parent
+	remote bool
 }
 
 type samplingState struct {
-	stateFlags atomic.Int32 // Only lower 8 bits are used. We use an int32 instead of a byte to use CAS operations
+	// Span context's state flags that are propagated across processes. Only lower 8 bits are used.
+	// We use an int32 instead of byte to be able to use CAS operations.
+	stateFlags atomic.Int32
+
+	// When state is not final, sampling will be retried on other span write operations,
+	// like SetOperationName / SetTag, and the spans will remain writable.
+	final atomic.Bool
 }
 
 func (s *samplingState) setFlag(newFlag int32) {
@@ -111,6 +120,10 @@ func (s *samplingState) setFlags(flags byte) {
 	s.stateFlags.Store(int32(flags))
 }
 
+func (s *samplingState) setFinal() {
+	s.final.Store(true)
+}
+
 func (s *samplingState) flags() byte {
 	return byte(s.stateFlags.Load())
 }
@@ -125,6 +138,10 @@ func (s *samplingState) isDebug() bool {
 
 func (s *samplingState) isFirehose() bool {
 	return s.stateFlags.Load()&flagFirehose == flagFirehose
+}
+
+func (s *samplingState) isFinal() bool {
+	return s.final.Load()
 }
 
 // ForeachBaggageItem implements ForeachBaggageItem() of opentracing.SpanContext
@@ -258,7 +275,7 @@ func (c SpanContext) WithBaggageItem(key, value string) SpanContext {
 		newBaggage[key] = value
 	}
 	// Use positional parameters so the compiler will help catch new fields.
-	return SpanContext{c.traceID, c.spanID, c.parentID, newBaggage, "", c.samplingState}
+	return SpanContext{c.traceID, c.spanID, c.parentID, newBaggage, "", c.samplingState, c.remote}
 }
 
 // isDebugIDContainerOnly returns true when the instance of the context is only
