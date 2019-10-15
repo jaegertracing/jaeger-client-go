@@ -129,16 +129,16 @@ func (s *RemotelyControlledSampler) pollControllerWithTicker(ticker *time.Ticker
 	}
 }
 
-func (s *RemotelyControlledSampler) getSampler() Sampler {
+func (s *RemotelyControlledSampler) getSampler() SamplerV2 {
 	s.Lock()
 	defer s.Unlock()
-	return s.sampler.(Sampler)
+	return s.sampler
 }
 
-func (s *RemotelyControlledSampler) setSampler(sampler Sampler) {
+func (s *RemotelyControlledSampler) setSampler(sampler SamplerV2) {
 	s.Lock()
 	defer s.Unlock()
-	s.sampler = samplerV1toV2(sampler)
+	s.sampler = sampler
 }
 
 func (s *RemotelyControlledSampler) updateSampler() {
