@@ -109,7 +109,7 @@ func applySamplerOptions(opts ...SamplerOption) samplerOptions {
 func (s *RemotelyControlledSampler) IsSampled(id TraceID, operation string) (bool, []Tag) {
 	s.RLock()
 	defer s.RUnlock()
-	return s.sampler.IsSampled(id, operation)
+	return s.sampler.(Sampler).IsSampled(id, operation)
 }
 
 // Close implements Close() of Sampler.
@@ -134,7 +134,7 @@ func (s *RemotelyControlledSampler) Equal(other Sampler) bool {
 		o.RLock()
 		defer s.RUnlock()
 		defer o.RUnlock()
-		return s.sampler.Equal(o.sampler)
+		return s.sampler.(Sampler).Equal(o.sampler.(Sampler))
 	}
 	return false
 }
@@ -160,12 +160,16 @@ func (s *RemotelyControlledSampler) pollControllerWithTicker(ticker *time.Ticker
 func (s *RemotelyControlledSampler) getSampler() Sampler {
 	s.Lock()
 	defer s.Unlock()
-	return s.sampler
+	return s.sampler.(Sampler)
 }
 
 func (s *RemotelyControlledSampler) setSampler(sampler Sampler) {
 	s.Lock()
 	defer s.Unlock()
+	s.setSamplerNoLock(samplerV1toV2(sampler))
+}
+
+func (s *RemotelyControlledSampler) setSamplerNoLock(sampler SamplerV2) {
 	s.sampler = sampler
 }
 
@@ -195,7 +199,7 @@ func (s *RemotelyControlledSampler) updateSampler() {
 
 // NB: this function should only be called while holding a Write lock
 func (s *RemotelyControlledSampler) updateAdaptiveSampler(strategies *sampling.PerOperationSamplingStrategies) {
-	if adaptiveSampler, ok := s.sampler.(*adaptiveSampler); ok {
+	if adaptiveSampler, ok := s.sampler.(*AdaptiveSampler); ok {
 		adaptiveSampler.update(strategies)
 	} else {
 		s.sampler = newAdaptiveSampler(strategies, s.maxOperations)
@@ -212,7 +216,7 @@ func (s *RemotelyControlledSampler) updateRateLimitingOrProbabilisticSampler(res
 	} else {
 		return fmt.Errorf("Unsupported sampling strategy type %v", res.GetStrategyType())
 	}
-	if !s.sampler.Equal(newSampler) {
+	if !s.sampler.(Sampler).Equal(newSampler.(Sampler)) {
 		s.sampler = newSampler
 	}
 	return nil

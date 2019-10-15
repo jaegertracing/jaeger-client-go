@@ -94,6 +94,7 @@ func (s *ConstSampler) Equal(other Sampler) bool {
 // ProbabilisticSampler is a sampler that randomly samples a certain percentage
 // of traces.
 type ProbabilisticSampler struct {
+	legacySamplerV1Base
 	samplingRate     float64
 	samplingBoundary uint64
 	tags             []Tag
@@ -152,7 +153,8 @@ func (s *ProbabilisticSampler) Equal(other Sampler) bool {
 
 // -----------------------
 
-type rateLimitingSampler struct {
+type RateLimitingSampler struct {
+	legacySamplerV1Base
 	maxTracesPerSecond float64
 	rateLimiter        utils.RateLimiter
 	tags               []Tag
@@ -162,12 +164,12 @@ type rateLimitingSampler struct {
 // traces follows burstiness of the service, i.e. a service with uniformly distributed requests will have those
 // requests sampled uniformly as well, but if requests are bursty, especially sub-second, then a number of
 // sequential requests can be sampled each second.
-func NewRateLimitingSampler(maxTracesPerSecond float64) Sampler {
+func NewRateLimitingSampler(maxTracesPerSecond float64) *RateLimitingSampler {
 	tags := []Tag{
 		{key: SamplerTypeTagKey, value: SamplerTypeRateLimiting},
 		{key: SamplerParamTagKey, value: maxTracesPerSecond},
 	}
-	return &rateLimitingSampler{
+	return &RateLimitingSampler{
 		maxTracesPerSecond: maxTracesPerSecond,
 		rateLimiter:        utils.NewRateLimiter(maxTracesPerSecond, math.Max(maxTracesPerSecond, 1.0)),
 		tags:               tags,
@@ -175,16 +177,16 @@ func NewRateLimitingSampler(maxTracesPerSecond float64) Sampler {
 }
 
 // IsSampled implements IsSampled() of Sampler.
-func (s *rateLimitingSampler) IsSampled(id TraceID, operation string) (bool, []Tag) {
+func (s *RateLimitingSampler) IsSampled(id TraceID, operation string) (bool, []Tag) {
 	return s.rateLimiter.CheckCredit(1.0), s.tags
 }
 
-func (s *rateLimitingSampler) Close() {
+func (s *RateLimitingSampler) Close() {
 	// nothing to do
 }
 
-func (s *rateLimitingSampler) Equal(other Sampler) bool {
-	if o, ok := other.(*rateLimitingSampler); ok {
+func (s *RateLimitingSampler) Equal(other Sampler) bool {
+	if o, ok := other.(*RateLimitingSampler); ok {
 		return s.maxTracesPerSecond == o.maxTracesPerSecond
 	}
 	return false
@@ -193,7 +195,7 @@ func (s *rateLimitingSampler) Equal(other Sampler) bool {
 // -----------------------
 
 // GuaranteedThroughputProbabilisticSampler is a sampler that leverages both probabilisticSampler and
-// rateLimitingSampler. The rateLimitingSampler is used as a guaranteed lower bound sampler such that
+// RateLimitingSampler. The RateLimitingSampler is used as a guaranteed lower bound sampler such that
 // every operation is sampled at least once in a time interval defined by the lowerBound. ie a lowerBound
 // of 1.0 / (60 * 10) will sample an operation at least once every 10 minutes.
 //
@@ -208,7 +210,7 @@ type GuaranteedThroughputProbabilisticSampler struct {
 }
 
 // NewGuaranteedThroughputProbabilisticSampler returns a delegating sampler that applies both
-// probabilisticSampler and rateLimitingSampler.
+// probabilisticSampler and RateLimitingSampler.
 func NewGuaranteedThroughputProbabilisticSampler(
 	lowerBound, samplingRate float64,
 ) (*GuaranteedThroughputProbabilisticSampler, error) {
@@ -253,7 +255,7 @@ func (s *GuaranteedThroughputProbabilisticSampler) Close() {
 
 // Equal implements Equal() of Sampler.
 func (s *GuaranteedThroughputProbabilisticSampler) Equal(other Sampler) bool {
-	// NB The Equal() function is expensive and will be removed. See adaptiveSampler.Equal() for
+	// NB The Equal() function is expensive and will be removed. See AdaptiveSampler.Equal() for
 	// more information.
 	return false
 }
@@ -269,7 +271,7 @@ func (s *GuaranteedThroughputProbabilisticSampler) update(lowerBound, samplingRa
 
 // -----------------------
 
-type adaptiveSampler struct {
+type AdaptiveSampler struct {
 	sync.RWMutex
 
 	samplers       map[string]*GuaranteedThroughputProbabilisticSampler
@@ -279,13 +281,14 @@ type adaptiveSampler struct {
 }
 
 // NewAdaptiveSampler returns a delegating sampler that applies both probabilisticSampler and
-// rateLimitingSampler via the guaranteedThroughputProbabilisticSampler. This sampler keeps track of all
+// RateLimitingSampler via the guaranteedThroughputProbabilisticSampler. This sampler keeps track of all
 // operations and delegates calls to the respective guaranteedThroughputProbabilisticSampler.
-func NewAdaptiveSampler(strategies *sampling.PerOperationSamplingStrategies, maxOperations int) (Sampler, error) {
+// TODO (breaking change) remove error from return value
+func NewAdaptiveSampler(strategies *sampling.PerOperationSamplingStrategies, maxOperations int) (*AdaptiveSampler, error) {
 	return newAdaptiveSampler(strategies, maxOperations), nil
 }
 
-func newAdaptiveSampler(strategies *sampling.PerOperationSamplingStrategies, maxOperations int) Sampler {
+func newAdaptiveSampler(strategies *sampling.PerOperationSamplingStrategies, maxOperations int) *AdaptiveSampler {
 	samplers := make(map[string]*GuaranteedThroughputProbabilisticSampler)
 	for _, strategy := range strategies.PerOperationStrategies {
 		sampler := newGuaranteedThroughputProbabilisticSampler(
@@ -294,7 +297,7 @@ func newAdaptiveSampler(strategies *sampling.PerOperationSamplingStrategies, max
 		)
 		samplers[strategy.Operation] = sampler
 	}
-	return &adaptiveSampler{
+	return &AdaptiveSampler{
 		samplers:       samplers,
 		defaultSampler: newProbabilisticSampler(strategies.DefaultSamplingProbability),
 		lowerBound:     strategies.DefaultLowerBoundTracesPerSecond,
@@ -302,7 +305,7 @@ func newAdaptiveSampler(strategies *sampling.PerOperationSamplingStrategies, max
 	}
 }
 
-func (s *adaptiveSampler) IsSampled(id TraceID, operation string) (bool, []Tag) {
+func (s *AdaptiveSampler) IsSampled(id TraceID, operation string) (bool, []Tag) {
 	s.RLock()
 	sampler, ok := s.samplers[operation]
 	if ok {
@@ -327,7 +330,7 @@ func (s *adaptiveSampler) IsSampled(id TraceID, operation string) (bool, []Tag) 
 	return newSampler.IsSampled(id, operation)
 }
 
-func (s *adaptiveSampler) Close() {
+func (s *AdaptiveSampler) Close() {
 	s.Lock()
 	defer s.Unlock()
 	for _, sampler := range s.samplers {
@@ -336,16 +339,16 @@ func (s *adaptiveSampler) Close() {
 	s.defaultSampler.Close()
 }
 
-func (s *adaptiveSampler) Equal(other Sampler) bool {
-	// NB The Equal() function is overly expensive for adaptiveSampler since it's composed of multiple
+func (s *AdaptiveSampler) Equal(other Sampler) bool {
+	// NB The Equal() function is overly expensive for AdaptiveSampler since it's composed of multiple
 	// samplers which all need to be initialized before this function can be called for a comparison.
-	// Therefore, adaptiveSampler uses the update() function to only alter the samplers that need
+	// Therefore, AdaptiveSampler uses the update() function to only alter the samplers that need
 	// changing. Hence this function always returns false so that the update function can be called.
 	// Once the Equal() function is removed from the Sampler API, this will no longer be needed.
 	return false
 }
 
-func (s *adaptiveSampler) update(strategies *sampling.PerOperationSamplingStrategies) {
+func (s *AdaptiveSampler) update(strategies *sampling.PerOperationSamplingStrategies) {
 	s.Lock()
 	defer s.Unlock()
 	newSamplers := map[string]*GuaranteedThroughputProbabilisticSampler{}

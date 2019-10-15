@@ -14,4 +14,8 @@
 
 package jaeger
 
-var _ SamplerV2 = new(ConstSampler)
+var (
+	_ SamplerV2 = new(ConstSampler)
+	_ SamplerV2 = new(ProbabilisticSampler)
+	_ SamplerV2 = new(RateLimitingSampler)
+)

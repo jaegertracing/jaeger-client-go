@@ -27,7 +27,7 @@ var SamplerOptions samplerOptions
 type samplerOptions struct {
 	metrics                 *Metrics
 	maxOperations           int
-	sampler                 Sampler
+	sampler                 SamplerV2
 	logger                  Logger
 	samplingServerURL       string
 	samplingRefreshInterval time.Duration
@@ -53,7 +53,7 @@ func (samplerOptions) MaxOperations(maxOperations int) SamplerOption {
 // to use before a remote sampler is created and used.
 func (samplerOptions) InitialSampler(sampler Sampler) SamplerOption {
 	return func(o *samplerOptions) {
-		o.sampler = sampler
+		o.sampler = samplerV1toV2(sampler)
 	}
 }
 
