@@ -134,9 +134,33 @@ func (s *Span) Duration() time.Duration {
 func (s *Span) Tags() opentracing.Tags {
 	s.Lock()
 	defer s.Unlock()
-	var result = make(opentracing.Tags)
+	var result = make(opentracing.Tags, len(s.tags))
 	for _, tag := range s.tags {
 		result[tag.key] = tag.value
+	}
+	return result
+}
+
+// Logs returns micro logs for span
+func (s *Span) Logs() []opentracing.LogRecord {
+	s.Lock()
+	defer s.Unlock()
+
+	return append([]opentracing.LogRecord(nil), s.logs...)
+}
+
+// References returns references for this span
+func (s *Span) References() []opentracing.SpanReference {
+	s.Lock()
+	defer s.Unlock()
+
+	if s.references == nil || len(s.references) == 0 {
+		return nil
+	}
+
+	result := make([]opentracing.SpanReference, len(s.references))
+	for i, r := range s.references {
+		result[i] = opentracing.SpanReference{Type: r.Type, ReferencedContext: r.Context}
 	}
 	return result
 }

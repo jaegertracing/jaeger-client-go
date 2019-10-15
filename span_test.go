@@ -258,3 +258,58 @@ func TestSpanLifecycle(t *testing.T) {
 	sp1.Release() // Now we will kill the object and return it in the pool
 	assert.True(t, sp1.tracer == nil, "span must be released")
 }
+
+func TestSpan_Logs(t *testing.T) {
+	tests := []struct {
+		logs []opentracing.LogRecord
+		name string
+		want []opentracing.LogRecord
+	}{
+		{
+			name: "if span logs is return nil",
+		},
+		{
+			name: "if span logs is zero len slice return nil",
+			logs: []opentracing.LogRecord{},
+		},
+		{
+			name: "if span logs len more than 0 return a copy",
+			logs: []opentracing.LogRecord{{}},
+			want: []opentracing.LogRecord{{}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &Span{logs: tt.logs}
+			assert.Equal(t, tt.want, s.Logs())
+		})
+	}
+}
+
+func TestSpan_References(t *testing.T) {
+	tests := []struct {
+		name       string
+		references []Reference
+		want       []opentracing.SpanReference
+	}{
+
+		{
+			name: "if span references is nil return nil",
+		},
+		{
+			name:       "if span references is zero len slice return nil",
+			references: []Reference{},
+		},
+		{
+			name:       "if span references len more than 0 return a copy",
+			references: []Reference{{}},
+			want:       []opentracing.SpanReference{{ReferencedContext: SpanContext{}}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &Span{references: tt.references}
+			assert.Equal(t, tt.want, s.References())
+		})
+	}
+}
