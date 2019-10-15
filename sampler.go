@@ -57,17 +57,23 @@ type Sampler interface {
 
 // ConstSampler is a sampler that always makes the same decision.
 type ConstSampler struct {
+	legacySamplerV1Base
 	Decision bool
 	tags     []Tag
 }
 
 // NewConstSampler creates a ConstSampler.
-func NewConstSampler(sample bool) Sampler {
+func NewConstSampler(sample bool) *ConstSampler {
 	tags := []Tag{
 		{key: SamplerTypeTagKey, value: SamplerTypeConst},
 		{key: SamplerParamTagKey, value: sample},
 	}
-	return &ConstSampler{Decision: sample, tags: tags}
+	s := &ConstSampler{
+		Decision: sample,
+		tags:     tags,
+	}
+	s.delegate = s.IsSampled
+	return s
 }
 
 // IsSampled implements IsSampled() of Sampler.

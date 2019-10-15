@@ -34,6 +34,7 @@ type Span struct {
 
 	tracer *Tracer
 
+	// TODO: (major) change to use a pointer
 	context SpanContext
 
 	// The name of the "operation" this span is an instance of.
@@ -74,24 +75,36 @@ type Tag struct {
 // SetOperationName sets or changes the operation name.
 func (s *Span) SetOperationName(operationName string) opentracing.Span {
 	s.Lock()
-	defer s.Unlock()
-	if s.context.IsSampled() {
-		s.operationName = operationName
+	s.operationName = operationName
+	if !s.isSamplingFinalized() {
+		decision := s.tracer.sampler.OnSetOperationName(s, operationName)
+		s.applySamplingDecision(decision, false)
 	}
+	s.Unlock()
 	s.observer.OnSetOperationName(operationName)
 	return s
 }
 
 // SetTag implements SetTag() of opentracing.Span
 func (s *Span) SetTag(key string, value interface{}) opentracing.Span {
+	return s.setTagInternal(key, value, true)
+}
+
+func (s *Span) setTagInternal(key string, value interface{}, lock bool) opentracing.Span {
 	s.observer.OnSetTag(key, value)
 	if key == string(ext.SamplingPriority) && !setSamplingPriority(s, value) {
 		return s
 	}
-	s.Lock()
-	defer s.Unlock()
-	if s.context.IsSampled() {
-		s.setTagNoLocking(key, value)
+	if !s.isSamplingFinalized() {
+		decision := s.tracer.sampler.OnSetTag(s, key, value)
+		s.applySamplingDecision(decision, lock)
+	}
+	if s.isWriteable() {
+		if lock {
+			s.Lock()
+			defer s.Unlock()
+		}
+		s.appendTagNoLocking(key, value)
 	}
 	return s
 }
@@ -128,7 +141,7 @@ func (s *Span) Tags() opentracing.Tags {
 	return result
 }
 
-func (s *Span) setTagNoLocking(key string, value interface{}) {
+func (s *Span) appendTagNoLocking(key string, value interface{}) {
 	s.tags = append(s.tags, Tag{key: key, value: value})
 }
 
@@ -148,7 +161,7 @@ func (s *Span) logFieldsNoLocking(fields ...log.Field) {
 		Fields:    fields,
 		Timestamp: time.Now(),
 	}
-	s.appendLog(lr)
+	s.appendLogNoLocking(lr)
 }
 
 // LogKV implements opentracing.Span API
@@ -185,12 +198,12 @@ func (s *Span) Log(ld opentracing.LogData) {
 		if ld.Timestamp.IsZero() {
 			ld.Timestamp = s.tracer.timeNow()
 		}
-		s.appendLog(ld.ToLogRecord())
+		s.appendLogNoLocking(ld.ToLogRecord())
 	}
 }
 
 // this function should only be called while holding a Write lock
-func (s *Span) appendLog(lr opentracing.LogRecord) {
+func (s *Span) appendLogNoLocking(lr opentracing.LogRecord) {
 	// TODO add logic to limit number of logs per span (issue #46)
 	s.logs = append(s.logs, lr)
 }
@@ -224,8 +237,12 @@ func (s *Span) FinishWithOptions(options opentracing.FinishOptions) {
 	}
 	s.observer.OnFinish(options)
 	s.Lock()
+	s.duration = options.FinishTime.Sub(s.startTime)
+	if !s.isSamplingFinalized() {
+		decision := s.tracer.sampler.OnFinishSpan(s)
+		s.applySamplingDecision(decision, false)
+	}
 	if s.context.IsSampled() {
-		s.duration = options.FinishTime.Sub(s.startTime)
 		// Note: bulk logs are not subject to maxLogsPerSpan limit
 		if options.LogRecords != nil {
 			s.logs = append(s.logs, options.LogRecords...)
@@ -300,6 +317,34 @@ func (s *Span) serviceName() string {
 	return s.tracer.serviceName
 }
 
+func (s *Span) applySamplingDecision(decision SamplingDecision, lock bool) {
+	if !decision.retryable {
+		s.context.samplingState.setFinal()
+	}
+	if decision.sample {
+		s.context.samplingState.setSampled()
+		if len(decision.tags) > 0 {
+			if lock {
+				s.Lock()
+				defer s.Unlock()
+			}
+			for _, tag := range decision.tags {
+				s.appendTagNoLocking(tag.key, tag.value)
+			}
+		}
+	}
+}
+
+// Span can be written to if it is sampled or the sampling decision has not been finalized.
+func (s *Span) isWriteable() bool {
+	state := s.context.samplingState
+	return !state.isFinal() || state.isSampled()
+}
+
+func (s *Span) isSamplingFinalized() bool {
+	return s.context.samplingState.isFinal()
+}
+
 // setSamplingPriority returns true if the flag was updated successfully, false otherwise.
 // The behavior of setSamplingPriority is surprising
 // If noDebugFlagOnForcedSampling is set
@@ -322,6 +367,7 @@ func setSamplingPriority(s *Span, value interface{}) bool {
 	}
 	if s.tracer.options.noDebugFlagOnForcedSampling {
 		s.context.samplingState.setSampled()
+		return true
 	} else if s.tracer.isDebugAllowed(s.operationName) {
 		s.context.samplingState.setDebugAndSampled()
 		return true
