@@ -121,11 +121,13 @@ func newProbabilisticSampler(samplingRate float64) *ProbabilisticSampler {
 		{key: SamplerTypeTagKey, value: SamplerTypeProbabilistic},
 		{key: SamplerParamTagKey, value: samplingRate},
 	}
-	return &ProbabilisticSampler{
+	s := &ProbabilisticSampler{
 		samplingRate:     samplingRate,
 		samplingBoundary: uint64(float64(maxRandomNumber) * samplingRate),
 		tags:             tags,
 	}
+	s.delegate = s.IsSampled
+	return s
 }
 
 // SamplingRate returns the sampling probability this sampled was constructed with.
@@ -169,11 +171,13 @@ func NewRateLimitingSampler(maxTracesPerSecond float64) *RateLimitingSampler {
 		{key: SamplerTypeTagKey, value: SamplerTypeRateLimiting},
 		{key: SamplerParamTagKey, value: maxTracesPerSecond},
 	}
-	return &RateLimitingSampler{
+	s := &RateLimitingSampler{
 		maxTracesPerSecond: maxTracesPerSecond,
 		rateLimiter:        utils.NewRateLimiter(maxTracesPerSecond, math.Max(maxTracesPerSecond, 1.0)),
 		tags:               tags,
 	}
+	s.delegate = s.IsSampled
+	return s
 }
 
 // IsSampled implements IsSampled() of Sampler.
@@ -306,11 +310,36 @@ func newAdaptiveSampler(strategies *sampling.PerOperationSamplingStrategies, max
 }
 
 func (s *AdaptiveSampler) IsSampled(id TraceID, operation string) (bool, []Tag) {
+	return false, nil
+}
+
+func (s *AdaptiveSampler) OnCreateSpan(span *Span) SamplingDecision {
+	operationName := span.OperationName()
+	samplerV1 := s.getSamplerForOperation(operationName)
+	sampled, tags := samplerV1.IsSampled(span.context.TraceID(), operationName)
+	return SamplingDecision{sample: sampled, retryable: true, tags: tags}
+}
+
+func (s *AdaptiveSampler) OnSetOperationName(span *Span, operationName string) SamplingDecision {
+	samplerV1 := s.getSamplerForOperation(operationName)
+	sampled, tags := samplerV1.IsSampled(span.context.TraceID(), operationName)
+	return SamplingDecision{sample: sampled, retryable: false, tags: tags}
+}
+
+func (s *AdaptiveSampler) OnSetTag(span *Span, key string, value interface{}) SamplingDecision {
+	return SamplingDecision{sample: false, retryable: true}
+}
+
+func (s *AdaptiveSampler) OnFinishSpan(span *Span) SamplingDecision {
+	return SamplingDecision{sample: false, retryable: true}
+}
+
+func (s *AdaptiveSampler) getSamplerForOperation(operation string) Sampler {
 	s.RLock()
 	sampler, ok := s.samplers[operation]
 	if ok {
 		defer s.RUnlock()
-		return sampler.IsSampled(id, operation)
+		return sampler
 	}
 	s.RUnlock()
 	s.Lock()
@@ -319,15 +348,15 @@ func (s *AdaptiveSampler) IsSampled(id TraceID, operation string) (bool, []Tag) 
 	// Check if sampler has already been created
 	sampler, ok = s.samplers[operation]
 	if ok {
-		return sampler.IsSampled(id, operation)
+		return sampler
 	}
 	// Store only up to maxOperations of unique ops.
 	if len(s.samplers) >= s.maxOperations {
-		return s.defaultSampler.IsSampled(id, operation)
+		return s.defaultSampler
 	}
 	newSampler := newGuaranteedThroughputProbabilisticSampler(s.lowerBound, s.defaultSampler.SamplingRate())
 	s.samplers[operation] = newSampler
-	return newSampler.IsSampled(id, operation)
+	return newSampler
 }
 
 func (s *AdaptiveSampler) Close() {
@@ -339,6 +368,7 @@ func (s *AdaptiveSampler) Close() {
 	s.defaultSampler.Close()
 }
 
+// TODO (breaking change) remove this in the future
 func (s *AdaptiveSampler) Equal(other Sampler) bool {
 	// NB The Equal() function is overly expensive for AdaptiveSampler since it's composed of multiple
 	// samplers which all need to be initialized before this function can be called for a comparison.

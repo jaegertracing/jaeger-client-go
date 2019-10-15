@@ -21,7 +21,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-client-go/thrift-gen/sampling"
 	"github.com/uber/jaeger-client-go/utils"
 )
@@ -29,8 +28,6 @@ import (
 const (
 	defaultSamplingRefreshInterval = time.Minute
 )
-
-// -----------------------
 
 // RemotelyControlledSampler is a delegating sampler that polls a remote server
 // for the appropriate sampling strategy, constructs a corresponding sampler and
@@ -48,29 +45,15 @@ type RemotelyControlledSampler struct {
 	doneChan    chan *sync.WaitGroup
 }
 
-type httpSamplingManager struct {
-	serverURL string
-}
-
-func (s *httpSamplingManager) GetSamplingStrategy(serviceName string) (*sampling.SamplingStrategyResponse, error) {
-	var out sampling.SamplingStrategyResponse
-	v := url.Values{}
-	v.Set("service", serviceName)
-	if err := utils.GetJSON(s.serverURL+"?"+v.Encode(), &out); err != nil {
-		return nil, err
-	}
-	return &out, nil
-}
-
 // NewRemotelyControlledSampler creates a sampler that periodically pulls
 // the sampling strategy from an HTTP sampling server (e.g. jaeger-agent).
 func NewRemotelyControlledSampler(
 	serviceName string,
 	opts ...SamplerOption,
 ) *RemotelyControlledSampler {
-	options := applySamplerOptions(opts...)
+	options := new(samplerOptions).applyOptionsAndDefaults(opts...)
 	sampler := &RemotelyControlledSampler{
-		samplerOptions: options,
+		samplerOptions: *options,
 		serviceName:    serviceName,
 		manager:        &httpSamplingManager{serverURL: options.samplingServerURL},
 		doneChan:       make(chan *sync.WaitGroup),
@@ -79,37 +62,26 @@ func NewRemotelyControlledSampler(
 	return sampler
 }
 
-func applySamplerOptions(opts ...SamplerOption) samplerOptions {
-	options := samplerOptions{}
-	for _, option := range opts {
-		option(&options)
-	}
-	if options.sampler == nil {
-		options.sampler = newProbabilisticSampler(0.001)
-	}
-	if options.logger == nil {
-		options.logger = log.NullLogger
-	}
-	if options.maxOperations <= 0 {
-		options.maxOperations = defaultMaxOperations
-	}
-	if options.samplingServerURL == "" {
-		options.samplingServerURL = DefaultSamplingServerURL
-	}
-	if options.metrics == nil {
-		options.metrics = NewNullMetrics()
-	}
-	if options.samplingRefreshInterval <= 0 {
-		options.samplingRefreshInterval = defaultSamplingRefreshInterval
-	}
-	return options
+// IsSampled implements IsSampled() of Sampler.
+// TODO (breaking change) remove when Sampler V1 is removed
+func (s *RemotelyControlledSampler) IsSampled(id TraceID, operation string) (bool, []Tag) {
+	return false, nil
 }
 
-// IsSampled implements IsSampled() of Sampler.
-func (s *RemotelyControlledSampler) IsSampled(id TraceID, operation string) (bool, []Tag) {
-	s.RLock()
-	defer s.RUnlock()
-	return s.sampler.(Sampler).IsSampled(id, operation)
+func (s *RemotelyControlledSampler) OnCreateSpan(span *Span) SamplingDecision {
+	return s.sampler.OnCreateSpan(span)
+}
+
+func (s *RemotelyControlledSampler) OnSetOperationName(span *Span, operationName string) SamplingDecision {
+	return s.sampler.OnSetOperationName(span, operationName)
+}
+
+func (s *RemotelyControlledSampler) OnSetTag(span *Span, key string, value interface{}) SamplingDecision {
+	return s.sampler.OnSetTag(span, key, value)
+}
+
+func (s *RemotelyControlledSampler) OnFinishSpan(span *Span) SamplingDecision {
+	return s.sampler.OnFinishSpan(span)
 }
 
 // Close implements Close() of Sampler.
@@ -166,11 +138,7 @@ func (s *RemotelyControlledSampler) getSampler() Sampler {
 func (s *RemotelyControlledSampler) setSampler(sampler Sampler) {
 	s.Lock()
 	defer s.Unlock()
-	s.setSamplerNoLock(samplerV1toV2(sampler))
-}
-
-func (s *RemotelyControlledSampler) setSamplerNoLock(sampler SamplerV2) {
-	s.sampler = sampler
+	s.sampler = samplerV1toV2(sampler)
 }
 
 func (s *RemotelyControlledSampler) updateSampler() {
@@ -208,7 +176,7 @@ func (s *RemotelyControlledSampler) updateAdaptiveSampler(strategies *sampling.P
 
 // NB: this function should only be called while holding a Write lock
 func (s *RemotelyControlledSampler) updateRateLimitingOrProbabilisticSampler(res *sampling.SamplingStrategyResponse) error {
-	var newSampler Sampler
+	var newSampler SamplerV2
 	if probabilistic := res.GetProbabilisticSampling(); probabilistic != nil {
 		newSampler = newProbabilisticSampler(probabilistic.SamplingRate)
 	} else if rateLimiting := res.GetRateLimitingSampling(); rateLimiting != nil {
@@ -220,4 +188,18 @@ func (s *RemotelyControlledSampler) updateRateLimitingOrProbabilisticSampler(res
 		s.sampler = newSampler
 	}
 	return nil
+}
+
+type httpSamplingManager struct {
+	serverURL string
+}
+
+func (s *httpSamplingManager) GetSamplingStrategy(serviceName string) (*sampling.SamplingStrategyResponse, error) {
+	var out sampling.SamplingStrategyResponse
+	v := url.Values{}
+	v.Set("service", serviceName)
+	if err := utils.GetJSON(s.serverURL+"?"+v.Encode(), &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
 }

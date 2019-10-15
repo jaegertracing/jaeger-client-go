@@ -17,7 +17,6 @@ package jaeger
 import (
 	"errors"
 	"fmt"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -32,7 +31,7 @@ import (
 )
 
 func TestApplySamplerOptions(t *testing.T) {
-	options := applySamplerOptions()
+	options := new(samplerOptions).applyOptionsAndDefaults()
 	sampler, ok := options.sampler.(*ProbabilisticSampler)
 	assert.True(t, ok)
 	assert.Equal(t, 0.001, sampler.samplingRate)
@@ -66,6 +65,16 @@ func initAgent(t *testing.T) (*testutils.MockAgent, *RemotelyControlledSampler, 
 	return agent, sampler, metricsFactory
 }
 
+func makeSpan(id uint64, operationName string) *Span {
+	return &Span{
+		context: SpanContext{
+			traceID:       TraceID{Low: id},
+			samplingState: new(samplingState),
+		},
+		operationName: operationName,
+	}
+}
+
 func TestRemotelyControlledSampler(t *testing.T) {
 	agent, remoteSampler, metricsFactory := initAgent(t)
 	defer agent.Close()
@@ -84,12 +93,12 @@ func TestRemotelyControlledSampler(t *testing.T) {
 	assert.True(t, ok)
 	assert.NotEqual(t, initSampler, s1, "Sampler should have been updated")
 
-	sampled, tags := remoteSampler.IsSampled(TraceID{Low: testMaxID + 10}, testOperationName)
-	assert.False(t, sampled)
-	assert.Equal(t, testProbabilisticExpectedTags, tags)
-	sampled, tags = remoteSampler.IsSampled(TraceID{Low: testMaxID - 10}, testOperationName)
-	assert.True(t, sampled)
-	assert.Equal(t, testProbabilisticExpectedTags, tags)
+	decision := remoteSampler.OnCreateSpan(makeSpan(testMaxID+10, testOperationName))
+	assert.False(t, decision.sample)
+	assert.Equal(t, testProbabilisticExpectedTags, decision.tags)
+	decision = remoteSampler.OnCreateSpan(makeSpan(testMaxID-10, testOperationName))
+	assert.True(t, decision.sample)
+	assert.Equal(t, testProbabilisticExpectedTags, decision.tags)
 
 	remoteSampler.setSampler(initSampler)
 
@@ -108,7 +117,7 @@ func TestRemotelyControlledSampler(t *testing.T) {
 	assert.True(t, remoteSampler.Equal(remoteSampler))
 }
 
-func generateTags(key string, value float64) []Tag {
+func generateSamplerTags(key string, value interface{}) []Tag {
 	return []Tag{
 		{"sampler.type", key},
 		{"sampler.param", value},
@@ -126,7 +135,7 @@ func TestRemotelyControlledSampler_updateSampler(t *testing.T) {
 			probabilities:              map[string]float64{testOperationName: 1.1},
 			defaultProbability:         testDefaultSamplingProbability,
 			expectedDefaultProbability: testDefaultSamplingProbability,
-			expectedTags:               generateTags("probabilistic", 1.0),
+			expectedTags:               generateSamplerTags("probabilistic", 1.0),
 		},
 		{
 			probabilities:              map[string]float64{testOperationName: testDefaultSamplingProbability},
@@ -153,7 +162,7 @@ func TestRemotelyControlledSampler_updateSampler(t *testing.T) {
 			probabilities:              map[string]float64{"new op": 1.1},
 			defaultProbability:         1.1,
 			expectedDefaultProbability: 1.0,
-			expectedTags:               generateTags("probabilistic", 1.0),
+			expectedTags:               generateSamplerTags("probabilistic", 1.0),
 		},
 	}
 
@@ -192,18 +201,18 @@ func TestRemotelyControlledSampler_updateSampler(t *testing.T) {
 				},
 			)
 
-			s, ok := sampler.sampler.(*adaptiveSampler)
+			s, ok := sampler.sampler.(*AdaptiveSampler)
 			assert.True(t, ok)
 			assert.NotEqual(t, initSampler, sampler.sampler, "Sampler should have been updated")
 			assert.Equal(t, test.expectedDefaultProbability, s.defaultSampler.SamplingRate())
 
 			// First call is always sampled
-			sampled, _ := sampler.IsSampled(TraceID{Low: testMaxID + 10}, testOperationName)
-			assert.True(t, sampled)
+			decision := sampler.OnCreateSpan(makeSpan(testMaxID+10, testOperationName))
+			assert.True(t, decision.sample)
 
-			sampled, tags := sampler.IsSampled(TraceID{Low: testMaxID - 10}, testOperationName)
-			assert.True(t, sampled)
-			assert.Equal(t, test.expectedTags, tags)
+			decision = sampler.OnCreateSpan(makeSpan(testMaxID-10, testOperationName))
+			assert.True(t, decision.sample)
+			assert.Equal(t, test.expectedTags, decision.tags)
 		})
 	}
 }
@@ -222,18 +231,18 @@ func TestRemotelyControlledSampler_updateDefaultRate(t *testing.T) {
 	sampler.updateSampler()
 
 	// Check what rate we get for a specific operation
-	sampled, tags := sampler.IsSampled(TraceID{}, testOperationName)
-	assert.True(t, sampled)
-	assert.Equal(t, generateTags("probabilistic", 0.5), tags)
+	decision := sampler.OnCreateSpan(makeSpan(0, testOperationName))
+	assert.True(t, decision.sample)
+	assert.Equal(t, generateSamplerTags("probabilistic", 0.5), decision.tags)
 
 	// Change the default and update
 	res.OperationSampling.DefaultSamplingProbability = 0.1
 	sampler.updateSampler()
 
 	// Check sampling rate has changed
-	sampled, tags = sampler.IsSampled(TraceID{}, testOperationName)
-	assert.True(t, sampled)
-	assert.Equal(t, generateTags("probabilistic", 0.1), tags)
+	decision = sampler.OnCreateSpan(makeSpan(0, testOperationName))
+	assert.True(t, decision.sample)
+	assert.Equal(t, generateSamplerTags("probabilistic", 0.1), decision.tags)
 
 	// Add an operation-specific rate
 	res.OperationSampling.PerOperationStrategies = []*sampling.OperationSamplingStrategy{{
@@ -245,18 +254,19 @@ func TestRemotelyControlledSampler_updateDefaultRate(t *testing.T) {
 	sampler.updateSampler()
 
 	// Check we get the requested rate
-	sampled, tags = sampler.IsSampled(TraceID{}, testOperationName)
-	assert.True(t, sampled)
-	assert.Equal(t, generateTags("probabilistic", 0.2), tags)
+	decision = sampler.OnCreateSpan(makeSpan(0, testOperationName))
+	assert.True(t, decision.sample)
+	assert.Equal(t, generateSamplerTags("probabilistic", 0.2), decision.tags)
 
 	// Now remove the operation-specific rate
 	res.OperationSampling.PerOperationStrategies = nil
 	sampler.updateSampler()
 
 	// Check we get the default rate
-	sampled, tags = sampler.IsSampled(TraceID{}, testOperationName)
-	assert.True(t, sampled)
-	assert.Equal(t, generateTags("probabilistic", 0.1), tags)
+	assert.True(t, decision.sample)
+	decision = sampler.OnCreateSpan(makeSpan(0, testOperationName))
+	assert.True(t, decision.sample)
+	assert.Equal(t, generateSamplerTags("probabilistic", 0.1), decision.tags)
 }
 
 func TestSamplerQueryError(t *testing.T) {
@@ -317,7 +327,7 @@ func TestRemotelyControlledSampler_updateSamplerFromAdaptiveSampler(t *testing.T
 	remoteSampler.updateSampler()
 
 	// Sampler should have been updated to ratelimiting
-	_, ok = remoteSampler.sampler.(*rateLimitingSampler)
+	_, ok = remoteSampler.sampler.(*RateLimitingSampler)
 	require.True(t, ok)
 
 	// Overwrite the sampler with an adaptive sampler
@@ -346,7 +356,7 @@ func TestRemotelyControlledSampler_updateRateLimitingOrProbabilisticSampler(t *t
 
 	testCases := []struct {
 		res                  *sampling.SamplingStrategyResponse
-		initSampler          Sampler
+		initSampler          SamplerV2
 		expectedSampler      Sampler
 		shouldErr            bool
 		referenceEquivalence bool
@@ -413,7 +423,7 @@ func TestRemotelyControlledSampler_updateRateLimitingOrProbabilisticSampler(t *t
 			if testCase.referenceEquivalence {
 				assert.Equal(t, testCase.expectedSampler, remoteSampler.sampler)
 			} else {
-				assert.True(t, testCase.expectedSampler.Equal(remoteSampler.sampler))
+				assert.True(t, testCase.expectedSampler.Equal(remoteSampler.sampler.(Sampler)))
 			}
 		})
 	}
@@ -449,12 +459,4 @@ func TestRemotelyControlledSampler_printErrorForBrokenUpstream(t *testing.T) {
 	sampler.updateSampler()
 
 	assert.True(t, strings.Contains(logger.String(), "Unable to query sampling strategy:"))
-}
-
-func isSampled(t *testing.T, remoteSampler *RemotelyControlledSampler, numOperations int, operationNamePrefix string) {
-	for i := 0; i < numOperations; i++ {
-		runtime.Gosched()
-		sampled, _ := remoteSampler.IsSampled(TraceID{}, fmt.Sprintf("%s%d", operationNamePrefix, i))
-		assert.True(t, sampled)
-	}
 }
