@@ -198,10 +198,10 @@ func TestRemotelyControlledSampler_updateSampler(t *testing.T) {
 			assert.Equal(t, test.expectedDefaultProbability, s.defaultSampler.SamplingRate())
 
 			// First call is always sampled
-			sampled, tags := sampler.IsSampled(TraceID{Low: testMaxID + 10}, testOperationName)
+			sampled, _ := sampler.IsSampled(TraceID{Low: testMaxID + 10}, testOperationName)
 			assert.True(t, sampled)
 
-			sampled, tags = sampler.IsSampled(TraceID{Low: testMaxID - 10}, testOperationName)
+			sampled, tags := sampler.IsSampled(TraceID{Low: testMaxID - 10}, testOperationName)
 			assert.True(t, sampled)
 			assert.Equal(t, test.expectedTags, tags)
 		})
