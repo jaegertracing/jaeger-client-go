@@ -14,4 +14,10 @@
 
 package jaeger
 
-var _ SamplerV2 = new(ConstSampler)
+var (
+	_ SamplerV2 = new(ConstSampler)
+	_ SamplerV2 = new(ProbabilisticSampler)
+	_ SamplerV2 = new(RateLimitingSampler)
+	// Note: GuaranteedThroughputProbabilisticSampler is currently not V2
+	_ SamplerV2 = new(AdaptiveSampler)
+)

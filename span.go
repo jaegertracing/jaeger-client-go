@@ -34,7 +34,7 @@ type Span struct {
 
 	tracer *Tracer
 
-	// TODO: (major) change to use a pointer
+	// TODO: (breaking change) change to use a pointer
 	context SpanContext
 
 	// The name of the "operation" this span is an instance of.
@@ -66,7 +66,7 @@ type Span struct {
 }
 
 // Tag is a simple key value wrapper.
-// TODO deprecate in the next major release, use opentracing.Tag instead.
+// TODO (breaking change) deprecate in the next major release, use opentracing.Tag instead.
 type Tag struct {
 	key   string
 	value interface{}

@@ -15,6 +15,8 @@
 package jaeger
 
 import (
+	"fmt"
+	"runtime"
 	"sync"
 	"testing"
 
@@ -52,7 +54,7 @@ func TestSamplerTags(t *testing.T) {
 	remote := &RemotelyControlledSampler{}
 	remote.sampler = NewConstSampler(true)
 	tests := []struct {
-		sampler  Sampler
+		sampler  SamplerV2
 		typeTag  string
 		paramTag interface{}
 	}{
@@ -63,19 +65,8 @@ func TestSamplerTags(t *testing.T) {
 		{remote, "const", true},
 	}
 	for _, test := range tests {
-		_, tags := test.sampler.IsSampled(TraceID{}, testOperationName)
-		count := 0
-		for _, tag := range tags {
-			if tag.key == SamplerTypeTagKey {
-				assert.Equal(t, test.typeTag, tag.value)
-				count++
-			}
-			if tag.key == SamplerParamTagKey {
-				assert.Equal(t, test.paramTag, tag.value)
-				count++
-			}
-		}
-		assert.Equal(t, 2, count)
+		decision := test.sampler.OnCreateSpan(makeSpan(0, testOperationName))
+		assert.Equal(t, makeSamplerTags(test.typeTag, test.paramTag), decision.tags)
 	}
 }
 
@@ -174,21 +165,21 @@ func TestAdaptiveSampler(t *testing.T) {
 	require.NoError(t, err)
 	defer sampler.Close()
 
-	sampled, tags := sampler.IsSampled(TraceID{Low: testMaxID + 10}, testOperationName)
-	assert.True(t, sampled)
-	assert.Equal(t, testLowerBoundExpectedTags, tags)
+	decision := sampler.OnCreateSpan(makeSpan(testMaxID+10, testOperationName))
+	assert.True(t, decision.sample)
+	assert.Equal(t, testLowerBoundExpectedTags, decision.tags)
 
-	sampled, tags = sampler.IsSampled(TraceID{Low: testMaxID - 20}, testOperationName)
-	assert.True(t, sampled)
-	assert.Equal(t, testProbabilisticExpectedTags, tags)
+	decision = sampler.OnCreateSpan(makeSpan(testMaxID-20, testOperationName))
+	assert.True(t, decision.sample)
+	assert.Equal(t, testProbabilisticExpectedTags, decision.tags)
 
-	sampled, tags = sampler.IsSampled(TraceID{Low: testMaxID + 10}, testOperationName)
-	assert.False(t, sampled)
+	decision = sampler.OnCreateSpan(makeSpan(testMaxID+10, testOperationName))
+	assert.False(t, decision.sample)
 
 	// This operation is seen for the first time by the sampler
-	sampled, tags = sampler.IsSampled(TraceID{Low: testMaxID}, testFirstTimeOperationName)
-	assert.True(t, sampled)
-	assert.Equal(t, testProbabilisticExpectedTags, tags)
+	decision = sampler.OnCreateSpan(makeSpan(testMaxID, testFirstTimeOperationName))
+	assert.True(t, decision.sample)
+	assert.Equal(t, testProbabilisticExpectedTags, decision.tags)
 }
 
 func TestAdaptiveSamplerErrors(t *testing.T) {
@@ -205,12 +196,12 @@ func TestAdaptiveSamplerErrors(t *testing.T) {
 
 	sampler, err := NewAdaptiveSampler(strategies, testDefaultMaxOperations)
 	assert.NoError(t, err)
-	assert.Equal(t, 0.0, sampler.(*adaptiveSampler).samplers[testOperationName].samplingRate)
+	assert.Equal(t, 0.0, sampler.samplers[testOperationName].samplingRate)
 
 	strategies.PerOperationStrategies[0].ProbabilisticSampling.SamplingRate = 1.1
 	sampler, err = NewAdaptiveSampler(strategies, testDefaultMaxOperations)
 	assert.NoError(t, err)
-	assert.Equal(t, 1.0, sampler.(*adaptiveSampler).samplers[testOperationName].samplingRate)
+	assert.Equal(t, 1.0, sampler.samplers[testOperationName].samplingRate)
 }
 
 func TestAdaptiveSamplerUpdate(t *testing.T) {
@@ -228,11 +219,9 @@ func TestAdaptiveSamplerUpdate(t *testing.T) {
 		PerOperationStrategies:           samplingRates,
 	}
 
-	s, err := NewAdaptiveSampler(strategies, testDefaultMaxOperations)
+	sampler, err := NewAdaptiveSampler(strategies, testDefaultMaxOperations)
 	assert.NoError(t, err)
 
-	sampler, ok := s.(*adaptiveSampler)
-	assert.True(t, ok)
 	assert.Equal(t, lowerBound, sampler.lowerBound)
 	assert.Equal(t, testDefaultSamplingProbability, sampler.defaultSampler.SamplingRate())
 	assert.Len(t, sampler.samplers, 1)
@@ -279,9 +268,9 @@ func TestMaxOperations(t *testing.T) {
 	sampler, err := NewAdaptiveSampler(strategies, 1)
 	assert.NoError(t, err)
 
-	sampled, tags := sampler.IsSampled(TraceID{Low: testMaxID - 10}, testFirstTimeOperationName)
-	assert.True(t, sampled)
-	assert.Equal(t, testProbabilisticExpectedTags, tags)
+	decision := sampler.OnCreateSpan(makeSpan(testMaxID-10, testFirstTimeOperationName))
+	assert.True(t, decision.sample)
+	assert.Equal(t, testProbabilisticExpectedTags, decision.tags)
 }
 
 func TestAdaptiveSampler_lockRaceCondition(t *testing.T) {
@@ -304,6 +293,17 @@ func TestAdaptiveSampler_lockRaceCondition(t *testing.T) {
 	var wg sync.WaitGroup
 	defer wg.Wait()
 	wg.Add(2)
+
+	isSampled := func(t *testing.T, remoteSampler *RemotelyControlledSampler, numOperations int, operationNamePrefix string) {
+		for i := 0; i < numOperations; i++ {
+			runtime.Gosched()
+			span := &Span{
+				operationName: fmt.Sprintf("%s%d", operationNamePrefix, i),
+			}
+			decision := remoteSampler.OnCreateSpan(span)
+			assert.True(t, decision.sample)
+		}
+	}
 
 	// Start 2 go routines that will simulate simultaneous calls to IsSampled
 	go func() {
