@@ -89,6 +89,11 @@ func (s *ConstSampler) Equal(other Sampler) bool {
 	return false
 }
 
+// String is used to log sampler details.
+func (s *ConstSampler) String() string {
+	return fmt.Sprintf("ConstSampler(decision=%t)", s.Decision)
+}
+
 // -----------------------
 
 // ProbabilisticSampler is a sampler that randomly samples a certain percentage
@@ -153,6 +158,11 @@ func (s *ProbabilisticSampler) Equal(other Sampler) bool {
 	return false
 }
 
+// String is used to log sampler details.
+func (s *ProbabilisticSampler) String() string {
+	return fmt.Sprintf("ProbabilisticSampler(samplingRate=%v)", s.samplingRate)
+}
+
 // -----------------------
 
 type RateLimitingSampler struct {
@@ -194,6 +204,11 @@ func (s *RateLimitingSampler) Equal(other Sampler) bool {
 		return s.maxTracesPerSecond == o.maxTracesPerSecond
 	}
 	return false
+}
+
+// String is used to log sampler details.
+func (s *RateLimitingSampler) String() string {
+	return fmt.Sprintf("RateLimitingSampler(maxTracesPerSecond=%v)", s.maxTracesPerSecond)
 }
 
 // -----------------------
