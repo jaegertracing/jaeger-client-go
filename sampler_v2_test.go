@@ -18,11 +18,10 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -36,6 +35,8 @@ var (
 	_ SamplerV2 = new(retryableTestSampler)
 )
 
+// retryableTestSampler leaves the sampling unfinalized (retryable) after OnCreateSpan,
+// and makes it final after OnSetOperationName.
 type retryableTestSampler struct {
 	decision bool
 	tags     []Tag
