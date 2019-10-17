@@ -332,21 +332,21 @@ func (s *AdaptiveSampler) OnCreateSpan(span *Span) SamplingDecision {
 	operationName := span.OperationName()
 	samplerV1 := s.getSamplerForOperation(operationName)
 	sampled, tags := samplerV1.IsSampled(span.context.TraceID(), operationName)
-	return SamplingDecision{sample: sampled, retryable: true, tags: tags}
+	return SamplingDecision{Sample: sampled, Retryable: true, Tags: tags}
 }
 
 func (s *AdaptiveSampler) OnSetOperationName(span *Span, operationName string) SamplingDecision {
 	samplerV1 := s.getSamplerForOperation(operationName)
 	sampled, tags := samplerV1.IsSampled(span.context.TraceID(), operationName)
-	return SamplingDecision{sample: sampled, retryable: false, tags: tags}
+	return SamplingDecision{Sample: sampled, Retryable: false, Tags: tags}
 }
 
 func (s *AdaptiveSampler) OnSetTag(span *Span, key string, value interface{}) SamplingDecision {
-	return SamplingDecision{sample: false, retryable: true}
+	return SamplingDecision{Sample: false, Retryable: true}
 }
 
 func (s *AdaptiveSampler) OnFinishSpan(span *Span) SamplingDecision {
-	return SamplingDecision{sample: false, retryable: true}
+	return SamplingDecision{Sample: false, Retryable: true}
 }
 
 func (s *AdaptiveSampler) getSamplerForOperation(operation string) Sampler {

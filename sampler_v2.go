@@ -15,9 +15,9 @@
 package jaeger
 
 type SamplingDecision struct {
-	sample    bool
-	retryable bool
-	tags      []Tag
+	Sample    bool
+	Retryable bool
+	Tags      []Tag
 }
 
 type SamplerV2 interface {
@@ -46,6 +46,17 @@ func samplerV1toV2(s Sampler) SamplerV2 {
 	}
 }
 
+// SamplerV2Base can be used by V2 samplers to implement dummy V1 methods.
+type SamplerV2Base struct{}
+
+func (SamplerV2Base) IsSampled(id TraceID, operation string) (sampled bool, tags []Tag) {
+	return false, nil
+}
+
+func (SamplerV2Base) Close() {}
+
+func (SamplerV2Base) Equal(other Sampler) bool { return false }
+
 // legacySamplerV1Base is used as a base for simple samplers that only implement
 // the legacy isSampled() function that is not sensitive to its arguments.
 type legacySamplerV1Base struct {
@@ -54,20 +65,20 @@ type legacySamplerV1Base struct {
 
 func (s *legacySamplerV1Base) OnCreateSpan(span *Span) SamplingDecision {
 	isSampled, tags := s.delegate(span.context.traceID, span.operationName)
-	return SamplingDecision{sample: isSampled, retryable: false, tags: tags}
+	return SamplingDecision{Sample: isSampled, Retryable: false, Tags: tags}
 }
 
 func (s *legacySamplerV1Base) OnSetOperationName(span *Span, operationName string) SamplingDecision {
 	isSampled, tags := s.delegate(span.context.traceID, span.operationName)
-	return SamplingDecision{sample: isSampled, retryable: false, tags: tags}
+	return SamplingDecision{Sample: isSampled, Retryable: false, Tags: tags}
 }
 
 func (s *legacySamplerV1Base) OnSetTag(span *Span, key string, value interface{}) SamplingDecision {
-	return SamplingDecision{sample: false, retryable: true}
+	return SamplingDecision{Sample: false, Retryable: true}
 }
 
 func (s *legacySamplerV1Base) OnFinishSpan(span *Span) SamplingDecision {
-	return SamplingDecision{sample: false, retryable: true}
+	return SamplingDecision{Sample: false, Retryable: true}
 }
 
 func (s *legacySamplerV1Base) Close() {}

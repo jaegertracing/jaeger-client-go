@@ -164,6 +164,11 @@ func (c SpanContext) IsDebug() bool {
 	return c.samplingState.isDebug()
 }
 
+// IsSamplingFinalized indicates whether the sampling decision has been finalized.
+func (c SpanContext) IsSamplingFinalized() bool {
+	return c.samplingState.isFinal()
+}
+
 // IsFirehose indicates whether the firehose flag was set
 func (c SpanContext) IsFirehose() bool {
 	return c.samplingState.isFirehose()
@@ -172,6 +177,11 @@ func (c SpanContext) IsFirehose() bool {
 // IsValid indicates whether this context actually represents a valid trace.
 func (c SpanContext) IsValid() bool {
 	return c.traceID.IsValid() && c.spanID != 0
+}
+
+// SetFirehose enables firehose mode for this trace.
+func (c SpanContext) SetFirehose() {
+	c.samplingState.setFirehose()
 }
 
 func (c SpanContext) String() string {

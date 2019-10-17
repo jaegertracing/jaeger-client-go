@@ -66,7 +66,7 @@ func TestSamplerTags(t *testing.T) {
 	}
 	for _, test := range tests {
 		decision := test.sampler.OnCreateSpan(makeSpan(0, testOperationName))
-		assert.Equal(t, makeSamplerTags(test.typeTag, test.paramTag), decision.tags)
+		assert.Equal(t, makeSamplerTags(test.typeTag, test.paramTag), decision.Tags)
 	}
 }
 
@@ -166,20 +166,20 @@ func TestAdaptiveSampler(t *testing.T) {
 	defer sampler.Close()
 
 	decision := sampler.OnCreateSpan(makeSpan(testMaxID+10, testOperationName))
-	assert.True(t, decision.sample)
-	assert.Equal(t, testLowerBoundExpectedTags, decision.tags)
+	assert.True(t, decision.Sample)
+	assert.Equal(t, testLowerBoundExpectedTags, decision.Tags)
 
 	decision = sampler.OnCreateSpan(makeSpan(testMaxID-20, testOperationName))
-	assert.True(t, decision.sample)
-	assert.Equal(t, testProbabilisticExpectedTags, decision.tags)
+	assert.True(t, decision.Sample)
+	assert.Equal(t, testProbabilisticExpectedTags, decision.Tags)
 
 	decision = sampler.OnCreateSpan(makeSpan(testMaxID+10, testOperationName))
-	assert.False(t, decision.sample)
+	assert.False(t, decision.Sample)
 
 	// This operation is seen for the first time by the sampler
 	decision = sampler.OnCreateSpan(makeSpan(testMaxID, testFirstTimeOperationName))
-	assert.True(t, decision.sample)
-	assert.Equal(t, testProbabilisticExpectedTags, decision.tags)
+	assert.True(t, decision.Sample)
+	assert.Equal(t, testProbabilisticExpectedTags, decision.Tags)
 }
 
 func TestAdaptiveSamplerErrors(t *testing.T) {
@@ -269,8 +269,8 @@ func TestMaxOperations(t *testing.T) {
 	assert.NoError(t, err)
 
 	decision := sampler.OnCreateSpan(makeSpan(testMaxID-10, testFirstTimeOperationName))
-	assert.True(t, decision.sample)
-	assert.Equal(t, testProbabilisticExpectedTags, decision.tags)
+	assert.True(t, decision.Sample)
+	assert.Equal(t, testProbabilisticExpectedTags, decision.Tags)
 }
 
 func TestAdaptiveSampler_lockRaceCondition(t *testing.T) {
@@ -301,7 +301,7 @@ func TestAdaptiveSampler_lockRaceCondition(t *testing.T) {
 				operationName: fmt.Sprintf("%s%d", operationNamePrefix, i),
 			}
 			decision := remoteSampler.OnCreateSpan(span)
-			assert.True(t, decision.sample)
+			assert.True(t, decision.Sample)
 		}
 	}
 

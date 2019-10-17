@@ -72,6 +72,12 @@ type Tag struct {
 	value interface{}
 }
 
+// NewTag creates a new Tag.
+// TODO (breaking change) deprecate in the next major release, use opentracing.Tag instead.
+func NewTag(key string, value interface{}) Tag {
+	return Tag{key: key, value: value}
+}
+
 // SetOperationName sets or changes the operation name.
 func (s *Span) SetOperationName(operationName string) opentracing.Span {
 	s.Lock()
@@ -342,17 +348,17 @@ func (s *Span) serviceName() string {
 }
 
 func (s *Span) applySamplingDecision(decision SamplingDecision, lock bool) {
-	if !decision.retryable {
+	if !decision.Retryable {
 		s.context.samplingState.setFinal()
 	}
-	if decision.sample {
+	if decision.Sample {
 		s.context.samplingState.setSampled()
-		if len(decision.tags) > 0 {
+		if len(decision.Tags) > 0 {
 			if lock {
 				s.Lock()
 				defer s.Unlock()
 			}
-			for _, tag := range decision.tags {
+			for _, tag := range decision.Tags {
 				s.appendTagNoLocking(tag.key, tag.value)
 			}
 		}

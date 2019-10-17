@@ -25,6 +25,7 @@ import (
 )
 
 var (
+	_ Sampler   = new(SamplerV2Base)
 	_ SamplerV2 = new(ConstSampler)
 	_ SamplerV2 = new(ProbabilisticSampler)
 	_ SamplerV2 = new(RateLimitingSampler)
@@ -38,6 +39,7 @@ var (
 // retryableTestSampler leaves the sampling unfinalized (retryable) after OnCreateSpan,
 // and makes it final after OnSetOperationName.
 type retryableTestSampler struct {
+	SamplerV2Base
 	decision bool
 	tags     []Tag
 }
@@ -49,27 +51,20 @@ func newRetryableSampler(decision bool) *retryableTestSampler {
 	}
 }
 
-func (s *retryableTestSampler) IsSampled(traceID TraceID, operationName string) (bool, []Tag) {
-	return false, nil
-}
-
-func (s *retryableTestSampler) Close()                   {}
-func (s *retryableTestSampler) Equal(other Sampler) bool { return false }
-
 func (s *retryableTestSampler) OnCreateSpan(span *Span) SamplingDecision {
-	return SamplingDecision{sample: s.decision, retryable: true, tags: s.tags}
+	return SamplingDecision{Sample: s.decision, Retryable: true, Tags: s.tags}
 }
 
 func (s *retryableTestSampler) OnSetOperationName(span *Span, operationName string) SamplingDecision {
-	return SamplingDecision{sample: s.decision, retryable: false, tags: s.tags}
+	return SamplingDecision{Sample: s.decision, Retryable: false, Tags: s.tags}
 }
 
 func (s *retryableTestSampler) OnSetTag(span *Span, key string, value interface{}) SamplingDecision {
-	return SamplingDecision{sample: s.decision, retryable: true, tags: s.tags}
+	return SamplingDecision{Sample: s.decision, Retryable: true, Tags: s.tags}
 }
 
 func (s *retryableTestSampler) OnFinishSpan(span *Span) SamplingDecision {
-	return SamplingDecision{sample: s.decision, retryable: true, tags: s.tags}
+	return SamplingDecision{Sample: s.decision, Retryable: true, Tags: s.tags}
 }
 
 func TestSpanRemainsWriteable(t *testing.T) {
