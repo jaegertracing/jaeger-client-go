@@ -17,13 +17,11 @@ package experimental
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/uber/jaeger-client-go"
 )
 
-// TODO Node.js client uses different format
 const tagMatchingStrategy = `
     {
       "key": "theWho",

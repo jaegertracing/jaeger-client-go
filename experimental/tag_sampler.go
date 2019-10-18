@@ -90,6 +90,9 @@ type tagMatchingSamplingStrategy struct {
 //
 // Note that matchers can be specified either via "matchers" array (preferred),
 // or via "values" dictionary (legacy, only supports string values).
+//
+// When a given tag value appears multiple time, then last one in "matchers" wins,
+// and the one in "values" wins overall.
 func NewTagMatchingSamplerFromStrategyJSON(jsonString []byte) (*TagMatchingSampler, error) {
 	var strategy tagMatchingSamplingStrategy
 	err := json.Unmarshal(jsonString, &strategy)
