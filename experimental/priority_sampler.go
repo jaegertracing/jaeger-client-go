@@ -24,24 +24,28 @@ import (
 // whether each of them has previously returned retryable=false, in which case
 // those samplers are no longer invoked on future sampling calls.
 type prioritySamplerState struct {
-	samplerFiredBitmap []uint64
+	// the calls to this sampler are on the critical path of many Span 'write'
+	// operations, and this state is shared across all spans of the trace,
+	// so we want to minimize the lock contention. This field is used as a bitmap
+	// with atomic LOAD & CAS operations on the individual 64-bit words.
+	samplerFinishedBitmap []uint64
 }
 
 func newPrioritySamplerState(count int) *prioritySamplerState {
 	return &prioritySamplerState{
-		samplerFiredBitmap: make([]uint64, 1+count/64),
+		samplerFinishedBitmap: make([]uint64, 1+count/64),
 	}
 }
 
-func (s *prioritySamplerState) isFired(index int) bool {
-	field := &s.samplerFiredBitmap[index/64]
+func (s *prioritySamplerState) isSamplerRetryable(index int) bool {
+	field := &s.samplerFinishedBitmap[index/64]
 	mask := uint64(1) << (index % 64)
 	value := atomic.LoadUint64(field)
 	return (value & mask) == mask
 }
 
-func (s *prioritySamplerState) setFired(index int) {
-	field := &s.samplerFiredBitmap[index/64]
+func (s *prioritySamplerState) markSamplerFinished(index int) {
+	field := &s.samplerFinishedBitmap[index/64]
 	mask := uint64(1) << (index % 64)
 	swapped := false
 	for !swapped {
@@ -135,12 +139,12 @@ func (s *PrioritySampler) trySampling(
 	state := s.getState(span)
 	retryable := false
 	for i := 0; i < len(s.delegates); i++ {
-		if state.isFired(i) {
+		if state.isSamplerRetryable(i) {
 			continue
 		}
 		decision := sampleFn(s.delegates[i])
 		if !decision.Retryable {
-			state.setFired(i)
+			state.markSamplerFinished(i)
 		}
 		if decision.Sample {
 			return decision
