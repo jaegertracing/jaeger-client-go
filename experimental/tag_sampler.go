@@ -60,9 +60,12 @@ func NewTagMatchingSampler(tagKey string, matchers []TagMatcher) *TagMatchingSam
 type tagMatchingSamplingStrategy struct {
 	Key      string       `json:"key"`
 	Matchers []TagMatcher `json:"matchers"`
+	// legacy format as map
+	Values map[string]TagMatcher `json:"values"`
 }
 
 // NewTagMatchingSamplerFromStrategyJSON creates the sampler from a JSON configuration of the following form:
+//
 //     {
 //       "key": "tagKey",
 //       "matchers": [
@@ -74,13 +77,28 @@ type tagMatchingSamplingStrategy struct {
 //           "value": 42,
 //           "firehose": false
 //         }
-//       ]
+//       ],
+//       "values": {
+//         "tagValue1": {
+//           "firehose": true
+//         },
+//         "tagValue2": {
+//           "firehose": false
+//         }
+//       }
 //     }
+//
+// Note that matchers can be specified either via "matchers" array (preferred),
+// or via "values" dictionary (legacy, only supports string values).
 func NewTagMatchingSamplerFromStrategyJSON(jsonString []byte) (*TagMatchingSampler, error) {
 	var strategy tagMatchingSamplingStrategy
 	err := json.Unmarshal(jsonString, &strategy)
 	if err != nil {
 		return nil, err
+	}
+	for k, v := range strategy.Values {
+		v.TagValue = k
+		strategy.Matchers = append(strategy.Matchers, v)
 	}
 	return NewTagMatchingSampler(strategy.Key, strategy.Matchers), nil
 }

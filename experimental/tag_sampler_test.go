@@ -23,14 +23,16 @@ import (
 	"github.com/uber/jaeger-client-go"
 )
 
+// TODO Node.js client uses different format
 const tagMatchingStrategy = `
     {
       "key": "theWho",
-      "matchers": [
-        {
-          "value": "Bender",
+      "values": {
+        "Bender": {
           "firehose": false
-        },
+        }
+      },
+      "matchers": [
         {
           "value": 42,
           "firehose": true
