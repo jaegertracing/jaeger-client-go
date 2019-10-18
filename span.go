@@ -82,11 +82,11 @@ func NewTag(key string, value interface{}) Tag {
 func (s *Span) SetOperationName(operationName string) opentracing.Span {
 	s.Lock()
 	s.operationName = operationName
+	s.Unlock()
 	if !s.isSamplingFinalized() {
 		decision := s.tracer.sampler.OnSetOperationName(s, operationName)
-		s.applySamplingDecision(decision, false)
+		s.applySamplingDecision(decision, true)
 	}
-	s.Unlock()
 	s.observer.OnSetOperationName(operationName)
 	return s
 }
@@ -268,20 +268,24 @@ func (s *Span) FinishWithOptions(options opentracing.FinishOptions) {
 	s.observer.OnFinish(options)
 	s.Lock()
 	s.duration = options.FinishTime.Sub(s.startTime)
+	s.Unlock()
 	if !s.isSamplingFinalized() {
 		decision := s.tracer.sampler.OnFinishSpan(s)
-		s.applySamplingDecision(decision, false)
+		s.applySamplingDecision(decision, true)
 	}
 	if s.context.IsSampled() {
-		// Note: bulk logs are not subject to maxLogsPerSpan limit
-		if options.LogRecords != nil {
-			s.logs = append(s.logs, options.LogRecords...)
-		}
-		for _, ld := range options.BulkLogData {
-			s.logs = append(s.logs, ld.ToLogRecord())
+		if len(options.LogRecords) > 0 || len(options.BulkLogData) > 0 {
+			s.Lock()
+			// Note: bulk logs are not subject to maxLogsPerSpan limit
+			if options.LogRecords != nil {
+				s.logs = append(s.logs, options.LogRecords...)
+			}
+			for _, ld := range options.BulkLogData {
+				s.logs = append(s.logs, ld.ToLogRecord())
+			}
+			s.Unlock()
 		}
 	}
-	s.Unlock()
 	// call reportSpan even for non-sampled traces, to return span to the pool
 	// and update metrics counter
 	s.tracer.reportSpan(s)

@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 
 	"go.uber.org/atomic"
 )
@@ -82,6 +83,10 @@ type samplingState struct {
 	// When state is not final, sampling will be retried on other span write operations,
 	// like SetOperationName / SetTag, and the spans will remain writable.
 	final atomic.Bool
+
+	// extendedState allows samplers to keep intermediate state.
+	// The keys and values in this map are completely opaque: interface{} -> interface{}.
+	extendedState sync.Map
 }
 
 func (s *samplingState) setFlag(newFlag int32) {
@@ -144,6 +149,15 @@ func (s *samplingState) isFinal() bool {
 	return s.final.Load()
 }
 
+func (s *samplingState) extendedStateForKey(key interface{}, initValue func() interface{}) interface{} {
+	if value, ok := s.extendedState.Load(key); ok {
+		return value
+	}
+	value := initValue()
+	value, _ = s.extendedState.LoadOrStore(key, value)
+	return value
+}
+
 // ForeachBaggageItem implements ForeachBaggageItem() of opentracing.SpanContext
 func (c SpanContext) ForeachBaggageItem(handler func(k, v string) bool) {
 	for k, v := range c.baggage {
@@ -172,6 +186,10 @@ func (c SpanContext) IsSamplingFinalized() bool {
 // IsFirehose indicates whether the firehose flag was set
 func (c SpanContext) IsFirehose() bool {
 	return c.samplingState.isFirehose()
+}
+
+func (c SpanContext) ExtendedSamplingState(key interface{}, initValue func() interface{}) interface{} {
+	return c.samplingState.extendedStateForKey(key, initValue)
 }
 
 // IsValid indicates whether this context actually represents a valid trace.
