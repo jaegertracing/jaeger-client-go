@@ -37,16 +37,20 @@ func newPrioritySamplerState(count int) *prioritySamplerState {
 	}
 }
 
+func (s *prioritySamplerState) fieldAndMask(index int) (field *uint64, mask uint64) {
+	field = &s.samplerFinishedBitmap[index/64]
+	mask = uint64(1) << uint(index%64)
+	return
+}
+
 func (s *prioritySamplerState) isSamplerRetryable(index int) bool {
-	field := &s.samplerFinishedBitmap[index/64]
-	mask := uint64(1) << (index % 64)
+	field, mask := s.fieldAndMask(index)
 	value := atomic.LoadUint64(field)
 	return (value & mask) == mask
 }
 
 func (s *prioritySamplerState) markSamplerFinished(index int) {
-	field := &s.samplerFinishedBitmap[index/64]
-	mask := uint64(1) << (index % 64)
+	field, mask := s.fieldAndMask(index)
 	swapped := false
 	for !swapped {
 		value := atomic.LoadUint64(field)
