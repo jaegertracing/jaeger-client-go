@@ -73,30 +73,42 @@ func NewPrioritySampler(delegates ...jaeger.SamplerV2) *PrioritySampler {
 
 // OnCreateSpan implements SamplerV2 API.
 func (s *PrioritySampler) OnCreateSpan(span *jaeger.Span) jaeger.SamplingDecision {
-	return s.trySampling(span, func(sampler jaeger.SamplerV2) jaeger.SamplingDecision {
-		return sampler.OnCreateSpan(span)
-	})
+	return s.trySampling(
+		span,
+		func(sampler jaeger.SamplerV2) jaeger.SamplingDecision {
+			return sampler.OnCreateSpan(span)
+		},
+	)
 }
 
 // OnSetOperationName implements SamplerV2 API.
 func (s *PrioritySampler) OnSetOperationName(span *jaeger.Span, operationName string) jaeger.SamplingDecision {
-	return s.trySampling(span, func(sampler jaeger.SamplerV2) jaeger.SamplingDecision {
-		return sampler.OnSetOperationName(span, operationName)
-	})
+	return s.trySampling(
+		span,
+		func(sampler jaeger.SamplerV2) jaeger.SamplingDecision {
+			return sampler.OnSetOperationName(span, operationName)
+		},
+	)
 }
 
 // OnSetTag implements SamplerV2 API.
 func (s *PrioritySampler) OnSetTag(span *jaeger.Span, key string, value interface{}) jaeger.SamplingDecision {
-	return s.trySampling(span, func(sampler jaeger.SamplerV2) jaeger.SamplingDecision {
-		return sampler.OnSetTag(span, key, value)
-	})
+	return s.trySampling(
+		span,
+		func(sampler jaeger.SamplerV2) jaeger.SamplingDecision {
+			return sampler.OnSetTag(span, key, value)
+		},
+	)
 }
 
 // OnFinishSpan implements SamplerV2 API.
 func (s *PrioritySampler) OnFinishSpan(span *jaeger.Span) jaeger.SamplingDecision {
-	return s.trySampling(span, func(sampler jaeger.SamplerV2) jaeger.SamplingDecision {
-		return sampler.OnFinishSpan(span)
-	})
+	return s.trySampling(
+		span,
+		func(sampler jaeger.SamplerV2) jaeger.SamplingDecision {
+			return sampler.OnFinishSpan(span)
+		},
+	)
 }
 
 // Close calls Close on all delegate samplers.
@@ -118,7 +130,7 @@ func (s *PrioritySampler) getState(span *jaeger.Span) *prioritySamplerState {
 
 func (s *PrioritySampler) trySampling(
 	span *jaeger.Span,
-	op func(v2 jaeger.SamplerV2) jaeger.SamplingDecision,
+	sampleFn func(v2 jaeger.SamplerV2) jaeger.SamplingDecision,
 ) jaeger.SamplingDecision {
 	state := s.getState(span)
 	retryable := false
@@ -126,7 +138,7 @@ func (s *PrioritySampler) trySampling(
 		if state.isFired(i) {
 			continue
 		}
-		decision := op(s.delegates[i])
+		decision := sampleFn(s.delegates[i])
 		if !decision.Retryable {
 			state.setFired(i)
 		}
