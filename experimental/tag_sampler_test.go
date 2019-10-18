@@ -17,17 +17,38 @@ package experimental
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/uber/jaeger-client-go"
 )
 
-var tagMatchingSampler = NewTagMatchingSampler("theWho", []TagMatcher{
-	{TagValue: "Bender", Firehose: false},
-	{TagValue: 42, Firehose: true},
-})
+const tagMatchingStrategy = `
+    {
+      "key": "theWho",
+      "matchers": [
+        {
+          "value": "Bender",
+          "firehose": false
+        },
+        {
+          "value": 42,
+          "firehose": true
+        }
+      ]
+    }
+`
+
+func tagMatchingSampler(t *testing.T) *TagMatchingSampler {
+	sampler, err := NewTagMatchingSamplerFromStrategyJSON([]byte(tagMatchingStrategy))
+	require.NoError(t, err)
+	assert.Equal(t, "theWho", sampler.tagKey)
+	assert.Len(t, sampler.matchersByValue, 2)
+	return sampler
+}
 
 func TestTagMatchingSamplerShouldNotSampleOrFinalize(t *testing.T) {
-	tracer, closer := jaeger.NewTracer("svc", tagMatchingSampler, jaeger.NewNullReporter())
+	tracer, closer := jaeger.NewTracer("svc", tagMatchingSampler(t), jaeger.NewNullReporter())
 	defer closer.Close()
 
 	span := tracer.StartSpan("op1")
@@ -63,7 +84,7 @@ func TestTagMatchingSampler(t *testing.T) {
 		{
 			name:           "matching key and numeric value",
 			tagKey:         "theWho",
-			tagValue:       42,
+			tagValue:       float64(42), // because JSON parses "42" as float
 			expectSampled:  true,
 			expectFinal:    true,
 			expectFirehose: true,
@@ -86,7 +107,7 @@ func TestTagMatchingSampler(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			tracer, closer := jaeger.NewTracer("svc", tagMatchingSampler, jaeger.NewNullReporter())
+			tracer, closer := jaeger.NewTracer("svc", tagMatchingSampler(t), jaeger.NewNullReporter())
 			defer closer.Close()
 
 			span := tracer.StartSpan("op1")
@@ -99,4 +120,9 @@ func TestTagMatchingSampler(t *testing.T) {
 			assert.Equal(t, test.expectFirehose, span.Context().(jaeger.SpanContext).IsFirehose())
 		})
 	}
+}
+
+func TestNewTagMatchingSamplerFromStrategyJSONError(t *testing.T) {
+	_, err := NewTagMatchingSamplerFromStrategyJSON([]byte("bad json"))
+	require.Error(t, err)
 }

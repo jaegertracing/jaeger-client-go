@@ -15,6 +15,7 @@
 package experimental
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/uber/jaeger-client-go"
@@ -22,8 +23,8 @@ import (
 
 // TagMatcher describes which values TagMatchingSampler will match.
 type TagMatcher struct {
-	TagValue interface{}
-	Firehose bool
+	TagValue interface{} `json:"value"`
+	Firehose bool        `json:"firehose"`
 }
 
 // TagMatchingSampler samples traces that have spans with a particular tag value(s).
@@ -56,21 +57,33 @@ func NewTagMatchingSampler(tagKey string, matchers []TagMatcher) *TagMatchingSam
 	}
 }
 
+type tagMatchingSamplingStrategy struct {
+	Key      string       `json:"key"`
+	Matchers []TagMatcher `json:"matchers"`
+}
+
 // NewTagMatchingSamplerFromStrategyJSON creates the sampler from a JSON configuration of the following form:
 //     {
-//       key: 'tagKey',
-//       values: {
-//         'tagValue1': {
-//           firehose: true
+//       "key": "tagKey",
+//       "matchers": [
+//         {
+//           "value": "tagValue1",
+//           "firehose": true
 //         },
-//         'tagValue1: {
-//           firehose: false
+//         {
+//           "value": 42,
+//           "firehose": false
 //         }
-//       }
+//       ]
 //     }
-//func NewTagMatchingSamplerFromStrategyJSON(strategy []byte) (*TagMatchingSampler, error) {
-//	return nil, nil
-//}
+func NewTagMatchingSamplerFromStrategyJSON(jsonString []byte) (*TagMatchingSampler, error) {
+	var strategy tagMatchingSamplingStrategy
+	err := json.Unmarshal(jsonString, &strategy)
+	if err != nil {
+		return nil, err
+	}
+	return NewTagMatchingSampler(strategy.Key, strategy.Matchers), nil
+}
 
 func (s *TagMatchingSampler) decide(span *jaeger.Span, value interface{}) jaeger.SamplingDecision {
 	matcher, ok := s.matchersByValue[value]
