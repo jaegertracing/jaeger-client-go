@@ -14,12 +14,15 @@
 
 package jaeger
 
+// SamplingDecision is returned by the V2 samplers.
 type SamplingDecision struct {
 	Sample    bool
 	Retryable bool
 	Tags      []Tag
 }
 
+// SamplerV2 is an extension of the V1 samplers that allows sampling decisions
+// be made at different points of the span lifecycle.
 type SamplerV2 interface {
 	OnCreateSpan(span *Span) SamplingDecision
 	OnSetOperationName(span *Span, operationName string) SamplingDecision
@@ -47,6 +50,9 @@ func samplerV1toV2(s Sampler) SamplerV2 {
 }
 
 // SamplerV2Base can be used by V2 samplers to implement dummy V1 methods.
+// Supporting V1 API is required because Tracer configuration only accepts V1 Sampler
+// for backwards compatibility reasons.
+// TODO (breaking change) remove this in the next major release
 type SamplerV2Base struct{}
 
 func (SamplerV2Base) IsSampled(id TraceID, operation string) (sampled bool, tags []Tag) {
