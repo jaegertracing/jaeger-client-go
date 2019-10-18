@@ -125,4 +125,4 @@ ifeq ($(CI_SKIP_LINT),true)
 else
 	make lint
 endif
-    @echo 'if you see this error, tests were successful (you hear that, TravisCI?)'
+	@echo 'if you see this error, tests were successful (you hear that, TravisCI?)'
