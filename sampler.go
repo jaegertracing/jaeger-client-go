@@ -42,9 +42,7 @@ type Sampler interface {
 
 	// Equal checks if the `other` sampler is functionally equivalent
 	// to this sampler.
-	// TODO remove this function. This function is used to determine if 2 samplers are equivalent
-	// which does not bode well with the adaptive sampler which has to create all the composite samplers
-	// for the comparison to occur. This is expensive to do if only one sampler has changed.
+	// TODO (breaking change) remove this function. See AdaptiveSampler.Equals for explanation.
 	Equal(other Sampler) bool
 }
 
@@ -121,17 +119,18 @@ func NewProbabilisticSampler(samplingRate float64) (*ProbabilisticSampler, error
 }
 
 func newProbabilisticSampler(samplingRate float64) *ProbabilisticSampler {
-	samplingRate = math.Max(0.0, math.Min(samplingRate, 1.0))
-	tags := []Tag{
-		{key: SamplerTypeTagKey, value: SamplerTypeProbabilistic},
-		{key: SamplerParamTagKey, value: samplingRate},
-	}
-	s := &ProbabilisticSampler{
-		samplingRate:     samplingRate,
-		samplingBoundary: uint64(float64(maxRandomNumber) * samplingRate),
-		tags:             tags,
-	}
+	s := new(ProbabilisticSampler)
 	s.delegate = s.IsSampled
+	return s.init(samplingRate)
+}
+
+func (s *ProbabilisticSampler) init(samplingRate float64) *ProbabilisticSampler {
+	s.samplingRate = math.Max(0.0, math.Min(samplingRate, 1.0))
+	s.samplingBoundary = uint64(float64(maxRandomNumber) * s.samplingRate)
+	s.tags = []Tag{
+		{key: SamplerTypeTagKey, value: SamplerTypeProbabilistic},
+		{key: SamplerParamTagKey, value: s.samplingRate},
+	}
 	return s
 }
 
@@ -158,6 +157,15 @@ func (s *ProbabilisticSampler) Equal(other Sampler) bool {
 	return false
 }
 
+// Update modifies in-place the sampling rate. Locking must be done externally.
+func (s *ProbabilisticSampler) Update(samplingRate float64) error {
+	if samplingRate < 0.0 || samplingRate > 1.0 {
+		return fmt.Errorf("Sampling Rate must be between 0.0 and 1.0, received %f", samplingRate)
+	}
+	s.init(samplingRate)
+	return nil
+}
+
 // String is used to log sampler details.
 func (s *ProbabilisticSampler) String() string {
 	return fmt.Sprintf("ProbabilisticSampler(samplingRate=%v)", s.samplingRate)
@@ -168,7 +176,7 @@ func (s *ProbabilisticSampler) String() string {
 type RateLimitingSampler struct {
 	legacySamplerV1Base
 	maxTracesPerSecond float64
-	rateLimiter        utils.RateLimiter
+	rateLimiter        *utils.ReconfigurableRateLimiter
 	tags               []Tag
 }
 
@@ -177,22 +185,34 @@ type RateLimitingSampler struct {
 // requests sampled uniformly as well, but if requests are bursty, especially sub-second, then a number of
 // sequential requests can be sampled each second.
 func NewRateLimitingSampler(maxTracesPerSecond float64) *RateLimitingSampler {
-	tags := []Tag{
+	s := new(RateLimitingSampler)
+	s.delegate = s.IsSampled
+	return s.init(maxTracesPerSecond)
+}
+
+func (s *RateLimitingSampler) init(maxTracesPerSecond float64) *RateLimitingSampler {
+	if s.rateLimiter == nil {
+		s.rateLimiter = utils.NewRateLimiter(maxTracesPerSecond, math.Max(maxTracesPerSecond, 1.0))
+	} else {
+		s.rateLimiter.Reconfigure(maxTracesPerSecond, math.Max(maxTracesPerSecond, 1.0))
+	}
+	s.maxTracesPerSecond = maxTracesPerSecond
+	s.tags = []Tag{
 		{key: SamplerTypeTagKey, value: SamplerTypeRateLimiting},
 		{key: SamplerParamTagKey, value: maxTracesPerSecond},
 	}
-	s := &RateLimitingSampler{
-		maxTracesPerSecond: maxTracesPerSecond,
-		rateLimiter:        utils.NewRateLimiter(maxTracesPerSecond, math.Max(maxTracesPerSecond, 1.0)),
-		tags:               tags,
-	}
-	s.delegate = s.IsSampled
 	return s
 }
 
 // IsSampled implements IsSampled() of Sampler.
 func (s *RateLimitingSampler) IsSampled(id TraceID, operation string) (bool, []Tag) {
 	return s.rateLimiter.CheckCredit(1.0), s.tags
+}
+
+// Update reconfigures the rate limiter, while preserving its accumulated balance.
+// Locking must be done externally.
+func (s *RateLimitingSampler) Update(maxTracesPerSecond float64) {
+	s.init(maxTracesPerSecond)
 }
 
 func (s *RateLimitingSampler) Close() {
@@ -222,7 +242,7 @@ func (s *RateLimitingSampler) String() string {
 // samplers return true, the tags for ProbabilisticSampler will be used.
 type GuaranteedThroughputProbabilisticSampler struct {
 	probabilisticSampler *ProbabilisticSampler
-	lowerBoundSampler    Sampler
+	lowerBoundSampler    *RateLimitingSampler
 	tags                 []Tag
 	samplingRate         float64
 	lowerBound           float64
@@ -283,7 +303,7 @@ func (s *GuaranteedThroughputProbabilisticSampler) Equal(other Sampler) bool {
 func (s *GuaranteedThroughputProbabilisticSampler) update(lowerBound, samplingRate float64) {
 	s.setProbabilisticSampler(samplingRate)
 	if s.lowerBound != lowerBound {
-		s.lowerBoundSampler = NewRateLimitingSampler(lowerBound)
+		s.lowerBoundSampler.Update(lowerBound)
 		s.lowerBound = lowerBound
 	}
 }

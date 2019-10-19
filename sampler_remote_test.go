@@ -79,8 +79,8 @@ func TestRemotelyControlledSampler(t *testing.T) {
 	agent, remoteSampler, metricsFactory := initAgent(t)
 	defer agent.Close()
 
-	initSampler, ok := remoteSampler.getSampler().(*ProbabilisticSampler)
-	assert.True(t, ok)
+	defaultSampler := newProbabilisticSampler(0.001)
+	remoteSampler.setSampler(defaultSampler)
 
 	agent.AddSamplingStrategy("client app",
 		getSamplingStrategyResponse(sampling.SamplingStrategyType_PROBABILISTIC, testDefaultSamplingProbability))
@@ -91,7 +91,7 @@ func TestRemotelyControlledSampler(t *testing.T) {
 	}...)
 	s1, ok := remoteSampler.getSampler().(*ProbabilisticSampler)
 	assert.True(t, ok)
-	assert.NotEqual(t, initSampler, s1, "Sampler should have been updated")
+	assert.EqualValues(t, testDefaultSamplingProbability, s1.samplingRate, "Sampler should have been updated")
 
 	decision := remoteSampler.OnCreateSpan(makeSpan(testMaxID+10, testOperationName))
 	assert.False(t, decision.Sample)
@@ -100,7 +100,7 @@ func TestRemotelyControlledSampler(t *testing.T) {
 	assert.True(t, decision.Sample)
 	assert.Equal(t, testProbabilisticExpectedTags, decision.Tags)
 
-	remoteSampler.setSampler(initSampler)
+	remoteSampler.setSampler(defaultSampler)
 
 	c := make(chan time.Time)
 	ticker := &time.Ticker{C: c}
@@ -112,9 +112,9 @@ func TestRemotelyControlledSampler(t *testing.T) {
 
 	s2, ok := remoteSampler.getSampler().(*ProbabilisticSampler)
 	assert.True(t, ok)
-	assert.NotEqual(t, initSampler, s2, "Sampler should have been updated from timer")
+	assert.EqualValues(t, testDefaultSamplingProbability, s2.samplingRate, "Sampler should have been updated from timer")
 
-	assert.True(t, remoteSampler.Equal(remoteSampler))
+	assert.False(t, remoteSampler.Equal(remoteSampler)) // for code coverage only
 }
 
 func makeSamplerTags(key string, value interface{}) []Tag {
@@ -366,7 +366,7 @@ func TestRemotelyControlledSampler_updateRateLimitingOrProbabilisticSampler(t *t
 			res:                  getSamplingStrategyResponse(sampling.SamplingStrategyType_PROBABILISTIC, 1.5),
 			initSampler:          probabilisticSampler,
 			expectedSampler:      maxProbabilisticSampler,
-			shouldErr:            false,
+			shouldErr:            true,
 			referenceEquivalence: false,
 			caption:              "invalid probabilistic strategy",
 		},
@@ -419,11 +419,18 @@ func TestRemotelyControlledSampler_updateRateLimitingOrProbabilisticSampler(t *t
 			err := remoteSampler.updateRateLimitingOrProbabilisticSampler(testCase.res)
 			if testCase.shouldErr {
 				require.Error(t, err)
+				return
 			}
 			if testCase.referenceEquivalence {
 				assert.Equal(t, testCase.expectedSampler, remoteSampler.sampler)
 			} else {
-				assert.True(t, testCase.expectedSampler.Equal(remoteSampler.sampler.(Sampler)))
+				type comparable interface {
+					Equal(other Sampler) bool
+				}
+				es, esOk := testCase.expectedSampler.(comparable)
+				require.True(t, esOk, "expected sampler %+v must implement Equal()", testCase.expectedSampler)
+				assert.True(t, es.Equal(remoteSampler.sampler.(Sampler)),
+					"sampler.Equal: want=%+v, have=%+v", testCase.expectedSampler, remoteSampler.sampler)
 			}
 		})
 	}
