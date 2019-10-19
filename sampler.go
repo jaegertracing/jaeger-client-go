@@ -212,7 +212,9 @@ func (s *RateLimitingSampler) IsSampled(id TraceID, operation string) (bool, []T
 // Update reconfigures the rate limiter, while preserving its accumulated balance.
 // Locking must be done externally.
 func (s *RateLimitingSampler) Update(maxTracesPerSecond float64) {
-	s.init(maxTracesPerSecond)
+	if s.maxTracesPerSecond != maxTracesPerSecond {
+		s.init(maxTracesPerSecond)
+	}
 }
 
 func (s *RateLimitingSampler) Close() {
@@ -266,8 +268,14 @@ func newGuaranteedThroughputProbabilisticSampler(lowerBound, samplingRate float6
 }
 
 func (s *GuaranteedThroughputProbabilisticSampler) setProbabilisticSampler(samplingRate float64) {
-	if s.probabilisticSampler == nil || s.samplingRate != samplingRate {
+	if s.probabilisticSampler == nil {
 		s.probabilisticSampler = newProbabilisticSampler(samplingRate)
+	} else if s.samplingRate != samplingRate {
+		s.probabilisticSampler.init(samplingRate)
+	}
+	// since we don't validate samplingRate, sampler may have clamped it to [0, 1] interval
+	samplingRate = s.probabilisticSampler.SamplingRate()
+	if s.samplingRate != samplingRate || s.tags == nil {
 		s.samplingRate = s.probabilisticSampler.SamplingRate()
 		s.tags = []Tag{
 			{key: SamplerTypeTagKey, value: SamplerTypeLowerBound},
