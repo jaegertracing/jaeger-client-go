@@ -129,7 +129,7 @@ func TestNewRemoteRestrictionManager(t *testing.T) {
 		})
 }
 
-func TestDenyBaggageOnInitializationFailure(t *testing.T) {
+func TestDenyBaggageOnInitializationError(t *testing.T) {
 	withHTTPServer(
 		testRestrictions,
 		func(
