@@ -38,7 +38,7 @@ type Tracer struct {
 	serviceName string
 	hostIPv4    uint32 // this is for zipkin endpoint conversion
 
-	sampler  Sampler
+	sampler  SamplerV2
 	reporter Reporter
 	metrics  Metrics
 	logger   log.Logger
@@ -47,10 +47,11 @@ type Tracer struct {
 	randomNumber func() uint64
 
 	options struct {
-		gen128Bit            bool // whether to generate 128bit trace IDs
-		zipkinSharedRPCSpan  bool
-		highTraceIDGenerator func() uint64 // custom high trace ID generator
-		maxTagValueLength    int
+		gen128Bit                   bool // whether to generate 128bit trace IDs
+		zipkinSharedRPCSpan         bool
+		highTraceIDGenerator        func() uint64 // custom high trace ID generator
+		maxTagValueLength           int
+		noDebugFlagOnForcedSampling bool
 		// more options to come
 	}
 	// allocator of Span objects
@@ -81,7 +82,7 @@ func NewTracer(
 ) (opentracing.Tracer, io.Closer) {
 	t := &Tracer{
 		serviceName:   serviceName,
-		sampler:       sampler,
+		sampler:       samplerV1toV2(sampler),
 		reporter:      reporter,
 		injectors:     make(map[interface{}]Injector),
 		extractors:    make(map[interface{}]Extractor),
@@ -260,7 +261,7 @@ func (t *Tracer) startSpanWithOptions(
 		rpcServer = (v == ext.SpanKindRPCServerEnum || v == string(ext.SpanKindRPCServerEnum))
 	}
 
-	var samplerTags []Tag
+	var internalTags []Tag
 	newTrace := false
 	if !isSelfRef {
 		if !hasParent || !parent.IsValid() {
@@ -271,13 +272,10 @@ func (t *Tracer) startSpanWithOptions(
 			}
 			ctx.spanID = SpanID(ctx.traceID.Low)
 			ctx.parentID = 0
-			ctx.flags = byte(0)
+			ctx.samplingState = &samplingState{}
 			if hasParent && parent.isDebugIDContainerOnly() && t.isDebugAllowed(operationName) {
-				ctx.flags |= (flagSampled | flagDebug)
-				samplerTags = []Tag{{key: JaegerDebugHeader, value: parent.debugID}}
-			} else if sampled, tags := t.sampler.IsSampled(ctx.traceID, operationName); sampled {
-				ctx.flags |= flagSampled
-				samplerTags = tags
+				ctx.samplingState.setDebugAndSampled()
+				internalTags = append(internalTags, Tag{key: JaegerDebugHeader, value: parent.debugID})
 			}
 		} else {
 			ctx.traceID = parent.traceID
@@ -289,7 +287,10 @@ func (t *Tracer) startSpanWithOptions(
 				ctx.spanID = SpanID(t.randomID())
 				ctx.parentID = parent.spanID
 			}
-			ctx.flags = parent.flags
+			ctx.samplingState = parent.samplingState
+			if parent.remote {
+				ctx.samplingState.setFinal()
+			}
 		}
 		if hasParent {
 			// copy baggage items
@@ -304,17 +305,30 @@ func (t *Tracer) startSpanWithOptions(
 
 	sp := t.newSpan()
 	sp.context = ctx
+	sp.tracer = t
+	sp.operationName = operationName
+	sp.startTime = options.StartTime
+	sp.duration = 0
+	sp.references = references
+	sp.firstInProcess = rpcServer || sp.context.parentID == 0
+
+	if !sp.isSamplingFinalized() {
+		decision := t.sampler.OnCreateSpan(sp)
+		sp.applySamplingDecision(decision, false)
+	}
 	sp.observer = t.observer.OnStartSpan(sp, operationName, options)
-	return t.startSpanInternal(
-		sp,
-		operationName,
-		options.StartTime,
-		samplerTags,
-		options.Tags,
-		newTrace,
-		rpcServer,
-		references,
-	)
+
+	if tagsTotalLength := len(options.Tags) + len(internalTags); tagsTotalLength > 0 {
+		if sp.tags == nil || cap(sp.tags) < tagsTotalLength {
+			sp.tags = make([]Tag, 0, tagsTotalLength)
+		}
+		sp.tags = append(sp.tags, internalTags...)
+		for k, v := range options.Tags {
+			sp.setTagInternal(k, v, false)
+		}
+	}
+	t.emitNewSpanMetrics(sp, newTrace)
+	return sp
 }
 
 // Inject implements Inject() method of opentracing.Tracer
@@ -339,6 +353,7 @@ func (t *Tracer) Extract(
 		if err != nil {
 			return nil, err // ensure returned spanCtx is nil
 		}
+		spanCtx.remote = true
 		return spanCtx, nil
 	}
 	return nil, opentracing.ErrUnsupportedFormat
@@ -349,10 +364,10 @@ func (t *Tracer) Close() error {
 	t.reporter.Close()
 	t.sampler.Close()
 	if mgr, ok := t.baggageRestrictionManager.(io.Closer); ok {
-		mgr.Close()
+		_ = mgr.Close()
 	}
 	if throttler, ok := t.debugThrottler.(io.Closer); ok {
-		throttler.Close()
+		_ = throttler.Close()
 	}
 	return nil
 }
@@ -367,6 +382,7 @@ func (t *Tracer) Tags() []opentracing.Tag {
 }
 
 // getTag returns the value of specific tag, if not exists, return nil.
+// TODO only used by tests, move there.
 func (t *Tracer) getTag(key string) (interface{}, bool) {
 	for _, tag := range t.tags {
 		if tag.key == key {
@@ -382,41 +398,21 @@ func (t *Tracer) newSpan() *Span {
 	return t.spanAllocator.Get()
 }
 
-func (t *Tracer) startSpanInternal(
-	sp *Span,
-	operationName string,
-	startTime time.Time,
-	internalTags []Tag,
-	tags opentracing.Tags,
-	newTrace bool,
-	rpcServer bool,
-	references []Reference,
-) *Span {
-	sp.tracer = t
-	sp.operationName = operationName
-	sp.startTime = startTime
-	sp.duration = 0
-	sp.references = references
-	sp.firstInProcess = rpcServer || sp.context.parentID == 0
-	if len(tags) > 0 || len(internalTags) > 0 {
-		sp.tags = make([]Tag, len(internalTags), len(tags)+len(internalTags))
-		copy(sp.tags, internalTags)
-		for k, v := range tags {
-			sp.observer.OnSetTag(k, v)
-			if k == string(ext.SamplingPriority) && !setSamplingPriority(sp, v) {
-				continue
-			}
-			sp.setTagNoLocking(k, v)
+// emitNewSpanMetrics generates metrics on the number of started spans and traces.
+// newTrace param: we cannot simply check for parentID==0 because in Zipkin model the
+// server-side RPC span has the exact same trace/span/parent IDs as the
+// calling client-side span, but obviously the server side span is
+// no longer a root span of the trace.
+func (t *Tracer) emitNewSpanMetrics(sp *Span, newTrace bool) {
+	if !sp.isSamplingFinalized() {
+		t.metrics.SpansStartedDelayedSampling.Inc(1)
+		if newTrace {
+			t.metrics.TracesStartedDelayedSampling.Inc(1)
 		}
-	}
-	// emit metrics
-	if sp.context.IsSampled() {
+		// joining a trace is not possible, because sampling decision inherited from upstream is final
+	} else if sp.context.IsSampled() {
 		t.metrics.SpansStartedSampled.Inc(1)
 		if newTrace {
-			// We cannot simply check for parentID==0 because in Zipkin model the
-			// server-side RPC span has the exact same trace/span/parent IDs as the
-			// calling client-side span, but obviously the server side span is
-			// no longer a root span of the trace.
 			t.metrics.TracesStartedSampled.Inc(1)
 		} else if sp.firstInProcess {
 			t.metrics.TracesJoinedSampled.Inc(1)
@@ -429,15 +425,20 @@ func (t *Tracer) startSpanInternal(
 			t.metrics.TracesJoinedNotSampled.Inc(1)
 		}
 	}
-	return sp
 }
 
 func (t *Tracer) reportSpan(sp *Span) {
-	t.metrics.SpansFinished.Inc(1)
+	if !sp.isSamplingFinalized() {
+		t.metrics.SpansFinishedDelayedSampling.Inc(1)
+	} else if sp.context.IsSampled() {
+		t.metrics.SpansFinishedSampled.Inc(1)
+	} else {
+		t.metrics.SpansFinishedNotSampled.Inc(1)
+	}
 
-	// Note: if the reporter is processing Span asynchronously need to Retain() it
-	// otherwise, in the racing condition will be rewritten span data before it will be sent
-	// * To remove object use method span.Release()
+	// Note: if the reporter is processing Span asynchronously then it needs to Retain() the span,
+	// and then Release() it when no longer needed.
+	// Otherwise, the span may be reused for another trace and its data may be overwritten.
 	if sp.context.IsSampled() {
 		t.reporter.Report(sp)
 	}

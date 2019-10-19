@@ -19,7 +19,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -105,25 +105,106 @@ func TestSpanOperationName(t *testing.T) {
 }
 
 func TestSetTag_SamplingPriority(t *testing.T) {
-	tracer, closer := NewTracer("DOOP", NewConstSampler(true), NewNullReporter(),
-		TracerOptions.DebugThrottler(throttler.DefaultThrottler{}))
+	type testCase struct {
+		noDebugFlagOnForcedSampling bool
+		throttler                   throttler.Throttler
+		samplingPriority            uint16
+		expDebugSpan                bool
+		expSamplingTag              bool
+	}
 
-	sp1 := tracer.StartSpan("s1").(*Span)
-	ext.SamplingPriority.Set(sp1, 0)
-	assert.False(t, sp1.context.IsDebug())
+	testSuite := map[string]testCase{
+		"Sampling priority 0 with debug flag and default throttler": {
+			noDebugFlagOnForcedSampling: false,
+			throttler:                   throttler.DefaultThrottler{},
+			samplingPriority:            0,
+			expDebugSpan:                false,
+			expSamplingTag:              false,
+		},
+		"Sampling priority 1 with debug flag and default throttler": {
+			noDebugFlagOnForcedSampling: false,
+			throttler:                   throttler.DefaultThrottler{},
+			samplingPriority:            1,
+			expDebugSpan:                true,
+			expSamplingTag:              true,
+		},
+		"Sampling priority 1 with debug flag and test throttler": {
+			noDebugFlagOnForcedSampling: false,
+			throttler:                   testThrottler{allowAll: false},
+			samplingPriority:            1,
+			expDebugSpan:                false,
+			expSamplingTag:              false,
+		},
+		"Sampling priority 0 without debug flag and default throttler": {
+			noDebugFlagOnForcedSampling: true,
+			throttler:                   throttler.DefaultThrottler{},
+			samplingPriority:            0,
+			expDebugSpan:                false,
+			expSamplingTag:              false,
+		},
+		"Sampling priority 1 without debug flag and default throttler": {
+			noDebugFlagOnForcedSampling: true,
+			throttler:                   throttler.DefaultThrottler{},
+			samplingPriority:            1,
+			expDebugSpan:                false,
+			expSamplingTag:              true,
+		},
+		"Sampling priority 1 without debug flag and test throttler": {
+			noDebugFlagOnForcedSampling: true,
+			throttler:                   testThrottler{allowAll: false},
+			samplingPriority:            1,
+			expDebugSpan:                false,
+			expSamplingTag:              true,
+		},
+	}
 
-	ext.SamplingPriority.Set(sp1, 1)
-	assert.True(t, sp1.context.IsDebug())
-	assert.NotNil(t, findDomainTag(sp1, "sampling.priority"), "sampling.priority tag should be added")
-	closer.Close()
+	for name, testCase := range testSuite {
+		t.Run(name, func(t *testing.T) {
+			tracer, closer := NewTracer(
+				"DOOP",
+				NewConstSampler(true),
+				NewNullReporter(),
+				TracerOptions.DebugThrottler(testCase.throttler),
+				TracerOptions.NoDebugFlagOnForcedSampling(testCase.noDebugFlagOnForcedSampling),
+			)
 
-	tracer, closer = NewTracer("DOOP", NewConstSampler(true), NewNullReporter(),
-		TracerOptions.DebugThrottler(testThrottler{allowAll: false}))
+			sp1 := tracer.StartSpan("s1").(*Span)
+			ext.SamplingPriority.Set(sp1, testCase.samplingPriority)
+			assert.Equal(t, testCase.expDebugSpan, sp1.context.IsDebug())
+			if testCase.expSamplingTag {
+				assert.NotNil(t, findDomainTag(sp1, "sampling.priority"), "sampling.priority tag should be added")
+			}
+			closer.Close()
+		})
+	}
+}
+
+func TestUnsetSampledFlagOnly(t *testing.T) {
+	tracer, closer := NewTracer(
+		"Arwen",
+		NewConstSampler(true),
+		NewNullReporter(),
+	)
 	defer closer.Close()
 
-	sp1 = tracer.StartSpan("s1").(*Span)
-	ext.SamplingPriority.Set(sp1, 1)
-	assert.False(t, sp1.context.IsDebug(), "debug should not be allowed by the throttler")
+	span := tracer.StartSpan("breakfast").(*Span)
+	ext.SamplingPriority.Set(span, 1)
+	assert.Equal(t, byte(flagSampled|flagDebug), span.context.samplingState.flags())
+
+	ext.SamplingPriority.Set(span, 0)
+	assert.Equal(t, byte(flagDebug), span.context.samplingState.flags(), "Should reset only sampled flag")
+}
+
+func TestSetFirehoseMode(t *testing.T) {
+	tracer, closer := NewTracer("DOOP", NewConstSampler(true), NewNullReporter())
+	defer closer.Close()
+
+	sp1 := tracer.StartSpan("s1").(*Span)
+	assert.False(t, sp1.context.IsFirehose())
+
+	EnableFirehose(sp1)
+
+	assert.True(t, sp1.context.IsFirehose())
 }
 
 type testThrottler struct {
@@ -176,4 +257,59 @@ func TestSpanLifecycle(t *testing.T) {
 
 	sp1.Release() // Now we will kill the object and return it in the pool
 	assert.True(t, sp1.tracer == nil, "span must be released")
+}
+
+func TestSpan_Logs(t *testing.T) {
+	tests := []struct {
+		logs []opentracing.LogRecord
+		name string
+		want []opentracing.LogRecord
+	}{
+		{
+			name: "if span logs is return nil",
+		},
+		{
+			name: "if span logs is zero len slice return nil",
+			logs: []opentracing.LogRecord{},
+		},
+		{
+			name: "if span logs len more than 0 return a copy",
+			logs: []opentracing.LogRecord{{}},
+			want: []opentracing.LogRecord{{}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &Span{logs: tt.logs}
+			assert.Equal(t, tt.want, s.Logs())
+		})
+	}
+}
+
+func TestSpan_References(t *testing.T) {
+	tests := []struct {
+		name       string
+		references []Reference
+		want       []opentracing.SpanReference
+	}{
+
+		{
+			name: "if span references is nil return nil",
+		},
+		{
+			name:       "if span references is zero len slice return nil",
+			references: []Reference{},
+		},
+		{
+			name:       "if span references len more than 0 return a copy",
+			references: []Reference{{}},
+			want:       []opentracing.SpanReference{{ReferencedContext: SpanContext{}}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &Span{references: tt.references}
+			assert.Equal(t, tt.want, s.References())
+		})
+	}
 }

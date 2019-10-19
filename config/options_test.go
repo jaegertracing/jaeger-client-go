@@ -41,6 +41,7 @@ func TestApplyOptions(t *testing.T) {
 		PoolSpans(true),
 		ZipkinSharedRPCSpan(true),
 		MaxTagValueLength(1024),
+		NoDebugFlagOnForcedSampling(true),
 	)
 	assert.Equal(t, jaeger.StdLogger, opts.logger)
 	assert.Equal(t, sampler, opts.sampler)
@@ -50,6 +51,7 @@ func TestApplyOptions(t *testing.T) {
 	assert.True(t, opts.gen128Bit)
 	assert.True(t, opts.poolSpans)
 	assert.True(t, opts.zipkinSharedRPCSpan)
+	assert.True(t, opts.noDebugFlagOnForcedSampling)
 	assert.Equal(t, 1024, opts.maxTagValueLength)
 }
 

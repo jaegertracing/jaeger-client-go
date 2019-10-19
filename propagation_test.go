@@ -120,7 +120,7 @@ func TestSpanPropagator(t *testing.T) {
 
 	metricsFactory.AssertCounterMetrics(t, []metricstest.ExpectedMetric{
 		{Name: "jaeger.tracer.started_spans", Tags: map[string]string{"sampled": "y"}, Value: 1 + 2*len(tests)},
-		{Name: "jaeger.tracer.finished_spans", Value: 1 + len(tests)},
+		{Name: "jaeger.tracer.finished_spans", Tags: map[string]string{"sampled": "y"}, Value: 1 + len(tests)},
 		{Name: "jaeger.tracer.traces", Tags: map[string]string{"state": "started", "sampled": "y"}, Value: 1},
 		{Name: "jaeger.tracer.traces", Tags: map[string]string{"state": "joined", "sampled": "y"}, Value: len(tests)},
 	}...)

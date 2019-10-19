@@ -16,6 +16,8 @@ package jaeger
 
 import (
 	"time"
+
+	"github.com/uber/jaeger-client-go/log"
 )
 
 // SamplerOption is a function that sets some option on the sampler
@@ -27,7 +29,7 @@ var SamplerOptions samplerOptions
 type samplerOptions struct {
 	metrics                 *Metrics
 	maxOperations           int
-	sampler                 Sampler
+	sampler                 SamplerV2
 	logger                  Logger
 	samplingServerURL       string
 	samplingRefreshInterval time.Duration
@@ -53,7 +55,7 @@ func (samplerOptions) MaxOperations(maxOperations int) SamplerOption {
 // to use before a remote sampler is created and used.
 func (samplerOptions) InitialSampler(sampler Sampler) SamplerOption {
 	return func(o *samplerOptions) {
-		o.sampler = sampler
+		o.sampler = samplerV1toV2(sampler)
 	}
 }
 
@@ -78,4 +80,29 @@ func (samplerOptions) SamplingRefreshInterval(samplingRefreshInterval time.Durat
 	return func(o *samplerOptions) {
 		o.samplingRefreshInterval = samplingRefreshInterval
 	}
+}
+
+func (o *samplerOptions) applyOptionsAndDefaults(opts ...SamplerOption) *samplerOptions {
+	for _, option := range opts {
+		option(o)
+	}
+	if o.sampler == nil {
+		o.sampler = newProbabilisticSampler(0.001)
+	}
+	if o.logger == nil {
+		o.logger = log.NullLogger
+	}
+	if o.maxOperations <= 0 {
+		o.maxOperations = defaultMaxOperations
+	}
+	if o.samplingServerURL == "" {
+		o.samplingServerURL = DefaultSamplingServerURL
+	}
+	if o.metrics == nil {
+		o.metrics = NewNullMetrics()
+	}
+	if o.samplingRefreshInterval <= 0 {
+		o.samplingRefreshInterval = defaultSamplingRefreshInterval
+	}
+	return o
 }

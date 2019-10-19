@@ -56,5 +56,6 @@ func (t trace) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	}
 	enc.AddString("span", j.SpanID().String())
 	enc.AddString("trace", j.TraceID().String())
+	enc.AddBool("sampled", j.IsSampled())
 	return nil
 }

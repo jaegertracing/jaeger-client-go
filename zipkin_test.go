@@ -36,7 +36,7 @@ func TestZipkinPropagator(t *testing.T) {
 	assert.Equal(t, sp1.context.traceID, TraceID{Low: carrier.traceID})
 	assert.Equal(t, sp1.context.spanID, SpanID(carrier.spanID))
 	assert.Equal(t, sp1.context.parentID, SpanID(carrier.parentID))
-	assert.Equal(t, sp1.context.flags, carrier.flags)
+	assert.Equal(t, sp1.context.samplingState.flags(), carrier.flags)
 
 	sp2ctx, err := tracer.Extract("zipkin-span-format", carrier)
 	if err != nil {
@@ -47,7 +47,7 @@ func TestZipkinPropagator(t *testing.T) {
 	assert.Equal(t, sp1.context.traceID, sp3.context.traceID)
 	assert.Equal(t, sp1.context.spanID, sp3.context.spanID)
 	assert.Equal(t, sp1.context.parentID, sp3.context.parentID)
-	assert.Equal(t, sp1.context.flags, sp3.context.flags)
+	assert.Equal(t, sp1.context.samplingState.flags(), sp3.context.samplingState.flags())
 }
 
 // TestZipkinSpan is a mock-up of TChannel's internal Span struct

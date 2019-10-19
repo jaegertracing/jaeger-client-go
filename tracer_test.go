@@ -93,7 +93,7 @@ func (s *tracerSuite) TestBeginRootSpan() {
 	s.NotNil(ss.duration)
 
 	s.metricsFactory.AssertCounterMetrics(s.T(), []metricstest.ExpectedMetric{
-		{Name: "jaeger.tracer.finished_spans", Value: 1},
+		{Name: "jaeger.tracer.finished_spans", Tags: map[string]string{"sampled": "y"}, Value: 1},
 		{Name: "jaeger.tracer.started_spans", Tags: map[string]string{"sampled": "y"}, Value: 1},
 		{Name: "jaeger.tracer.traces", Tags: map[string]string{"sampled": "y", "state": "started"}, Value: 1},
 	}...)
@@ -118,7 +118,7 @@ func (s *tracerSuite) TestStartChildSpan() {
 	s.metricsFactory.AssertCounterMetrics(s.T(), []metricstest.ExpectedMetric{
 		{Name: "jaeger.tracer.started_spans", Tags: map[string]string{"sampled": "y"}, Value: 2},
 		{Name: "jaeger.tracer.traces", Tags: map[string]string{"sampled": "y", "state": "started"}, Value: 1},
-		{Name: "jaeger.tracer.finished_spans", Value: 2},
+		{Name: "jaeger.tracer.finished_spans", Tags: map[string]string{"sampled": "y"}, Value: 2},
 	}...)
 }
 
@@ -149,7 +149,7 @@ func (s *tracerSuite) TestStartSpanWithMultipleReferences() {
 	s.metricsFactory.AssertCounterMetrics(s.T(), []metricstest.ExpectedMetric{
 		{Name: "jaeger.tracer.started_spans", Tags: map[string]string{"sampled": "y"}, Value: 4},
 		{Name: "jaeger.tracer.traces", Tags: map[string]string{"sampled": "y", "state": "started"}, Value: 3},
-		{Name: "jaeger.tracer.finished_spans", Value: 4},
+		{Name: "jaeger.tracer.finished_spans", Tags: map[string]string{"sampled": "y"}, Value: 4},
 	}...)
 	assert.Len(s.T(), sp4.(*Span).references, 3)
 }
@@ -169,7 +169,7 @@ func (s *tracerSuite) TestStartSpanWithOnlyFollowFromReference() {
 	s.metricsFactory.AssertCounterMetrics(s.T(), []metricstest.ExpectedMetric{
 		{Name: "jaeger.tracer.started_spans", Tags: map[string]string{"sampled": "y"}, Value: 2},
 		{Name: "jaeger.tracer.traces", Tags: map[string]string{"sampled": "y", "state": "started"}, Value: 1},
-		{Name: "jaeger.tracer.finished_spans", Value: 2},
+		{Name: "jaeger.tracer.finished_spans", Tags: map[string]string{"sampled": "y"}, Value: 2},
 	}...)
 	assert.Len(s.T(), sp2.(*Span).references, 1)
 }
@@ -198,7 +198,7 @@ func (s *tracerSuite) TestTraceStartedOrJoinedMetrics() {
 
 		s.metricsFactory.AssertCounterMetrics(s.T(), []metricstest.ExpectedMetric{
 			{Name: "jaeger.tracer.started_spans", Tags: map[string]string{"sampled": test.label}, Value: 3},
-			{Name: "jaeger.tracer.finished_spans", Value: 3},
+			{Name: "jaeger.tracer.finished_spans", Tags: map[string]string{"sampled": test.label}, Value: 3},
 			{Name: "jaeger.tracer.traces", Tags: map[string]string{"sampled": test.label, "state": "started"}, Value: 1},
 			{Name: "jaeger.tracer.traces", Tags: map[string]string{"sampled": test.label, "state": "joined"}, Value: 1},
 		}...)
@@ -214,13 +214,11 @@ func (s *tracerSuite) TestSetOperationName() {
 func (s *tracerSuite) TestSamplerEffects() {
 	s.tracer.(*Tracer).sampler = NewConstSampler(true)
 	sp := s.tracer.StartSpan("test")
-	flags := sp.(*Span).context.flags
-	s.EqualValues(flagSampled, flags&flagSampled)
+	s.True(sp.(*Span).context.IsSampled())
 
 	s.tracer.(*Tracer).sampler = NewConstSampler(false)
 	sp = s.tracer.StartSpan("test")
-	flags = sp.(*Span).context.flags
-	s.EqualValues(0, flags&flagSampled)
+	s.False(sp.(*Span).context.IsSampled())
 }
 
 func (s *tracerSuite) TestRandomIDNotZero() {
@@ -278,6 +276,7 @@ func TestTracerOptions(t *testing.T) {
 		TracerOptions.RandomNumber(rnd),
 		TracerOptions.PoolSpans(true),
 		TracerOptions.Tag("tag_key", "tag_value"),
+		TracerOptions.NoDebugFlagOnForcedSampling(true),
 	)
 	defer closer.Close()
 
@@ -289,6 +288,7 @@ func TestTracerOptions(t *testing.T) {
 	assert.Equal(t, uint64(1), tracer.randomNumber()) // always 1
 	assert.Equal(t, true, isPoolAllocator(tracer.spanAllocator))
 	assert.Equal(t, opentracing.Tag{Key: "tag_key", Value: "tag_value"}, tracer.Tags()[0])
+	assert.True(t, tracer.options.noDebugFlagOnForcedSampling)
 }
 
 func TestInjectorExtractorOptions(t *testing.T) {
