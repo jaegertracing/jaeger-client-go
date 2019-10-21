@@ -33,6 +33,7 @@ type samplerOptions struct {
 	logger                  Logger
 	samplingServerURL       string
 	samplingRefreshInterval time.Duration
+	updaters                []SamplerUpdater
 }
 
 // Metrics creates a SamplerOption that initializes Metrics on the sampler,
@@ -82,6 +83,13 @@ func (samplerOptions) SamplingRefreshInterval(samplingRefreshInterval time.Durat
 	}
 }
 
+// Updaters creates a SamplerOption that initializes sampler updaters.
+func (samplerOptions) Updaters(updaters []SamplerUpdater) SamplerOption {
+	return func(o *samplerOptions) {
+		o.updaters = updaters
+	}
+}
+
 func (o *samplerOptions) applyOptionsAndDefaults(opts ...SamplerOption) *samplerOptions {
 	for _, option := range opts {
 		option(o)
@@ -103,6 +111,13 @@ func (o *samplerOptions) applyOptionsAndDefaults(opts ...SamplerOption) *sampler
 	}
 	if o.samplingRefreshInterval <= 0 {
 		o.samplingRefreshInterval = defaultSamplingRefreshInterval
+	}
+	if o.updaters == nil {
+		o.updaters = []SamplerUpdater{
+			&AdaptiveSamplerUpdater{MaxOperations: o.maxOperations},
+			new(ProbabilisticSamplerUpdater),
+			new(RateLimitingSamplerUpdater),
+		}
 	}
 	return o
 }
