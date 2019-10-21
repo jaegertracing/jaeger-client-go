@@ -15,19 +15,32 @@
 package jaeger
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"net/url"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/uber/jaeger-client-go/thrift-gen/sampling"
-	"github.com/uber/jaeger-client-go/utils"
 )
 
 const (
 	defaultSamplingRefreshInterval = time.Minute
 )
+
+// SamplingStrategyFetcher is used to fetch sampling strategy updates from remote server.
+type SamplingStrategyFetcher interface {
+	Fetch(service string) ([]byte, error)
+}
+
+// SamplingStrategyParser is used to parse sampling strategy updates. The output object
+// should be of the type that is recognized by the SamplerUpdaters.
+type SamplingStrategyParser interface {
+	Parse(response []byte) (interface{}, error)
+}
 
 // SamplerUpdater is used by RemotelyControlledSampler to apply sampling strategies,
 // retrieved from remote config server, to the current sampler. The updater can modify
@@ -54,7 +67,6 @@ type RemotelyControlledSampler struct {
 	samplerOptions
 
 	serviceName string
-	manager     sampling.SamplingManager
 	doneChan    chan *sync.WaitGroup
 }
 
@@ -68,7 +80,6 @@ func NewRemotelyControlledSampler(
 	sampler := &RemotelyControlledSampler{
 		samplerOptions: *options,
 		serviceName:    serviceName,
-		manager:        &httpSamplingManager{serverURL: options.samplingServerURL},
 		doneChan:       make(chan *sync.WaitGroup),
 	}
 	go sampler.pollController()
@@ -148,28 +159,35 @@ func (s *RemotelyControlledSampler) setSampler(sampler SamplerV2) {
 }
 
 func (s *RemotelyControlledSampler) updateSampler() {
-	res, err := s.manager.GetSamplingStrategy(s.serviceName)
+	res, err := s.samplingFetcher.Fetch(s.serviceName)
 	if err != nil {
 		s.metrics.SamplerQueryFailure.Inc(1)
-		s.logger.Infof("Unable to query sampling strategy: %v", err)
+		s.logger.Infof("failed to fetch sampling strategy: %v", err)
 		return
 	}
+	strategy, err := s.samplingParser.Parse(res)
+	if err != nil {
+		s.metrics.SamplerUpdateFailure.Inc(1)
+		s.logger.Infof("failed to parse sampling strategy response: %v", err)
+		return
+	}
+
 	s.Lock()
 	defer s.Unlock()
 
 	s.metrics.SamplerRetrieved.Inc(1)
-	if err := s.updateSamplerViaUpdaters(res); err != nil {
+	if err := s.updateSamplerViaUpdaters(strategy); err != nil {
 		s.metrics.SamplerUpdateFailure.Inc(1)
-		s.logger.Infof("Unable to handle sampling strategy response %+v. Got error: %v", res, err)
+		s.logger.Infof("failed to handle sampling strategy response %+v. Got error: %v", res, err)
 		return
 	}
 	s.metrics.SamplerUpdated.Inc(1)
 }
 
 // NB: this function should only be called while holding a Write lock
-func (s *RemotelyControlledSampler) updateSamplerViaUpdaters(res *sampling.SamplingStrategyResponse) error {
+func (s *RemotelyControlledSampler) updateSamplerViaUpdaters(strategy interface{}) error {
 	for _, updater := range s.updaters {
-		sampler, err := updater.Update(s.sampler, res)
+		sampler, err := updater.Update(s.sampler, strategy)
 		if err != nil {
 			return err
 		}
@@ -178,23 +196,7 @@ func (s *RemotelyControlledSampler) updateSamplerViaUpdaters(res *sampling.Sampl
 			return nil
 		}
 	}
-	return fmt.Errorf("unsupported sampling strategy type %v", res.GetStrategyType())
-}
-
-// -----------------------
-
-type httpSamplingManager struct {
-	serverURL string
-}
-
-func (s *httpSamplingManager) GetSamplingStrategy(serviceName string) (*sampling.SamplingStrategyResponse, error) {
-	var out sampling.SamplingStrategyResponse
-	v := url.Values{}
-	v.Set("service", serviceName)
-	if err := utils.GetJSON(s.serverURL+"?"+v.Encode(), &out); err != nil {
-		return nil, err
-	}
-	return &out, nil
+	return fmt.Errorf("unsupported sampling strategy %+v", strategy)
 }
 
 // -----------------------
@@ -266,4 +268,53 @@ func (u *AdaptiveSamplerUpdater) Update(sampler SamplerV2, strategy interface{})
 		}
 	}
 	return nil, nil
+}
+
+// -----------------------
+
+type httpSamplingStrategyFetcher struct {
+	serverURL string
+	logger    Logger
+}
+
+func (f *httpSamplingStrategyFetcher) Fetch(serviceName string) ([]byte, error) {
+	v := url.Values{}
+	v.Set("service", serviceName)
+	uri := f.serverURL + "?" + v.Encode()
+
+	// TODO create and reuse http.Client with proper timeout settings, etc.
+	resp, err := http.Get(uri)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() {
+		err := resp.Body.Close()
+		if err != nil {
+			f.logger.Error(fmt.Sprintf("failed to close HTTP response body: %+v", err))
+		}
+	}()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("StatusCode: %d, Body: %s", resp.StatusCode, body)
+	}
+
+	return body, nil
+}
+
+// -----------------------
+
+type samplingStrategyParser struct{}
+
+func (p *samplingStrategyParser) Parse(response []byte) (interface{}, error) {
+	strategy := new(sampling.SamplingStrategyResponse)
+	if err := json.Unmarshal(response, strategy); err != nil {
+		return nil, err
+	}
+	return strategy, nil
 }

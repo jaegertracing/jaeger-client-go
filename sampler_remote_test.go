@@ -17,7 +17,6 @@ package jaeger
 import (
 	"errors"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
@@ -274,7 +273,7 @@ func TestSamplerQueryError(t *testing.T) {
 	defer agent.Close()
 
 	// override the actual handler
-	sampler.manager = &fakeSamplingManager{}
+	sampler.samplingFetcher = &fakeSamplingFetcher{}
 
 	initSampler, ok := sampler.sampler.(*ProbabilisticSampler)
 	assert.True(t, ok)
@@ -289,9 +288,9 @@ func TestSamplerQueryError(t *testing.T) {
 	)
 }
 
-type fakeSamplingManager struct{}
+type fakeSamplingFetcher struct{}
 
-func (c *fakeSamplingManager) GetSamplingStrategy(serviceName string) (*sampling.SamplingStrategyResponse, error) {
+func (c *fakeSamplingFetcher) Fetch(serviceName string) ([]byte, error) {
 	return nil, errors.New("query error")
 }
 
@@ -418,10 +417,10 @@ func TestRemotelyControlledSampler_updateRateLimitingOrProbabilisticSampler(t *t
 			remoteSampler := NewRemotelyControlledSampler(
 				"test",
 				SamplerOptions.InitialSampler(testCase.initSampler.(Sampler)),
-				SamplerOptions.Updaters([]SamplerUpdater{
+				SamplerOptions.Updaters(
 					new(ProbabilisticSamplerUpdater),
 					new(RateLimitingSamplerUpdater),
-				}),
+				),
 			)
 			err := remoteSampler.updateSamplerViaUpdaters(testCase.res)
 			if testCase.shouldErr {
@@ -472,5 +471,5 @@ func TestRemotelyControlledSampler_printErrorForBrokenUpstream(t *testing.T) {
 	sampler.Close() // stop timer-based updates, we want to call them manually
 	sampler.updateSampler()
 
-	assert.True(t, strings.Contains(logger.String(), "Unable to query sampling strategy:"))
+	assert.Contains(t, logger.String(), "failed to fetch sampling strategy:")
 }

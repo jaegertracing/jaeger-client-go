@@ -33,6 +33,8 @@ type samplerOptions struct {
 	logger                  Logger
 	samplingServerURL       string
 	samplingRefreshInterval time.Duration
+	samplingFetcher         SamplingStrategyFetcher
+	samplingParser          SamplingStrategyParser
 	updaters                []SamplerUpdater
 }
 
@@ -84,7 +86,7 @@ func (samplerOptions) SamplingRefreshInterval(samplingRefreshInterval time.Durat
 }
 
 // Updaters creates a SamplerOption that initializes sampler updaters.
-func (samplerOptions) Updaters(updaters []SamplerUpdater) SamplerOption {
+func (samplerOptions) Updaters(updaters ...SamplerUpdater) SamplerOption {
 	return func(o *samplerOptions) {
 		o.updaters = updaters
 	}
@@ -111,6 +113,15 @@ func (o *samplerOptions) applyOptionsAndDefaults(opts ...SamplerOption) *sampler
 	}
 	if o.samplingRefreshInterval <= 0 {
 		o.samplingRefreshInterval = defaultSamplingRefreshInterval
+	}
+	if o.samplingFetcher == nil {
+		o.samplingFetcher = &httpSamplingStrategyFetcher{
+			serverURL: o.samplingServerURL,
+			logger:    o.logger,
+		}
+	}
+	if o.samplingParser == nil {
+		o.samplingParser = new(samplingStrategyParser)
 	}
 	if o.updaters == nil {
 		o.updaters = []SamplerUpdater{
