@@ -415,8 +415,16 @@ func TestRemotelyControlledSampler_updateRateLimitingOrProbabilisticSampler(t *t
 	for _, tc := range testCases {
 		testCase := tc // capture loop var
 		t.Run(testCase.caption, func(t *testing.T) {
-			remoteSampler := &RemotelyControlledSampler{samplerOptions: samplerOptions{sampler: testCase.initSampler}}
-			err := remoteSampler.updateRateLimitingOrProbabilisticSampler(testCase.res)
+			remoteSampler := &RemotelyControlledSampler{
+				samplerOptions: samplerOptions{
+					sampler: testCase.initSampler,
+				},
+				updaters: []SamplerUpdater{
+					new(probabilisticSamplerUpdater),
+					new(rateLimitingSamplerUpdater),
+				},
+			}
+			err := remoteSampler.updateSamplerViaUpdaters(testCase.res)
 			if testCase.shouldErr {
 				require.Error(t, err)
 				return

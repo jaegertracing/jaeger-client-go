@@ -29,6 +29,10 @@ const (
 	defaultSamplingRefreshInterval = time.Minute
 )
 
+type SamplerUpdater interface {
+	Update(sampler SamplerV2, strategy interface{}) (modifiedSampled SamplerV2, applied bool, err error)
+}
+
 // RemotelyControlledSampler is a delegating sampler that polls a remote server
 // for the appropriate sampling strategy, constructs a corresponding sampler and
 // delegates to it for sampling decisions.
@@ -43,6 +47,8 @@ type RemotelyControlledSampler struct {
 	serviceName string
 	manager     sampling.SamplingManager
 	doneChan    chan *sync.WaitGroup
+
+	updaters []SamplerUpdater
 }
 
 // NewRemotelyControlledSampler creates a sampler that periodically pulls
@@ -57,6 +63,12 @@ func NewRemotelyControlledSampler(
 		serviceName:    serviceName,
 		manager:        &httpSamplingManager{serverURL: options.samplingServerURL},
 		doneChan:       make(chan *sync.WaitGroup),
+		updaters: []SamplerUpdater{
+			// TODO expose these updaters?
+			&adaptiveSamplerUpdater{maxOperations: options.maxOperations},
+			new(probabilisticSamplerUpdater),
+			new(rateLimitingSamplerUpdater),
+		},
 	}
 	go sampler.pollController()
 	return sampler
@@ -145,12 +157,7 @@ func (s *RemotelyControlledSampler) updateSampler() {
 	defer s.Unlock()
 
 	s.metrics.SamplerRetrieved.Inc(1)
-	if strategies := res.GetOperationSampling(); strategies != nil {
-		s.updateAdaptiveSampler(strategies)
-	} else {
-		err = s.updateRateLimitingOrProbabilisticSampler(res)
-	}
-	if err != nil {
+	if err := s.updateSamplerViaUpdaters(res); err != nil {
 		s.metrics.SamplerUpdateFailure.Inc(1)
 		s.logger.Infof("Unable to handle sampling strategy response %+v. Got error: %v", res, err)
 		return
@@ -159,35 +166,50 @@ func (s *RemotelyControlledSampler) updateSampler() {
 }
 
 // NB: this function should only be called while holding a Write lock
-func (s *RemotelyControlledSampler) updateAdaptiveSampler(strategies *sampling.PerOperationSamplingStrategies) {
-	if adaptiveSampler, ok := s.sampler.(*AdaptiveSampler); ok {
-		adaptiveSampler.update(strategies)
-	} else {
-		s.sampler = newAdaptiveSampler(strategies, s.maxOperations)
+func (s *RemotelyControlledSampler) updateSamplerViaUpdaters(res *sampling.SamplingStrategyResponse) error {
+	for _, updater := range s.updaters {
+		sampler, applied, err := updater.Update(s.sampler, res)
+		if err != nil {
+			return err
+		}
+		if applied {
+			s.sampler = sampler
+			return nil
+		}
 	}
+	return fmt.Errorf("unsupported sampling strategy type %v", res.GetStrategyType())
 }
 
 // NB: this function should only be called while holding a Write lock
-func (s *RemotelyControlledSampler) updateRateLimitingOrProbabilisticSampler(res *sampling.SamplingStrategyResponse) error {
-	if probabilistic := res.GetProbabilisticSampling(); probabilistic != nil {
-		if ps, ok := s.sampler.(*ProbabilisticSampler); ok {
-			if err := ps.Update(probabilistic.SamplingRate); err != nil {
-				return err
-			}
-		} else {
-			s.sampler = newProbabilisticSampler(probabilistic.SamplingRate)
-		}
-	} else if rateLimiting := res.GetRateLimitingSampling(); rateLimiting != nil {
-		if rl, ok := s.sampler.(*RateLimitingSampler); ok {
-			rl.Update(float64(rateLimiting.MaxTracesPerSecond))
-		} else {
-			s.sampler = NewRateLimitingSampler(float64(rateLimiting.MaxTracesPerSecond))
-		}
-	} else {
-		return fmt.Errorf("unsupported sampling strategy type %v", res.GetStrategyType())
-	}
-	return nil
-}
+//func (s *RemotelyControlledSampler) updateAdaptiveSampler(strategies *sampling.PerOperationSamplingStrategies) {
+//	if adaptiveSampler, ok := s.sampler.(*AdaptiveSampler); ok {
+//		adaptiveSampler.update(strategies)
+//	} else {
+//		s.sampler = newAdaptiveSampler(strategies, s.maxOperations)
+//	}
+//}
+
+// NB: this function should only be called while holding a Write lock
+//func (s *RemotelyControlledSampler) updateRateLimitingOrProbabilisticSampler(res *sampling.SamplingStrategyResponse) error {
+//	if probabilistic := res.GetProbabilisticSampling(); probabilistic != nil {
+//		if ps, ok := s.sampler.(*ProbabilisticSampler); ok {
+//			if err := ps.Update(probabilistic.SamplingRate); err != nil {
+//				return err
+//			}
+//		} else {
+//			s.sampler = newProbabilisticSampler(probabilistic.SamplingRate)
+//		}
+//	} else if rateLimiting := res.GetRateLimitingSampling(); rateLimiting != nil {
+//		if rl, ok := s.sampler.(*RateLimitingSampler); ok {
+//			rl.Update(float64(rateLimiting.MaxTracesPerSecond))
+//		} else {
+//			s.sampler = NewRateLimitingSampler(float64(rateLimiting.MaxTracesPerSecond))
+//		}
+//	} else {
+//		return fmt.Errorf("unsupported sampling strategy type %v", res.GetStrategyType())
+//	}
+//	return nil
+//}
 
 type httpSamplingManager struct {
 	serverURL string
@@ -201,4 +223,66 @@ func (s *httpSamplingManager) GetSamplingStrategy(serviceName string) (*sampling
 		return nil, err
 	}
 	return &out, nil
+}
+
+type probabilisticSamplerUpdater struct{}
+
+func (u *probabilisticSamplerUpdater) Update(sampler SamplerV2, strategy interface{}) (SamplerV2, bool, error) {
+	type response interface {
+		GetProbabilisticSampling() *sampling.ProbabilisticSamplingStrategy
+	}
+	var _ response = new(sampling.SamplingStrategyResponse) // sanity signature check
+	if resp, ok := strategy.(response); ok {
+		if probabilistic := resp.GetProbabilisticSampling(); probabilistic != nil {
+			if ps, ok := sampler.(*ProbabilisticSampler); ok {
+				if err := ps.Update(probabilistic.SamplingRate); err != nil {
+					return nil, false, err
+				}
+				return sampler, true, nil
+			}
+			return newProbabilisticSampler(probabilistic.SamplingRate), true, nil
+		}
+	}
+	return nil, false, nil
+}
+
+type rateLimitingSamplerUpdater struct{}
+
+func (u *rateLimitingSamplerUpdater) Update(sampler SamplerV2, strategy interface{}) (SamplerV2, bool, error) {
+	type response interface {
+		GetRateLimitingSampling() *sampling.RateLimitingSamplingStrategy
+	}
+	var _ response = new(sampling.SamplingStrategyResponse) // sanity signature check
+	if resp, ok := strategy.(response); ok {
+		if rateLimiting := resp.GetRateLimitingSampling(); rateLimiting != nil {
+			rateLimit := float64(rateLimiting.MaxTracesPerSecond)
+			if rl, ok := sampler.(*RateLimitingSampler); ok {
+				rl.Update(rateLimit)
+				return rl, true, nil
+			}
+			return NewRateLimitingSampler(rateLimit), true, nil
+		}
+	}
+	return nil, false, nil
+}
+
+type adaptiveSamplerUpdater struct {
+	maxOperations int
+}
+
+func (u *adaptiveSamplerUpdater) Update(sampler SamplerV2, strategy interface{}) (SamplerV2, bool, error) {
+	type response interface {
+		GetOperationSampling() *sampling.PerOperationSamplingStrategies
+	}
+	var _ response = new(sampling.SamplingStrategyResponse) // sanity signature check
+	if p, ok := strategy.(response); ok {
+		if operations := p.GetOperationSampling(); operations != nil {
+			if as, ok := sampler.(*AdaptiveSampler); ok {
+				as.update(operations)
+				return as, true, nil
+			}
+			return newAdaptiveSampler(operations, u.maxOperations), true, nil
+		}
+	}
+	return nil, false, nil
 }
