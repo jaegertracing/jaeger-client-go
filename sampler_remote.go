@@ -101,13 +101,6 @@ func (s *RemotelyControlledSampler) Close() {
 func (s *RemotelyControlledSampler) Equal(other Sampler) bool {
 	// NB The Equal() function is expensive and will be removed. See AdaptiveSampler.Equal() for
 	// more information.
-	if o, ok := other.(*RemotelyControlledSampler); ok {
-		s.RLock()
-		o.RLock()
-		defer s.RUnlock()
-		defer o.RUnlock()
-		return s.sampler.(Sampler).Equal(o.sampler.(Sampler))
-	}
 	return false
 }
 
@@ -176,16 +169,22 @@ func (s *RemotelyControlledSampler) updateAdaptiveSampler(strategies *sampling.P
 
 // NB: this function should only be called while holding a Write lock
 func (s *RemotelyControlledSampler) updateRateLimitingOrProbabilisticSampler(res *sampling.SamplingStrategyResponse) error {
-	var newSampler SamplerV2
 	if probabilistic := res.GetProbabilisticSampling(); probabilistic != nil {
-		newSampler = newProbabilisticSampler(probabilistic.SamplingRate)
+		if ps, ok := s.sampler.(*ProbabilisticSampler); ok {
+			if err := ps.Update(probabilistic.SamplingRate); err != nil {
+				return err
+			}
+		} else {
+			s.sampler = newProbabilisticSampler(probabilistic.SamplingRate)
+		}
 	} else if rateLimiting := res.GetRateLimitingSampling(); rateLimiting != nil {
-		newSampler = NewRateLimitingSampler(float64(rateLimiting.MaxTracesPerSecond))
+		if rl, ok := s.sampler.(*RateLimitingSampler); ok {
+			rl.Update(float64(rateLimiting.MaxTracesPerSecond))
+		} else {
+			s.sampler = NewRateLimitingSampler(float64(rateLimiting.MaxTracesPerSecond))
+		}
 	} else {
-		return fmt.Errorf("Unsupported sampling strategy type %v", res.GetStrategyType())
-	}
-	if !s.sampler.(Sampler).Equal(newSampler.(Sampler)) {
-		s.sampler = newSampler
+		return fmt.Errorf("unsupported sampling strategy type %v", res.GetStrategyType())
 	}
 	return nil
 }
