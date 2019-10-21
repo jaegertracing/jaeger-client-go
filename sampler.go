@@ -194,7 +194,7 @@ func (s *RateLimitingSampler) init(maxTracesPerSecond float64) *RateLimitingSamp
 	if s.rateLimiter == nil {
 		s.rateLimiter = utils.NewRateLimiter(maxTracesPerSecond, math.Max(maxTracesPerSecond, 1.0))
 	} else {
-		s.rateLimiter.Reconfigure(maxTracesPerSecond, math.Max(maxTracesPerSecond, 1.0))
+		s.rateLimiter.Update(maxTracesPerSecond, math.Max(maxTracesPerSecond, 1.0))
 	}
 	s.maxTracesPerSecond = maxTracesPerSecond
 	s.tags = []Tag{

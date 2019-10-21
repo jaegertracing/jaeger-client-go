@@ -21,7 +21,7 @@ import (
 
 // RateLimiter is a filter used to check if a message that is worth itemCost units is within the rate limits.
 //
-// TODO (breaking change) remove this interface in factor of public struct below
+// TODO (breaking change) remove this interface in favor of public struct below
 //
 // Deprecated, use ReconfigurableRateLimiter.
 type RateLimiter interface {
@@ -97,11 +97,11 @@ func (rl *ReconfigurableRateLimiter) updateBalance() {
 	}
 }
 
-// Reconfigure changes the main parameters of the rate limiter in-place, while retaining
+// Update changes the main parameters of the rate limiter in-place, while retaining
 // the current accumulated balance (pro-rated to the new maxBalance value). Using this method
 // instead of creating a new rate limiter helps to avoid thundering herd when sampling
 // strategies are updated.
-func (rl *ReconfigurableRateLimiter) Reconfigure(creditsPerSecond, maxBalance float64) {
+func (rl *ReconfigurableRateLimiter) Update(creditsPerSecond, maxBalance float64) {
 	rl.lock.Lock()
 	defer rl.lock.Unlock()
 

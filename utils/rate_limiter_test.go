@@ -15,7 +15,6 @@
 package utils
 
 import (
-	"math"
 	"testing"
 	"time"
 
@@ -77,9 +76,8 @@ func TestRateLimiterMaxBalance(t *testing.T) {
 func TestRateLimiterReconfigure(t *testing.T) {
 	rl := NewRateLimiter(1, 1.0)
 	assertBalance := func(expected float64) {
-		const precision = 0.0000001 // just some precision for comparing floats
-		delta := math.Abs(rl.balance - expected)
-		assert.Greater(t, precision, delta, "expect balance %v, was %v", expected, rl.balance)
+		const delta = 0.0000001 // just some precision for comparing floats
+		assert.InDelta(t, expected, rl.balance, delta)
 	}
 	// stop time
 	ts := time.Now()
@@ -88,7 +86,7 @@ func TestRateLimiterReconfigure(t *testing.T) {
 		return ts
 	}
 	assert.True(t, rl.CheckCredit(1.0), "first message must succeed")
-	assert.False(t, rl.CheckCredit(1.0), "first message must succeed")
+	assert.False(t, rl.CheckCredit(1.0), "second message must be rejected")
 	assertBalance(0.0)
 
 	// move half-second forward
@@ -98,7 +96,7 @@ func TestRateLimiterReconfigure(t *testing.T) {
 	rl.updateBalance()
 	assertBalance(0.5) // 50% of max
 
-	rl.Reconfigure(2, 4)
+	rl.Update(2, 4)
 	assertBalance(2) // 50% of max
 	assert.EqualValues(t, 2, rl.creditsPerSecond)
 	assert.EqualValues(t, 4, rl.maxBalance)
