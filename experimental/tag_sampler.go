@@ -57,7 +57,8 @@ func NewTagMatchingSampler(tagKey string, matchers []TagMatcher) *TagMatchingSam
 	}
 }
 
-type tagMatchingSamplingStrategy struct {
+// TagMatchingSamplingStrategy defines JSON format for TagMatchingSampler strategy.
+type TagMatchingSamplingStrategy struct {
 	Key      string       `json:"key"`
 	Matchers []TagMatcher `json:"matchers"`
 	// legacy format as map
@@ -94,16 +95,21 @@ type tagMatchingSamplingStrategy struct {
 // When a given tag value appears multiple time, then last one in "matchers" wins,
 // and the one in "values" wins overall.
 func NewTagMatchingSamplerFromStrategyJSON(jsonString []byte) (*TagMatchingSampler, error) {
-	var strategy tagMatchingSamplingStrategy
+	var strategy TagMatchingSamplingStrategy
 	err := json.Unmarshal(jsonString, &strategy)
 	if err != nil {
 		return nil, err
 	}
+	return NewTagMatchingSamplerFromStrategy(strategy), nil
+}
+
+// NewTagMatchingSamplerFromStrategy instantiates TagMatchingSampler from a strategy.
+func NewTagMatchingSamplerFromStrategy(strategy TagMatchingSamplingStrategy) *TagMatchingSampler {
 	for k, v := range strategy.Values {
 		v.TagValue = k
 		strategy.Matchers = append(strategy.Matchers, v)
 	}
-	return NewTagMatchingSampler(strategy.Key, strategy.Matchers), nil
+	return NewTagMatchingSampler(strategy.Key, strategy.Matchers)
 }
 
 func (s *TagMatchingSampler) decide(span *jaeger.Span, value interface{}) jaeger.SamplingDecision {

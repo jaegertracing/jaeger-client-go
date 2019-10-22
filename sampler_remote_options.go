@@ -33,6 +33,9 @@ type samplerOptions struct {
 	logger                  Logger
 	samplingServerURL       string
 	samplingRefreshInterval time.Duration
+	samplingFetcher         SamplingStrategyFetcher
+	samplingParser          SamplingStrategyParser
+	updaters                []SamplerUpdater
 }
 
 // Metrics creates a SamplerOption that initializes Metrics on the sampler,
@@ -82,6 +85,27 @@ func (samplerOptions) SamplingRefreshInterval(samplingRefreshInterval time.Durat
 	}
 }
 
+// SamplingStrategyFetcher creates a SamplerOption that initializes sampling strategy fetcher.
+func (samplerOptions) SamplingStrategyFetcher(fetcher SamplingStrategyFetcher) SamplerOption {
+	return func(o *samplerOptions) {
+		o.samplingFetcher = fetcher
+	}
+}
+
+// SamplingStrategyParser creates a SamplerOption that initializes sampling strategy parser.
+func (samplerOptions) SamplingStrategyParser(parser SamplingStrategyParser) SamplerOption {
+	return func(o *samplerOptions) {
+		o.samplingParser = parser
+	}
+}
+
+// Updaters creates a SamplerOption that initializes sampler updaters.
+func (samplerOptions) Updaters(updaters ...SamplerUpdater) SamplerOption {
+	return func(o *samplerOptions) {
+		o.updaters = updaters
+	}
+}
+
 func (o *samplerOptions) applyOptionsAndDefaults(opts ...SamplerOption) *samplerOptions {
 	for _, option := range opts {
 		option(o)
@@ -103,6 +127,22 @@ func (o *samplerOptions) applyOptionsAndDefaults(opts ...SamplerOption) *sampler
 	}
 	if o.samplingRefreshInterval <= 0 {
 		o.samplingRefreshInterval = defaultSamplingRefreshInterval
+	}
+	if o.samplingFetcher == nil {
+		o.samplingFetcher = &httpSamplingStrategyFetcher{
+			serverURL: o.samplingServerURL,
+			logger:    o.logger,
+		}
+	}
+	if o.samplingParser == nil {
+		o.samplingParser = new(samplingStrategyParser)
+	}
+	if o.updaters == nil {
+		o.updaters = []SamplerUpdater{
+			&AdaptiveSamplerUpdater{MaxOperations: o.maxOperations},
+			new(ProbabilisticSamplerUpdater),
+			new(RateLimitingSamplerUpdater),
+		}
 	}
 	return o
 }

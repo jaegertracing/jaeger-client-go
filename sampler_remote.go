@@ -15,19 +15,45 @@
 package jaeger
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"net/url"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/uber/jaeger-client-go/thrift-gen/sampling"
-	"github.com/uber/jaeger-client-go/utils"
 )
 
 const (
 	defaultSamplingRefreshInterval = time.Minute
 )
+
+// SamplingStrategyFetcher is used to fetch sampling strategy updates from remote server.
+type SamplingStrategyFetcher interface {
+	Fetch(service string) ([]byte, error)
+}
+
+// SamplingStrategyParser is used to parse sampling strategy updates. The output object
+// should be of the type that is recognized by the SamplerUpdaters.
+type SamplingStrategyParser interface {
+	Parse(response []byte) (interface{}, error)
+}
+
+// SamplerUpdater is used by RemotelyControlledSampler to apply sampling strategies,
+// retrieved from remote config server, to the current sampler. The updater can modify
+// the sampler in-place if sampler supports it, or create a new one.
+//
+// If the strategy does not contain configuration for the sampler in question,
+// updater must return modifiedSampler=nil to give other updaters a chance to inspect
+// the sampling strategy response.
+//
+// RemotelyControlledSampler invokes the updaters while holding a lock on the main sampler.
+type SamplerUpdater interface {
+	Update(sampler SamplerV2, strategy interface{}) (modified SamplerV2, err error)
+}
 
 // RemotelyControlledSampler is a delegating sampler that polls a remote server
 // for the appropriate sampling strategy, constructs a corresponding sampler and
@@ -41,7 +67,6 @@ type RemotelyControlledSampler struct {
 	samplerOptions
 
 	serviceName string
-	manager     sampling.SamplingManager
 	doneChan    chan *sync.WaitGroup
 }
 
@@ -55,7 +80,6 @@ func NewRemotelyControlledSampler(
 	sampler := &RemotelyControlledSampler{
 		samplerOptions: *options,
 		serviceName:    serviceName,
-		manager:        &httpSamplingManager{serverURL: options.samplingServerURL},
 		doneChan:       make(chan *sync.WaitGroup),
 	}
 	go sampler.pollController()
@@ -114,7 +138,7 @@ func (s *RemotelyControlledSampler) pollControllerWithTicker(ticker *time.Ticker
 	for {
 		select {
 		case <-ticker.C:
-			s.updateSampler()
+			s.UpdateSampler()
 		case wg := <-s.doneChan:
 			wg.Done()
 			return
@@ -122,7 +146,8 @@ func (s *RemotelyControlledSampler) pollControllerWithTicker(ticker *time.Ticker
 	}
 }
 
-func (s *RemotelyControlledSampler) getSampler() SamplerV2 {
+// GetSampler returns the currently active sampler.
+func (s *RemotelyControlledSampler) GetSampler() SamplerV2 {
 	s.Lock()
 	defer s.Unlock()
 	return s.sampler
@@ -134,71 +159,164 @@ func (s *RemotelyControlledSampler) setSampler(sampler SamplerV2) {
 	s.sampler = sampler
 }
 
-func (s *RemotelyControlledSampler) updateSampler() {
-	res, err := s.manager.GetSamplingStrategy(s.serviceName)
+// UpdateSampler forces the sampler to fetch sampling strategy from backend server.
+// This function is called automatically on a timer, but can also be safely called manually, e.g. from tests.
+func (s *RemotelyControlledSampler) UpdateSampler() {
+	res, err := s.samplingFetcher.Fetch(s.serviceName)
 	if err != nil {
 		s.metrics.SamplerQueryFailure.Inc(1)
-		s.logger.Infof("Unable to query sampling strategy: %v", err)
+		s.logger.Infof("failed to fetch sampling strategy: %v", err)
 		return
 	}
+	strategy, err := s.samplingParser.Parse(res)
+	if err != nil {
+		s.metrics.SamplerUpdateFailure.Inc(1)
+		s.logger.Infof("failed to parse sampling strategy response: %v", err)
+		return
+	}
+
 	s.Lock()
 	defer s.Unlock()
 
 	s.metrics.SamplerRetrieved.Inc(1)
-	if strategies := res.GetOperationSampling(); strategies != nil {
-		s.updateAdaptiveSampler(strategies)
-	} else {
-		err = s.updateRateLimitingOrProbabilisticSampler(res)
-	}
-	if err != nil {
+	if err := s.updateSamplerViaUpdaters(strategy); err != nil {
 		s.metrics.SamplerUpdateFailure.Inc(1)
-		s.logger.Infof("Unable to handle sampling strategy response %+v. Got error: %v", res, err)
+		s.logger.Infof("failed to handle sampling strategy response %+v. Got error: %v", res, err)
 		return
 	}
 	s.metrics.SamplerUpdated.Inc(1)
 }
 
 // NB: this function should only be called while holding a Write lock
-func (s *RemotelyControlledSampler) updateAdaptiveSampler(strategies *sampling.PerOperationSamplingStrategies) {
-	if adaptiveSampler, ok := s.sampler.(*AdaptiveSampler); ok {
-		adaptiveSampler.update(strategies)
-	} else {
-		s.sampler = newAdaptiveSampler(strategies, s.maxOperations)
+func (s *RemotelyControlledSampler) updateSamplerViaUpdaters(strategy interface{}) error {
+	for _, updater := range s.updaters {
+		sampler, err := updater.Update(s.sampler, strategy)
+		if err != nil {
+			return err
+		}
+		if sampler != nil {
+			s.sampler = sampler
+			return nil
+		}
 	}
+	return fmt.Errorf("unsupported sampling strategy %+v", strategy)
 }
 
-// NB: this function should only be called while holding a Write lock
-func (s *RemotelyControlledSampler) updateRateLimitingOrProbabilisticSampler(res *sampling.SamplingStrategyResponse) error {
-	if probabilistic := res.GetProbabilisticSampling(); probabilistic != nil {
-		if ps, ok := s.sampler.(*ProbabilisticSampler); ok {
-			if err := ps.Update(probabilistic.SamplingRate); err != nil {
-				return err
+// -----------------------
+
+// ProbabilisticSamplerUpdater is used by RemotelyControlledSampler to parse sampling configuration.
+type ProbabilisticSamplerUpdater struct{}
+
+func (u *ProbabilisticSamplerUpdater) Update(sampler SamplerV2, strategy interface{}) (SamplerV2, error) {
+	type response interface {
+		GetProbabilisticSampling() *sampling.ProbabilisticSamplingStrategy
+	}
+	var _ response = new(sampling.SamplingStrategyResponse) // sanity signature check
+	if resp, ok := strategy.(response); ok {
+		if probabilistic := resp.GetProbabilisticSampling(); probabilistic != nil {
+			if ps, ok := sampler.(*ProbabilisticSampler); ok {
+				if err := ps.Update(probabilistic.SamplingRate); err != nil {
+					return nil, err
+				}
+				return sampler, nil
 			}
-		} else {
-			s.sampler = newProbabilisticSampler(probabilistic.SamplingRate)
+			return newProbabilisticSampler(probabilistic.SamplingRate), nil
 		}
-	} else if rateLimiting := res.GetRateLimitingSampling(); rateLimiting != nil {
-		if rl, ok := s.sampler.(*RateLimitingSampler); ok {
-			rl.Update(float64(rateLimiting.MaxTracesPerSecond))
-		} else {
-			s.sampler = NewRateLimitingSampler(float64(rateLimiting.MaxTracesPerSecond))
-		}
-	} else {
-		return fmt.Errorf("unsupported sampling strategy type %v", res.GetStrategyType())
 	}
-	return nil
+	return nil, nil
 }
 
-type httpSamplingManager struct {
+// -----------------------
+
+// RateLimitingSamplerUpdater is used by RemotelyControlledSampler to parse sampling configuration.
+type RateLimitingSamplerUpdater struct{}
+
+func (u *RateLimitingSamplerUpdater) Update(sampler SamplerV2, strategy interface{}) (SamplerV2, error) {
+	type response interface {
+		GetRateLimitingSampling() *sampling.RateLimitingSamplingStrategy
+	}
+	var _ response = new(sampling.SamplingStrategyResponse) // sanity signature check
+	if resp, ok := strategy.(response); ok {
+		if rateLimiting := resp.GetRateLimitingSampling(); rateLimiting != nil {
+			rateLimit := float64(rateLimiting.MaxTracesPerSecond)
+			if rl, ok := sampler.(*RateLimitingSampler); ok {
+				rl.Update(rateLimit)
+				return rl, nil
+			}
+			return NewRateLimitingSampler(rateLimit), nil
+		}
+	}
+	return nil, nil
+}
+
+// -----------------------
+
+// AdaptiveSamplerUpdater is used by RemotelyControlledSampler to parse sampling configuration.
+type AdaptiveSamplerUpdater struct {
+	MaxOperations int // required
+}
+
+func (u *AdaptiveSamplerUpdater) Update(sampler SamplerV2, strategy interface{}) (SamplerV2, error) {
+	type response interface {
+		GetOperationSampling() *sampling.PerOperationSamplingStrategies
+	}
+	var _ response = new(sampling.SamplingStrategyResponse) // sanity signature check
+	if p, ok := strategy.(response); ok {
+		if operations := p.GetOperationSampling(); operations != nil {
+			if as, ok := sampler.(*AdaptiveSampler); ok {
+				as.update(operations)
+				return as, nil
+			}
+			return newAdaptiveSampler(operations, u.MaxOperations), nil
+		}
+	}
+	return nil, nil
+}
+
+// -----------------------
+
+type httpSamplingStrategyFetcher struct {
 	serverURL string
+	logger    Logger
 }
 
-func (s *httpSamplingManager) GetSamplingStrategy(serviceName string) (*sampling.SamplingStrategyResponse, error) {
-	var out sampling.SamplingStrategyResponse
+func (f *httpSamplingStrategyFetcher) Fetch(serviceName string) ([]byte, error) {
 	v := url.Values{}
 	v.Set("service", serviceName)
-	if err := utils.GetJSON(s.serverURL+"?"+v.Encode(), &out); err != nil {
+	uri := f.serverURL + "?" + v.Encode()
+
+	// TODO create and reuse http.Client with proper timeout settings, etc.
+	resp, err := http.Get(uri)
+	if err != nil {
 		return nil, err
 	}
-	return &out, nil
+
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			f.logger.Error(fmt.Sprintf("failed to close HTTP response body: %+v", err))
+		}
+	}()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("StatusCode: %d, Body: %s", resp.StatusCode, body)
+	}
+
+	return body, nil
+}
+
+// -----------------------
+
+type samplingStrategyParser struct{}
+
+func (p *samplingStrategyParser) Parse(response []byte) (interface{}, error) {
+	strategy := new(sampling.SamplingStrategyResponse)
+	if err := json.Unmarshal(response, strategy); err != nil {
+		return nil, err
+	}
+	return strategy, nil
 }
