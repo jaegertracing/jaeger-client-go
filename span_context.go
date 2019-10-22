@@ -188,6 +188,8 @@ func (c SpanContext) IsFirehose() bool {
 	return c.samplingState.isFirehose()
 }
 
+// ExtendedSamplingState returns the custom state object for a given key. If the value for this key does not exist,
+// it is initialized via initValue function. This state can be used by samplers (e.g. experimental.PrioritySampler).
 func (c SpanContext) ExtendedSamplingState(key interface{}, initValue func() interface{}) interface{} {
 	return c.samplingState.extendedStateForKey(key, initValue)
 }

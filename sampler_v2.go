@@ -55,12 +55,15 @@ func samplerV1toV2(s Sampler) SamplerV2 {
 // TODO (breaking change) remove this in the next major release
 type SamplerV2Base struct{}
 
+// IsSampled implements IsSampled of Sampler.
 func (SamplerV2Base) IsSampled(id TraceID, operation string) (sampled bool, tags []Tag) {
 	return false, nil
 }
 
+// Close implements Close of Sampler.
 func (SamplerV2Base) Close() {}
 
+// Equal implements Equal of Sampler.
 func (SamplerV2Base) Equal(other Sampler) bool { return false }
 
 // legacySamplerV1Base is used as a base for simple samplers that only implement

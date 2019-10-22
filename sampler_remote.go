@@ -92,18 +92,22 @@ func (s *RemotelyControlledSampler) IsSampled(id TraceID, operation string) (boo
 	return false, nil
 }
 
+// OnCreateSpan implements OnCreateSpan of SamplerV2.
 func (s *RemotelyControlledSampler) OnCreateSpan(span *Span) SamplingDecision {
 	return s.sampler.OnCreateSpan(span)
 }
 
+// OnSetOperationName implements OnSetOperationName of SamplerV2.
 func (s *RemotelyControlledSampler) OnSetOperationName(span *Span, operationName string) SamplingDecision {
 	return s.sampler.OnSetOperationName(span, operationName)
 }
 
+// OnSetTag implements OnSetTag of SamplerV2.
 func (s *RemotelyControlledSampler) OnSetTag(span *Span, key string, value interface{}) SamplingDecision {
 	return s.sampler.OnSetTag(span, key, value)
 }
 
+// OnFinishSpan implements OnFinishSpan of SamplerV2.
 func (s *RemotelyControlledSampler) OnFinishSpan(span *Span) SamplingDecision {
 	return s.sampler.OnFinishSpan(span)
 }
@@ -207,6 +211,7 @@ func (s *RemotelyControlledSampler) updateSamplerViaUpdaters(strategy interface{
 // ProbabilisticSamplerUpdater is used by RemotelyControlledSampler to parse sampling configuration.
 type ProbabilisticSamplerUpdater struct{}
 
+// Update implements Update of SamplerUpdater.
 func (u *ProbabilisticSamplerUpdater) Update(sampler SamplerV2, strategy interface{}) (SamplerV2, error) {
 	type response interface {
 		GetProbabilisticSampling() *sampling.ProbabilisticSamplingStrategy
@@ -231,6 +236,7 @@ func (u *ProbabilisticSamplerUpdater) Update(sampler SamplerV2, strategy interfa
 // RateLimitingSamplerUpdater is used by RemotelyControlledSampler to parse sampling configuration.
 type RateLimitingSamplerUpdater struct{}
 
+// Update implements Update of SamplerUpdater.
 func (u *RateLimitingSamplerUpdater) Update(sampler SamplerV2, strategy interface{}) (SamplerV2, error) {
 	type response interface {
 		GetRateLimitingSampling() *sampling.RateLimitingSamplingStrategy
@@ -256,6 +262,7 @@ type AdaptiveSamplerUpdater struct {
 	MaxOperations int // required
 }
 
+// Update implements Update of SamplerUpdater.
 func (u *AdaptiveSamplerUpdater) Update(sampler SamplerV2, strategy interface{}) (SamplerV2, error) {
 	type response interface {
 		GetOperationSampling() *sampling.PerOperationSamplingStrategies
