@@ -103,6 +103,7 @@ func NewTagMatchingSamplerFromStrategyJSON(jsonString []byte) (*TagMatchingSampl
 	return NewTagMatchingSamplerFromStrategy(strategy), nil
 }
 
+// NewTagMatchingSamplerFromStrategy instantiates TagMatchingSampler from a strategy.
 func NewTagMatchingSamplerFromStrategy(strategy TagMatchingSamplingStrategy) *TagMatchingSampler {
 	for k, v := range strategy.Values {
 		v.TagValue = k
