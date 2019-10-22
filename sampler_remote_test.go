@@ -83,12 +83,12 @@ func TestRemotelyControlledSampler(t *testing.T) {
 
 	agent.AddSamplingStrategy("client app",
 		getSamplingStrategyResponse(sampling.SamplingStrategyType_PROBABILISTIC, testDefaultSamplingProbability))
-	remoteSampler.updateSampler()
+	remoteSampler.UpdateSampler()
 	metricsFactory.AssertCounterMetrics(t, []mTestutils.ExpectedMetric{
 		{Name: "jaeger.tracer.sampler_queries", Tags: map[string]string{"result": "ok"}, Value: 1},
 		{Name: "jaeger.tracer.sampler_updates", Tags: map[string]string{"result": "ok"}, Value: 1},
 	}...)
-	s1, ok := remoteSampler.getSampler().(*ProbabilisticSampler)
+	s1, ok := remoteSampler.GetSampler().(*ProbabilisticSampler)
 	assert.True(t, ok)
 	assert.EqualValues(t, testDefaultSamplingProbability, s1.samplingRate, "Sampler should have been updated")
 
@@ -109,7 +109,7 @@ func TestRemotelyControlledSampler(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 	remoteSampler.Close()
 
-	s2, ok := remoteSampler.getSampler().(*ProbabilisticSampler)
+	s2, ok := remoteSampler.GetSampler().(*ProbabilisticSampler)
 	assert.True(t, ok)
 	assert.EqualValues(t, testDefaultSamplingProbability, s2.samplingRate, "Sampler should have been updated from timer")
 
@@ -192,7 +192,7 @@ func TestRemotelyControlledSampler_updateSampler(t *testing.T) {
 			}
 
 			agent.AddSamplingStrategy("client app", res)
-			sampler.updateSampler()
+			sampler.UpdateSampler()
 
 			metricsFactory.AssertCounterMetrics(t,
 				mTestutils.ExpectedMetric{
@@ -227,7 +227,7 @@ func TestRemotelyControlledSampler_updateDefaultRate(t *testing.T) {
 		},
 	}
 	agent.AddSamplingStrategy("client app", res)
-	sampler.updateSampler()
+	sampler.UpdateSampler()
 
 	// Check what rate we get for a specific operation
 	decision := sampler.OnCreateSpan(makeSpan(0, testOperationName))
@@ -236,7 +236,7 @@ func TestRemotelyControlledSampler_updateDefaultRate(t *testing.T) {
 
 	// Change the default and update
 	res.OperationSampling.DefaultSamplingProbability = 0.1
-	sampler.updateSampler()
+	sampler.UpdateSampler()
 
 	// Check sampling rate has changed
 	decision = sampler.OnCreateSpan(makeSpan(0, testOperationName))
@@ -250,7 +250,7 @@ func TestRemotelyControlledSampler_updateDefaultRate(t *testing.T) {
 			SamplingRate: 0.2,
 		},
 	}}
-	sampler.updateSampler()
+	sampler.UpdateSampler()
 
 	// Check we get the requested rate
 	decision = sampler.OnCreateSpan(makeSpan(0, testOperationName))
@@ -259,7 +259,7 @@ func TestRemotelyControlledSampler_updateDefaultRate(t *testing.T) {
 
 	// Now remove the operation-specific rate
 	res.OperationSampling.PerOperationStrategies = nil
-	sampler.updateSampler()
+	sampler.UpdateSampler()
 
 	// Check we get the default rate
 	assert.True(t, decision.Sample)
@@ -280,7 +280,7 @@ func TestSamplerQueryError(t *testing.T) {
 
 	sampler.Close() // stop timer-based updates, we want to call them manually
 
-	sampler.updateSampler()
+	sampler.UpdateSampler()
 	assert.Equal(t, initSampler, sampler.sampler, "Sampler should not have been updated due to query error")
 
 	metricsFactory.AssertCounterMetrics(t,
@@ -312,7 +312,7 @@ func TestRemotelyControlledSampler_updateSamplerFromAdaptiveSampler(t *testing.T
 
 	agent.AddSamplingStrategy("client app",
 		getSamplingStrategyResponse(sampling.SamplingStrategyType_PROBABILISTIC, 0.5))
-	remoteSampler.updateSampler()
+	remoteSampler.UpdateSampler()
 
 	// Sampler should have been updated to probabilistic
 	_, ok := remoteSampler.sampler.(*ProbabilisticSampler)
@@ -323,7 +323,7 @@ func TestRemotelyControlledSampler_updateSamplerFromAdaptiveSampler(t *testing.T
 
 	agent.AddSamplingStrategy("client app",
 		getSamplingStrategyResponse(sampling.SamplingStrategyType_RATE_LIMITING, 1))
-	remoteSampler.updateSampler()
+	remoteSampler.UpdateSampler()
 
 	// Sampler should have been updated to ratelimiting
 	_, ok = remoteSampler.sampler.(*RateLimitingSampler)
@@ -334,7 +334,7 @@ func TestRemotelyControlledSampler_updateSamplerFromAdaptiveSampler(t *testing.T
 
 	// Update existing adaptive sampler
 	agent.AddSamplingStrategy("client app", &sampling.SamplingStrategyResponse{OperationSampling: strategies})
-	remoteSampler.updateSampler()
+	remoteSampler.UpdateSampler()
 
 	metricsFactory.AssertCounterMetrics(t,
 		mTestutils.ExpectedMetric{Name: "jaeger.tracer.sampler_queries", Tags: map[string]string{"result": "ok"}, Value: 3},
@@ -469,7 +469,7 @@ func TestRemotelyControlledSampler_printErrorForBrokenUpstream(t *testing.T) {
 		SamplerOptions.Logger(logger),
 	)
 	sampler.Close() // stop timer-based updates, we want to call them manually
-	sampler.updateSampler()
+	sampler.UpdateSampler()
 
 	assert.Contains(t, logger.String(), "failed to fetch sampling strategy:")
 }

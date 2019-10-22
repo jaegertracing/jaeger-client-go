@@ -27,7 +27,6 @@ import (
 
 	"github.com/uber/jaeger-client-go/thrift-gen/agent"
 	"github.com/uber/jaeger-client-go/thrift-gen/jaeger"
-	"github.com/uber/jaeger-client-go/thrift-gen/sampling"
 	"github.com/uber/jaeger-client-go/thrift-gen/zipkincore"
 	"github.com/uber/jaeger-client-go/utils"
 )
@@ -137,7 +136,7 @@ func (s *MockAgent) IsServing() bool {
 }
 
 // AddSamplingStrategy registers a sampling strategy for a service
-func (s *MockAgent) AddSamplingStrategy(service string, strategy *sampling.SamplingStrategyResponse) {
+func (s *MockAgent) AddSamplingStrategy(service string, strategy interface{}) {
 	s.samplingMgr.AddSamplingStrategy(service, strategy)
 }
 

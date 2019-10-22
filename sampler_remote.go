@@ -52,7 +52,7 @@ type SamplingStrategyParser interface {
 //
 // RemotelyControlledSampler invokes the updaters while holding a lock on the main sampler.
 type SamplerUpdater interface {
-	Update(sampler SamplerV2, strategy interface{}) (modifiedSampler SamplerV2, err error)
+	Update(sampler SamplerV2, strategy interface{}) (modified SamplerV2, err error)
 }
 
 // RemotelyControlledSampler is a delegating sampler that polls a remote server
@@ -138,7 +138,7 @@ func (s *RemotelyControlledSampler) pollControllerWithTicker(ticker *time.Ticker
 	for {
 		select {
 		case <-ticker.C:
-			s.updateSampler()
+			s.UpdateSampler()
 		case wg := <-s.doneChan:
 			wg.Done()
 			return
@@ -146,7 +146,7 @@ func (s *RemotelyControlledSampler) pollControllerWithTicker(ticker *time.Ticker
 	}
 }
 
-func (s *RemotelyControlledSampler) getSampler() SamplerV2 {
+func (s *RemotelyControlledSampler) GetSampler() SamplerV2 {
 	s.Lock()
 	defer s.Unlock()
 	return s.sampler
@@ -158,7 +158,9 @@ func (s *RemotelyControlledSampler) setSampler(sampler SamplerV2) {
 	s.sampler = sampler
 }
 
-func (s *RemotelyControlledSampler) updateSampler() {
+// UpdateSampler forces the sampler to fetch sampling strategy from backend server.
+// This function is called automatically on a timer, but can also be safely called manually, e.g. from tests.
+func (s *RemotelyControlledSampler) UpdateSampler() {
 	res, err := s.samplingFetcher.Fetch(s.serviceName)
 	if err != nil {
 		s.metrics.SamplerQueryFailure.Inc(1)
@@ -289,8 +291,7 @@ func (f *httpSamplingStrategyFetcher) Fetch(serviceName string) ([]byte, error) 
 	}
 
 	defer func() {
-		err := resp.Body.Close()
-		if err != nil {
+		if err := resp.Body.Close(); err != nil {
 			f.logger.Error(fmt.Sprintf("failed to close HTTP response body: %+v", err))
 		}
 	}()

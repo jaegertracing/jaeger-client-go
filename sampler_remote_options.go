@@ -85,6 +85,20 @@ func (samplerOptions) SamplingRefreshInterval(samplingRefreshInterval time.Durat
 	}
 }
 
+// SamplingStrategyFetcher creates a SamplerOption that initializes sampling strategy fetcher.
+func (samplerOptions) SamplingStrategyFetcher(fetcher SamplingStrategyFetcher) SamplerOption {
+	return func(o *samplerOptions) {
+		o.samplingFetcher = fetcher
+	}
+}
+
+// SamplingStrategyParser creates a SamplerOption that initializes sampling strategy parser.
+func (samplerOptions) SamplingStrategyParser(parser SamplingStrategyParser) SamplerOption {
+	return func(o *samplerOptions) {
+		o.samplingParser = parser
+	}
+}
+
 // Updaters creates a SamplerOption that initializes sampler updaters.
 func (samplerOptions) Updaters(updaters ...SamplerUpdater) SamplerOption {
 	return func(o *samplerOptions) {
