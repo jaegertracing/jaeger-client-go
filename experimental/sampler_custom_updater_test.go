@@ -161,7 +161,7 @@ func TestCustomRemoteSampler(t *testing.T) {
 		obj.sampler.UpdateSampler()
 		assertSampler(t, mainSampler, obj.sampler.GetSampler())
 
-		// step 2 - combine with
+		// step 2 - combine with tag matching sampler
 		obj.agent.AddSamplingStrategy("service", &customSamplingStrategyResponse{
 			SamplingStrategyResponse: neverSampleStrategy,
 			TagMatching:              tagStrategy,
@@ -178,10 +178,6 @@ func TestCustomRemoteSampler(t *testing.T) {
 		// step 3 - back to probabilistic sampler only
 		obj.agent.AddSamplingStrategy("service", &mainStrategy)
 		obj.sampler.UpdateSampler()
-
-		assert.IsType(t, mainSampler, obj.sampler.GetSampler())
-		assert.True(t, mainSampler.Equal(obj.sampler.GetSampler().(jaeger.Sampler)),
-			"sampler.Equal: want=%+v, have=%+v", mainSampler, obj.sampler.GetSampler())
-
+		assertSampler(t, mainSampler, obj.sampler.GetSampler())
 	})
 }

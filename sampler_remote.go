@@ -146,6 +146,7 @@ func (s *RemotelyControlledSampler) pollControllerWithTicker(ticker *time.Ticker
 	}
 }
 
+// GetSampler returns the currently active sampler.
 func (s *RemotelyControlledSampler) GetSampler() SamplerV2 {
 	s.Lock()
 	defer s.Unlock()
