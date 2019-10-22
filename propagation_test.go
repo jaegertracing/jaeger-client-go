@@ -101,10 +101,12 @@ func TestSpanPropagator(t *testing.T) {
 			t.Fatalf("%d: ParentID %d does not match expectation %d", i, a, e)
 		} else {
 			// Prepare for comparison.
-			sp.context.spanID, sp.context.parentID = exp.context.SpanID(), 0
+			// sp.context.spanID, sp.context.parentID = exp.context.SpanID(), 0
 			sp.duration, sp.startTime = exp.duration, exp.startTime
 		}
-		assert.Equal(t, exp.context, sp.context, formatName)
+		assert.Equal(t, exp.context.traceID, sp.context.traceID, formatName)
+		assert.Equal(t, exp.context.Flags(), sp.context.Flags(), formatName)
+		assert.Equal(t, exp.context.baggage, sp.context.baggage, formatName)
 		assert.Equal(t, "span.kind", sp.tags[0].key)
 		assert.Equal(t, expTags, sp.tags[1:] /*skip span.kind tag*/, formatName)
 		assert.Empty(t, sp.logs, formatName)

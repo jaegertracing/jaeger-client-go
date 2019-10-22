@@ -20,6 +20,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/opentracing/opentracing-go"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -273,6 +275,48 @@ func TestMaxOperations(t *testing.T) {
 	assert.Equal(t, testProbabilisticExpectedTags, decision.Tags)
 }
 
+func TestAdaptiveSamplerDoesNotApplyToChildrenSpans(t *testing.T) {
+	strategies := &sampling.PerOperationSamplingStrategies{
+		DefaultSamplingProbability:       0,
+		DefaultLowerBoundTracesPerSecond: 0,
+		PerOperationStrategies: []*sampling.OperationSamplingStrategy{
+			{
+				Operation:             "op1",
+				ProbabilisticSampling: &sampling.ProbabilisticSamplingStrategy{SamplingRate: 0.0},
+			},
+			{
+				Operation:             "op2",
+				ProbabilisticSampling: &sampling.ProbabilisticSamplingStrategy{SamplingRate: 1.0},
+			},
+		},
+	}
+
+	sampler, err := NewAdaptiveSampler(strategies, 1)
+	assert.NoError(t, err)
+	tracer, closer := NewTracer("service", sampler, NewNullReporter())
+	defer closer.Close()
+
+	_ = tracer.StartSpan("op1") // exhaust lower bound sampler once
+	span1 := tracer.StartSpan("op1")
+	assert.False(t, span1.Context().(SpanContext).IsSampled(), "op1 should not be sampled on root span")
+	span1.SetOperationName("op2")
+	assert.True(t, span1.Context().(SpanContext).IsSampled(), "op2 should be sampled on root span")
+
+	span2 := tracer.StartSpan("op2")
+	assert.True(t, span2.Context().(SpanContext).IsSampled(), "op2 should be sampled on root span")
+
+	parent := tracer.StartSpan("op1")
+	assert.False(t, parent.Context().(SpanContext).IsSampled(), "parent span should not be sampled")
+	assert.False(t, parent.Context().(SpanContext).IsSamplingFinalized(), "parent span should not be finalized")
+
+	child := tracer.StartSpan("op2", opentracing.ChildOf(parent.Context()))
+	assert.False(t, child.Context().(SpanContext).IsSampled(), "child span should not be sampled even with op2")
+	assert.False(t, child.Context().(SpanContext).IsSamplingFinalized(), "child span should not be finalized")
+	child.SetOperationName("op2")
+	assert.False(t, child.Context().(SpanContext).IsSampled(), "op2 should not be sampled on the child span")
+	assert.True(t, child.Context().(SpanContext).IsSamplingFinalized(), "child span should be finalized after setOperationName")
+}
+
 func TestAdaptiveSampler_lockRaceCondition(t *testing.T) {
 	agent, remoteSampler, _ := initAgent(t)
 	defer agent.Close()
@@ -290,6 +334,9 @@ func TestAdaptiveSampler_lockRaceCondition(t *testing.T) {
 	// Overwrite the sampler with an adaptive sampler
 	remoteSampler.sampler = adaptiveSampler
 
+	tracer, closer := NewTracer("service", remoteSampler, NewNullReporter())
+	defer closer.Close()
+
 	var wg sync.WaitGroup
 	defer wg.Wait()
 	wg.Add(2)
@@ -297,11 +344,8 @@ func TestAdaptiveSampler_lockRaceCondition(t *testing.T) {
 	isSampled := func(t *testing.T, remoteSampler *RemotelyControlledSampler, numOperations int, operationNamePrefix string) {
 		for i := 0; i < numOperations; i++ {
 			runtime.Gosched()
-			span := &Span{
-				operationName: fmt.Sprintf("%s%d", operationNamePrefix, i),
-			}
-			decision := remoteSampler.OnCreateSpan(span)
-			assert.True(t, decision.Sample)
+			span := tracer.StartSpan(fmt.Sprintf("%s%d", operationNamePrefix, i))
+			assert.True(t, span.Context().(SpanContext).IsSampled())
 		}
 	}
 
