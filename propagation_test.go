@@ -101,7 +101,6 @@ func TestSpanPropagator(t *testing.T) {
 			t.Fatalf("%d: ParentID %d does not match expectation %d", i, a, e)
 		} else {
 			// Prepare for comparison.
-			// sp.context.spanID, sp.context.parentID = exp.context.SpanID(), 0
 			sp.duration, sp.startTime = exp.duration, exp.startTime
 		}
 		assert.Equal(t, exp.context.traceID, sp.context.traceID, formatName)
