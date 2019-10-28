@@ -84,9 +84,16 @@ type samplingState struct {
 	// like SetOperationName / SetTag, and the spans will remain writable.
 	final atomic.Bool
 
+	// localRootSpan stores the SpanID of the first span created in this process for a given trace.
+	localRootSpan SpanID
+
 	// extendedState allows samplers to keep intermediate state.
 	// The keys and values in this map are completely opaque: interface{} -> interface{}.
 	extendedState sync.Map
+}
+
+func (s *samplingState) isLocalRootSpan(id SpanID) bool {
+	return id == s.localRootSpan
 }
 
 func (s *samplingState) setFlag(newFlag int32) {

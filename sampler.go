@@ -361,18 +361,25 @@ func (s *AdaptiveSampler) IsSampled(id TraceID, operation string) (bool, []Tag) 
 	return false, nil
 }
 
+func (s *AdaptiveSampler) trySampling(span *Span, operationName string) (bool, []Tag) {
+	samplerV1 := s.getSamplerForOperation(operationName)
+	var sampled bool
+	var tags []Tag
+	if span.context.samplingState.isLocalRootSpan(span.context.spanID) {
+		sampled, tags = samplerV1.IsSampled(span.context.TraceID(), operationName)
+	}
+	return sampled, tags
+}
+
 // OnCreateSpan implements OnCreateSpan of SamplerV2.
 func (s *AdaptiveSampler) OnCreateSpan(span *Span) SamplingDecision {
-	operationName := span.OperationName()
-	samplerV1 := s.getSamplerForOperation(operationName)
-	sampled, tags := samplerV1.IsSampled(span.context.TraceID(), operationName)
+	sampled, tags := s.trySampling(span, span.OperationName())
 	return SamplingDecision{Sample: sampled, Retryable: true, Tags: tags}
 }
 
 // OnSetOperationName implements OnSetOperationName of SamplerV2.
 func (s *AdaptiveSampler) OnSetOperationName(span *Span, operationName string) SamplingDecision {
-	samplerV1 := s.getSamplerForOperation(operationName)
-	sampled, tags := samplerV1.IsSampled(span.context.TraceID(), operationName)
+	sampled, tags := s.trySampling(span, operationName)
 	return SamplingDecision{Sample: sampled, Retryable: false, Tags: tags}
 }
 
