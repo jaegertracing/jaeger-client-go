@@ -162,7 +162,11 @@ func TestAdaptiveSampler(t *testing.T) {
 		PerOperationStrategies:           samplingRates,
 	}
 
-	sampler := NewPerOperationSampler(PerOperationSamplerParams{
+	sampler, err := NewAdaptiveSampler(strategies, 42)
+	require.NoError(t, err, "deprecated constructor successful")
+	assert.Equal(t, 42, sampler.maxOperations)
+
+	sampler = NewPerOperationSampler(PerOperationSamplerParams{
 		MaxOperations: testDefaultMaxOperations,
 		Strategies:    strategies,
 	})
@@ -183,6 +187,16 @@ func TestAdaptiveSampler(t *testing.T) {
 	decision = sampler.OnCreateSpan(makeSpan(testMaxID, testFirstTimeOperationName))
 	assert.True(t, decision.Sample)
 	assert.Equal(t, testProbabilisticExpectedTags, decision.Tags)
+
+	decision = sampler.OnSetOperationName(makeSpan(testMaxID, testFirstTimeOperationName), testFirstTimeOperationName)
+	assert.True(t, decision.Sample)
+	assert.Equal(t, testProbabilisticExpectedTags, decision.Tags)
+
+	decision = sampler.OnSetTag(makeSpan(testMaxID, testFirstTimeOperationName), "key", "value")
+	assert.False(t, decision.Sample)
+
+	decision = sampler.OnFinishSpan(makeSpan(testMaxID, testFirstTimeOperationName))
+	assert.False(t, decision.Sample)
 }
 
 func TestAdaptiveSamplerErrors(t *testing.T) {
