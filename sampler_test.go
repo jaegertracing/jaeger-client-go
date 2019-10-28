@@ -162,7 +162,7 @@ func TestAdaptiveSampler(t *testing.T) {
 		PerOperationStrategies:           samplingRates,
 	}
 
-	sampler := NewAdaptiveSamplerWithParams(AdaptiveSamplerParams{
+	sampler := NewPerOperationSampler(PerOperationSamplerParams{
 		MaxOperations: testDefaultMaxOperations,
 		Strategies:    strategies,
 	})
@@ -197,14 +197,14 @@ func TestAdaptiveSamplerErrors(t *testing.T) {
 		},
 	}
 
-	sampler := NewAdaptiveSamplerWithParams(AdaptiveSamplerParams{
+	sampler := NewPerOperationSampler(PerOperationSamplerParams{
 		MaxOperations: testDefaultMaxOperations,
 		Strategies:    strategies,
 	})
 	assert.Equal(t, 0.0, sampler.samplers[testOperationName].samplingRate)
 
 	strategies.PerOperationStrategies[0].ProbabilisticSampling.SamplingRate = 1.1
-	sampler = NewAdaptiveSamplerWithParams(AdaptiveSamplerParams{
+	sampler = NewPerOperationSampler(PerOperationSamplerParams{
 		MaxOperations: testDefaultMaxOperations,
 		Strategies:    strategies,
 	})
@@ -226,7 +226,7 @@ func TestAdaptiveSamplerUpdate(t *testing.T) {
 		PerOperationStrategies:           samplingRates,
 	}
 
-	sampler := NewAdaptiveSamplerWithParams(AdaptiveSamplerParams{
+	sampler := NewPerOperationSampler(PerOperationSamplerParams{
 		MaxOperations: testDefaultMaxOperations,
 		Strategies:    strategies,
 	})
@@ -274,7 +274,7 @@ func TestMaxOperations(t *testing.T) {
 		PerOperationStrategies:           samplingRates,
 	}
 
-	sampler := NewAdaptiveSamplerWithParams(AdaptiveSamplerParams{
+	sampler := NewPerOperationSampler(PerOperationSamplerParams{
 		MaxOperations: 1,
 		Strategies:    strategies,
 	})
@@ -299,7 +299,7 @@ func TestAdaptiveSamplerDoesNotApplyToChildrenSpans(t *testing.T) {
 			},
 		},
 	}
-	sampler := NewAdaptiveSamplerWithParams(AdaptiveSamplerParams{
+	sampler := NewPerOperationSampler(PerOperationSamplerParams{
 		MaxOperations:            1,
 		OperationNameLateBinding: true, // these tests rely on late binding
 		Strategies:               strategies,
@@ -334,7 +334,7 @@ func TestAdaptiveSampler_lockRaceCondition(t *testing.T) {
 	remoteSampler.Close() // stop timer-based updates, we want to call them manually
 
 	numOperations := 1000
-	adaptiveSampler := NewAdaptiveSamplerWithParams(AdaptiveSamplerParams{
+	adaptiveSampler := NewPerOperationSampler(PerOperationSamplerParams{
 		MaxOperations: 2000,
 		Strategies: &sampling.PerOperationSamplingStrategies{
 			DefaultSamplingProbability: 1,

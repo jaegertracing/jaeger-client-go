@@ -127,7 +127,7 @@ func (s *RemotelyControlledSampler) Close() {
 
 // Equal implements Equal() of Sampler.
 func (s *RemotelyControlledSampler) Equal(other Sampler) bool {
-	// NB The Equal() function is expensive and will be removed. See AdaptiveSampler.Equal() for
+	// NB The Equal() function is expensive and will be removed. See PerOperationSampler.Equal() for
 	// more information.
 	return false
 }
@@ -271,11 +271,11 @@ func (u *AdaptiveSamplerUpdater) Update(sampler SamplerV2, strategy interface{})
 	var _ response = new(sampling.SamplingStrategyResponse) // sanity signature check
 	if p, ok := strategy.(response); ok {
 		if operations := p.GetOperationSampling(); operations != nil {
-			if as, ok := sampler.(*AdaptiveSampler); ok {
+			if as, ok := sampler.(*PerOperationSampler); ok {
 				as.update(operations)
 				return as, nil
 			}
-			return NewAdaptiveSamplerWithParams(AdaptiveSamplerParams{
+			return NewPerOperationSampler(PerOperationSamplerParams{
 				MaxOperations:            u.MaxOperations,
 				OperationNameLateBinding: u.OperationNameLateBinding,
 				Strategies:               operations,
