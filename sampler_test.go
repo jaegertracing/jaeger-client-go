@@ -162,8 +162,10 @@ func TestAdaptiveSampler(t *testing.T) {
 		PerOperationStrategies:           samplingRates,
 	}
 
-	sampler, err := NewAdaptiveSampler(strategies, testDefaultMaxOperations)
-	require.NoError(t, err)
+	sampler := NewAdaptiveSamplerWithParams(AdaptiveSamplerParams{
+		MaxOperations: testDefaultMaxOperations,
+		Strategies:    strategies,
+	})
 	defer sampler.Close()
 
 	decision := sampler.OnCreateSpan(makeSpan(testMaxID+10, testOperationName))
@@ -195,13 +197,17 @@ func TestAdaptiveSamplerErrors(t *testing.T) {
 		},
 	}
 
-	sampler, err := NewAdaptiveSampler(strategies, testDefaultMaxOperations)
-	assert.NoError(t, err)
+	sampler := NewAdaptiveSamplerWithParams(AdaptiveSamplerParams{
+		MaxOperations: testDefaultMaxOperations,
+		Strategies:    strategies,
+	})
 	assert.Equal(t, 0.0, sampler.samplers[testOperationName].samplingRate)
 
 	strategies.PerOperationStrategies[0].ProbabilisticSampling.SamplingRate = 1.1
-	sampler, err = NewAdaptiveSampler(strategies, testDefaultMaxOperations)
-	assert.NoError(t, err)
+	sampler = NewAdaptiveSamplerWithParams(AdaptiveSamplerParams{
+		MaxOperations: testDefaultMaxOperations,
+		Strategies:    strategies,
+	})
 	assert.Equal(t, 1.0, sampler.samplers[testOperationName].samplingRate)
 }
 
@@ -220,8 +226,10 @@ func TestAdaptiveSamplerUpdate(t *testing.T) {
 		PerOperationStrategies:           samplingRates,
 	}
 
-	sampler, err := NewAdaptiveSampler(strategies, testDefaultMaxOperations)
-	assert.NoError(t, err)
+	sampler := NewAdaptiveSamplerWithParams(AdaptiveSamplerParams{
+		MaxOperations: testDefaultMaxOperations,
+		Strategies:    strategies,
+	})
 
 	assert.Equal(t, lowerBound, sampler.lowerBound)
 	assert.Equal(t, testDefaultSamplingProbability, sampler.defaultSampler.SamplingRate())
@@ -266,8 +274,10 @@ func TestMaxOperations(t *testing.T) {
 		PerOperationStrategies:           samplingRates,
 	}
 
-	sampler, err := NewAdaptiveSampler(strategies, 1)
-	assert.NoError(t, err)
+	sampler := NewAdaptiveSamplerWithParams(AdaptiveSamplerParams{
+		MaxOperations: 1,
+		Strategies:    strategies,
+	})
 
 	decision := sampler.OnCreateSpan(makeSpan(testMaxID-10, testFirstTimeOperationName))
 	assert.True(t, decision.Sample)
@@ -289,9 +299,11 @@ func TestAdaptiveSamplerDoesNotApplyToChildrenSpans(t *testing.T) {
 			},
 		},
 	}
-
-	sampler, err := NewAdaptiveSampler(strategies, 1)
-	assert.NoError(t, err)
+	sampler := NewAdaptiveSamplerWithParams(AdaptiveSamplerParams{
+		MaxOperations:            1,
+		OperationNameLateBinding: true, // these tests rely on late binding
+		Strategies:               strategies,
+	})
 	tracer, closer := NewTracer("service", sampler, NewNullReporter())
 	defer closer.Close()
 
@@ -322,14 +334,12 @@ func TestAdaptiveSampler_lockRaceCondition(t *testing.T) {
 	remoteSampler.Close() // stop timer-based updates, we want to call them manually
 
 	numOperations := 1000
-	adaptiveSampler, err := NewAdaptiveSampler(
-		&sampling.PerOperationSamplingStrategies{
+	adaptiveSampler := NewAdaptiveSamplerWithParams(AdaptiveSamplerParams{
+		MaxOperations: 2000,
+		Strategies: &sampling.PerOperationSamplingStrategies{
 			DefaultSamplingProbability: 1,
 		},
-		2000,
-	)
-	require.NoError(t, err)
-
+	})
 	// Overwrite the sampler with an adaptive sampler
 	remoteSampler.sampler = adaptiveSampler
 

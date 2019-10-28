@@ -330,28 +330,53 @@ type AdaptiveSampler struct {
 	defaultSampler *ProbabilisticSampler
 	lowerBound     float64
 	maxOperations  int
+
+	// see description in AdaptiveSamplerParams
+	operationNameLateBinding bool
+}
+
+// AdaptiveSamplerParams defines parameters when creating an adaptive sampler.
+type AdaptiveSamplerParams struct {
+	// Max number of operations that will be tracked. Other operations will be given default strategy.
+	MaxOperations int
+
+	// Opt-in feature for applications that require late binding of span name via explicit call to SetOperationName.
+	// When this feature is enabled, the sampler will return retryable=true from OnCreateSpan(), thus leaving
+	// the sampling decision as non-final (and the span as writeable). This may lead to degraded performance
+	// in applications that always provide the correct span name on trace creation.
+	//
+	// For backwards compatibility this option is off by default.
+	OperationNameLateBinding bool
+
+	// Initial configuration of the sampling strategies (usually retrieved from the backend by Remote Sampler).
+	Strategies *sampling.PerOperationSamplingStrategies
 }
 
 // NewAdaptiveSampler returns a new AdaptiveSampler.
 // TODO (breaking change) remove error from return value
 func NewAdaptiveSampler(strategies *sampling.PerOperationSamplingStrategies, maxOperations int) (*AdaptiveSampler, error) {
-	return newAdaptiveSampler(strategies, maxOperations), nil
+	return NewAdaptiveSamplerWithParams(AdaptiveSamplerParams{
+		MaxOperations: maxOperations,
+		Strategies:    strategies,
+	}), nil
 }
 
-func newAdaptiveSampler(strategies *sampling.PerOperationSamplingStrategies, maxOperations int) *AdaptiveSampler {
+// NewAdaptiveSamplerWithParams returns a new AdaptiveSampler.
+func NewAdaptiveSamplerWithParams(params AdaptiveSamplerParams) *AdaptiveSampler {
 	samplers := make(map[string]*GuaranteedThroughputProbabilisticSampler)
-	for _, strategy := range strategies.PerOperationStrategies {
+	for _, strategy := range params.Strategies.PerOperationStrategies {
 		sampler := newGuaranteedThroughputProbabilisticSampler(
-			strategies.DefaultLowerBoundTracesPerSecond,
+			params.Strategies.DefaultLowerBoundTracesPerSecond,
 			strategy.ProbabilisticSampling.SamplingRate,
 		)
 		samplers[strategy.Operation] = sampler
 	}
 	return &AdaptiveSampler{
-		samplers:       samplers,
-		defaultSampler: newProbabilisticSampler(strategies.DefaultSamplingProbability),
-		lowerBound:     strategies.DefaultLowerBoundTracesPerSecond,
-		maxOperations:  maxOperations,
+		samplers:                 samplers,
+		defaultSampler:           newProbabilisticSampler(params.Strategies.DefaultSamplingProbability),
+		lowerBound:               params.Strategies.DefaultLowerBoundTracesPerSecond,
+		maxOperations:            params.MaxOperations,
+		operationNameLateBinding: params.OperationNameLateBinding,
 	}
 }
 
@@ -374,7 +399,7 @@ func (s *AdaptiveSampler) trySampling(span *Span, operationName string) (bool, [
 // OnCreateSpan implements OnCreateSpan of SamplerV2.
 func (s *AdaptiveSampler) OnCreateSpan(span *Span) SamplingDecision {
 	sampled, tags := s.trySampling(span, span.OperationName())
-	return SamplingDecision{Sample: sampled, Retryable: true, Tags: tags}
+	return SamplingDecision{Sample: sampled, Retryable: s.operationNameLateBinding, Tags: tags}
 }
 
 // OnSetOperationName implements OnSetOperationName of SamplerV2.
