@@ -361,12 +361,14 @@ func (s *AdaptiveSampler) IsSampled(id TraceID, operation string) (bool, []Tag) 
 	return false, nil
 }
 
-func (s *AdaptiveSampler) trySampling(span *Span, operationName string) (sampled bool, tags []Tag) {
+func (s *AdaptiveSampler) trySampling(span *Span, operationName string) (bool, []Tag) {
 	samplerV1 := s.getSamplerForOperation(operationName)
+	var sampled bool
+	var tags []Tag
 	if span.context.samplingState.isLocalRootSpan(span.context.spanID) {
 		sampled, tags = samplerV1.IsSampled(span.context.TraceID(), operationName)
 	}
-	return
+	return sampled, tags
 }
 
 // OnCreateSpan implements OnCreateSpan of SamplerV2.
