@@ -200,7 +200,7 @@ func TestRemotelyControlledSampler_updateSampler(t *testing.T) {
 				},
 			)
 
-			s, ok := sampler.sampler.(*AdaptiveSampler)
+			s, ok := sampler.sampler.(*PerOperationSampler)
 			assert.True(t, ok)
 			assert.NotEqual(t, initSampler, sampler.sampler, "Sampler should have been updated")
 			assert.Equal(t, test.expectedDefaultProbability, s.defaultSampler.SamplingRate())
@@ -303,9 +303,10 @@ func TestRemotelyControlledSampler_updateSamplerFromAdaptiveSampler(t *testing.T
 		DefaultSamplingProbability:       testDefaultSamplingProbability,
 		DefaultLowerBoundTracesPerSecond: 1.0,
 	}
-
-	adaptiveSampler, err := NewAdaptiveSampler(strategies, testDefaultMaxOperations)
-	require.NoError(t, err)
+	adaptiveSampler := NewPerOperationSampler(PerOperationSamplerParams{
+		MaxOperations: testDefaultMaxOperations,
+		Strategies:    strategies,
+	})
 
 	// Overwrite the sampler with an adaptive sampler
 	remoteSampler.sampler = adaptiveSampler

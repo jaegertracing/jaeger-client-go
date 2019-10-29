@@ -29,7 +29,7 @@ var (
 	_ SamplerV2 = new(ConstSampler)
 	_ SamplerV2 = new(ProbabilisticSampler)
 	_ SamplerV2 = new(RateLimitingSampler)
-	_ SamplerV2 = new(AdaptiveSampler)
+	_ SamplerV2 = new(PerOperationSampler)
 	// Note: GuaranteedThroughputProbabilisticSampler is currently not V2
 
 	_ Sampler   = new(retryableTestSampler)

@@ -16,6 +16,7 @@ package client
 
 import (
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/crossdock/crossdock-go"
@@ -89,8 +90,11 @@ func TestCrossdock(t *testing.T) {
 			for k, v := range entry {
 				entryArgs.Set(k, v)
 			}
-			// test via real HTTP call
-			crossdock.Call(t, c.URL(), bb.name, entryArgs)
+			name := strings.ReplaceAll(entryArgs.Encode(), "&", "/")
+			t.Run(name, func(t *testing.T) {
+				// test via real HTTP call
+				crossdock.Call(t, c.URL(), bb.name, entryArgs)
+			})
 		}
 	}
 }
