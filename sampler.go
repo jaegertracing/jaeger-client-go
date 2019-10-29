@@ -335,7 +335,16 @@ type PerOperationSampler struct {
 	operationNameLateBinding bool
 }
 
-// PerOperationSamplerParams defines parameters when creating an adaptive sampler.
+// NewAdaptiveSampler returns a new PerOperationSampler.
+// Deprecated: please use NewPerOperationSampler.
+func NewAdaptiveSampler(strategies *sampling.PerOperationSamplingStrategies, maxOperations int) (*PerOperationSampler, error) {
+	return NewPerOperationSampler(PerOperationSamplerParams{
+		MaxOperations: maxOperations,
+		Strategies:    strategies,
+	}), nil
+}
+
+// PerOperationSamplerParams defines parameters when creating PerOperationSampler.
 type PerOperationSamplerParams struct {
 	// Max number of operations that will be tracked. Other operations will be given default strategy.
 	MaxOperations int
@@ -350,15 +359,6 @@ type PerOperationSamplerParams struct {
 
 	// Initial configuration of the sampling strategies (usually retrieved from the backend by Remote Sampler).
 	Strategies *sampling.PerOperationSamplingStrategies
-}
-
-// NewAdaptiveSampler returns a new PerOperationSampler.
-// Deprecated: please use NewPerOperationSampler.
-func NewAdaptiveSampler(strategies *sampling.PerOperationSamplingStrategies, maxOperations int) (*PerOperationSampler, error) {
-	return NewPerOperationSampler(PerOperationSamplerParams{
-		MaxOperations: maxOperations,
-		Strategies:    strategies,
-	}), nil
 }
 
 // NewPerOperationSampler returns a new PerOperationSampler.
