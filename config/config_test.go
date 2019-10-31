@@ -80,8 +80,8 @@ func TestServiceNameFromEnv(t *testing.T) {
 	assert.NoError(t, err)
 
 	_, c, err := cfg.New("")
-	defer c.Close()
 	assert.NoError(t, err)
+	defer c.Close()
 	os.Unsetenv(envServiceName)
 }
 
@@ -162,7 +162,20 @@ func TestSamplerConfig(t *testing.T) {
 	os.Unsetenv(envSamplerManagerHostPort)
 	os.Unsetenv(envSamplerMaxOperations)
 	os.Unsetenv(envSamplerRefreshInterval)
+}
 
+func TestSamplerConfigOptions(t *testing.T) {
+	initSampler := jaeger.NewRateLimitingSampler(1)
+	cfg := SamplerConfig{
+		// test passing options
+		Options: []jaeger.SamplerOption{
+			jaeger.SamplerOptions.InitialSampler(initSampler),
+		},
+	}
+	sampler, err := cfg.NewSampler("service", jaeger.NewNullMetrics())
+	require.NoError(t, err)
+	defer sampler.Close()
+	assert.Same(t, initSampler, sampler.(*jaeger.RemotelyControlledSampler).GetSampler())
 }
 
 func TestReporter(t *testing.T) {
@@ -518,7 +531,7 @@ func TestInitGlobalTracer(t *testing.T) {
 		{
 			cfg: Configuration{
 				Sampler: &SamplerConfig{
-					Type:                    "remote",
+					Type: "remote",
 					SamplingRefreshInterval: 1,
 				},
 			},
