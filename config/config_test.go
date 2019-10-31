@@ -175,7 +175,7 @@ func TestSamplerConfigOptions(t *testing.T) {
 	sampler, err := cfg.NewSampler("service", jaeger.NewNullMetrics())
 	require.NoError(t, err)
 	defer sampler.Close()
-	assert.Same(t, initSampler, sampler.(*jaeger.RemotelyControlledSampler).GetSampler())
+	assert.Same(t, initSampler, sampler.(*jaeger.RemotelyControlledSampler).Sampler())
 }
 
 func TestReporter(t *testing.T) {
@@ -531,7 +531,7 @@ func TestInitGlobalTracer(t *testing.T) {
 		{
 			cfg: Configuration{
 				Sampler: &SamplerConfig{
-					Type: "remote",
+					Type:                    "remote",
 					SamplingRefreshInterval: 1,
 				},
 			},

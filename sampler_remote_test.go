@@ -88,7 +88,7 @@ func TestRemotelyControlledSampler(t *testing.T) {
 		{Name: "jaeger.tracer.sampler_queries", Tags: map[string]string{"result": "ok"}, Value: 1},
 		{Name: "jaeger.tracer.sampler_updates", Tags: map[string]string{"result": "ok"}, Value: 1},
 	}...)
-	s1, ok := remoteSampler.GetSampler().(*ProbabilisticSampler)
+	s1, ok := remoteSampler.Sampler().(*ProbabilisticSampler)
 	assert.True(t, ok)
 	assert.EqualValues(t, testDefaultSamplingProbability, s1.samplingRate, "Sampler should have been updated")
 
@@ -109,7 +109,7 @@ func TestRemotelyControlledSampler(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 	remoteSampler.Close()
 
-	s2, ok := remoteSampler.GetSampler().(*ProbabilisticSampler)
+	s2, ok := remoteSampler.Sampler().(*ProbabilisticSampler)
 	assert.True(t, ok)
 	assert.EqualValues(t, testDefaultSamplingProbability, s2.samplingRate, "Sampler should have been updated from timer")
 
