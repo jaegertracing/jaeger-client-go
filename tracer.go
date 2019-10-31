@@ -470,6 +470,11 @@ func (t *Tracer) isDebugAllowed(operation string) bool {
 	return t.debugThrottler.IsAllowed(operation)
 }
 
+// Sampler returns the sampler given to the tracer at creation.
+func (t *Tracer) Sampler() SamplerV2 {
+	return t.sampler
+}
+
 // SelfRef creates an opentracing compliant SpanReference from a jaeger
 // SpanContext. This is a factory function in order to encapsulate jaeger specific
 // types.
