@@ -453,6 +453,14 @@ func TestSetGetTag(t *testing.T) {
 	assert.True(t, tracer.hostIPv4 == 0)
 }
 
+func TestTracerGetSampler(t *testing.T) {
+	sampler := NewRateLimitingSampler(1)
+	tracer, closer := NewTracer("service", sampler, NewNullReporter())
+	defer closer.Close()
+
+	assert.Same(t, sampler, tracer.(*Tracer).Sampler())
+}
+
 type dummyPropagator struct{}
 type dummyCarrier struct {
 	ok bool
