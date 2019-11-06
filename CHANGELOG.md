@@ -1,7 +1,7 @@
 Changes by Version
 ==================
 
-2.20.0 (unreleased)
+2.20.0 (2019-11-06)
 -------------------
 
 ## New Features
