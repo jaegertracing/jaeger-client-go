@@ -76,16 +76,25 @@ type SamplerConfig struct {
 	// Can be set by exporting an environment variable named JAEGER_SAMPLER_MANAGER_HOST_PORT
 	SamplingServerURL string `yaml:"samplingServerURL"`
 
-	// MaxOperations is the maximum number of operations that the sampler
-	// will keep track of. If an operation is not tracked, a default probabilistic
-	// sampler will be used rather than the per operation specific sampler.
-	// Can be set by exporting an environment variable named JAEGER_SAMPLER_MAX_OPERATIONS
-	MaxOperations int `yaml:"maxOperations"`
-
 	// SamplingRefreshInterval controls how often the remotely controlled sampler will poll
 	// jaeger-agent for the appropriate sampling strategy.
 	// Can be set by exporting an environment variable named JAEGER_SAMPLER_REFRESH_INTERVAL
 	SamplingRefreshInterval time.Duration `yaml:"samplingRefreshInterval"`
+
+	// MaxOperations is the maximum number of operations that the PerOperationSampler
+	// will keep track of. If an operation is not tracked, a default probabilistic
+	// sampler will be used rather than the per operation specific sampler.
+	// Can be set by exporting an environment variable named JAEGER_SAMPLER_MAX_OPERATIONS.
+	MaxOperations int `yaml:"maxOperations"`
+
+	// Opt-in feature for applications that require late binding of span name via explicit
+	// call to SetOperationName when using PerOperationSampler. When this feature is enabled,
+	// the sampler will return retryable=true from OnCreateSpan(), thus leaving the sampling
+	// decision as non-final (and the span as writeable). This may lead to degraded performance
+	// in applications that always provide the correct span name on trace creation.
+	//
+	// For backwards compatibility this option is off by default.
+	OperationNameLateBinding bool `yaml:"operationNameLateBinding"`
 
 	// Options can be used to programmatically pass additional options to the Remote sampler.
 	Options []jaeger.SamplerOption

@@ -36,7 +36,7 @@ func TestApplySamplerOptions(t *testing.T) {
 	assert.Equal(t, 0.001, sampler.samplingRate)
 
 	assert.NotNil(t, options.logger)
-	assert.NotZero(t, options.maxOperations)
+	assert.NotZero(t, options.posParams.MaxOperations)
 	assert.NotEmpty(t, options.samplingServerURL)
 	assert.NotNil(t, options.metrics)
 	assert.NotZero(t, options.samplingRefreshInterval)
@@ -468,6 +468,7 @@ func TestRemotelyControlledSampler_printErrorForBrokenUpstream(t *testing.T) {
 	sampler := NewRemotelyControlledSampler(
 		"client app",
 		SamplerOptions.Logger(logger),
+		SamplerOptions.SamplingServerURL("invalid address"),
 	)
 	sampler.Close() // stop timer-based updates, we want to call them manually
 	sampler.UpdateSampler()
