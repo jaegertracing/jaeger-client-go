@@ -165,6 +165,11 @@ func TestAdaptiveSampler(t *testing.T) {
 	sampler, err := NewAdaptiveSampler(strategies, 42)
 	require.NoError(t, err, "deprecated constructor successful")
 	assert.Equal(t, 42, sampler.maxOperations)
+	sampler.Close()
+
+	sampler = NewPerOperationSampler(PerOperationSamplerParams{Strategies: strategies})
+	assert.Equal(t, sampler.maxOperations, 2000, "default MaxOperations applied")
+	sampler.Close()
 
 	sampler = NewPerOperationSampler(PerOperationSamplerParams{
 		MaxOperations: testDefaultMaxOperations,

@@ -16,6 +16,7 @@ package config
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"testing"
 	"time"
@@ -67,22 +68,36 @@ func TestNewSamplerProbabilistic(t *testing.T) {
 
 func TestDefaultSampler(t *testing.T) {
 	cfg := Configuration{
-		Sampler: &SamplerConfig{Type: "InvalidType"},
+		ServiceName: "test",
+		Sampler:     &SamplerConfig{Type: "InvalidType"},
 	}
-	_, _, err := cfg.New("testService")
+	_, _, err := cfg.NewTracer()
 	require.Error(t, err)
+	assert.Contains(t, err.Error(), "InvalidType")
+}
+
+func setEnv(t *testing.T, key, value string) {
+	require.NoError(t, os.Setenv(key, value))
+}
+
+func unsetEnv(t *testing.T, key string) {
+	require.NoError(t, os.Unsetenv(key))
+}
+
+func closeCloser(t *testing.T, c io.Closer) {
+	require.NoError(t, c.Close())
 }
 
 func TestServiceNameFromEnv(t *testing.T) {
-	os.Setenv(envServiceName, "my-service")
+	setEnv(t, envServiceName, "my-service")
 
 	cfg, err := FromEnv()
 	assert.NoError(t, err)
 
-	_, c, err := cfg.New("")
+	_, c, err := cfg.NewTracer()
 	assert.NoError(t, err)
-	defer c.Close()
-	os.Unsetenv(envServiceName)
+	defer closeCloser(t, c)
+	unsetEnv(t, envServiceName)
 }
 
 func TestConfigFromEnv(t *testing.T) {
@@ -105,10 +120,10 @@ func TestConfigFromEnv(t *testing.T) {
 	assert.Equal(t, "VALUE01", cfg.Tags[0].Value)
 
 	// prepare
-	os.Setenv(envServiceName, "my-service")
-	os.Setenv(envDisabled, "false")
-	os.Setenv(envRPCMetrics, "true")
-	os.Setenv(envTags, "KEY=VALUE")
+	setEnv(t, envServiceName, "my-service")
+	setEnv(t, envDisabled, "false")
+	setEnv(t, envRPCMetrics, "true")
+	setEnv(t, envTags, "KEY=VALUE")
 
 	// test with env set
 	cfg, err = cfg.FromEnv()
@@ -122,19 +137,19 @@ func TestConfigFromEnv(t *testing.T) {
 	assert.Equal(t, "VALUE", cfg.Tags[0].Value)
 
 	// cleanup
-	os.Unsetenv(envServiceName)
-	os.Unsetenv(envDisabled)
-	os.Unsetenv(envRPCMetrics)
-	os.Unsetenv(envTags)
+	unsetEnv(t, envServiceName)
+	unsetEnv(t, envDisabled)
+	unsetEnv(t, envRPCMetrics)
+	unsetEnv(t, envTags)
 }
 
 func TestSamplerConfig(t *testing.T) {
 	// prepare
-	os.Setenv(envSamplerType, "const")
-	os.Setenv(envSamplerParam, "1")
-	os.Setenv(envSamplerManagerHostPort, "http://themaster")
-	os.Setenv(envSamplerMaxOperations, "10")
-	os.Setenv(envSamplerRefreshInterval, "1m1s") // 61 seconds
+	setEnv(t, envSamplerType, "const")
+	setEnv(t, envSamplerParam, "1")
+	setEnv(t, envSamplerManagerHostPort, "http://themaster")
+	setEnv(t, envSamplerMaxOperations, "10")
+	setEnv(t, envSamplerRefreshInterval, "1m1s") // 61 seconds
 
 	//existing SamplerConfig data
 	sc := SamplerConfig{
@@ -153,15 +168,15 @@ func TestSamplerConfig(t *testing.T) {
 	assert.Equal(t, "const", cfg.Type)
 	assert.Equal(t, float64(1), cfg.Param)
 	assert.Equal(t, "http://themaster", cfg.SamplingServerURL)
-	assert.Equal(t, int(10), cfg.MaxOperations)
+	assert.Equal(t, 10, cfg.MaxOperations)
 	assert.Equal(t, 61000000000, int(cfg.SamplingRefreshInterval))
 
 	// cleanup
-	os.Unsetenv(envSamplerType)
-	os.Unsetenv(envSamplerParam)
-	os.Unsetenv(envSamplerManagerHostPort)
-	os.Unsetenv(envSamplerMaxOperations)
-	os.Unsetenv(envSamplerRefreshInterval)
+	unsetEnv(t, envSamplerType)
+	unsetEnv(t, envSamplerParam)
+	unsetEnv(t, envSamplerManagerHostPort)
+	unsetEnv(t, envSamplerMaxOperations)
+	unsetEnv(t, envSamplerRefreshInterval)
 }
 
 func TestSamplerConfigOptions(t *testing.T) {
@@ -180,13 +195,13 @@ func TestSamplerConfigOptions(t *testing.T) {
 
 func TestReporter(t *testing.T) {
 	// prepare
-	os.Setenv(envReporterMaxQueueSize, "10")
-	os.Setenv(envReporterFlushInterval, "1m1s") // 61 seconds
-	os.Setenv(envReporterLogSpans, "true")
-	os.Setenv(envAgentHost, "nonlocalhost")
-	os.Setenv(envAgentPort, "6832")
-	os.Setenv(envUser, "user")
-	os.Setenv(envPassword, "password")
+	setEnv(t, envReporterMaxQueueSize, "10")
+	setEnv(t, envReporterFlushInterval, "1m1s") // 61 seconds
+	setEnv(t, envReporterLogSpans, "true")
+	setEnv(t, envAgentHost, "nonlocalhost")
+	setEnv(t, envAgentPort, "6832")
+	setEnv(t, envUser, "user")
+	setEnv(t, envPassword, "password")
 
 	// Existing ReporterConfig data
 	rc := ReporterConfig{
@@ -204,7 +219,7 @@ func TestReporter(t *testing.T) {
 	assert.NoError(t, err)
 
 	// verify
-	assert.Equal(t, int(10), cfg.QueueSize)
+	assert.Equal(t, 10, cfg.QueueSize)
 	assert.Equal(t, 61000000000, int(cfg.BufferFlushInterval))
 	assert.Equal(t, true, cfg.LogSpans)
 	assert.Equal(t, "nonlocalhost:6832", cfg.LocalAgentHostPort)
@@ -212,9 +227,9 @@ func TestReporter(t *testing.T) {
 	assert.Equal(t, "password01", cfg.Password)
 
 	// Prepare
-	os.Setenv(envEndpoint, "http://1.2.3.4:5678/api/traces")
-	os.Setenv(envUser, "user")
-	os.Setenv(envPassword, "password")
+	setEnv(t, envEndpoint, "http://1.2.3.4:5678/api/traces")
+	setEnv(t, envUser, "user")
+	setEnv(t, envPassword, "password")
 
 	// Existing ReprterConfig data for JAEGAR-ENDPOINT validation check
 	rc = ReporterConfig{
@@ -238,21 +253,21 @@ func TestReporter(t *testing.T) {
 	assert.Equal(t, "password", cfg.Password)
 
 	// cleanup
-	os.Unsetenv(envReporterMaxQueueSize)
-	os.Unsetenv(envReporterFlushInterval)
-	os.Unsetenv(envReporterLogSpans)
-	os.Unsetenv(envEndpoint)
-	os.Unsetenv(envUser)
-	os.Unsetenv(envPassword)
-	os.Unsetenv(envAgentHost)
-	os.Unsetenv(envAgentPort)
+	unsetEnv(t, envReporterMaxQueueSize)
+	unsetEnv(t, envReporterFlushInterval)
+	unsetEnv(t, envReporterLogSpans)
+	unsetEnv(t, envEndpoint)
+	unsetEnv(t, envUser)
+	unsetEnv(t, envPassword)
+	unsetEnv(t, envAgentHost)
+	unsetEnv(t, envAgentPort)
 }
 
 func TestFromEnv(t *testing.T) {
-	os.Setenv(envServiceName, "my-service")
-	os.Setenv(envDisabled, "false")
-	os.Setenv(envRPCMetrics, "true")
-	os.Setenv(envTags, "KEY=VALUE")
+	setEnv(t, envServiceName, "my-service")
+	setEnv(t, envDisabled, "false")
+	setEnv(t, envRPCMetrics, "true")
+	setEnv(t, envTags, "KEY=VALUE")
 
 	cfg, err := FromEnv()
 	assert.NoError(t, err)
@@ -262,35 +277,35 @@ func TestFromEnv(t *testing.T) {
 	assert.Equal(t, "KEY", cfg.Tags[0].Key)
 	assert.Equal(t, "VALUE", cfg.Tags[0].Value)
 
-	os.Unsetenv(envServiceName)
-	os.Unsetenv(envDisabled)
-	os.Unsetenv(envRPCMetrics)
-	os.Unsetenv(envTags)
+	unsetEnv(t, envServiceName)
+	unsetEnv(t, envDisabled)
+	unsetEnv(t, envRPCMetrics)
+	unsetEnv(t, envTags)
 }
 
 func TestNoServiceNameFromEnv(t *testing.T) {
-	os.Unsetenv(envServiceName)
+	unsetEnv(t, envServiceName)
 
 	cfg, err := FromEnv()
 	assert.NoError(t, err)
 
-	_, _, err = cfg.New("")
+	_, _, err = cfg.NewTracer()
 	assert.Error(t, err)
 
 	// However, if Disabled, then empty service name is irrelevant (issue #350)
 	cfg.Disabled = true
-	tr, _, err := cfg.New("")
+	tr, _, err := cfg.NewTracer()
 	assert.NoError(t, err)
 	assert.Equal(t, &opentracing.NoopTracer{}, tr)
 }
 
 func TestSamplerConfigFromEnv(t *testing.T) {
 	// prepare
-	os.Setenv(envSamplerType, "const")
-	os.Setenv(envSamplerParam, "1")
-	os.Setenv(envSamplerManagerHostPort, "http://themaster")
-	os.Setenv(envSamplerMaxOperations, "10")
-	os.Setenv(envSamplerRefreshInterval, "1m1s") // 61 seconds
+	setEnv(t, envSamplerType, "const")
+	setEnv(t, envSamplerParam, "1")
+	setEnv(t, envSamplerManagerHostPort, "http://themaster")
+	setEnv(t, envSamplerMaxOperations, "10")
+	setEnv(t, envSamplerRefreshInterval, "1m1s") // 61 seconds
 
 	// test
 	cfg, err := FromEnv()
@@ -300,20 +315,20 @@ func TestSamplerConfigFromEnv(t *testing.T) {
 	assert.Equal(t, "const", cfg.Sampler.Type)
 	assert.Equal(t, float64(1), cfg.Sampler.Param)
 	assert.Equal(t, "http://themaster", cfg.Sampler.SamplingServerURL)
-	assert.Equal(t, int(10), cfg.Sampler.MaxOperations)
+	assert.Equal(t, 10, cfg.Sampler.MaxOperations)
 	assert.Equal(t, 61000000000, int(cfg.Sampler.SamplingRefreshInterval))
 
 	// cleanup
-	os.Unsetenv(envSamplerType)
-	os.Unsetenv(envSamplerParam)
-	os.Unsetenv(envSamplerManagerHostPort)
-	os.Unsetenv(envSamplerMaxOperations)
-	os.Unsetenv(envSamplerRefreshInterval)
+	unsetEnv(t, envSamplerType)
+	unsetEnv(t, envSamplerParam)
+	unsetEnv(t, envSamplerManagerHostPort)
+	unsetEnv(t, envSamplerMaxOperations)
+	unsetEnv(t, envSamplerRefreshInterval)
 }
 
 func TestSamplerConfigOnAgentFromEnv(t *testing.T) {
 	// prepare
-	os.Setenv(envAgentHost, "theagent")
+	setEnv(t, envAgentHost, "theagent")
 
 	// test
 	cfg, err := FromEnv()
@@ -323,31 +338,31 @@ func TestSamplerConfigOnAgentFromEnv(t *testing.T) {
 	assert.Equal(t, "http://theagent:5778/sampling", cfg.Sampler.SamplingServerURL)
 
 	// cleanup
-	os.Unsetenv(envAgentHost)
+	unsetEnv(t, envAgentHost)
 }
 
 func TestReporterConfigFromEnv(t *testing.T) {
 	// prepare
-	os.Setenv(envReporterMaxQueueSize, "10")
-	os.Setenv(envReporterFlushInterval, "1m1s") // 61 seconds
-	os.Setenv(envReporterLogSpans, "true")
-	os.Setenv(envAgentHost, "nonlocalhost")
-	os.Setenv(envAgentPort, "6832")
+	setEnv(t, envReporterMaxQueueSize, "10")
+	setEnv(t, envReporterFlushInterval, "1m1s") // 61 seconds
+	setEnv(t, envReporterLogSpans, "true")
+	setEnv(t, envAgentHost, "nonlocalhost")
+	setEnv(t, envAgentPort, "6832")
 
 	// test
 	cfg, err := FromEnv()
 	assert.NoError(t, err)
 
 	// verify
-	assert.Equal(t, int(10), cfg.Reporter.QueueSize)
+	assert.Equal(t, 10, cfg.Reporter.QueueSize)
 	assert.Equal(t, 61000000000, int(cfg.Reporter.BufferFlushInterval))
 	assert.Equal(t, true, cfg.Reporter.LogSpans)
 	assert.Equal(t, "nonlocalhost:6832", cfg.Reporter.LocalAgentHostPort)
 
 	// Test HTTP transport
-	os.Setenv(envEndpoint, "http://1.2.3.4:5678/api/traces")
-	os.Setenv(envUser, "user")
-	os.Setenv(envPassword, "password")
+	setEnv(t, envEndpoint, "http://1.2.3.4:5678/api/traces")
+	setEnv(t, envUser, "user")
+	setEnv(t, envPassword, "password")
 
 	// test
 	cfg, err = FromEnv()
@@ -360,16 +375,16 @@ func TestReporterConfigFromEnv(t *testing.T) {
 	assert.Equal(t, "", cfg.Reporter.LocalAgentHostPort)
 
 	// cleanup
-	os.Unsetenv(envReporterMaxQueueSize)
-	os.Unsetenv(envReporterFlushInterval)
-	os.Unsetenv(envReporterLogSpans)
-	os.Unsetenv(envEndpoint)
-	os.Unsetenv(envUser)
-	os.Unsetenv(envPassword)
+	unsetEnv(t, envReporterMaxQueueSize)
+	unsetEnv(t, envReporterFlushInterval)
+	unsetEnv(t, envReporterLogSpans)
+	unsetEnv(t, envEndpoint)
+	unsetEnv(t, envUser)
+	unsetEnv(t, envPassword)
 }
 
 func TestParsingErrorsFromEnv(t *testing.T) {
-	os.Setenv(envAgentHost, "localhost") // we require this in order to test the parsing of the port
+	setEnv(t, envAgentHost, "localhost") // we require this in order to test the parsing of the port
 
 	tests := []struct {
 		envVar string
@@ -418,15 +433,15 @@ func TestParsingErrorsFromEnv(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		os.Setenv(test.envVar, test.value)
+		setEnv(t, test.envVar, test.value)
 		if test.envVar == envEndpoint {
-			os.Unsetenv(envAgentHost)
-			os.Unsetenv(envAgentPort)
+			unsetEnv(t, envAgentHost)
+			unsetEnv(t, envAgentPort)
 		}
 		_, err := FromEnv()
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), fmt.Sprintf("cannot parse env var %s=%s", test.envVar, test.value))
-		os.Unsetenv(test.envVar)
+		unsetEnv(t, test.envVar)
 	}
 
 }
@@ -445,16 +460,16 @@ func TestParsingUserPasswordErrorEnv(t *testing.T) {
 			value:  "password",
 		},
 	}
-	os.Setenv(envEndpoint, "http://localhost:8080")
+	setEnv(t, envEndpoint, "http://localhost:8080")
 	for _, test := range tests {
-		os.Setenv(test.envVar, test.value)
+		setEnv(t, test.envVar, test.value)
 		_, err := FromEnv()
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), fmt.Sprintf("you must set %s and %s env vars together", envUser,
 			envPassword))
-		os.Unsetenv(test.envVar)
+		unsetEnv(t, test.envVar)
 	}
-	os.Unsetenv(envEndpoint)
+	unsetEnv(t, envEndpoint)
 }
 
 func TestInvalidSamplerType(t *testing.T) {
@@ -484,26 +499,28 @@ func TestHTTPTransportType(t *testing.T) {
 
 func TestDefaultConfig(t *testing.T) {
 	cfg := Configuration{}
-	_, _, err := cfg.New("", Metrics(metrics.NullFactory), Logger(log.NullLogger))
+	_, _, err := cfg.NewTracer(Metrics(metrics.NullFactory), Logger(log.NullLogger))
 	require.EqualError(t, err, "no service name provided")
 
-	_, closer, err := cfg.New("testService")
-	defer closer.Close()
+	cfg.ServiceName = "test"
+	_, closer, err := cfg.NewTracer()
 	require.NoError(t, err)
+	defer closeCloser(t, closer)
 }
 
 func TestDisabledFlag(t *testing.T) {
-	cfg := Configuration{Disabled: true}
-	_, closer, err := cfg.New("testService")
-	defer closer.Close()
+	cfg := Configuration{ServiceName: "test", Disabled: true}
+	_, closer, err := cfg.NewTracer()
 	require.NoError(t, err)
+	defer closeCloser(t, closer)
 }
 
 func TestNewReporterError(t *testing.T) {
 	cfg := Configuration{
-		Reporter: &ReporterConfig{LocalAgentHostPort: "bad_local_agent"},
+		ServiceName: "test",
+		Reporter:    &ReporterConfig{LocalAgentHostPort: "bad_local_agent"},
 	}
-	_, _, err := cfg.New("testService")
+	_, _, err := cfg.NewTracer()
 	require.Error(t, err)
 }
 
@@ -562,23 +579,25 @@ func TestInitGlobalTracer(t *testing.T) {
 
 func TestConfigWithReporter(t *testing.T) {
 	c := Configuration{
+		ServiceName: "test",
 		Sampler: &SamplerConfig{
 			Type:  "const",
 			Param: 1,
 		},
 	}
 	r := jaeger.NewInMemoryReporter()
-	tracer, closer, err := c.New("test", Reporter(r))
+	tracer, closer, err := c.NewTracer(Reporter(r))
 	require.NoError(t, err)
-	defer closer.Close()
+	defer closeCloser(t, closer)
 
 	tracer.StartSpan("test").Finish()
 	assert.Len(t, r.GetSpans(), 1)
 }
 
 func TestConfigWithRPCMetrics(t *testing.T) {
-	metrics := metricstest.NewFactory(0)
+	m := metricstest.NewFactory(0)
 	c := Configuration{
+		ServiceName: "test",
 		Sampler: &SamplerConfig{
 			Type:  "const",
 			Param: 1,
@@ -586,18 +605,17 @@ func TestConfigWithRPCMetrics(t *testing.T) {
 		RPCMetrics: true,
 	}
 	r := jaeger.NewInMemoryReporter()
-	tracer, closer, err := c.New(
-		"test",
+	tracer, closer, err := c.NewTracer(
 		Reporter(r),
-		Metrics(metrics),
+		Metrics(m),
 		ContribObserver(fakeContribObserver{}),
 	)
 	require.NoError(t, err)
-	defer closer.Close()
+	defer closeCloser(t, closer)
 
 	tracer.StartSpan("test", ext.SpanKindRPCServer).Finish()
 
-	metrics.AssertCounterMetrics(t,
+	m.AssertCounterMetrics(t,
 		metricstest.ExpectedMetric{
 			Name:  "jaeger-rpc.requests",
 			Tags:  map[string]string{"component": "jaeger", "endpoint": "test", "error": "false"},
@@ -609,17 +627,15 @@ func TestConfigWithRPCMetrics(t *testing.T) {
 func TestBaggageRestrictionsConfig(t *testing.T) {
 	m := metricstest.NewFactory(0)
 	c := Configuration{
+		ServiceName: "test",
 		BaggageRestrictions: &BaggageRestrictionsConfig{
 			HostPort:        "not:1929213",
 			RefreshInterval: time.Minute,
 		},
 	}
-	_, closer, err := c.New(
-		"test",
-		Metrics(m),
-	)
+	_, closer, err := c.NewTracer(Metrics(m))
 	require.NoError(t, err)
-	defer closer.Close()
+	defer closeCloser(t, closer)
 
 	metricName := "jaeger.tracer.baggage_restrictions_updates"
 	metricTags := map[string]string{"result": "err"}
@@ -644,15 +660,16 @@ func TestBaggageRestrictionsConfig(t *testing.T) {
 
 func TestConfigWithGen128Bit(t *testing.T) {
 	c := Configuration{
+		ServiceName: "test",
 		Sampler: &SamplerConfig{
 			Type:  "const",
 			Param: 1,
 		},
 		RPCMetrics: true,
 	}
-	tracer, closer, err := c.New("test", Gen128Bit(true))
+	tracer, closer, err := c.NewTracer(Gen128Bit(true))
 	require.NoError(t, err)
-	defer closer.Close()
+	defer closeCloser(t, closer)
 
 	span := tracer.StartSpan("test")
 	defer span.Finish()
@@ -662,10 +679,10 @@ func TestConfigWithGen128Bit(t *testing.T) {
 }
 
 func TestConfigWithInjector(t *testing.T) {
-	c := Configuration{}
-	tracer, closer, err := c.New("test", Injector("custom.format", fakeInjector{}))
+	c := Configuration{ServiceName: "test"}
+	tracer, closer, err := c.NewTracer(Injector("custom.format", fakeInjector{}))
 	require.NoError(t, err)
-	defer closer.Close()
+	defer closeCloser(t, closer)
 
 	span := tracer.StartSpan("test")
 	defer span.Finish()
@@ -678,10 +695,10 @@ func TestConfigWithInjector(t *testing.T) {
 }
 
 func TestConfigWithExtractor(t *testing.T) {
-	c := Configuration{}
-	tracer, closer, err := c.New("test", Extractor("custom.format", fakeExtractor{}))
+	c := Configuration{ServiceName: "test"}
+	tracer, closer, err := c.NewTracer(Extractor("custom.format", fakeExtractor{}))
 	require.NoError(t, err)
-	defer closer.Close()
+	defer closeCloser(t, closer)
 
 	_, err = tracer.Extract("unknown.format", nil)
 	require.Error(t, err)
@@ -691,12 +708,12 @@ func TestConfigWithExtractor(t *testing.T) {
 }
 
 func TestConfigWithSampler(t *testing.T) {
-	c := Configuration{}
+	c := Configuration{ServiceName: "test"}
 	sampler := &fakeSampler{}
 
-	tracer, closer, err := c.New("test", Sampler(sampler))
+	tracer, closer, err := c.NewTracer(Sampler(sampler))
 	require.NoError(t, err)
-	defer closer.Close()
+	defer closeCloser(t, closer)
 
 	span := tracer.StartSpan("test")
 	defer span.Finish()
@@ -708,16 +725,20 @@ func TestConfigWithSampler(t *testing.T) {
 
 func TestNewTracer(t *testing.T) {
 	cfg := &Configuration{ServiceName: "my-service"}
-	_, closer, err := cfg.NewTracer(Metrics(metrics.NullFactory), Logger(log.NullLogger))
-	defer closer.Close()
-
-	assert.NoError(t, err)
+	tracer, closer, err := cfg.NewTracer(Metrics(metrics.NullFactory), Logger(log.NullLogger))
+	require.NoError(t, err)
+	require.NotNil(t, tracer)
+	require.NotNil(t, closer)
+	defer closeCloser(t, closer)
 }
 
 func TestNewTracerWithNoDebugFlagOnForcedSampling(t *testing.T) {
 	cfg := &Configuration{ServiceName: "my-service"}
 	tracer, closer, err := cfg.NewTracer(Metrics(metrics.NullFactory), Logger(log.NullLogger), NoDebugFlagOnForcedSampling(true))
-	defer closer.Close()
+	require.NoError(t, err)
+	require.NotNil(t, tracer)
+	require.NotNil(t, closer)
+	defer closeCloser(t, closer)
 
 	span := tracer.StartSpan("testSpan").(*jaeger.Span)
 	ext.SamplingPriority.Set(span, 1)
@@ -730,11 +751,12 @@ func TestNewTracerWithNoDebugFlagOnForcedSampling(t *testing.T) {
 func TestNewTracerWithoutServiceName(t *testing.T) {
 	cfg := &Configuration{}
 	_, _, err := cfg.NewTracer(Metrics(metrics.NullFactory), Logger(log.NullLogger))
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no service name provided")
 }
 
 func TestParseTags(t *testing.T) {
-	os.Setenv("existing", "not-default")
+	setEnv(t, "existing", "not-default")
 	tags := "key=value,k1=${nonExisting:default}, k2=${withSpace:default},k3=${existing:default}"
 	ts := parseTags(tags)
 	assert.Equal(t, 4, len(ts))
@@ -751,28 +773,29 @@ func TestParseTags(t *testing.T) {
 	assert.Equal(t, "k3", ts[3].Key)
 	assert.Equal(t, "not-default", ts[3].Value)
 
-	os.Unsetenv("existing")
+	unsetEnv(t, "existing")
 }
 
 func TestServiceNameViaConfiguration(t *testing.T) {
 	cfg := &Configuration{ServiceName: "my-service"}
 	_, closer, err := cfg.New("")
 	assert.NoError(t, err)
-	defer closer.Close()
+	defer closeCloser(t, closer)
 }
 
 func TestTracerTags(t *testing.T) {
-	cfg := &Configuration{Tags: []opentracing.Tag{{Key: "test", Value: 123}}}
-	_, closer, err := cfg.New("test-service")
+	cfg := &Configuration{ServiceName: "test-service", Tags: []opentracing.Tag{{Key: "test", Value: 123}}}
+	_, closer, err := cfg.NewTracer()
 	assert.NoError(t, err)
-	defer closer.Close()
+	defer closeCloser(t, closer)
 }
 
 func TestThrottlerDefaultConfig(t *testing.T) {
 	cfg := &Configuration{
-		Throttler: &ThrottlerConfig{},
+		ServiceName: "test-service",
+		Throttler:   &ThrottlerConfig{},
 	}
-	_, closer, err := cfg.New("test-service")
+	_, closer, err := cfg.NewTracer()
 	assert.NoError(t, err)
-	defer closer.Close()
+	defer closeCloser(t, closer)
 }
