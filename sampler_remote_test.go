@@ -471,6 +471,5 @@ func TestRemotelyControlledSampler_printErrorForBrokenUpstream(t *testing.T) {
 	)
 	sampler.Close() // stop timer-based updates, we want to call them manually
 	sampler.UpdateSampler()
-
 	assert.Contains(t, logger.String(), "failed to fetch sampling strategy:")
 }
