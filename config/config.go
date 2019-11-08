@@ -344,7 +344,7 @@ func (sc *SamplerConfig) NewSampler(
 			return jaeger.NewProbabilisticSampler(sc.Param)
 		}
 		return nil, fmt.Errorf(
-			"Invalid Param for probabilistic sampler: %v. Expecting value between 0 and 1",
+			"invalid Param for probabilistic sampler; expecting value between 0 and 1, received %v",
 			sc.Param,
 		)
 	}
@@ -362,17 +362,14 @@ func (sc *SamplerConfig) NewSampler(
 			jaeger.SamplerOptions.Metrics(metrics),
 			jaeger.SamplerOptions.InitialSampler(initSampler),
 			jaeger.SamplerOptions.SamplingServerURL(sc.SamplingServerURL),
-		}
-		if sc.MaxOperations != 0 {
-			options = append(options, jaeger.SamplerOptions.MaxOperations(sc.MaxOperations))
-		}
-		if sc.SamplingRefreshInterval != 0 {
-			options = append(options, jaeger.SamplerOptions.SamplingRefreshInterval(sc.SamplingRefreshInterval))
+			jaeger.SamplerOptions.MaxOperations(sc.MaxOperations),
+			jaeger.SamplerOptions.OperationNameLateBinding(sc.OperationNameLateBinding),
+			jaeger.SamplerOptions.SamplingRefreshInterval(sc.SamplingRefreshInterval),
 		}
 		options = append(options, sc.Options...)
 		return jaeger.NewRemotelyControlledSampler(serviceName, options...), nil
 	}
-	return nil, fmt.Errorf("Unknown sampler type %v", sc.Type)
+	return nil, fmt.Errorf("unknown sampler type (%s)", sc.Type)
 }
 
 // NewReporter instantiates a new reporter that submits spans to the collector
