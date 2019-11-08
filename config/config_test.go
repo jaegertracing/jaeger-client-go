@@ -504,15 +504,15 @@ func TestDefaultConfig(t *testing.T) {
 
 	cfg.ServiceName = "test"
 	_, closer, err := cfg.NewTracer()
-	defer closeCloser(t, closer)
 	require.NoError(t, err)
+	defer closeCloser(t, closer)
 }
 
 func TestDisabledFlag(t *testing.T) {
 	cfg := Configuration{ServiceName: "test", Disabled: true}
 	_, closer, err := cfg.NewTracer()
-	defer closeCloser(t, closer)
 	require.NoError(t, err)
+	defer closeCloser(t, closer)
 }
 
 func TestNewReporterError(t *testing.T) {
@@ -725,10 +725,11 @@ func TestConfigWithSampler(t *testing.T) {
 
 func TestNewTracer(t *testing.T) {
 	cfg := &Configuration{ServiceName: "my-service"}
-	_, closer, err := cfg.NewTracer(Metrics(metrics.NullFactory), Logger(log.NullLogger))
+	tracer, closer, err := cfg.NewTracer(Metrics(metrics.NullFactory), Logger(log.NullLogger))
+	require.NoError(t, err)
+	require.NotNil(t, tracer)
+	require.NotNil(t, closer)
 	defer closeCloser(t, closer)
-
-	assert.NoError(t, err)
 }
 
 func TestNewTracerWithNoDebugFlagOnForcedSampling(t *testing.T) {

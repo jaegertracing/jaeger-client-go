@@ -36,7 +36,6 @@ func TestApplySamplerOptions(t *testing.T) {
 	assert.Equal(t, 0.001, sampler.samplingRate)
 
 	assert.NotNil(t, options.logger)
-	assert.NotZero(t, options.posParams.MaxOperations)
 	assert.NotEmpty(t, options.samplingServerURL)
 	assert.NotNil(t, options.metrics)
 	assert.NotZero(t, options.samplingRefreshInterval)

@@ -27,7 +27,9 @@ type SamplerOption func(options *samplerOptions)
 var SamplerOptions SamplerOptionsFactory
 
 // SamplerOptionsFactory is a factory for all available SamplerOption's.
-// The type acts as a namespace for factory functions.
+// The type acts as a namespace for factory functions. It is public to
+// make the functions discoverable via godoc. Recommended to be used
+// via global SamplerOptions variable.
 type SamplerOptionsFactory struct{}
 
 type samplerOptions struct {
@@ -127,9 +129,6 @@ func (o *samplerOptions) applyOptionsAndDefaults(opts ...SamplerOption) *sampler
 	}
 	if o.logger == nil {
 		o.logger = log.NullLogger
-	}
-	if o.posParams.MaxOperations <= 0 {
-		o.posParams.MaxOperations = defaultMaxOperations
 	}
 	if o.samplingServerURL == "" {
 		o.samplingServerURL = DefaultSamplingServerURL
