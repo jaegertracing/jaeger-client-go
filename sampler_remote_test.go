@@ -29,7 +29,39 @@ import (
 	"github.com/uber/jaeger-client-go/thrift-gen/sampling"
 )
 
-func TestApplySamplerOptions(t *testing.T) {
+func TestRemoteSamplerOptions(t *testing.T) {
+	m := new(Metrics)
+	initSampler, _ := NewProbabilisticSampler(0.123)
+	logger := new(nullLogger)
+	fetcher := new(fakeSamplingFetcher)
+	parser := new(samplingStrategyParser)
+	updaters := []SamplerUpdater{new(ProbabilisticSamplerUpdater)}
+	sampler := NewRemotelyControlledSampler(
+		"test",
+		SamplerOptions.Metrics(m),
+		SamplerOptions.MaxOperations(42),
+		SamplerOptions.OperationNameLateBinding(true),
+		SamplerOptions.InitialSampler(initSampler),
+		SamplerOptions.Logger(logger),
+		SamplerOptions.SamplingServerURL("my url"),
+		SamplerOptions.SamplingRefreshInterval(42*time.Second),
+		SamplerOptions.SamplingStrategyFetcher(fetcher),
+		SamplerOptions.SamplingStrategyParser(parser),
+		SamplerOptions.Updaters(updaters...),
+	)
+	assert.Same(t, m, sampler.metrics)
+	assert.Equal(t, 42, sampler.posParams.MaxOperations)
+	assert.True(t, sampler.posParams.OperationNameLateBinding)
+	assert.Same(t, initSampler, sampler.Sampler())
+	assert.Same(t, logger, sampler.logger)
+	assert.Equal(t, "my url", sampler.samplingServerURL)
+	assert.Equal(t, 42*time.Second, sampler.samplingRefreshInterval)
+	assert.Same(t, fetcher, sampler.samplingFetcher)
+	assert.Same(t, parser, sampler.samplingParser)
+	assert.Same(t, updaters[0], sampler.updaters[0])
+}
+
+func TestRemoteSamplerOptionsDefaults(t *testing.T) {
 	options := new(samplerOptions).applyOptionsAndDefaults()
 	sampler, ok := options.sampler.(*ProbabilisticSampler)
 	assert.True(t, ok)
