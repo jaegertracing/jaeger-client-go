@@ -136,11 +136,11 @@ func TestRemoteReporterFailedFlushViaAppend(t *testing.T) {
 	s.tracer.StartSpan("sp1").Finish()
 	s.tracer.StartSpan("sp2").Finish()
 	s.sender.assertFlushedSpans(t, 2)
-	s.assertLogs(t, "ERROR: error reporting span \"sp2\": flush error\n")
+	s.assertLogs(t, "ERROR: error reporting Jaeger span \"sp2\": flush error\n")
 	s.assertCounter(t, "jaeger.tracer.reporter_spans", map[string]string{"result": "err"}, 2)
 	s.assertCounter(t, "jaeger.tracer.reporter_spans", map[string]string{"result": "ok"}, 0)
 	s.close() // causes explicit flush that also fails with the same error
-	s.assertLogs(t, "ERROR: error reporting span \"sp2\": flush error\nERROR: error when flushing the buffer: flush error\n")
+	s.assertLogs(t, "ERROR: error reporting Jaeger span \"sp2\": flush error\nERROR: failed to flush Jaeger spans to server: flush error\n")
 }
 
 func TestRemoteReporterAppendWithPoolAllocator(t *testing.T) {

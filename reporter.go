@@ -263,7 +263,7 @@ func (r *remoteReporter) processQueue() {
 	flush := func() {
 		if flushed, err := r.sender.Flush(); err != nil {
 			r.metrics.ReporterFailure.Inc(int64(flushed))
-			r.logger.Error(fmt.Sprintf("error when flushing the buffer: %s", err.Error()))
+			r.logger.Error(fmt.Sprintf("failed to flush Jaeger spans to server: %s", err.Error()))
 		} else if flushed > 0 {
 			r.metrics.ReporterSuccess.Inc(int64(flushed))
 		}
@@ -281,7 +281,7 @@ func (r *remoteReporter) processQueue() {
 				span := item.span
 				if flushed, err := r.sender.Append(span); err != nil {
 					r.metrics.ReporterFailure.Inc(int64(flushed))
-					r.logger.Error(fmt.Sprintf("error reporting span %q: %s", span.OperationName(), err.Error()))
+					r.logger.Error(fmt.Sprintf("error reporting Jaeger span %q: %s", span.OperationName(), err.Error()))
 				} else if flushed > 0 {
 					r.metrics.ReporterSuccess.Inc(int64(flushed))
 					// to reduce the number of gauge stats, we only emit queue length on flush
