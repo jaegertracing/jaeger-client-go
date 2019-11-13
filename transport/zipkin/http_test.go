@@ -139,7 +139,7 @@ func TestHTTPErrorLogging(t *testing.T) {
 		},
 		{ // bad URL scheme
 			URL:                   "badscheme://localhost:10001",
-			expectErrorSubstrings: []string{"error when flushing the buffer"},
+			expectErrorSubstrings: []string{"failed to flush Jaeger spans to server"},
 		},
 	}
 
