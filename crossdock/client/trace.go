@@ -93,7 +93,7 @@ func validateTrace(
 	baggage string) bool {
 
 	success := true
-	if !compareTraceIDs(traceID, resp.Span.TraceId) {
+	if !equalTraceIDs(traceID, resp.Span.TraceId) {
 		t.Errorf("Trace ID mismatch in S%d(%s): expected %s, received %s",
 			level, service, traceID, resp.Span.TraceId)
 		success = false
@@ -162,7 +162,7 @@ func transport2transport(v string) tracetest.Transport {
 	}
 }
 
-func compareTraceIDs(id1, id2 string) bool {
+func equalTraceIDs(id1, id2 string) bool {
 	return padTraceID(id1) == padTraceID(id2)
 }
 

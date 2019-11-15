@@ -20,8 +20,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCompareTraceIDs(t *testing.T) {
-	assert.True(t, compareTraceIDs("123", "000123"))
+func TestEqualTraceIDs(t *testing.T) {
+	assert.True(t, equalTraceIDs("123", "123"))
+	assert.True(t, equalTraceIDs("123", "000123"))
+	assert.False(t, equalTraceIDs("123", "567"))
 }
 
 func TestPadTraceID(t *testing.T) {
