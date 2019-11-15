@@ -93,7 +93,7 @@ func validateTrace(
 	baggage string) bool {
 
 	success := true
-	if traceID != resp.Span.TraceId {
+	if !compareTraceIDs(traceID, resp.Span.TraceId) {
 		t.Errorf("Trace ID mismatch in S%d(%s): expected %s, received %s",
 			level, service, traceID, resp.Span.TraceId)
 		success = false
@@ -160,4 +160,16 @@ func transport2transport(v string) tracetest.Transport {
 	default:
 		panic("Unknown protocol " + v)
 	}
+}
+
+func compareTraceIDs(id1, id2 string) bool {
+	return padTraceID(id1) == padTraceID(id2)
+}
+
+func padTraceID(id string) string {
+	if len(id) == 16 {
+		return id
+	}
+	id = "0000000000000000" + id
+	return id[len(id)-16:]
 }

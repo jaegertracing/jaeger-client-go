@@ -1,0 +1,34 @@
+// Copyright (c) 2019 The Jaeger Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package client
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func TestCompareTraceIDs(t *testing.T) {
+	assert.True(t, compareTraceIDs("123", "000123"))
+}
+
+func TestPadTraceID(t *testing.T) {
+	id := "0000000000000123"
+	assert.Len(t, id, 16)
+	assert.Equal(t, id, padTraceID("123"), "shorter ID is padded")
+	id = "ffffffffffffffff"
+	assert.Len(t, id, 16)
+	assert.Equal(t, id, padTraceID(id), "full ID is unchanged")
+}
