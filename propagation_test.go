@@ -128,7 +128,7 @@ func TestSpanPropagator(t *testing.T) {
 }
 
 func TestSpanIntegrityAfterSerialize(t *testing.T) {
-	serializedString := "f6c385a2c57ed8d7:b04a90b7723bdc:76c385a2c57ed8d7:1"
+	serializedString := "f6c385a2c57ed8d7:00b04a90b7723bdc:76c385a2c57ed8d7:1"
 
 	context, err := ContextFromString(serializedString)
 	require.NoError(t, err)
