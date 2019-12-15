@@ -38,16 +38,19 @@ type tracerSuite struct {
 	tracer         opentracing.Tracer
 	closer         io.Closer
 	metricsFactory *metricstest.Factory
+	logger         *log.BytesBufferLogger
 }
 
 func (s *tracerSuite) SetupTest() {
 	s.metricsFactory = metricstest.NewFactory(0)
 	metrics := NewMetrics(s.metricsFactory, nil)
+	s.logger = &log.BytesBufferLogger{}
 
 	s.tracer, s.closer = NewTracer("DOOP", // respect the classics, man!
 		NewConstSampler(true),
 		NewNullReporter(),
 		TracerOptions.Metrics(metrics),
+		TracerOptions.Logger(s.logger),
 		TracerOptions.ZipkinSharedRPCSpan(true),
 		TracerOptions.BaggageRestrictionManager(baggage.NewDefaultRestrictionManager(0)),
 		TracerOptions.PoolSpans(false),
@@ -60,6 +63,16 @@ func (s *tracerSuite) TearDownTest() {
 		s.closer.Close()
 		s.tracer = nil
 	}
+}
+
+func (s *tracerSuite) assertLogs(t *testing.T, expectedLogs string) {
+	for i := 0; i < 1000; i++ {
+		if s.logger.String() == expectedLogs {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	assert.Equal(t, expectedLogs, s.logger.String(), "expected logs: %s", expectedLogs)
 }
 
 func TestTracerSuite(t *testing.T) {
@@ -119,6 +132,17 @@ func (s *tracerSuite) TestStartChildSpan() {
 		{Name: "jaeger.tracer.started_spans", Tags: map[string]string{"sampled": "y"}, Value: 2},
 		{Name: "jaeger.tracer.traces", Tags: map[string]string{"sampled": "y", "state": "started"}, Value: 1},
 		{Name: "jaeger.tracer.finished_spans", Tags: map[string]string{"sampled": "y"}, Value: 2},
+	}...)
+}
+
+func (s *tracerSuite) TestUnfinishedSpanCounter() {
+	s.tracer.StartSpan("get_name")
+	s.closer.Close()
+
+	s.Equal(s.tracer.(*Tracer).UnfinishedSpanCounter, uint32(1))
+	s.metricsFactory.AssertCounterMetrics(s.T(), []metricstest.ExpectedMetric{
+		{Name: "jaeger.tracer.started_spans", Tags: map[string]string{"sampled": "y"}, Value: 1},
+		{Name: "jaeger.tracer.finished_spans", Tags: map[string]string{"sampled": "y"}, Value: 0},
 	}...)
 }
 
@@ -289,6 +313,17 @@ func TestTracerOptions(t *testing.T) {
 	assert.Equal(t, true, isPoolAllocator(tracer.spanAllocator))
 	assert.Equal(t, opentracing.Tag{Key: "tag_key", Value: "tag_value"}, tracer.Tags()[0])
 	assert.True(t, tracer.options.noDebugFlagOnForcedSampling)
+}
+
+func (s *tracerSuite) TestCloseLoggingPartialSpan() {
+	s.tracer.StartSpan("client_1")
+	s.tracer.StartSpan("client_2")
+
+	sp3 := s.tracer.StartSpan("client_3")
+	sp3.Finish()
+
+	s.closer.Close()
+	s.assertLogs(s.T(), "ERROR: 2 span(s) were started but not finished\n")
 }
 
 func TestInjectorExtractorOptions(t *testing.T) {
