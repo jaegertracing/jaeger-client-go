@@ -22,6 +22,7 @@ import (
 	"reflect"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
@@ -56,7 +57,7 @@ type Tracer struct {
 	}
 
 	// A counter for spans open without being finished
-	UnfinishedSpanCounter uint32
+	UnfinishedSpanCounter int32
 
 	// allocator of Span objects
 	spanAllocator SpanAllocator
@@ -426,8 +427,7 @@ func (t *Tracer) emitNewSpanMetrics(sp *Span, newTrace bool) {
 		}
 		// joining a trace is not possible, because sampling decision inherited from upstream is final
 	} else if sp.context.IsSampled() {
-		t.UnfinishedSpanCounter += 1
-
+		atomic.AddInt32(&t.UnfinishedSpanCounter, 1)
 		t.metrics.SpansStartedSampled.Inc(1)
 		if newTrace {
 			t.metrics.TracesStartedSampled.Inc(1)
@@ -448,8 +448,7 @@ func (t *Tracer) reportSpan(sp *Span) {
 	if !sp.isSamplingFinalized() {
 		t.metrics.SpansFinishedDelayedSampling.Inc(1)
 	} else if sp.context.IsSampled() {
-		t.UnfinishedSpanCounter -= 1
-
+		atomic.AddInt32(&t.UnfinishedSpanCounter, int32(-1))
 		t.metrics.SpansFinishedSampled.Inc(1)
 	} else {
 		t.metrics.SpansFinishedNotSampled.Inc(1)

@@ -45,7 +45,6 @@ func (s *tracerSuite) SetupTest() {
 	s.metricsFactory = metricstest.NewFactory(0)
 	metrics := NewMetrics(s.metricsFactory, nil)
 	s.logger = &log.BytesBufferLogger{}
-
 	s.tracer, s.closer = NewTracer("DOOP", // respect the classics, man!
 		NewConstSampler(true),
 		NewNullReporter(),
@@ -139,7 +138,7 @@ func (s *tracerSuite) TestUnfinishedSpanCounter() {
 	s.tracer.StartSpan("get_name")
 	s.closer.Close()
 
-	s.Equal(s.tracer.(*Tracer).UnfinishedSpanCounter, uint32(1))
+	s.Equal(int32(1), s.tracer.(*Tracer).UnfinishedSpanCounter)
 	s.metricsFactory.AssertCounterMetrics(s.T(), []metricstest.ExpectedMetric{
 		{Name: "jaeger.tracer.started_spans", Tags: map[string]string{"sampled": "y"}, Value: 1},
 		{Name: "jaeger.tracer.finished_spans", Tags: map[string]string{"sampled": "y"}, Value: 0},
