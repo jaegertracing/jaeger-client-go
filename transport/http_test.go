@@ -36,6 +36,7 @@ func TestHTTPTransport(t *testing.T) {
 		"http://localhost:10001/api/v1/spans",
 		HTTPBatchSize(1),
 		HTTPBasicAuth(httpUsername, httpPassword),
+		HTTPHeaders(map[string]string{"my-key": "my-value"}),
 	)
 
 	tracer, closer := jaeger.NewTracer(
@@ -77,6 +78,7 @@ func TestHTTPTransport(t *testing.T) {
 		&HTTPBasicAuthCredentials{username: httpUsername, password: httpPassword},
 		server.authCredentials[0],
 	)
+	assert.Equal(t, "my-value", server.getHeader().Get("my-key"))
 }
 
 func TestHTTPOptions(t *testing.T) {
@@ -88,10 +90,12 @@ func TestHTTPOptions(t *testing.T) {
 		HTTPBatchSize(123),
 		HTTPTimeout(123*time.Millisecond),
 		HTTPRoundTripper(roundTripper),
+		HTTPHeaders(map[string]string{"my-key": "my-value"}),
 	)
 	assert.Equal(t, 123, sender.batchSize)
 	assert.Equal(t, 123*time.Millisecond, sender.client.Timeout)
 	assert.Equal(t, roundTripper, sender.client.Transport)
+	assert.Equal(t, "my-value", sender.headers["my-key"])
 }
 
 type httpServer struct {
@@ -99,6 +103,7 @@ type httpServer struct {
 	batches         []*j.Batch
 	authCredentials []*HTTPBasicAuthCredentials
 	mutex           sync.RWMutex
+	header          http.Header
 }
 
 func (s *httpServer) getBatches() []*j.Batch {
@@ -111,6 +116,12 @@ func (s *httpServer) credentials() []*HTTPBasicAuthCredentials {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	return s.authCredentials
+}
+
+func (s *httpServer) getHeader() http.Header {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	return s.header
 }
 
 // TODO this function and zipkin/http_test.go#newHTTPServer look like twins lost at birth
@@ -151,6 +162,8 @@ func newHTTPServer(t *testing.T) *httpServer {
 		server.batches = append(server.batches, batch)
 		u, p, _ := r.BasicAuth()
 		server.authCredentials = append(server.authCredentials, &HTTPBasicAuthCredentials{username: u, password: p})
+
+		server.header = r.Header
 	})
 
 	go func() {

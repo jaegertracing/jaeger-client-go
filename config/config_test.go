@@ -497,6 +497,18 @@ func TestHTTPTransportType(t *testing.T) {
 	require.IsType(t, expect, sender)
 }
 
+func TestHTTPTransportTypeWithAuth(t *testing.T) {
+	rc := &ReporterConfig{
+		CollectorEndpoint: "http://1.2.3.4:5678/api/traces",
+		User:              "auth_user",
+		Password:          "auth_pass",
+	}
+	expect := transport.NewHTTPTransport(rc.CollectorEndpoint)
+	sender, err := rc.newTransport()
+	require.NoError(t, err)
+	require.IsType(t, expect, sender)
+}
+
 func TestDefaultConfig(t *testing.T) {
 	cfg := Configuration{}
 	_, _, err := cfg.NewTracer(Metrics(metrics.NullFactory), Logger(log.NullLogger))
