@@ -54,6 +54,10 @@ type Tracer struct {
 		noDebugFlagOnForcedSampling bool
 		// more options to come
 	}
+
+	// A counter for spans open without being finished
+	UnfinishedSpanCounter uint32
+
 	// allocator of Span objects
 	spanAllocator SpanAllocator
 
@@ -373,6 +377,7 @@ func (t *Tracer) Close() error {
 	if throttler, ok := t.debugThrottler.(io.Closer); ok {
 		_ = throttler.Close()
 	}
+	t.hasUnfinishedSpans()
 	return nil
 }
 
@@ -396,6 +401,12 @@ func (t *Tracer) getTag(key string) (interface{}, bool) {
 	return nil, false
 }
 
+func (t *Tracer) hasUnfinishedSpans() {
+	if t.UnfinishedSpanCounter > 0 {
+		t.logger.Error(fmt.Sprintf("%d span(s) were started but not finished", t.UnfinishedSpanCounter))
+	}
+}
+
 // newSpan returns an instance of a clean Span object.
 // If options.PoolSpans is true, the spans are retrieved from an object pool.
 func (t *Tracer) newSpan() *Span {
@@ -415,6 +426,8 @@ func (t *Tracer) emitNewSpanMetrics(sp *Span, newTrace bool) {
 		}
 		// joining a trace is not possible, because sampling decision inherited from upstream is final
 	} else if sp.context.IsSampled() {
+		t.UnfinishedSpanCounter += 1
+
 		t.metrics.SpansStartedSampled.Inc(1)
 		if newTrace {
 			t.metrics.TracesStartedSampled.Inc(1)
@@ -435,6 +448,8 @@ func (t *Tracer) reportSpan(sp *Span) {
 	if !sp.isSamplingFinalized() {
 		t.metrics.SpansFinishedDelayedSampling.Inc(1)
 	} else if sp.context.IsSampled() {
+		t.UnfinishedSpanCounter -= 1
+
 		t.metrics.SpansFinishedSampled.Inc(1)
 	} else {
 		t.metrics.SpansFinishedNotSampled.Inc(1)
