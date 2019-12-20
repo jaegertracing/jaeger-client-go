@@ -1,10 +1,16 @@
 Changes by Version
 ==================
 
+2.21.2 (unreleased)
+-------------------
+
+- Nothing yet.
+
+
 2.21.1 (2019-12-20)
 -------------------
 
-- Update version correctly
+- Update version correctly.
 
 
 2.21.0 (2019-12-20)
