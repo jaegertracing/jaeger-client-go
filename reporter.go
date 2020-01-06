@@ -20,6 +20,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/uber/jaeger-client-go/internal/transport"
+
 	"github.com/opentracing/opentracing-go"
 
 	"github.com/uber/jaeger-client-go/log"
@@ -179,8 +181,9 @@ type reporterQueueItem struct {
 type remoteReporter struct {
 	// These fields must be first in the struct because `sync/atomic` expects 64-bit alignment.
 	// Cf. https://github.com/uber/jaeger-client-go/issues/155, https://goo.gl/zW7dgq
-	queueLength int64
-	closed      int64 // 0 - not closed, 1 - closed
+	queueLength  int64
+	closed       int64 // 0 - not closed, 1 - closed
+	droppedCount int64
 
 	reporterOptions
 
@@ -214,8 +217,15 @@ func NewRemoteReporter(sender Transport, opts ...ReporterOption) Reporter {
 		sender:          sender,
 		queue:           make(chan reporterQueueItem, options.queueSize),
 	}
+	if receiver, ok := sender.(transport.ReporterStatsReceiver); ok {
+		receiver.SetReporterStats(reporter)
+	}
 	go reporter.processQueue()
 	return reporter
+}
+
+func (r *remoteReporter) SpansDroppedFromQueue() int64 {
+	return atomic.LoadInt64(&r.droppedCount)
 }
 
 // Report implements Report() method of Reporter.

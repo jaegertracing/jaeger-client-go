@@ -18,8 +18,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/uber/jaeger-client-go/internal/transport"
 	"github.com/uber/jaeger-client-go/thrift"
-
 	j "github.com/uber/jaeger-client-go/thrift-gen/jaeger"
 	"github.com/uber/jaeger-client-go/utils"
 )
@@ -32,7 +32,9 @@ import (
 // in the batch, because the length of the list is encoded as varint32, as well as SeqId.
 const emitBatchOverhead = 30
 
-var errSpanTooLarge = errors.New("Span is too large")
+var errSpanTooLarge = errors.New("span is too large")
+
+const maxInt64 = ^uint64(0) >> 1
 
 type udpSender struct {
 	client          *utils.AgentClientUDP
@@ -44,9 +46,16 @@ type udpSender struct {
 	thriftProtocol  thrift.TProtocol
 	process         *j.Process
 	processByteSize int
+
+	// stats reported to the backend directly
+	reporterStats        transport.ReporterStats
+	batchSeqNo           uint64
+	tooLargeDroppedSpans uint64
+	failedToEmitSpans    uint64
 }
 
-// NewUDPTransport creates a reporter that submits spans to jaeger-agent
+// NewUDPTransport creates a reporter that submits spans to jaeger-agent.
+// TODO: (breaking change) move to transport/ package.
 func NewUDPTransport(hostPort string, maxPacketSize int) (Transport, error) {
 	if len(hostPort) == 0 {
 		hostPort = fmt.Sprintf("%s:%d", DefaultUDPSpanServerHost, DefaultUDPSpanServerPort)
@@ -74,9 +83,13 @@ func NewUDPTransport(hostPort string, maxPacketSize int) (Transport, error) {
 	return sender, nil
 }
 
+func (s *udpSender) SetReporterStats(rs transport.ReporterStats) {
+	s.reporterStats = rs
+}
+
 func (s *udpSender) calcSizeOfSerializedThrift(thriftStruct thrift.TStruct) int {
 	s.thriftBuffer.Reset()
-	thriftStruct.Write(s.thriftProtocol)
+	_ = thriftStruct.Write(s.thriftProtocol)
 	return s.thriftBuffer.Len()
 }
 
@@ -89,6 +102,7 @@ func (s *udpSender) Append(span *Span) (int, error) {
 	jSpan := BuildJaegerThrift(span)
 	spanSize := s.calcSizeOfSerializedThrift(jSpan)
 	if spanSize > s.maxSpanBytes {
+		s.incInt64(&s.tooLargeDroppedSpans)
 		return 1, errSpanTooLarge
 	}
 
@@ -112,9 +126,18 @@ func (s *udpSender) Flush() (int, error) {
 	if n == 0 {
 		return 0, nil
 	}
-	err := s.client.EmitBatch(&j.Batch{Process: s.process, Spans: s.spanBuffer})
+	s.incInt64(&s.batchSeqNo)
+	batchSeqNo := int64(s.batchSeqNo)
+	err := s.client.EmitBatch(&j.Batch{
+		Process: s.process,
+		Spans:   s.spanBuffer,
+		SeqNo:   &batchSeqNo,
+		Stats:   s.makeStats(),
+	})
 	s.resetBuffers()
-
+	if err != nil {
+		s.addInt64(&s.failedToEmitSpans, n)
+	}
 	return n, err
 }
 
@@ -128,4 +151,23 @@ func (s *udpSender) resetBuffers() {
 	}
 	s.spanBuffer = s.spanBuffer[:0]
 	s.byteBufferSize = s.processByteSize
+}
+
+func (s *udpSender) incInt64(v *uint64) {
+	s.addInt64(v, 1)
+}
+
+func (s *udpSender) addInt64(v *uint64, delta int) {
+	*v += uint64(delta)
+	if *v > maxInt64 {
+		*v -= maxInt64
+	}
+}
+
+func (s *udpSender) makeStats() *j.ClientStats {
+	return &j.ClientStats{
+		FullQueueDroppedSpans: s.reporterStats.SpansDroppedFromQueue(),
+		TooLargeDroppedSpans:  int64(s.tooLargeDroppedSpans),
+		FailedToEmitSpans:     int64(s.failedToEmitSpans),
+	}
 }

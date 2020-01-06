@@ -18,6 +18,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/uber/jaeger-client-go/internal/transport"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -29,6 +31,9 @@ import (
 var (
 	testTracer, _ = NewTracer("svcName", NewConstSampler(false), NewNullReporter())
 	jaegerTracer  = testTracer.(*Tracer)
+
+	// API check
+	_ transport.ReporterStatsReceiver = new(udpSender)
 )
 
 func getThriftSpanByteLength(t *testing.T, span *Span) int {

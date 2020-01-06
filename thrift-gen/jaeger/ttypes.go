@@ -1579,9 +1579,11 @@ func (p *Process) String() string {
 // Attributes:
 //  - FullQueueDroppedSpans
 //  - TooLargeDroppedSpans
+//  - FailedToEmitSpans
 type ClientStats struct {
 	FullQueueDroppedSpans int64 `thrift:"fullQueueDroppedSpans,1,required" json:"fullQueueDroppedSpans"`
 	TooLargeDroppedSpans  int64 `thrift:"tooLargeDroppedSpans,2,required" json:"tooLargeDroppedSpans"`
+	FailedToEmitSpans     int64 `thrift:"failedToEmitSpans,3,required" json:"failedToEmitSpans"`
 }
 
 func NewClientStats() *ClientStats {
@@ -1595,6 +1597,10 @@ func (p *ClientStats) GetFullQueueDroppedSpans() int64 {
 func (p *ClientStats) GetTooLargeDroppedSpans() int64 {
 	return p.TooLargeDroppedSpans
 }
+
+func (p *ClientStats) GetFailedToEmitSpans() int64 {
+	return p.FailedToEmitSpans
+}
 func (p *ClientStats) Read(iprot thrift.TProtocol) error {
 	if _, err := iprot.ReadStructBegin(); err != nil {
 		return thrift.PrependError(fmt.Sprintf("%T read error: ", p), err)
@@ -1602,6 +1608,7 @@ func (p *ClientStats) Read(iprot thrift.TProtocol) error {
 
 	var issetFullQueueDroppedSpans bool = false
 	var issetTooLargeDroppedSpans bool = false
+	var issetFailedToEmitSpans bool = false
 
 	for {
 		_, fieldTypeId, fieldId, err := iprot.ReadFieldBegin()
@@ -1622,6 +1629,11 @@ func (p *ClientStats) Read(iprot thrift.TProtocol) error {
 				return err
 			}
 			issetTooLargeDroppedSpans = true
+		case 3:
+			if err := p.readField3(iprot); err != nil {
+				return err
+			}
+			issetFailedToEmitSpans = true
 		default:
 			if err := iprot.Skip(fieldTypeId); err != nil {
 				return err
@@ -1639,6 +1651,9 @@ func (p *ClientStats) Read(iprot thrift.TProtocol) error {
 	}
 	if !issetTooLargeDroppedSpans {
 		return thrift.NewTProtocolExceptionWithType(thrift.INVALID_DATA, fmt.Errorf("Required field TooLargeDroppedSpans is not set"))
+	}
+	if !issetFailedToEmitSpans {
+		return thrift.NewTProtocolExceptionWithType(thrift.INVALID_DATA, fmt.Errorf("Required field FailedToEmitSpans is not set"))
 	}
 	return nil
 }
@@ -1661,6 +1676,15 @@ func (p *ClientStats) readField2(iprot thrift.TProtocol) error {
 	return nil
 }
 
+func (p *ClientStats) readField3(iprot thrift.TProtocol) error {
+	if v, err := iprot.ReadI64(); err != nil {
+		return thrift.PrependError("error reading field 3: ", err)
+	} else {
+		p.FailedToEmitSpans = v
+	}
+	return nil
+}
+
 func (p *ClientStats) Write(oprot thrift.TProtocol) error {
 	if err := oprot.WriteStructBegin("ClientStats"); err != nil {
 		return thrift.PrependError(fmt.Sprintf("%T write struct begin error: ", p), err)
@@ -1669,6 +1693,9 @@ func (p *ClientStats) Write(oprot thrift.TProtocol) error {
 		return err
 	}
 	if err := p.writeField2(oprot); err != nil {
+		return err
+	}
+	if err := p.writeField3(oprot); err != nil {
 		return err
 	}
 	if err := oprot.WriteFieldStop(); err != nil {
@@ -1702,6 +1729,19 @@ func (p *ClientStats) writeField2(oprot thrift.TProtocol) (err error) {
 	}
 	if err := oprot.WriteFieldEnd(); err != nil {
 		return thrift.PrependError(fmt.Sprintf("%T write field end error 2:tooLargeDroppedSpans: ", p), err)
+	}
+	return err
+}
+
+func (p *ClientStats) writeField3(oprot thrift.TProtocol) (err error) {
+	if err := oprot.WriteFieldBegin("failedToEmitSpans", thrift.I64, 3); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T write field begin error 3:failedToEmitSpans: ", p), err)
+	}
+	if err := oprot.WriteI64(int64(p.FailedToEmitSpans)); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T.failedToEmitSpans (3) field write error: ", p), err)
+	}
+	if err := oprot.WriteFieldEnd(); err != nil {
+		return thrift.PrependError(fmt.Sprintf("%T write field end error 3:failedToEmitSpans: ", p), err)
 	}
 	return err
 }
