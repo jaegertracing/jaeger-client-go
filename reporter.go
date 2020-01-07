@@ -20,10 +20,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/uber/jaeger-client-go/internal/transport"
-
 	"github.com/opentracing/opentracing-go"
 
+	"github.com/uber/jaeger-client-go/internal/reporterstats"
 	"github.com/uber/jaeger-client-go/log"
 )
 
@@ -217,7 +216,7 @@ func NewRemoteReporter(sender Transport, opts ...ReporterOption) Reporter {
 		sender:          sender,
 		queue:           make(chan reporterQueueItem, options.queueSize),
 	}
-	if receiver, ok := sender.(transport.ReporterStatsReceiver); ok {
+	if receiver, ok := sender.(reporterstats.Receiver); ok {
 		receiver.SetReporterStats(reporter)
 	}
 	go reporter.processQueue()

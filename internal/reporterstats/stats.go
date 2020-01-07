@@ -12,12 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package transport
+package reporterstats
 
+// ReporterStats exposes some metrics from the RemoteReporter.
 type ReporterStats interface {
 	SpansDroppedFromQueue() int64
 }
 
-type ReporterStatsReceiver interface {
+// Receiver can be implemented by a Transport to be given ReporterStats.
+type Receiver interface {
 	SetReporterStats(ReporterStats)
 }

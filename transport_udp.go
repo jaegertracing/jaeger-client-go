@@ -18,7 +18,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/uber/jaeger-client-go/internal/transport"
+	"github.com/uber/jaeger-client-go/internal/reporterstats"
 	"github.com/uber/jaeger-client-go/thrift"
 	j "github.com/uber/jaeger-client-go/thrift-gen/jaeger"
 	"github.com/uber/jaeger-client-go/utils"
@@ -48,7 +48,7 @@ type udpSender struct {
 	processByteSize int
 
 	// stats reported to the backend directly
-	reporterStats        transport.ReporterStats
+	reporterStats        reporterstats.ReporterStats
 	batchSeqNo           uint64
 	tooLargeDroppedSpans uint64
 	failedToEmitSpans    uint64
@@ -83,7 +83,7 @@ func NewUDPTransport(hostPort string, maxPacketSize int) (Transport, error) {
 	return sender, nil
 }
 
-func (s *udpSender) SetReporterStats(rs transport.ReporterStats) {
+func (s *udpSender) SetReporterStats(rs reporterstats.ReporterStats) {
 	s.reporterStats = rs
 }
 
