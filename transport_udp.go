@@ -165,8 +165,12 @@ func (s *udpSender) addInt64(v *uint64, delta int) {
 }
 
 func (s *udpSender) makeStats() *j.ClientStats {
+	var dropped int64
+	if s.reporterStats != nil {
+		dropped = s.reporterStats.SpansDroppedFromQueue()
+	}
 	return &j.ClientStats{
-		FullQueueDroppedSpans: s.reporterStats.SpansDroppedFromQueue(),
+		FullQueueDroppedSpans: dropped,
 		TooLargeDroppedSpans:  int64(s.tooLargeDroppedSpans),
 		FailedToEmitSpans:     int64(s.failedToEmitSpans),
 	}
