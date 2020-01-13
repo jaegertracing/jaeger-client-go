@@ -15,9 +15,11 @@
 package jaeger
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
@@ -283,6 +285,52 @@ func TestSpan_Logs(t *testing.T) {
 			s := &Span{logs: tt.logs}
 			assert.Equal(t, tt.want, s.Logs())
 		})
+	}
+}
+
+func TestSpan_LogsLimit(t *testing.T) {
+	for limit := 1; limit < 10; limit += 1 + limit/2 {
+		tracer := &Tracer{}
+		TracerOptions.MaxLogsPerSpan(limit)(tracer)
+
+		for numLogs := 1; numLogs < limit*3; numLogs += 1 + numLogs/3 {
+			t.Run(fmt.Sprintf("Limit_%d_Num_%d", limit, numLogs), func(t *testing.T) {
+				span := &Span{tracer: tracer}
+
+				var epo time.Time
+				for ts := 1; ts <= numLogs; ts++ {
+					span.appendLogNoLocking(opentracing.LogRecord{Timestamp: epo.Add(time.Duration(ts))})
+				}
+
+				logs := span.Logs()
+
+				if numLogs <= limit {
+					assert.Len(t, logs, numLogs)
+					for i, r := range logs {
+						assert.Equal(t, r.Timestamp, epo.Add(time.Duration(i+1)))
+					}
+					return
+				}
+
+				assert.Len(t, logs, limit)
+				signalRecord := (limit - 1) / 2
+				for ts := 1; ts <= signalRecord; ts++ {
+					assert.Equal(t, logs[ts-1].Timestamp, epo.Add(time.Duration(ts)))
+				}
+				numNew := limit - signalRecord
+				ts := numLogs - numNew + 1
+
+				assert.Equal(t, "event", logs[signalRecord].Fields[0].Key())
+				assert.Equal(t, "dropped Span logs", logs[signalRecord].Fields[0].Value())
+				assert.Equal(t, "dropped_log_count", logs[signalRecord].Fields[1].Key())
+				assert.Equal(t, numLogs-limit+1, logs[signalRecord].Fields[1].Value())
+
+				pos := signalRecord
+				for ; pos < limit; ts, pos = ts+1, pos+1 {
+					assert.Equal(t, epo.Add(time.Duration(ts)), logs[pos].Timestamp)
+				}
+			})
+		}
 	}
 }
 
