@@ -180,9 +180,9 @@ type reporterQueueItem struct {
 type remoteReporter struct {
 	// These fields must be first in the struct because `sync/atomic` expects 64-bit alignment.
 	// Cf. https://github.com/uber/jaeger-client-go/issues/155, https://goo.gl/zW7dgq
-	queueLength  int64
 	closed       int64 // 0 - not closed, 1 - closed
-	droppedCount int64
+	queueLength  int64 // used to update metrics.Gauge
+	droppedCount int64 // provided to Transports to report data loss to the backend
 
 	reporterOptions
 
