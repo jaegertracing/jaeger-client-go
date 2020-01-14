@@ -17,7 +17,6 @@ package jaeger
 import (
 	"errors"
 	"fmt"
-	"math"
 
 	"github.com/uber/jaeger-client-go/internal/reporterstats"
 	"github.com/uber/jaeger-client-go/thrift"
@@ -105,7 +104,7 @@ func (s *udpSender) Append(span *Span) (int, error) {
 	jSpan := BuildJaegerThrift(span)
 	spanSize := s.calcSizeOfSerializedThrift(jSpan)
 	if spanSize > s.maxSpanBytes {
-		s.incInt64(&s.tooLargeDroppedSpans)
+		s.tooLargeDroppedSpans++
 		return 1, errSpanTooLarge
 	}
 
@@ -129,7 +128,7 @@ func (s *udpSender) Flush() (int, error) {
 	if n == 0 {
 		return 0, nil
 	}
-	s.incInt64(&s.batchSeqNo)
+	s.batchSeqNo++
 	batchSeqNo := int64(s.batchSeqNo)
 	err := s.client.EmitBatch(&j.Batch{
 		Process: s.process,
@@ -139,7 +138,7 @@ func (s *udpSender) Flush() (int, error) {
 	})
 	s.resetBuffers()
 	if err != nil {
-		s.addInt64(&s.failedToEmitSpans, int64(n))
+		s.failedToEmitSpans += int64(n)
 	}
 	return n, err
 }
@@ -154,20 +153,6 @@ func (s *udpSender) resetBuffers() {
 	}
 	s.spanBuffer = s.spanBuffer[:0]
 	s.byteBufferSize = s.processByteSize
-}
-
-func (s *udpSender) incInt64(v *int64) {
-	s.addInt64(v, 1)
-}
-
-// addInt64 adds delta to the value pointer by v, making sure that the result
-// does not overflow MaxInt64 by wrapping it.
-func (s *udpSender) addInt64(v *int64, delta int64) {
-	if *v > math.MaxInt64-delta { // prevent overflow
-		*v -= math.MaxInt64 - delta + 1
-	} else {
-		*v += delta
-	}
 }
 
 func (s *udpSender) makeStats() *j.ClientStats {
