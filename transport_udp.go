@@ -45,11 +45,11 @@ type udpSender struct {
 	process         *j.Process
 	processByteSize int
 
-	// stats reported to the backend directly
+	// reporterStats provides access to stats that are only known to Reporter
 	reporterStats reporterstats.ReporterStats
 
 	// The following counters are always non-negative, but we need to send them in signed i64 Thrift fields,
-	// so we keep them as signed and take care of not causing overflow when incrementing (by wrapping back to 0).
+	// so we keep them as signed. At 10k QPS, overflow happens in about 300 million years.
 	batchSeqNo           int64
 	tooLargeDroppedSpans int64
 	failedToEmitSpans    int64
@@ -162,7 +162,7 @@ func (s *udpSender) makeStats() *j.ClientStats {
 	}
 	return &j.ClientStats{
 		FullQueueDroppedSpans: dropped,
-		TooLargeDroppedSpans:  int64(s.tooLargeDroppedSpans),
-		FailedToEmitSpans:     int64(s.failedToEmitSpans),
+		TooLargeDroppedSpans:  s.tooLargeDroppedSpans,
+		FailedToEmitSpans:     s.failedToEmitSpans,
 	}
 }

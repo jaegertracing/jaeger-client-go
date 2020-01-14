@@ -92,6 +92,12 @@ func TestEmitBatchOverhead(t *testing.T) {
 	}
 }
 
+type mockRepStats struct {
+	spansDroppedFromQueue int64
+}
+
+func (m *mockRepStats) SpansDroppedFromQueue() int64 { return m.spansDroppedFromQueue }
+
 func TestUDPSenderFlush(t *testing.T) {
 	agent, err := testutils.StartMockAgent()
 	require.NoError(t, err)
@@ -104,6 +110,9 @@ func TestUDPSenderFlush(t *testing.T) {
 	sender, err := NewUDPTransport(agent.SpanServerAddr(), 5*spanSize+processSize+emitBatchOverhead)
 	require.NoError(t, err)
 	udpSender := sender.(*udpSender)
+	udpSender.SetReporterStats(&mockRepStats{spansDroppedFromQueue: 5})
+	udpSender.tooLargeDroppedSpans = 6
+	udpSender.failedToEmitSpans = 7
 
 	// test empty flush
 	n, err := sender.Flush()
@@ -134,8 +143,17 @@ func TestUDPSenderFlush(t *testing.T) {
 	}
 	batches := agent.GetJaegerBatches()
 	require.Equal(t, 1, len(batches), "agent should have received the batch")
-	require.Equal(t, 1, len(batches[0].Spans))
-	assert.Equal(t, span.operationName, batches[0].Spans[0].OperationName)
+	batch := batches[0]
+	require.Equal(t, 1, len(batch.Spans))
+	assert.Equal(t, span.operationName, batch.Spans[0].OperationName)
+	require.NotNil(t, batch.SeqNo)
+	assert.EqualValues(t, 1, *batch.SeqNo, "batch seqNo")
+	require.NotNil(t, batch.Stats)
+	assert.EqualValues(t, j.ClientStats{
+		FullQueueDroppedSpans: 5,
+		TooLargeDroppedSpans:  6,
+		FailedToEmitSpans:     7,
+	}, *batch.Stats, "client stats")
 }
 
 func TestUDPSenderAppend(t *testing.T) {
