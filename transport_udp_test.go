@@ -15,6 +15,8 @@
 package jaeger
 
 import (
+	"fmt"
+	"math"
 	"testing"
 	"time"
 
@@ -227,4 +229,34 @@ func TestUDPSenderHugeSpan(t *testing.T) {
 	n, err := sender.Append(span)
 	assert.Equal(t, errSpanTooLarge, err)
 	assert.Equal(t, 1, n)
+
+	sender.(*udpSender).spanBuffer = []*j.Span{BuildJaegerThrift(span)}
+	n, err = sender.Flush()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "data does not fit within one UDP packet")
+	assert.Equal(t, 1, n)
+}
+
+func TestUDPSender_addInt64(t *testing.T) {
+	tests := []struct {
+		v, d, exp int64
+	}{
+		{v: 10, d: 5, exp: 15},
+		{v: math.MaxInt64 - 10, d: 5, exp: math.MaxInt64 - 5},
+		{v: math.MaxInt64, d: 1, exp: 0},
+		{v: math.MaxInt64 - 5, d: 10, exp: 4},
+	}
+	for i, test := range tests {
+		t.Run(fmt.Sprintf("iter%d", i), func(t *testing.T) {
+			v := test.v
+			new(udpSender).addInt64(&v, test.d)
+			assert.Equal(t, test.exp, v)
+		})
+	}
+}
+
+func TestUDPSender_defaultHostPort(t *testing.T) {
+	tr, err := NewUDPTransport("", 0)
+	require.NoError(t, err)
+	tr.Close()
 }
