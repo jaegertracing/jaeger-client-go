@@ -177,17 +177,31 @@ type reporterQueueItem struct {
 	close    *sync.WaitGroup
 }
 
+// reporterStats implements reporterstats.ReporterStats.
+type reporterStats struct {
+	droppedCount int64 // provided to Transports to report data loss to the backend
+}
+
+// SpansDroppedFromQueue implements reporterstats.ReporterStats.
+func (r *reporterStats) SpansDroppedFromQueue() int64 {
+	return atomic.LoadInt64(&r.droppedCount)
+}
+
+func (r *reporterStats) incDroppedCount() {
+	atomic.AddInt64(&r.droppedCount, 1)
+}
+
 type remoteReporter struct {
 	// These fields must be first in the struct because `sync/atomic` expects 64-bit alignment.
 	// Cf. https://github.com/uber/jaeger-client-go/issues/155, https://goo.gl/zW7dgq
-	closed       int64 // 0 - not closed, 1 - closed
-	queueLength  int64 // used to update metrics.Gauge
-	droppedCount int64 // provided to Transports to report data loss to the backend
+	queueLength int64 // used to update metrics.Gauge
+	closed      int64 // 0 - not closed, 1 - closed
 
 	reporterOptions
 
-	sender Transport
-	queue  chan reporterQueueItem
+	sender        Transport
+	queue         chan reporterQueueItem
+	reporterStats *reporterStats
 }
 
 // NewRemoteReporter creates a new reporter that sends spans out of process by means of Sender.
@@ -215,17 +229,13 @@ func NewRemoteReporter(sender Transport, opts ...ReporterOption) Reporter {
 		reporterOptions: options,
 		sender:          sender,
 		queue:           make(chan reporterQueueItem, options.queueSize),
+		reporterStats:   new(reporterStats),
 	}
 	if receiver, ok := sender.(reporterstats.Receiver); ok {
-		receiver.SetReporterStats(reporter)
+		receiver.SetReporterStats(reporter.reporterStats)
 	}
 	go reporter.processQueue()
 	return reporter
-}
-
-// SpansDroppedFromQueue implements reporterstats.ReporterStats.
-func (r *remoteReporter) SpansDroppedFromQueue() int64 {
-	return atomic.LoadInt64(&r.droppedCount)
 }
 
 // Report implements Report() method of Reporter.
@@ -241,7 +251,7 @@ func (r *remoteReporter) Report(span *Span) {
 		atomic.AddInt64(&r.queueLength, 1)
 	default:
 		r.metrics.ReporterDropped.Inc(1)
-		atomic.AddInt64(&r.droppedCount, 1)
+		r.reporterStats.incDroppedCount()
 	}
 }
 
