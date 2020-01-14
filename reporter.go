@@ -223,6 +223,7 @@ func NewRemoteReporter(sender Transport, opts ...ReporterOption) Reporter {
 	return reporter
 }
 
+// SpansDroppedFromQueue implements reporterstats.ReporterStats.
 func (r *remoteReporter) SpansDroppedFromQueue() int64 {
 	return atomic.LoadInt64(&r.droppedCount)
 }

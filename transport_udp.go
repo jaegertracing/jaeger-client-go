@@ -17,6 +17,7 @@ package jaeger
 import (
 	"errors"
 	"fmt"
+	"math"
 
 	"github.com/uber/jaeger-client-go/internal/reporterstats"
 	"github.com/uber/jaeger-client-go/thrift"
@@ -34,8 +35,6 @@ const emitBatchOverhead = 30
 
 var errSpanTooLarge = errors.New("span is too large")
 
-const maxInt64 = ^uint64(0) >> 1
-
 type udpSender struct {
 	client          *utils.AgentClientUDP
 	maxPacketSize   int                   // max size of datagram in bytes
@@ -48,10 +47,13 @@ type udpSender struct {
 	processByteSize int
 
 	// stats reported to the backend directly
-	reporterStats        reporterstats.ReporterStats
-	batchSeqNo           uint64
-	tooLargeDroppedSpans uint64
-	failedToEmitSpans    uint64
+	reporterStats reporterstats.ReporterStats
+
+	// The following counters are always non-negative, but we need to send them in signed i64 Thrift fields,
+	// so we keep them as signed and take care of not causing overflow when incrementing (by wrapping back to 0).
+	batchSeqNo           int64
+	tooLargeDroppedSpans int64
+	failedToEmitSpans    int64
 }
 
 // NewUDPTransport creates a reporter that submits spans to jaeger-agent.
@@ -75,14 +77,15 @@ func NewUDPTransport(hostPort string, maxPacketSize int) (Transport, error) {
 		return nil, err
 	}
 
-	sender := &udpSender{
+	return &udpSender{
 		client:         client,
 		maxSpanBytes:   maxPacketSize - emitBatchOverhead,
 		thriftBuffer:   thriftBuffer,
-		thriftProtocol: thriftProtocol}
-	return sender, nil
+		thriftProtocol: thriftProtocol,
+	}, nil
 }
 
+// SetReporterStats implements reporterstats.Receiver.
 func (s *udpSender) SetReporterStats(rs reporterstats.ReporterStats) {
 	s.reporterStats = rs
 }
@@ -136,7 +139,7 @@ func (s *udpSender) Flush() (int, error) {
 	})
 	s.resetBuffers()
 	if err != nil {
-		s.addInt64(&s.failedToEmitSpans, n)
+		s.addInt64(&s.failedToEmitSpans, int64(n))
 	}
 	return n, err
 }
@@ -153,14 +156,17 @@ func (s *udpSender) resetBuffers() {
 	s.byteBufferSize = s.processByteSize
 }
 
-func (s *udpSender) incInt64(v *uint64) {
+func (s *udpSender) incInt64(v *int64) {
 	s.addInt64(v, 1)
 }
 
-func (s *udpSender) addInt64(v *uint64, delta int) {
-	*v += uint64(delta)
-	if *v > maxInt64 {
-		*v -= maxInt64
+// addInt64 adds delta to the value pointer by v, making sure that the result
+// does not overflow MaxInt64 by wrapping it.
+func (s *udpSender) addInt64(v *int64, delta int64) {
+	if *v > math.MaxInt64-delta { // prevent overflow
+		*v -= math.MaxInt64 - delta + 1
+	} else {
+		*v += delta
 	}
 }
 
