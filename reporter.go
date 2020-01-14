@@ -16,7 +16,6 @@ package jaeger
 
 import (
 	"fmt"
-	"math"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -242,21 +241,7 @@ func (r *remoteReporter) Report(span *Span) {
 		atomic.AddInt64(&r.queueLength, 1)
 	default:
 		r.metrics.ReporterDropped.Inc(1)
-		r.incInt64(&r.droppedCount)
-	}
-}
-
-// incInt64 increments atomic int64 counter, wrapping back to 0 at MaxInt64.
-func (r *remoteReporter) incInt64(v *int64) {
-	for {
-		v1 := atomic.LoadInt64(v)
-		var v2 int64
-		if v1 < math.MaxInt64 {
-			v2 = v1 + 1
-		}
-		if atomic.CompareAndSwapInt64(v, v1, v2) {
-			return
-		}
+		atomic.AddInt64(&r.droppedCount, 1)
 	}
 }
 
