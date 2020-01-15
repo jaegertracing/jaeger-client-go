@@ -1,10 +1,11 @@
 Changes by Version
 ==================
 
-2.21.2 (unreleased)
+2.22.0 (2020-01-15)
 -------------------
 
-- Nothing yet.
+- Report data loss stats to Jaeger backend ([#482](https://github.com/jaegertracing/jaeger-client-go/pull/482)) -- Yuri Shkuro
+- Add limit on log records per span ([#483](https://github.com/jaegertracing/jaeger-client-go/pull/483)) -- Sokolov Yura
 
 
 2.21.1 (2019-12-20)
