@@ -15,6 +15,8 @@
 package jaeger
 
 import (
+	"fmt"
+	"math"
 	"testing"
 	"time"
 
@@ -72,23 +74,39 @@ func TestEmitBatchOverhead(t *testing.T) {
 	spanSize := getThriftSpanByteLength(t, span)
 
 	tests := []int{1, 2, 14, 15, 377, 500, 65000, 0xFFFF}
-	for i, n := range tests {
-		transport.Reset()
-		batch := make([]*j.Span, n)
+	for _, n := range tests {
+		spans := make([]*j.Span, n)
 		processTags := make([]*j.Tag, n)
 		for x := 0; x < n; x++ {
-			batch[x] = BuildJaegerThrift(span)
+			spans[x] = BuildJaegerThrift(span)
 			processTags[x] = &j.Tag{}
 		}
 		process := &j.Process{ServiceName: "svcName", Tags: processTags}
+		batch := &j.Batch{
+			Process: process,
+			Spans:   spans,
+		}
 		client.SeqId = -2 // this causes the longest encoding of varint32 as 5 bytes
-		err := client.EmitBatch(&j.Batch{Process: process, Spans: batch})
-		processSize := getThriftProcessByteLength(t, process)
-		require.NoError(t, err)
-		overhead := transport.Len() - n*spanSize - processSize
-		assert.True(t, overhead <= emitBatchOverhead,
-			"test %d, n=%d, expected overhead %d <= %d", i, n, overhead, emitBatchOverhead)
-		t.Logf("span count: %d, overhead: %d", n, overhead)
+
+		for _, stats := range []bool{false, true} {
+			if stats {
+				nn := int64(math.MaxInt64)
+				batch.SeqNo = &nn
+				batch.Stats = &j.ClientStats{
+					FullQueueDroppedSpans: nn,
+					TooLargeDroppedSpans:  nn,
+					FailedToEmitSpans:     nn,
+				}
+			}
+			t.Run(fmt.Sprintf("n=%d,stats=%t", n, stats), func(t *testing.T) {
+				transport.Reset()
+				err := client.EmitBatch(batch)
+				require.NoError(t, err)
+				processSize := getThriftProcessByteLength(t, process)
+				overhead := transport.Len() - n*spanSize - processSize
+				assert.LessOrEqual(t, overhead, emitBatchOverhead, "overhead budget")
+			})
+		}
 	}
 }
 
