@@ -1,10 +1,10 @@
 Changes by Version
 ==================
 
-2.22.1 (unreleased)
+2.22.1 (2020-01-16)
 -------------------
 
-- Nothing yet.
+- Increase UDP batch overhead to account for data loss metrics ([#488](https://github.com/jaegertracing/jaeger-client-go/pull/488)) -- Yuri Shkuro
 
 
 2.22.0 (2020-01-15)
