@@ -27,10 +27,12 @@ import (
 // Empirically obtained constant for how many bytes in the message are used for envelope.
 // The total datagram size is:
 // sizeof(Span) * numSpans + processByteSize + emitBatchOverhead <= maxPacketSize
-// There is a unit test `TestEmitBatchOverhead` that validates this number.
+//
 // Note that due to the use of Compact Thrift protocol, overhead grows with the number of spans
 // in the batch, because the length of the list is encoded as varint32, as well as SeqId.
-const emitBatchOverhead = 30
+//
+// There is a unit test `TestEmitBatchOverhead` that validates this number, it fails at <68.
+const emitBatchOverhead = 70
 
 var errSpanTooLarge = errors.New("span is too large")
 
