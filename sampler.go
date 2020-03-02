@@ -141,7 +141,7 @@ func (s *ProbabilisticSampler) SamplingRate() float64 {
 
 // IsSampled implements IsSampled() of Sampler.
 func (s *ProbabilisticSampler) IsSampled(id TraceID, operation string) (bool, []Tag) {
-	return s.samplingBoundary >= id.Low, s.tags
+	return s.samplingBoundary >= id.Low&maxRandomNumber, s.tags
 }
 
 // Close implements Close() of Sampler.

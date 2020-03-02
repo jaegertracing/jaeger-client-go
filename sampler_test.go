@@ -86,6 +86,16 @@ func TestProbabilisticSampler(t *testing.T) {
 	sampled, tags = sampler.IsSampled(TraceID{Low: testMaxID - 20}, testOperationName)
 	assert.True(t, sampled)
 	assert.Equal(t, testProbabilisticExpectedTags, tags)
+
+	t.Run("test_64bit_id", func(t *testing.T) {
+		sampled, tags := sampler.IsSampled(TraceID{Low: (testMaxID + 10) | 1<<63}, testOperationName)
+		assert.False(t, sampled)
+		assert.Equal(t, testProbabilisticExpectedTags, tags)
+		sampled, tags = sampler.IsSampled(TraceID{Low: (testMaxID - 20) | 1<<63}, testOperationName)
+		assert.True(t, sampled)
+		assert.Equal(t, testProbabilisticExpectedTags, tags)
+	})
+
 	sampler2, _ := NewProbabilisticSampler(0.5)
 	assert.True(t, sampler.Equal(sampler2))
 	assert.False(t, sampler.Equal(NewConstSampler(true)))
