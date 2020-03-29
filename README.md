@@ -297,7 +297,7 @@ span := tracer.StartSpan(
     jaeger.SelfRef(yourSpanContext),
 )
 ...
-defer span.finish()
+defer span.Finish()
 ```
 
 ## License
