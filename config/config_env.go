@@ -30,13 +30,15 @@ import (
 
 const (
 	// environment variable names
-	envServiceName            = "JAEGER_SERVICE_NAME"
-	envDisabled               = "JAEGER_DISABLED"
-	envRPCMetrics             = "JAEGER_RPC_METRICS"
-	envTags                   = "JAEGER_TAGS"
-	envSamplerType            = "JAEGER_SAMPLER_TYPE"
-	envSamplerParam           = "JAEGER_SAMPLER_PARAM"
+	envServiceName  = "JAEGER_SERVICE_NAME"
+	envDisabled     = "JAEGER_DISABLED"
+	envRPCMetrics   = "JAEGER_RPC_METRICS"
+	envTags         = "JAEGER_TAGS"
+	envSamplerType  = "JAEGER_SAMPLER_TYPE"
+	envSamplerParam = "JAEGER_SAMPLER_PARAM"
+	// Deprecated: use envSamplingEndpoint instead
 	envSamplerManagerHostPort = "JAEGER_SAMPLER_MANAGER_HOST_PORT"
+	envSamplingEndpoint       = "JAEGER_SAMPLING_ENDPOINT"
 	envSamplerMaxOperations   = "JAEGER_SAMPLER_MAX_OPERATIONS"
 	envSamplerRefreshInterval = "JAEGER_SAMPLER_REFRESH_INTERVAL"
 	envReporterMaxQueueSize   = "JAEGER_REPORTER_MAX_QUEUE_SIZE"
@@ -118,7 +120,9 @@ func (sc *SamplerConfig) samplerConfigFromEnv() (*SamplerConfig, error) {
 		}
 	}
 
-	if e := os.Getenv(envSamplerManagerHostPort); e != "" {
+	if e := os.Getenv(envSamplingEndpoint); e != "" {
+		sc.SamplingServerURL = e
+	} else if e := os.Getenv(envSamplerManagerHostPort); e != "" {
 		sc.SamplingServerURL = e
 	} else if e := os.Getenv(envAgentHost); e != "" {
 		// Fallback if we know the agent host - try the sampling endpoint there

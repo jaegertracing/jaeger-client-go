@@ -147,7 +147,7 @@ func TestSamplerConfig(t *testing.T) {
 	// prepare
 	setEnv(t, envSamplerType, "const")
 	setEnv(t, envSamplerParam, "1")
-	setEnv(t, envSamplerManagerHostPort, "http://themaster")
+	setEnv(t, envSamplingEndpoint, "http://themaster:5778/sampling")
 	setEnv(t, envSamplerMaxOperations, "10")
 	setEnv(t, envSamplerRefreshInterval, "1m1s") // 61 seconds
 
@@ -167,14 +167,14 @@ func TestSamplerConfig(t *testing.T) {
 	// verify
 	assert.Equal(t, "const", cfg.Type)
 	assert.Equal(t, float64(1), cfg.Param)
-	assert.Equal(t, "http://themaster", cfg.SamplingServerURL)
+	assert.Equal(t, "http://themaster:5778/sampling", cfg.SamplingServerURL)
 	assert.Equal(t, 10, cfg.MaxOperations)
 	assert.Equal(t, 61000000000, int(cfg.SamplingRefreshInterval))
 
 	// cleanup
 	unsetEnv(t, envSamplerType)
 	unsetEnv(t, envSamplerParam)
-	unsetEnv(t, envSamplerManagerHostPort)
+	unsetEnv(t, envSamplingEndpoint)
 	unsetEnv(t, envSamplerMaxOperations)
 	unsetEnv(t, envSamplerRefreshInterval)
 }
@@ -301,9 +301,9 @@ func TestNoServiceNameFromEnv(t *testing.T) {
 
 func TestSamplerConfigFromEnv(t *testing.T) {
 	// prepare
-	setEnv(t, envSamplerType, "const")
+	setEnv(t, envSamplerType, "remote")
 	setEnv(t, envSamplerParam, "1")
-	setEnv(t, envSamplerManagerHostPort, "http://themaster")
+	setEnv(t, envSamplingEndpoint, "http://themaster:5778/sampling")
 	setEnv(t, envSamplerMaxOperations, "10")
 	setEnv(t, envSamplerRefreshInterval, "1m1s") // 61 seconds
 
@@ -312,18 +312,33 @@ func TestSamplerConfigFromEnv(t *testing.T) {
 	assert.NoError(t, err)
 
 	// verify
-	assert.Equal(t, "const", cfg.Sampler.Type)
+	assert.Equal(t, "remote", cfg.Sampler.Type)
 	assert.Equal(t, float64(1), cfg.Sampler.Param)
-	assert.Equal(t, "http://themaster", cfg.Sampler.SamplingServerURL)
+	assert.Equal(t, "http://themaster:5778/sampling", cfg.Sampler.SamplingServerURL)
 	assert.Equal(t, 10, cfg.Sampler.MaxOperations)
 	assert.Equal(t, 61000000000, int(cfg.Sampler.SamplingRefreshInterval))
 
 	// cleanup
 	unsetEnv(t, envSamplerType)
 	unsetEnv(t, envSamplerParam)
-	unsetEnv(t, envSamplerManagerHostPort)
+	unsetEnv(t, envSamplingEndpoint)
 	unsetEnv(t, envSamplerMaxOperations)
 	unsetEnv(t, envSamplerRefreshInterval)
+}
+
+func TestDeprecatedSamplerConfigFromEnv(t *testing.T) {
+	// prepare
+	setEnv(t, envSamplerManagerHostPort, "http://themaster")
+
+	// test
+	cfg, err := FromEnv()
+	assert.NoError(t, err)
+
+	// verify
+	assert.Equal(t, "http://themaster", cfg.Sampler.SamplingServerURL)
+
+	// cleanup
+	unsetEnv(t, envSamplerManagerHostPort)
 }
 
 func TestSamplerConfigOnAgentFromEnv(t *testing.T) {
