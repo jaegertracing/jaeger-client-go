@@ -47,6 +47,11 @@ func (l *stdLogger) Infof(msg string, args ...interface{}) {
 	log.Printf(msg, args...)
 }
 
+// Debugf logs a message at debug priority
+func (l *stdLogger) Debugf(msg string, args ...interface{}) {
+	log.Printf(fmt.Sprintf("DEBUG: %s", msg), args...)
+}
+
 // NullLogger is implementation of the Logger interface that is no-op
 var NullLogger = &nullLogger{}
 
@@ -54,6 +59,7 @@ type nullLogger struct{}
 
 func (l *nullLogger) Error(msg string)                      {}
 func (l *nullLogger) Infof(msg string, args ...interface{}) {}
+func (l *nullLogger) Debugf(msg string, args ...interface{}) {}
 
 // BytesBufferLogger implements Logger backed by a bytes.Buffer.
 type BytesBufferLogger struct {
@@ -75,6 +81,13 @@ func (l *BytesBufferLogger) Infof(msg string, args ...interface{}) {
 	l.mux.Unlock()
 }
 
+// Infof implements Logger.
+func (l *BytesBufferLogger) Debugf(msg string, args ...interface{}) {
+	l.mux.Lock()
+	l.buf.WriteString("DEBUG: " + fmt.Sprintf(msg, args...) + "\n")
+	l.mux.Unlock()
+}
+
 // String returns string representation of the underlying buffer.
 func (l *BytesBufferLogger) String() string {
 	l.mux.Lock()
@@ -87,4 +100,10 @@ func (l *BytesBufferLogger) Flush() {
 	l.mux.Lock()
 	defer l.mux.Unlock()
 	l.buf.Reset()
+}
+
+type DebugLogger interface {
+	Debugf(msg string, args ...interface{})
+
+	Logger
 }

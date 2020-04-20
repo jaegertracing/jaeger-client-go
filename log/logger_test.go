@@ -22,11 +22,13 @@ import (
 
 func TestLogger(t *testing.T) {
 	bbLogger := &BytesBufferLogger{}
-	for _, logger := range []Logger{StdLogger, NullLogger, bbLogger} {
+	for _, logger := range []DebugLogger{StdLogger, NullLogger, bbLogger} {
 		logger.Infof("Hi %s", "there")
 		logger.Error("Bad wolf")
+		logger.Debugf("wolf")
 	}
-	assert.Equal(t, "INFO: Hi there\nERROR: Bad wolf\n", bbLogger.String())
+	assert.Equal(t, "INFO: Hi there\nERROR: Bad wolf\n" +
+		"DEBUG: wolf\n", bbLogger.String())
 	bbLogger.Flush()
 	assert.Empty(t, bbLogger.String())
 }
