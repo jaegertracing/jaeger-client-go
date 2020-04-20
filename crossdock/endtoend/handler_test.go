@@ -42,7 +42,7 @@ var (
 		},
 		Reporter: &config.ReporterConfig{
 			BufferFlushInterval: time.Second,
-			LocalAgentHostPort:  "localhost:5775",
+			LocalAgentHostPort:  "localhost:6831",
 		},
 	}
 
