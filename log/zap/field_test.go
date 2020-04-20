@@ -143,19 +143,9 @@ func TestSpanField(t *testing.T) {
 		"span_refs": []interface{}{
 			map[string]interface{}{
 				"type": "child_of",
-				"context": map[string]interface{}{
-					"trace":    parentSpanContext.TraceID().String(),
-					"span":     parentSpanContext.SpanID().String(),
-					"parent":   "0",
-					"debug":    true,
-					"sampled":  true,
-					"firehose": true,
-					"baggage": []interface{}{
-						map[string]interface{}{
-							"key":   baggageKey,
-							"value": baggageValue,
-						},
-					},
+				"referenced_context": map[string]interface{}{
+					"span":   parentSpanContext.SpanID().String(),
+					"parent": "0",
 				},
 			},
 		},

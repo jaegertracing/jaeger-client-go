@@ -96,6 +96,17 @@ func (s spanContext) encodeBaggage(ctx jaeger.SpanContext, enc zapcore.ObjectEnc
 	enc.AddArray("baggage", baggage)
 }
 
+type referencedContext struct {
+	spanContext jaeger.SpanContext
+}
+
+func (s referencedContext) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	ctx := s.spanContext
+	enc.AddString("span", ctx.SpanID().String())
+	enc.AddString("parent", ctx.ParentID().String())
+	return nil
+}
+
 type baggageKV struct {
 	key   string
 	value string
@@ -174,7 +185,7 @@ func (r reference) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	}
 
 	if jCtx, ok := r.ReferencedContext.(jaeger.SpanContext); ok {
-		enc.AddObject("context", spanContext{spanContext: jCtx})
+		enc.AddObject("referenced_context", referencedContext{spanContext: jCtx})
 	}
 
 	return nil
