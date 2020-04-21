@@ -15,16 +15,18 @@
 package zap
 
 import (
+	"testing"
+	"time"
+
 	"github.com/golang/mock/gomock"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/log"
 	"github.com/stretchr/testify/assert"
-	"github.com/uber/jaeger-client-go"
-	"github.com/uber/jaeger-client-go/log/zap/mock_opentracing"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest/observer"
-	"testing"
-	"time"
+
+	"github.com/uber/jaeger-client-go"
+	"github.com/uber/jaeger-client-go/log/zap/mock_opentracing"
 )
 
 func TestTracerDelegation(t *testing.T) {

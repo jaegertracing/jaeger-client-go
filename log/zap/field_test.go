@@ -16,13 +16,13 @@ package zap
 
 import (
 	"context"
-	"github.com/opentracing/opentracing-go/ext"
 	"testing"
 	"time"
 
 	jaeger "github.com/uber/jaeger-client-go"
 
 	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
