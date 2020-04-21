@@ -79,7 +79,7 @@ func (l loggingTracer) Extract(format interface{}, carrier interface{}) (opentra
 	l.logger.Debug("Extract", zap.Any("format", format), zap.Any("carrier", carrier))
 	ctx, err := l.tracer.Extract(format, carrier)
 	if err != nil {
-		l.logger.Error("Extract succeeded", Context(ctx.(jaeger.SpanContext)))
+		l.logger.Debug("Extract succeeded", Context(ctx.(jaeger.SpanContext)))
 	} else {
 		l.logger.Error("Extract failed", zap.Error(err))
 	}
