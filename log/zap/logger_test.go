@@ -15,21 +15,30 @@
 package zap
 
 import (
-	"bytes"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest/observer"
 )
 
 func TestLogger(t *testing.T) {
-	buf := &bytes.Buffer{}
-	encoder := zapcore.NewConsoleEncoder(zapcore.EncoderConfig{MessageKey: "key"})
-	logger := NewLogger(zap.New(zapcore.NewCore(encoder, zapcore.AddSync(buf), zapcore.InfoLevel)))
-	logger.Infof("Hi %s %d", "there", 5)
-	assert.Equal(t, buf.String(), "Hi there 5\n")
-	buf.Reset()
-	logger.Error("Bad wolf")
-	assert.Equal(t, buf.String(), "Bad wolf\n")
+	core, logs := observer.New(zapcore.DebugLevel)
+	logger := NewLogger(zap.New(core))
+
+	logger.Debugf("test debug %d", 1)
+	msg := logs.FilterMessage("test debug 1").TakeAll()
+	assert.Len(t, msg, 1)
+	assert.Equal(t, msg[0].Level, zap.DebugLevel)
+
+	logger.Infof("test info %d", 2)
+	msg = logs.FilterMessage("test info 2").TakeAll()
+	assert.Len(t, msg, 1)
+	assert.Equal(t, msg[0].Level, zap.InfoLevel)
+
+	logger.Error("test error")
+	msg = logs.FilterMessage("test error").TakeAll()
+	assert.Len(t, msg, 1)
+	assert.Equal(t, msg[0].Level, zap.ErrorLevel)
 }

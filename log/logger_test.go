@@ -22,11 +22,68 @@ import (
 
 func TestLogger(t *testing.T) {
 	bbLogger := &BytesBufferLogger{}
-	for _, logger := range []Logger{StdLogger, NullLogger, bbLogger} {
+	for _, logger := range []DebugLogger{StdLogger, NullLogger, bbLogger} {
 		logger.Infof("Hi %s", "there")
 		logger.Error("Bad wolf")
+		logger.Debugf("wolf")
 	}
-	assert.Equal(t, "INFO: Hi there\nERROR: Bad wolf\n", bbLogger.String())
+	assert.Equal(t, "INFO: Hi there\nERROR: Bad wolf\nDEBUG: wolf\n", bbLogger.String())
 	bbLogger.Flush()
 	assert.Empty(t, bbLogger.String())
+}
+
+func TestDebugLogAdapter_ReturnSameIfDebugLogger(t *testing.T) {
+	assert.Same(t, NullLogger, DebugLogAdapter(NullLogger))
+}
+
+type mockLogger struct {
+	errorCalled bool
+	infoCalled  bool
+	msg         string
+	args        []interface{}
+}
+
+func (i *mockLogger) Error(msg string) {
+	i.errorCalled = true
+	i.msg = msg
+}
+
+func (i *mockLogger) Infof(msg string, args ...interface{}) {
+	i.infoCalled = true
+	i.msg = msg
+	i.args = args
+}
+
+func (i *mockLogger) Reset() {
+	i.errorCalled = false
+	i.infoCalled = false
+	i.msg = ""
+	i.args = []interface{}{}
+}
+
+func TestDebugLogAdapter_adapt(t *testing.T) {
+	assert.IsType(t, debugDisabledLogAdapter{}, DebugLogAdapter(&mockLogger{}))
+}
+
+func TestDebugLogAdapter_delegation(t *testing.T) {
+	infoErrorLogger := &mockLogger{}
+	adapted := DebugLogAdapter(infoErrorLogger)
+	// DebugLogAdapter logs that debug logging is disabled, so we reset the mock
+	infoErrorLogger.Reset()
+
+	adapted.Debugf("msg", "arg1")
+	assert.False(t, infoErrorLogger.infoCalled)
+	assert.False(t, infoErrorLogger.errorCalled)
+
+	adapted.Infof("Bodo", "Proudfoot")
+	assert.True(t, infoErrorLogger.infoCalled)
+	assert.Equal(t, "Bodo", infoErrorLogger.msg)
+	assert.Equal(t, "Proudfoot", infoErrorLogger.args[0])
+	infoErrorLogger.Reset()
+
+	adapted.Error("error")
+	assert.True(t, infoErrorLogger.errorCalled)
+	assert.Equal(t, "error", infoErrorLogger.msg)
+	infoErrorLogger.Reset()
+
 }

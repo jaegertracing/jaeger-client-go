@@ -32,7 +32,7 @@ import (
 func TestRemoteSamplerOptions(t *testing.T) {
 	m := new(Metrics)
 	initSampler, _ := NewProbabilisticSampler(0.123)
-	logger := new(nullLogger)
+	logger := log.NullLogger
 	fetcher := new(fakeSamplingFetcher)
 	parser := new(samplingStrategyParser)
 	updaters := []SamplerUpdater{new(ProbabilisticSamplerUpdater)}
