@@ -81,15 +81,6 @@ func (s spanContext) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	return nil
 }
 
-type referencedContext jaeger.SpanContext
-
-func (s referencedContext) MarshalLogObject(enc zapcore.ObjectEncoder) error {
-	ctx := jaeger.SpanContext(s)
-	enc.AddString("span", ctx.SpanID().String())
-	enc.AddString("parent", ctx.ParentID().String())
-	return nil
-}
-
 type baggageKV struct {
 	key   string
 	value string
@@ -168,11 +159,12 @@ func (r reference) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	} else if r.Type == opentracing.FollowsFromRef {
 		enc.AddString("type", "follows_from")
 	} else {
-		enc.AddString("type", "unknown")
+		enc.AddString("type", fmt.Sprintf("unknown(%d)", r.Type))
 	}
 
 	if jCtx, ok := r.ReferencedContext.(jaeger.SpanContext); ok {
-		enc.AddObject("referenced_context", referencedContext(jCtx))
+		enc.AddString("span", jCtx.SpanID().String())
+		enc.AddString("trace", jCtx.TraceID().String())
 	}
 
 	return nil
@@ -188,29 +180,28 @@ func (r references) MarshalLogArray(enc zapcore.ArrayEncoder) error {
 }
 
 type span struct {
-	span opentracing.Span
+	span *jaeger.Span
 }
 
 // Span creates a zap.Field that marshals all information contained in a jaeger span
 func Span(s opentracing.Span) zapcore.Field {
 	if s == nil {
-		return zap.Skip()
+		return zap.String("err", "nil span")
 	}
-	return zap.Object("span", span{span: s})
+	if jSpan, ok := s.(*jaeger.Span); ok {
+		return zap.Object("span", span{span: jSpan})
+	}
+	return zap.String("err", "non jaeger span")
 }
 
 func (s span) MarshalLogObject(enc zapcore.ObjectEncoder) error {
-	if span, ok := s.span.(*jaeger.Span); ok {
-		enc.AddObject("context", spanContext(span.SpanContext()))
-		enc.AddString("operation_name", span.OperationName())
-		enc.AddDuration("duration", span.Duration())
-		enc.AddTime("start_time", span.StartTime())
+	enc.AddObject("context", spanContext(s.span.SpanContext()))
+	enc.AddString("operation_name", s.span.OperationName())
+	enc.AddDuration("duration", s.span.Duration())
+	enc.AddTime("start_time", s.span.StartTime())
 
-		enc.AddArray("logs", logRecords(span.Logs()))
-		enc.AddObject("tags", tags(span.Tags()))
-		enc.AddArray("span_refs", references(span.References()))
-	} else {
-		enc.AddString("err", "Non Jaeger Span")
-	}
+	enc.AddArray("logs", logRecords(s.span.Logs()))
+	enc.AddObject("tags", tags(s.span.Tags()))
+	enc.AddArray("span_refs", references(s.span.References()))
 	return nil
 }
