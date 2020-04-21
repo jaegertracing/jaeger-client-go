@@ -17,7 +17,6 @@ package jaeger
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/uber/jaeger-client-go/log"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -25,6 +24,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-client-go/thrift-gen/sampling"
 )
 

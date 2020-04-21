@@ -38,7 +38,7 @@ func (l *Logger) Infof(msg string, args ...interface{}) {
 	l.logger.Infof(msg, args...)
 }
 
-// Debugf logs a message at debug priority
+// Debugf logs a message at debug priority.
 // TODO: treat the last arg specially similar to Slf4J
 // - cast to zap.Span/etc if  type assertion succeeds
 func (l *Logger) Debugf(msg string, args ...interface{}) {
