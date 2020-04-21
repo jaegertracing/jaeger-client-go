@@ -62,46 +62,29 @@ func (t trace) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	return nil
 }
 
-type spanContext struct {
-	spanContext jaeger.SpanContext
-}
+type spanContext jaeger.SpanContext
 
 // Context creates a zap.Field which marshals all information contained in a jaeger context
 func Context(sc jaeger.SpanContext) zapcore.Field {
-	return zap.Object("context", spanContext{spanContext: sc})
+	return zap.Object("context", spanContext(sc))
 }
 
 func (s spanContext) MarshalLogObject(enc zapcore.ObjectEncoder) error {
-	ctx := s.spanContext
+	ctx := jaeger.SpanContext(s)
 	enc.AddString("trace", ctx.TraceID().String())
 	enc.AddString("span", ctx.SpanID().String())
 	enc.AddString("parent", ctx.ParentID().String())
 	enc.AddBool("debug", ctx.IsDebug())
 	enc.AddBool("sampled", ctx.IsSampled())
 	enc.AddBool("firehose", ctx.IsFirehose())
-	s.encodeBaggage(ctx, enc)
+	enc.AddArray("baggage", baggageKVs(ctx))
 	return nil
 }
 
-func (s spanContext) encodeBaggage(ctx jaeger.SpanContext, enc zapcore.ObjectEncoder) {
-	var baggage baggageKVs
-	ctx.ForeachBaggageItem(func(k, v string) bool {
-		baggage = append(baggage, baggageKV{
-			key:   k,
-			value: v,
-		})
-		return true
-	})
-
-	enc.AddArray("baggage", baggage)
-}
-
-type referencedContext struct {
-	spanContext jaeger.SpanContext
-}
+type referencedContext jaeger.SpanContext
 
 func (s referencedContext) MarshalLogObject(enc zapcore.ObjectEncoder) error {
-	ctx := s.spanContext
+	ctx := jaeger.SpanContext(s)
 	enc.AddString("span", ctx.SpanID().String())
 	enc.AddString("parent", ctx.ParentID().String())
 	return nil
@@ -118,12 +101,17 @@ func (b baggageKV) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	return nil
 }
 
-type baggageKVs []baggageKV
+type baggageKVs jaeger.SpanContext
 
 func (b baggageKVs) MarshalLogArray(enc zapcore.ArrayEncoder) error {
-	for _, kv := range b {
-		enc.AppendObject(kv)
-	}
+	jaeger.SpanContext(b).
+		ForeachBaggageItem(func(k, v string) bool {
+			enc.AppendObject(baggageKV{
+				key:   k,
+				value: v,
+			})
+			return true
+		})
 	return nil
 }
 
@@ -144,13 +132,12 @@ func (l logRecords) MarshalLogArray(enc zapcore.ArrayEncoder) error {
 	return nil
 }
 
-type logField struct {
-	log.Field
-}
+type logField log.Field
 
 func (l logField) MarshalLogObject(enc zapcore.ObjectEncoder) error {
-	enc.AddString("key", l.Key())
-	enc.AddString("value", fmt.Sprint(l.Value()))
+	lf := log.Field(l)
+	enc.AddString("key", lf.Key())
+	enc.AddString("value", fmt.Sprint(lf.Value()))
 	return nil
 }
 
@@ -158,7 +145,7 @@ type logFields []log.Field
 
 func (l logFields) MarshalLogArray(enc zapcore.ArrayEncoder) error {
 	for _, field := range l {
-		enc.AppendObject(logField{field})
+		enc.AppendObject(logField(field))
 	}
 	return nil
 }
@@ -185,7 +172,7 @@ func (r reference) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	}
 
 	if jCtx, ok := r.ReferencedContext.(jaeger.SpanContext); ok {
-		enc.AddObject("referenced_context", referencedContext{spanContext: jCtx})
+		enc.AddObject("referenced_context", referencedContext(jCtx))
 	}
 
 	return nil
@@ -214,7 +201,7 @@ func Span(s opentracing.Span) zapcore.Field {
 
 func (s span) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	if span, ok := s.span.(*jaeger.Span); ok {
-		enc.AddObject("context", spanContext{spanContext: span.SpanContext()})
+		enc.AddObject("context", spanContext(span.SpanContext()))
 		enc.AddString("operation_name", span.OperationName())
 		enc.AddDuration("duration", span.Duration())
 		enc.AddTime("start_time", span.StartTime())
