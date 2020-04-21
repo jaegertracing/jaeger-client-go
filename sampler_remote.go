@@ -17,6 +17,7 @@ package jaeger
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/uber/jaeger-client-go/log"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -290,7 +291,7 @@ func (u *AdaptiveSamplerUpdater) Update(sampler SamplerV2, strategy interface{})
 
 type httpSamplingStrategyFetcher struct {
 	serverURL string
-	logger    Logger
+	logger    log.DebugLogger
 }
 
 func (f *httpSamplingStrategyFetcher) Fetch(serviceName string) ([]byte, error) {

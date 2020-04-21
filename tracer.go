@@ -41,7 +41,7 @@ type Tracer struct {
 	sampler  SamplerV2
 	reporter Reporter
 	metrics  Metrics
-	logger   log.Logger
+	logger   log.DebugLogger
 
 	timeNow      func() time.Time
 	randomNumber func() uint64
