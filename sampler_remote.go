@@ -200,6 +200,7 @@ func (s *RemotelyControlledSampler) updateSamplerViaUpdaters(strategy interface{
 			return err
 		}
 		if sampler != nil {
+			s.logger.Debugf("sampler updated: %+v", sampler)
 			s.sampler = sampler
 			return nil
 		}

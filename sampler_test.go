@@ -214,6 +214,31 @@ func TestAdaptiveSampler(t *testing.T) {
 	assert.False(t, decision.Sample)
 }
 
+func TestPerOperationSampler_String(t *testing.T) {
+	strategies := &sampling.PerOperationSamplingStrategies{
+		DefaultSamplingProbability:       testDefaultSamplingProbability,
+		DefaultLowerBoundTracesPerSecond: 2.0,
+		PerOperationStrategies: []*sampling.OperationSamplingStrategy{
+			{
+				Operation:             testOperationName,
+				ProbabilisticSampling: &sampling.ProbabilisticSamplingStrategy{SamplingRate: 1},
+			},
+		},
+	}
+
+	sampler := NewPerOperationSampler(PerOperationSamplerParams{
+		MaxOperations: testDefaultMaxOperations,
+		Strategies:    strategies,
+	})
+
+	assert.Equal(t,
+		"PerOperationSampler(defaultSampler=ProbabilisticSampler(samplingRate=0.5), lowerBound=2.000000, "+
+			"maxOperations=10, operationNameLateBinding=false, numOperations=1,\nsamplers=[\n"+
+			"(operationName=op, "+
+			"sampler=GuaranteedThroughputProbabilisticSampler(lowerBound=2.000000, samplingRate=1.000000))])",
+		sampler.String())
+}
+
 func TestAdaptiveSamplerErrors(t *testing.T) {
 	strategies := &sampling.PerOperationSamplingStrategies{
 		DefaultSamplingProbability:       testDefaultSamplingProbability,
