@@ -6,7 +6,7 @@ Changes by Version
 
 - Add the ability to log all span interactions and a debug log level([#502](https://github.com/jaegertracing/jaeger-client-go/pull/502), [#503](https://github.com/jaegertracing/jaeger-client-go/pull/503) [#504](https://github.com/jaegertracing/jaeger-client-go/pull/504)) -- Prithvi Raj
 - internal: Use port 6831 for xdock ([#500](https://github.com/jaegertracing/jaeger-client-go/pull/500)) -- Pavol Loffay
-- Chore (docs): fix typos ([#496](https://github.com/jaegertracing/jaeger-client-go/pull/496)) [#498](https://github.com/jaegertracing/jaeger-client-go/pull/498) -- Febrian Setianto and Ivan Babrou
+- Chore (docs): fix typos ([#496](https://github.com/jaegertracing/jaeger-client-go/pull/496) [#498](https://github.com/jaegertracing/jaeger-client-go/pull/498)) -- Febrian Setianto and Ivan Babrou
 - Unset highest bit of traceID in probabilistic sampler ([#490](https://github.com/jaegertracing/jaeger-client-go/pull/490)) -- Sokolov Yura
 
 2.22.1 (2020-01-16)
