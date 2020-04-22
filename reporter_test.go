@@ -92,14 +92,14 @@ func (s *reporterSuite) assertCounter(t *testing.T, name string, tags map[string
 	assert.Equal(t, expectedValue, getValue(), "expected counter: name=%s, tags=%+v", name, tags)
 }
 
-func (s *reporterSuite) assertLogs(t *testing.T, expectedLogs string) {
+func (s *reporterSuite) assertLogsContain(t *testing.T, expectedLogs string) {
 	for i := 0; i < 1000; i++ {
 		if s.logger.String() == expectedLogs {
 			break
 		}
 		time.Sleep(time.Millisecond)
 	}
-	assert.Equal(t, expectedLogs, s.logger.String(), "expected logs: %s", expectedLogs)
+	assert.Contains(t, s.logger.String(), expectedLogs, "expected logs: %s", expectedLogs)
 }
 
 func TestRemoteReporterAppend(t *testing.T) {
@@ -136,11 +136,12 @@ func TestRemoteReporterFailedFlushViaAppend(t *testing.T) {
 	s.tracer.StartSpan("sp1").Finish()
 	s.tracer.StartSpan("sp2").Finish()
 	s.sender.assertFlushedSpans(t, 2)
-	s.assertLogs(t, "ERROR: error reporting Jaeger span \"sp2\": flush error\n")
+	s.assertLogsContain(t, "ERROR: error reporting Jaeger span \"sp2\": flush error\n")
 	s.assertCounter(t, "jaeger.tracer.reporter_spans", map[string]string{"result": "err"}, 2)
 	s.assertCounter(t, "jaeger.tracer.reporter_spans", map[string]string{"result": "ok"}, 0)
 	s.close() // causes explicit flush that also fails with the same error
-	s.assertLogs(t, "ERROR: error reporting Jaeger span \"sp2\": flush error\nERROR: failed to flush Jaeger spans to server: flush error\n")
+	s.assertLogsContain(t, "ERROR: error reporting Jaeger span \"sp2\": flush error\n")
+	s.assertLogsContain(t, "ERROR: failed to flush Jaeger spans to server: flush error\n")
 }
 
 func TestRemoteReporterAppendWithPoolAllocator(t *testing.T) {
@@ -183,7 +184,7 @@ func TestRemoteReporterDoubleClose(t *testing.T) {
 	reporter := NewRemoteReporter(&fakeSender{}, ReporterOptions.QueueSize(1), ReporterOptions.Logger(logger))
 	reporter.Close()
 	reporter.Close()
-	assert.Equal(t, "ERROR: Repeated attempt to close the reporter is ignored\n", logger.String())
+	assert.Contains(t, logger.String(), "ERROR: Repeated attempt to close the reporter is ignored\n")
 }
 
 func TestRemoteReporterReportAfterClose(t *testing.T) {
