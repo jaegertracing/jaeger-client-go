@@ -468,7 +468,7 @@ func (s PerOperationSampler) String() string {
 	fmt.Fprintf(&sb, "lowerBound=%f, ", s.lowerBound)
 	fmt.Fprintf(&sb, "maxOperations=%d, ", s.maxOperations)
 	fmt.Fprintf(&sb, "operationNameLateBinding=%t, ", s.operationNameLateBinding)
-	fmt.Fprintf(&sb, "currentOperationSize=%d,\n", len(s.samplers))
+	fmt.Fprintf(&sb, "numOperations=%d,\n", len(s.samplers))
 	fmt.Fprintf(&sb, "samplers=[")
 	for operationName, sampler := range s.samplers {
 		fmt.Fprintf(&sb, "\n(operationName=%s, sampler=%v)", operationName, sampler)
