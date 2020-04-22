@@ -232,10 +232,10 @@ func TestPerOperationSampler_String(t *testing.T) {
 	})
 
 	assert.Equal(t,
-		"PerOperationSampler(defaultSampler=ProbabilisticSampler(samplingRate=0.5), lowerBound=2.000000, " +
-		"maxOperations=10, operationNameLateBinding=false, numOperations=1,\nsamplers=[\n" +
-		"(operationName=op, " +
-		"sampler=GuaranteedThroughputProbabilisticSampler(lowerBound=2.000000, samplingRate=1.000000))])",
+		"PerOperationSampler(defaultSampler=ProbabilisticSampler(samplingRate=0.5), lowerBound=2.000000, "+
+			"maxOperations=10, operationNameLateBinding=false, numOperations=1,\nsamplers=[\n"+
+			"(operationName=op, "+
+			"sampler=GuaranteedThroughputProbabilisticSampler(lowerBound=2.000000, samplingRate=1.000000))])",
 		sampler.String())
 }
 
