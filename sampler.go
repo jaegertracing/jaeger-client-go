@@ -461,7 +461,7 @@ func (s *PerOperationSampler) Close() {
 	s.defaultSampler.Close()
 }
 
-func (s PerOperationSampler) String() string {
+func (s *PerOperationSampler) String() string {
 	var sb strings.Builder
 
 	fmt.Fprintf(&sb, "PerOperationSampler(defaultSampler=%v, ", s.defaultSampler)
