@@ -111,7 +111,7 @@ type DebugLogger interface {
 }
 
 // DebugLogAdapter is a log adapter that converts a Logger into a DebugLogger
-// If the provided Logger is nil or doesn't satisfy the interface, a logger with debug
+// If the provided Logger doesn't satisfy the interface, a logger with debug
 // disabled is returned
 func DebugLogAdapter(logger Logger) DebugLogger {
 	if debugLogger, ok := logger.(DebugLogger); ok {
