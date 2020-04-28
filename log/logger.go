@@ -114,14 +114,14 @@ type DebugLogger interface {
 // If the provided Logger doesn't satisfy the interface, a logger with debug
 // disabled is returned
 func DebugLogAdapter(logger Logger) DebugLogger {
+	if logger == nil {
+		return nil
+	}
 	if debugLogger, ok := logger.(DebugLogger); ok {
 		return debugLogger
 	}
-	if logger != nil {
-		logger.Infof("debug logging disabled")
-		return debugDisabledLogAdapter{logger: logger}
-	}
-	return nil
+	logger.Infof("debug logging disabled")
+	return debugDisabledLogAdapter{logger: logger}
 }
 
 type debugDisabledLogAdapter struct {
