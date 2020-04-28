@@ -36,6 +36,10 @@ func TestDebugLogAdapter_ReturnSameIfDebugLogger(t *testing.T) {
 	assert.Same(t, NullLogger, DebugLogAdapter(NullLogger))
 }
 
+func TestDebugLogAdapter_HandleNil(t *testing.T) {
+	assert.Nil(t, DebugLogAdapter(nil))
+}
+
 type mockLogger struct {
 	errorCalled bool
 	infoCalled  bool
