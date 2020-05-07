@@ -102,5 +102,5 @@ const (
 
 var (
 	// DefaultSamplingServerURL is the default url to fetch sampling config from, via http
-	DefaultSamplingServerURL = fmt.Sprintf("http://localhost:%d/sampling", DefaultSamplingServerPort)
+	DefaultSamplingServerURL = fmt.Sprintf("http://127.0.0.1:%d/sampling", DefaultSamplingServerPort)
 )

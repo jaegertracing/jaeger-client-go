@@ -72,12 +72,13 @@ type SamplerConfig struct {
 	// Can be set by exporting an environment variable named JAEGER_SAMPLER_PARAM
 	Param float64 `yaml:"param"`
 
-	// SamplingServerURL is the address of jaeger-agent's HTTP sampling server
-	// Can be set by exporting an environment variable named JAEGER_SAMPLER_MANAGER_HOST_PORT
+	// SamplingServerURL is the URL of sampling manager that can provide
+	// sampling strategy to this service.
+	// Can be set by exporting an environment variable named JAEGER_SAMPLING_ENDPOINT
 	SamplingServerURL string `yaml:"samplingServerURL"`
 
 	// SamplingRefreshInterval controls how often the remotely controlled sampler will poll
-	// jaeger-agent for the appropriate sampling strategy.
+	// sampling manager for the appropriate sampling strategy.
 	// Can be set by exporting an environment variable named JAEGER_SAMPLER_REFRESH_INTERVAL
 	SamplingRefreshInterval time.Duration `yaml:"samplingRefreshInterval"`
 
