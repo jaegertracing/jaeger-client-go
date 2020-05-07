@@ -30,14 +30,13 @@ import (
 
 const (
 	// environment variable names
-	envServiceName  = "JAEGER_SERVICE_NAME"
-	envDisabled     = "JAEGER_DISABLED"
-	envRPCMetrics   = "JAEGER_RPC_METRICS"
-	envTags         = "JAEGER_TAGS"
-	envSamplerType  = "JAEGER_SAMPLER_TYPE"
-	envSamplerParam = "JAEGER_SAMPLER_PARAM"
-	// Deprecated: use envSamplingEndpoint instead
-	envSamplerManagerHostPort = "JAEGER_SAMPLER_MANAGER_HOST_PORT"
+	envServiceName            = "JAEGER_SERVICE_NAME"
+	envDisabled               = "JAEGER_DISABLED"
+	envRPCMetrics             = "JAEGER_RPC_METRICS"
+	envTags                   = "JAEGER_TAGS"
+	envSamplerType            = "JAEGER_SAMPLER_TYPE"
+	envSamplerParam           = "JAEGER_SAMPLER_PARAM"
+	envSamplerManagerHostPort = "JAEGER_SAMPLER_MANAGER_HOST_PORT" // Deprecated by envSamplingEndpoint
 	envSamplingEndpoint       = "JAEGER_SAMPLING_ENDPOINT"
 	envSamplerMaxOperations   = "JAEGER_SAMPLER_MAX_OPERATIONS"
 	envSamplerRefreshInterval = "JAEGER_SAMPLER_REFRESH_INTERVAL"
