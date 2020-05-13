@@ -256,9 +256,7 @@ func TestReporter(t *testing.T) {
 	unsetEnv(t, envEndpoint)
 	unsetEnv(t, envAgentHost)
 	unsetEnv(t, envAgentPort)
-
-	rc = ReporterConfig{
-	}
+	rc = ReporterConfig{}
 
 	//
 	cfg, err = rc.reporterConfigFromEnv()
