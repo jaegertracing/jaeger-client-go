@@ -252,6 +252,57 @@ func TestReporter(t *testing.T) {
 	assert.Equal(t, "user", cfg.User)
 	assert.Equal(t, "password", cfg.Password)
 
+	//
+	unsetEnv(t, envEndpoint)
+	unsetEnv(t, envAgentHost)
+	unsetEnv(t, envAgentPort)
+
+	rc = ReporterConfig{
+	}
+
+	//
+	cfg, err = rc.reporterConfigFromEnv()
+	assert.NoError(t, err)
+
+	assert.Equal(t, "localhost:6831", cfg.LocalAgentHostPort)
+
+	//
+	rc = ReporterConfig{
+		LocalAgentHostPort: "localhost01:7777",
+	}
+
+	//
+	cfg, err = rc.reporterConfigFromEnv()
+	assert.NoError(t, err)
+
+	assert.Equal(t, "localhost01:7777", cfg.LocalAgentHostPort)
+
+	//
+	setEnv(t, envAgentHost, "localhost02")
+	unsetEnv(t, envAgentPort)
+	rc = ReporterConfig{
+		LocalAgentHostPort: "localhost01:7777",
+	}
+
+	//
+	cfg, err = rc.reporterConfigFromEnv()
+	assert.NoError(t, err)
+
+	assert.Equal(t, "localhost02:6831", cfg.LocalAgentHostPort)
+
+	//
+	unsetEnv(t, envAgentHost)
+	setEnv(t, envAgentPort, "8888")
+	rc = ReporterConfig{
+		LocalAgentHostPort: "localhost01:7777",
+	}
+
+	//
+	cfg, err = rc.reporterConfigFromEnv()
+	assert.NoError(t, err)
+
+	assert.Equal(t, "localhost:8888", cfg.LocalAgentHostPort)
+
 	// cleanup
 	unsetEnv(t, envReporterMaxQueueSize)
 	unsetEnv(t, envReporterFlushInterval)
