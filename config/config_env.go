@@ -187,20 +187,25 @@ func (rc *ReporterConfig) reporterConfigFromEnv() (*ReporterConfig, error) {
 		rc.User = user
 		rc.Password = pswd
 	} else {
+		useEnv := false
 		host := jaeger.DefaultUDPSpanServerHost
 		if e := os.Getenv(envAgentHost); e != "" {
 			host = e
+			useEnv = true
 		}
 
 		port := jaeger.DefaultUDPSpanServerPort
 		if e := os.Getenv(envAgentPort); e != "" {
 			if value, err := strconv.ParseInt(e, 10, 0); err == nil {
 				port = int(value)
+				useEnv = true
 			} else {
 				return nil, errors.Wrapf(err, "cannot parse env var %s=%s", envAgentPort, e)
 			}
 		}
-		rc.LocalAgentHostPort = fmt.Sprintf("%s:%d", host, port)
+		if useEnv || rc.LocalAgentHostPort == "" {
+			rc.LocalAgentHostPort = fmt.Sprintf("%s:%d", host, port)
+		}
 	}
 
 	return rc, nil

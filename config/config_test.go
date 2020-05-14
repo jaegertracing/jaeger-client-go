@@ -398,6 +398,68 @@ func TestReporterConfigFromEnv(t *testing.T) {
 	unsetEnv(t, envPassword)
 }
 
+func TestReporterAgentConfigFromEnv(t *testing.T) {
+	// prepare
+	unsetEnv(t, envEndpoint)
+	unsetEnv(t, envAgentHost)
+	unsetEnv(t, envAgentPort)
+
+	// No config and no env check
+	rc := ReporterConfig{}
+
+	// test
+	cfg, err := rc.reporterConfigFromEnv()
+	assert.NoError(t, err)
+
+	// verify
+	assert.Equal(t, "localhost:6831", cfg.LocalAgentHostPort)
+
+	// No env check
+	rc = ReporterConfig{
+		LocalAgentHostPort: "localhost01:7777",
+	}
+
+	// test
+	cfg, err = rc.reporterConfigFromEnv()
+	assert.NoError(t, err)
+
+	// verify
+	assert.Equal(t, "localhost01:7777", cfg.LocalAgentHostPort)
+
+	// Only host env check
+	setEnv(t, envAgentHost, "localhost02")
+	unsetEnv(t, envAgentPort)
+	rc = ReporterConfig{
+		LocalAgentHostPort: "localhost01:7777",
+	}
+
+	// test
+	cfg, err = rc.reporterConfigFromEnv()
+	assert.NoError(t, err)
+
+	// verify
+	assert.Equal(t, "localhost02:6831", cfg.LocalAgentHostPort)
+
+	// Only port env check
+	unsetEnv(t, envAgentHost)
+	setEnv(t, envAgentPort, "8888")
+	rc = ReporterConfig{
+		LocalAgentHostPort: "localhost01:7777",
+	}
+
+	// test
+	cfg, err = rc.reporterConfigFromEnv()
+	assert.NoError(t, err)
+
+	// verify
+	assert.Equal(t, "localhost:8888", cfg.LocalAgentHostPort)
+
+	// cleanup
+	unsetEnv(t, envEndpoint)
+	unsetEnv(t, envAgentHost)
+	unsetEnv(t, envAgentPort)
+}
+
 func TestParsingErrorsFromEnv(t *testing.T) {
 	setEnv(t, envAgentHost, "localhost") // we require this in order to test the parsing of the port
 
