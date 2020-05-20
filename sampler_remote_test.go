@@ -201,7 +201,7 @@ func TestRemotelyControlledSampler_updateSampler(t *testing.T) {
 			agent, sampler, metricsFactory := initAgent(t)
 			defer agent.Close()
 
-			initSampler, ok := sampler.sampler.(*ProbabilisticSampler)
+			initSampler, ok := sampler.Sampler().(*ProbabilisticSampler)
 			assert.True(t, ok)
 
 			res := &sampling.SamplingStrategyResponse{
@@ -231,9 +231,9 @@ func TestRemotelyControlledSampler_updateSampler(t *testing.T) {
 				},
 			)
 
-			s, ok := sampler.sampler.(*PerOperationSampler)
+			s, ok := sampler.Sampler().(*PerOperationSampler)
 			assert.True(t, ok)
-			assert.NotEqual(t, initSampler, sampler.sampler, "Sampler should have been updated")
+			assert.NotEqual(t, initSampler, sampler.Sampler(), "Sampler should have been updated")
 			assert.Equal(t, test.expectedDefaultProbability, s.defaultSampler.SamplingRate())
 
 			// First call is always sampled
@@ -306,13 +306,13 @@ func TestSamplerQueryError(t *testing.T) {
 	// override the actual handler
 	sampler.samplingFetcher = &fakeSamplingFetcher{}
 
-	initSampler, ok := sampler.sampler.(*ProbabilisticSampler)
+	initSampler, ok := sampler.Sampler().(*ProbabilisticSampler)
 	assert.True(t, ok)
 
 	sampler.Close() // stop timer-based updates, we want to call them manually
 
 	sampler.UpdateSampler()
-	assert.Equal(t, initSampler, sampler.sampler, "Sampler should not have been updated due to query error")
+	assert.Equal(t, initSampler, sampler.Sampler(), "Sampler should not have been updated due to query error")
 
 	metricsFactory.AssertCounterMetrics(t,
 		mTestutils.ExpectedMetric{Name: "jaeger.tracer.sampler_queries", Tags: map[string]string{"result": "err"}, Value: 1},
@@ -340,29 +340,29 @@ func TestRemotelyControlledSampler_updateSamplerFromAdaptiveSampler(t *testing.T
 	})
 
 	// Overwrite the sampler with an adaptive sampler
-	remoteSampler.sampler = adaptiveSampler
+	remoteSampler.setSampler(adaptiveSampler)
 
 	agent.AddSamplingStrategy("client app",
 		getSamplingStrategyResponse(sampling.SamplingStrategyType_PROBABILISTIC, 0.5))
 	remoteSampler.UpdateSampler()
 
 	// Sampler should have been updated to probabilistic
-	_, ok := remoteSampler.sampler.(*ProbabilisticSampler)
+	_, ok := remoteSampler.Sampler().(*ProbabilisticSampler)
 	require.True(t, ok)
 
 	// Overwrite the sampler with an adaptive sampler
-	remoteSampler.sampler = adaptiveSampler
+	remoteSampler.setSampler(adaptiveSampler)
 
 	agent.AddSamplingStrategy("client app",
 		getSamplingStrategyResponse(sampling.SamplingStrategyType_RATE_LIMITING, 1))
 	remoteSampler.UpdateSampler()
 
 	// Sampler should have been updated to ratelimiting
-	_, ok = remoteSampler.sampler.(*RateLimitingSampler)
+	_, ok = remoteSampler.Sampler().(*RateLimitingSampler)
 	require.True(t, ok)
 
 	// Overwrite the sampler with an adaptive sampler
-	remoteSampler.sampler = adaptiveSampler
+	remoteSampler.setSampler(adaptiveSampler)
 
 	// Update existing adaptive sampler
 	agent.AddSamplingStrategy("client app", &sampling.SamplingStrategyResponse{OperationSampling: strategies})
@@ -460,15 +460,15 @@ func TestRemotelyControlledSampler_updateRateLimitingOrProbabilisticSampler(t *t
 				return
 			}
 			if testCase.referenceEquivalence {
-				assert.Equal(t, testCase.expectedSampler, remoteSampler.sampler)
+				assert.Equal(t, testCase.expectedSampler, remoteSampler.Sampler())
 			} else {
 				type comparable interface {
 					Equal(other Sampler) bool
 				}
 				es, esOk := testCase.expectedSampler.(comparable)
 				require.True(t, esOk, "expected sampler %+v must implement Equal()", testCase.expectedSampler)
-				assert.True(t, es.Equal(remoteSampler.sampler.(Sampler)),
-					"sampler.Equal: want=%+v, have=%+v", testCase.expectedSampler, remoteSampler.sampler)
+				assert.True(t, es.Equal(remoteSampler.Sampler().(Sampler)),
+					"sampler.Equal: want=%+v, have=%+v", testCase.expectedSampler, remoteSampler.Sampler())
 			}
 		})
 	}

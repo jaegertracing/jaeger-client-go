@@ -53,7 +53,7 @@ func TestSamplerTags(t *testing.T) {
 	require.NoError(t, err)
 	rate := NewRateLimitingSampler(0.1)
 	remote := &RemotelyControlledSampler{}
-	remote.sampler = NewConstSampler(true)
+	remote.setSampler(NewConstSampler(true))
 	tests := []struct {
 		sampler  SamplerV2
 		typeTag  string
@@ -395,7 +395,7 @@ func TestAdaptiveSampler_lockRaceCondition(t *testing.T) {
 		},
 	})
 	// Overwrite the sampler with an adaptive sampler
-	remoteSampler.sampler = adaptiveSampler
+	remoteSampler.setSampler(adaptiveSampler)
 
 	tracer, closer := NewTracer("service", remoteSampler, NewNullReporter())
 	defer closer.Close()
