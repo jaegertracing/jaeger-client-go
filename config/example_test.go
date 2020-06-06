@@ -26,6 +26,48 @@ import (
 	jaegerlog "github.com/uber/jaeger-client-go/log"
 )
 
+func ExampleFromEnv() {
+	cfg, err := jaegercfg.FromEnv()
+	if err != nil {
+		// parsing errors might happen here, such as when we get a string where we expect a number
+		log.Printf("Could not parse Jaeger env vars: %s", err.Error())
+		return
+	}
+
+	tracer, closer, err := cfg.NewTracer()
+	if err != nil {
+		log.Printf("Could not initialize jaeger tracer: %s", err.Error())
+		return
+	}
+	defer closer.Close()
+
+	opentracing.SetGlobalTracer(tracer)
+	// continue main()
+}
+
+func ExampleFromEnv_override() {
+	os.Setenv("JAEGER_SERVICE_NAME", "not-effective")
+
+	cfg, err := jaegercfg.FromEnv()
+	if err != nil {
+		// parsing errors might happen here, such as when we get a string where we expect a number
+		log.Printf("Could not parse Jaeger env vars: %s", err.Error())
+		return
+	}
+
+	cfg.ServiceName = "this-will-be-the-service-name"
+
+	tracer, closer, err := cfg.NewTracer()
+	if err != nil {
+		log.Printf("Could not initialize jaeger tracer: %s", err.Error())
+		return
+	}
+	defer closer.Close()
+
+	opentracing.SetGlobalTracer(tracer)
+	// continue main()
+}
+
 func ExampleConfiguration_InitGlobalTracer_testing() {
 	// Sample configuration for testing. Use constant sampling to sample every trace
 	// and enable LogSpan to log every span via configured Logger.
@@ -82,47 +124,5 @@ func ExampleConfiguration_InitGlobalTracer_production() {
 	}
 	defer closer.Close()
 
-	// continue main()
-}
-
-func ExampleFromEnv() {
-	cfg, err := jaegercfg.FromEnv()
-	if err != nil {
-		// parsing errors might happen here, such as when we get a string where we expect a number
-		log.Printf("Could not parse Jaeger env vars: %s", err.Error())
-		return
-	}
-
-	tracer, closer, err := cfg.NewTracer()
-	if err != nil {
-		log.Printf("Could not initialize jaeger tracer: %s", err.Error())
-		return
-	}
-	defer closer.Close()
-
-	opentracing.SetGlobalTracer(tracer)
-	// continue main()
-}
-
-func ExampleFromEnv_override() {
-	os.Setenv("JAEGER_SERVICE_NAME", "not-effective")
-
-	cfg, err := jaegercfg.FromEnv()
-	if err != nil {
-		// parsing errors might happen here, such as when we get a string where we expect a number
-		log.Printf("Could not parse Jaeger env vars: %s", err.Error())
-		return
-	}
-
-	cfg.ServiceName = "this-will-be-the-service-name"
-
-	tracer, closer, err := cfg.NewTracer()
-	if err != nil {
-		log.Printf("Could not initialize jaeger tracer: %s", err.Error())
-		return
-	}
-	defer closer.Close()
-
-	opentracing.SetGlobalTracer(tracer)
 	// continue main()
 }

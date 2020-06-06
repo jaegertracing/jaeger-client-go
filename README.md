@@ -44,8 +44,11 @@ and [config/example_test.go](./config/example_test.go).
 
 ### Environment variables
 
-The tracer can be initialized with values coming from environment variables. None of the env vars are required
-and all of them can be overridden via direct setting of the property on the configuration object.
+The tracer can be initialized with values coming from environment variables, if it is
+[built from a config](https://pkg.go.dev/github.com/uber/jaeger-client-go/config?tab=doc#Configuration.NewTracer)
+that was created via [FromEnv()](https://pkg.go.dev/github.com/uber/jaeger-client-go/config?tab=doc#FromEnv).
+None of the env vars are required and all of them can be overridden via direct setting 
+of the property on the configuration object.
 
 Property| Description
 --- | ---
