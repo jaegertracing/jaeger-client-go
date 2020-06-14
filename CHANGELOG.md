@@ -1,8 +1,13 @@
 Changes by Version
 ==================
 
-2.23.2 (unreleased)
+2.24.0 (2020-06-14)
 -------------------
+- Mention FromEnv() in the README, docs, and examples (#518) -- Martin Lercher
+- Serialize access to RemotelyControlledSampler.sampler (#515) -- Dima
+- Override reporter config only when agent host/port is set in env (#513) -- ilylia
+- Converge on JAEGER_SAMPLING_ENDPOINT env variable (#511) -- Eundoo Song
+
 
 2.23.1 (2020-04-28)
 -------------------
