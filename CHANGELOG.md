@@ -1,6 +1,11 @@
 Changes by Version
 ==================
 
+2.24.1 (unreleased)
+-------------------
+- Nothing yet.
+
+
 2.24.0 (2020-06-14)
 -------------------
 - Mention FromEnv() in the README, docs, and examples (#518) -- Martin Lercher
