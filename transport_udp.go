@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	"github.com/uber/jaeger-client-go/internal/reporterstats"
+	"github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-client-go/thrift"
 	j "github.com/uber/jaeger-client-go/thrift-gen/jaeger"
 	"github.com/uber/jaeger-client-go/utils"
@@ -59,7 +60,7 @@ type udpSender struct {
 
 // NewUDPTransport creates a reporter that submits spans to jaeger-agent.
 // TODO: (breaking change) move to transport/ package.
-func NewUDPTransport(hostPort string, maxPacketSize int) (Transport, error) {
+func NewUDPTransport(hostPort string, maxPacketSize int, logger log.Logger) (Transport, error) {
 	if len(hostPort) == 0 {
 		hostPort = fmt.Sprintf("%s:%d", DefaultUDPSpanServerHost, DefaultUDPSpanServerPort)
 	}
@@ -73,7 +74,7 @@ func NewUDPTransport(hostPort string, maxPacketSize int) (Transport, error) {
 	thriftBuffer := thrift.NewTMemoryBufferLen(maxPacketSize)
 	thriftProtocol := protocolFactory.GetProtocol(thriftBuffer)
 
-	client, err := utils.NewAgentClientUDP(hostPort, maxPacketSize)
+	client, err := utils.NewAgentClientUDP(hostPort, maxPacketSize, logger)
 	if err != nil {
 		return nil, err
 	}

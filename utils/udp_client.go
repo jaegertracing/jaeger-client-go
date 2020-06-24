@@ -19,7 +19,9 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"time"
 
+	"github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-client-go/thrift"
 
 	"github.com/uber/jaeger-client-go/thrift-gen/agent"
@@ -35,14 +37,20 @@ type AgentClientUDP struct {
 	agent.Agent
 	io.Closer
 
-	connUDP       *net.UDPConn
+	connUDP       udpConn
 	client        *agent.AgentClient
 	maxPacketSize int                   // max size of datagram in bytes
 	thriftBuffer  *thrift.TMemoryBuffer // buffer used to calculate byte size of a span
 }
 
+type udpConn interface {
+	Write([]byte) (int, error)
+	SetWriteBuffer(int) error
+	Close() error
+}
+
 // NewAgentClientUDP creates a client that sends spans to Jaeger Agent over UDP.
-func NewAgentClientUDP(hostPort string, maxPacketSize int) (*AgentClientUDP, error) {
+func NewAgentClientUDP(hostPort string, maxPacketSize int, logger log.Logger) (*AgentClientUDP, error) {
 	if maxPacketSize == 0 {
 		maxPacketSize = UDPPacketMaxLength
 	}
@@ -51,15 +59,33 @@ func NewAgentClientUDP(hostPort string, maxPacketSize int) (*AgentClientUDP, err
 	protocolFactory := thrift.NewTCompactProtocolFactory()
 	client := agent.NewAgentClientFactory(thriftBuffer, protocolFactory)
 
-	destAddr, err := net.ResolveUDPAddr("udp", hostPort)
+	var connUDP udpConn
+	var err error
+
+	host, _, err := net.SplitHostPort(hostPort)
 	if err != nil {
 		return nil, err
 	}
 
-	connUDP, err := net.DialUDP(destAddr.Network(), nil, destAddr)
-	if err != nil {
-		return nil, err
+	if ip := net.ParseIP(host); ip == nil {
+		// host is hostname, setup resolver loop in case host record changes during operation
+		connUDP, err = NewResolvedUDPConn(hostPort, time.Second*30, net.ResolveUDPAddr, net.DialUDP, logger)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// have to use resolve even though we know hostPort contains a literal ip, in case address is ipv6 with a zone
+		destAddr, err := net.ResolveUDPAddr("udp", hostPort)
+		if err != nil {
+			return nil, err
+		}
+
+		connUDP, err = net.DialUDP(destAddr.Network(), nil, destAddr)
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	if err := connUDP.SetWriteBuffer(maxPacketSize); err != nil {
 		return nil, err
 	}
@@ -68,7 +94,8 @@ func NewAgentClientUDP(hostPort string, maxPacketSize int) (*AgentClientUDP, err
 		connUDP:       connUDP,
 		client:        client,
 		maxPacketSize: maxPacketSize,
-		thriftBuffer:  thriftBuffer}
+		thriftBuffer:  thriftBuffer,
+	}
 	return clientUDP, nil
 }
 

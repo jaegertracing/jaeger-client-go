@@ -213,7 +213,7 @@ func TestUDPReporter(t *testing.T) {
 
 	testRemoteReporterWithSender(t,
 		func(m *Metrics) (Transport, error) {
-			return NewUDPTransport(agent.SpanServerAddr(), 0)
+			return NewUDPTransport(agent.SpanServerAddr(), 0, log.NullLogger)
 		},
 		func() []*j.Batch {
 			return agent.GetJaegerBatches()

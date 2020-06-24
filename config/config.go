@@ -384,7 +384,7 @@ func (rc *ReporterConfig) NewReporter(
 	metrics *jaeger.Metrics,
 	logger jaeger.Logger,
 ) (jaeger.Reporter, error) {
-	sender, err := rc.newTransport()
+	sender, err := rc.newTransport(logger)
 	if err != nil {
 		return nil, err
 	}
@@ -401,7 +401,7 @@ func (rc *ReporterConfig) NewReporter(
 	return reporter, err
 }
 
-func (rc *ReporterConfig) newTransport() (jaeger.Transport, error) {
+func (rc *ReporterConfig) newTransport(logger jaeger.Logger) (jaeger.Transport, error) {
 	switch {
 	case rc.CollectorEndpoint != "":
 		httpOptions := []transport.HTTPOption{transport.HTTPBatchSize(1), transport.HTTPHeaders(rc.HTTPHeaders)}
@@ -410,6 +410,6 @@ func (rc *ReporterConfig) newTransport() (jaeger.Transport, error) {
 		}
 		return transport.NewHTTPTransport(rc.CollectorEndpoint, httpOptions...), nil
 	default:
-		return jaeger.NewUDPTransport(rc.LocalAgentHostPort, 0)
+		return jaeger.NewUDPTransport(rc.LocalAgentHostPort, 0, logger)
 	}
 }

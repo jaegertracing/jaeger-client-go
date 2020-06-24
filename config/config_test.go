@@ -560,8 +560,8 @@ func TestInvalidSamplerType(t *testing.T) {
 
 func TestUDPTransportType(t *testing.T) {
 	rc := &ReporterConfig{LocalAgentHostPort: "localhost:1234"}
-	expect, _ := jaeger.NewUDPTransport(rc.LocalAgentHostPort, 0)
-	sender, err := rc.newTransport()
+	expect, _ := jaeger.NewUDPTransport(rc.LocalAgentHostPort, 0, log.NullLogger)
+	sender, err := rc.newTransport(log.NullLogger)
 	require.NoError(t, err)
 	require.IsType(t, expect, sender)
 }
@@ -569,7 +569,7 @@ func TestUDPTransportType(t *testing.T) {
 func TestHTTPTransportType(t *testing.T) {
 	rc := &ReporterConfig{CollectorEndpoint: "http://1.2.3.4:5678/api/traces"}
 	expect := transport.NewHTTPTransport(rc.CollectorEndpoint)
-	sender, err := rc.newTransport()
+	sender, err := rc.newTransport(log.NullLogger)
 	require.NoError(t, err)
 	require.IsType(t, expect, sender)
 }
@@ -581,7 +581,7 @@ func TestHTTPTransportTypeWithAuth(t *testing.T) {
 		Password:          "auth_pass",
 	}
 	expect := transport.NewHTTPTransport(rc.CollectorEndpoint)
-	sender, err := rc.newTransport()
+	sender, err := rc.newTransport(log.NullLogger)
 	require.NoError(t, err)
 	require.IsType(t, expect, sender)
 }
