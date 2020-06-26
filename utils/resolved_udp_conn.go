@@ -93,10 +93,13 @@ func (c *ResolvedUDPConn) attemptResolveAndDial() error {
 		return fmt.Errorf("failed to resolve new addr, with err: %w", err)
 	}
 
+	c.connMtx.RLock()
 	// dont attempt dial if resolved addr is the same as current conn
 	if c.destAddr != nil && newAddr.String() == c.destAddr.String() {
+		c.connMtx.RUnlock()
 		return nil
 	}
+	c.connMtx.RUnlock()
 
 	if err := c.attemptDialNewAddr(newAddr); err != nil {
 		return fmt.Errorf("failed to dial newly resolved addr %s, with err: %v", newAddr.String(), err)
