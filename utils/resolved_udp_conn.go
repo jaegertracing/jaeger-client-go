@@ -30,6 +30,7 @@ type ResolvedUDPConn struct {
 	resolveFunc resolveFunc
 	dialFunc    dialFunc
 	logger      log.Logger
+	bufferBytes int
 
 	connMtx   sync.RWMutex
 	conn      *net.UDPConn
@@ -111,6 +112,13 @@ func (c *ResolvedUDPConn) attemptDialNewAddr(newAddr *net.UDPAddr) error {
 		return err
 	}
 
+	if c.bufferBytes != 0 {
+		err = connUDP.SetWriteBuffer(c.bufferBytes)
+		if err != nil {
+			return err
+		}
+	}
+
 	c.connMtx.Lock()
 	c.destAddr = newAddr
 	// store prev to close later
@@ -164,6 +172,12 @@ func (c *ResolvedUDPConn) Close() error {
 // SetWriteBuffer defers to the net.udpConn SetWriteBuffer implementation wrapped with a RLock
 func (c *ResolvedUDPConn) SetWriteBuffer(bytes int) error {
 	c.connMtx.RLock()
-	defer c.connMtx.RUnlock()
-	return c.conn.SetWriteBuffer(bytes)
+	err := c.conn.SetWriteBuffer(bytes)
+	c.connMtx.RUnlock()
+
+	if err != nil {
+		c.bufferBytes = bytes
+	}
+
+	return err
 }
