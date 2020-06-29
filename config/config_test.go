@@ -560,7 +560,7 @@ func TestInvalidSamplerType(t *testing.T) {
 
 func TestUDPTransportType(t *testing.T) {
 	rc := &ReporterConfig{LocalAgentHostPort: "localhost:1234"}
-	expect, _ := jaeger.NewUDPTransport(rc.LocalAgentHostPort, 0, log.NullLogger)
+	expect, _ := jaeger.NewUDPTransport(rc.LocalAgentHostPort, 0)
 	sender, err := rc.newTransport(log.NullLogger)
 	require.NoError(t, err)
 	require.IsType(t, expect, sender)

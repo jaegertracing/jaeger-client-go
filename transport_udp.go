@@ -58,12 +58,19 @@ type udpSender struct {
 	failedToEmitSpans    int64
 }
 
-// NewUDPTransport creates a reporter that submits spans to jaeger-agent.
-// TODO: (breaking change) move to transport/ package.
-func NewUDPTransport(hostPort string, maxPacketSize int, logger log.Logger) (Transport, error) {
+// UDPTransportParams allows specifying options for initializing a UDPTransport. An instance of this struct should
+// be passed to NewUDPTransportWithParams.
+type UDPTransportParams struct {
+	HostPort      string
+	MaxPacketSize int
+	Logger        log.Logger
+}
+
+func initializeUDPTransport(hostPort string, maxPacketSize int, logger log.Logger) (*udpSender, error) {
 	if len(hostPort) == 0 {
 		hostPort = fmt.Sprintf("%s:%d", DefaultUDPSpanServerHost, DefaultUDPSpanServerPort)
 	}
+
 	if maxPacketSize == 0 {
 		maxPacketSize = utils.UDPPacketMaxLength
 	}
@@ -74,7 +81,11 @@ func NewUDPTransport(hostPort string, maxPacketSize int, logger log.Logger) (Tra
 	thriftBuffer := thrift.NewTMemoryBufferLen(maxPacketSize)
 	thriftProtocol := protocolFactory.GetProtocol(thriftBuffer)
 
-	client, err := utils.NewAgentClientUDP(hostPort, maxPacketSize, logger)
+	client, err := utils.NewAgentClientUDPWithParams(utils.AgentClientUDPParams{
+		HostPort:      hostPort,
+		MaxPacketSize: maxPacketSize,
+		Logger:        logger,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -85,6 +96,18 @@ func NewUDPTransport(hostPort string, maxPacketSize int, logger log.Logger) (Tra
 		thriftBuffer:   thriftBuffer,
 		thriftProtocol: thriftProtocol,
 	}, nil
+}
+
+// NewUDPTransportWithParams creates a reporter that submits spans to jaeger-agent.
+// TODO: (breaking change) move to transport/ package.
+func NewUDPTransportWithParams(params UDPTransportParams) (Transport, error) {
+	return initializeUDPTransport(params.HostPort, params.MaxPacketSize, params.Logger)
+}
+
+// NewUDPTransport creates a reporter that submits spans to jaeger-agent.
+// TODO: (breaking change) move to transport/ package.
+func NewUDPTransport(hostPort string, maxPacketSize int) (Transport, error) {
+	return initializeUDPTransport(hostPort, maxPacketSize, nil)
 }
 
 // SetReporterStats implements reporterstats.Receiver.

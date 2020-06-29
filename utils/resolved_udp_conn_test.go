@@ -15,7 +15,9 @@
 package utils
 
 import (
+	"fmt"
 	"net"
+	"syscall"
 	"testing"
 	"time"
 
@@ -101,7 +103,7 @@ func TestNewResolvedUDPConn(t *testing.T) {
 		Return(clientConn, nil).
 		Once()
 
-	conn, err := NewResolvedUDPConn(hostPort, time.Hour, resolver.ResolveUDPAddr, dialer.DialUDP, log.NullLogger)
+	conn, err := newResolvedUDPConn(hostPort, time.Hour, resolver.ResolveUDPAddr, dialer.DialUDP, log.NullLogger)
 	assert.NoError(t, err)
 	assert.NotNil(t, conn)
 
@@ -142,10 +144,133 @@ func TestResolvedUDPConnWrites(t *testing.T) {
 		Return(clientConn, nil).
 		Once()
 
-	conn, err := NewResolvedUDPConn(hostPort, time.Hour, resolver.ResolveUDPAddr, dialer.DialUDP, log.NullLogger)
+	conn, err := newResolvedUDPConn(hostPort, time.Hour, resolver.ResolveUDPAddr, dialer.DialUDP, log.NullLogger)
 	assert.NoError(t, err)
 	assert.NotNil(t, conn)
 
+	expectedString := "yo this is a test"
+	_, err = conn.Write([]byte(expectedString))
+	assert.NoError(t, err)
+
+	var buf = make([]byte, len(expectedString))
+	err = mockServer.SetReadDeadline(time.Now().Add(time.Second))
+	assert.NoError(t, err)
+	_, _, err = mockServer.ReadFrom(buf)
+	assert.NoError(t, err)
+	assert.Equal(t, []byte(expectedString), buf)
+
+	err = conn.Close()
+	assert.NoError(t, err)
+
+	// assert the actual connection was closed
+	assert.Error(t, clientConn.Close())
+
+	resolver.AssertExpectations(t)
+	dialer.AssertExpectations(t)
+}
+
+func TestResolvedUDPConnEventuallyDials(t *testing.T) {
+	hostPort := "blahblah:34322"
+
+	mockServer, clientConn, err := newUDPConn()
+	if !assert.NoError(t, err) {
+		t.FailNow()
+	}
+	defer mockServer.Close()
+
+	resolver := mockResolver{}
+	resolveCall := resolver.
+		On("ResolveUDPAddr", "udp", hostPort).
+		Return(nil, fmt.Errorf("failed to resolve"))
+
+	timer := time.AfterFunc(time.Millisecond*100, func() {
+		resolveCall.Return(&net.UDPAddr{
+			IP:   net.IPv4(123, 123, 123, 123),
+			Port: 34322,
+		}, nil)
+	})
+	defer timer.Stop()
+
+	dialer := mockDialer{}
+	dialer.
+		On("DialUDP", "udp", (*net.UDPAddr)(nil), &net.UDPAddr{
+			IP:   net.IPv4(123, 123, 123, 123),
+			Port: 34322,
+		}).
+		Return(clientConn, nil).
+		Once()
+
+	conn, err := newResolvedUDPConn(hostPort, time.Millisecond*100, resolver.ResolveUDPAddr, dialer.DialUDP, log.NullLogger)
+	assert.NoError(t, err)
+	assert.NotNil(t, conn)
+
+	err = conn.SetWriteBuffer(65000)
+	assert.NoError(t, err)
+
+	<-time.After(time.Millisecond * 200)
+
+	fd, _ := clientConn.File()
+	bufferBytes, _ := syscall.GetsockoptInt(int(fd.Fd()), syscall.SOL_SOCKET, syscall.SO_SNDBUF)
+	assert.Equal(t, 65000, bufferBytes)
+
+	expectedString := "yo this is a test"
+	_, err = conn.Write([]byte(expectedString))
+	assert.NoError(t, err)
+
+	var buf = make([]byte, len(expectedString))
+	err = mockServer.SetReadDeadline(time.Now().Add(time.Second))
+	assert.NoError(t, err)
+	_, _, err = mockServer.ReadFrom(buf)
+	assert.NoError(t, err)
+	assert.Equal(t, []byte(expectedString), buf)
+
+	err = conn.Close()
+	assert.NoError(t, err)
+
+	// assert the actual connection was closed
+	assert.Error(t, clientConn.Close())
+
+	resolver.AssertExpectations(t)
+	dialer.AssertExpectations(t)
+}
+
+func TestResolvedUDPConnNoSwapIfFail(t *testing.T) {
+	hostPort := "blahblah:34322"
+
+	mockServer, clientConn, err := newUDPConn()
+	if !assert.NoError(t, err) {
+		t.FailNow()
+	}
+	defer mockServer.Close()
+
+	resolver := mockResolver{}
+	resolveCall := resolver.
+		On("ResolveUDPAddr", "udp", hostPort).
+		Return(&net.UDPAddr{
+			IP:   net.IPv4(123, 123, 123, 123),
+			Port: 34322,
+		}, nil)
+
+	// Simulate resolve fail after 100 seconds to ensure connection isn't swapped
+	timer := time.AfterFunc(time.Millisecond*100, func() {
+		resolveCall.Return(nil, fmt.Errorf("resolve failed"))
+	})
+	defer timer.Stop()
+
+	dialer := mockDialer{}
+	dialer.
+		On("DialUDP", "udp", (*net.UDPAddr)(nil), &net.UDPAddr{
+			IP:   net.IPv4(123, 123, 123, 123),
+			Port: 34322,
+		}).
+		Return(clientConn, nil).
+		Once()
+
+	conn, err := newResolvedUDPConn(hostPort, time.Millisecond*100, resolver.ResolveUDPAddr, dialer.DialUDP, log.NullLogger)
+	assert.NoError(t, err)
+	assert.NotNil(t, conn)
+
+	<-time.After(time.Millisecond * 200)
 	expectedString := "yo this is a test"
 	_, err = conn.Write([]byte(expectedString))
 	assert.NoError(t, err)

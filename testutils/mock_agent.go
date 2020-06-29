@@ -23,7 +23,6 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-client-go/thrift"
 
 	"github.com/uber/jaeger-client-go/thrift-gen/agent"
@@ -83,7 +82,7 @@ func (s *MockAgent) SpanServerAddr() string {
 
 // SpanServerClient returns a UDP client that can be used to send spans to the MockAgent
 func (s *MockAgent) SpanServerClient() (agent.Agent, error) {
-	return utils.NewAgentClientUDP(s.SpanServerAddr(), 0, log.NullLogger)
+	return utils.NewAgentClientUDP(s.SpanServerAddr(), 0)
 }
 
 // SamplingServerAddr returns the host:port of HTTP server exposing sampling strategy endpoint

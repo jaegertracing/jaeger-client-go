@@ -410,6 +410,9 @@ func (rc *ReporterConfig) newTransport(logger jaeger.Logger) (jaeger.Transport, 
 		}
 		return transport.NewHTTPTransport(rc.CollectorEndpoint, httpOptions...), nil
 	default:
-		return jaeger.NewUDPTransport(rc.LocalAgentHostPort, 0, logger)
+		return jaeger.NewUDPTransportWithParams(jaeger.UDPTransportParams{
+			HostPort: rc.LocalAgentHostPort,
+			Logger:   logger,
+		})
 	}
 }

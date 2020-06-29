@@ -22,7 +22,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/uber/jaeger-client-go/log"
 
 	"github.com/uber/jaeger-client-go/internal/reporterstats"
 	"github.com/uber/jaeger-client-go/testutils"
@@ -126,7 +125,7 @@ func TestUDPSenderFlush(t *testing.T) {
 	spanSize := getThriftSpanByteLength(t, span)
 	processSize := getThriftProcessByteLengthFromTracer(t, jaegerTracer)
 
-	sender, err := NewUDPTransport(agent.SpanServerAddr(), 5*spanSize+processSize+emitBatchOverhead, log.NullLogger)
+	sender, err := NewUDPTransport(agent.SpanServerAddr(), 5*spanSize+processSize+emitBatchOverhead)
 	require.NoError(t, err)
 	udpSender := sender.(*udpSender)
 	udpSender.SetReporterStats(&mockRepStats{spansDroppedFromQueue: 5})
@@ -201,7 +200,7 @@ func TestUDPSenderAppend(t *testing.T) {
 
 	for _, test := range tests {
 		bufferSize := 5*spanSize + test.bufferSizeOffset + processSize + emitBatchOverhead
-		sender, err := NewUDPTransport(agent.SpanServerAddr(), bufferSize, log.NullLogger)
+		sender, err := NewUDPTransport(agent.SpanServerAddr(), bufferSize)
 		require.NoError(t, err, test.description)
 
 		agent.ResetJaegerBatches()
@@ -258,7 +257,7 @@ func TestUDPSenderHugeSpan(t *testing.T) {
 	span := newSpan()
 	spanSize := getThriftSpanByteLength(t, span)
 
-	sender, err := NewUDPTransport(agent.SpanServerAddr(), spanSize/2+emitBatchOverhead, log.NullLogger)
+	sender, err := NewUDPTransport(agent.SpanServerAddr(), spanSize/2+emitBatchOverhead)
 	require.NoError(t, err)
 
 	n, err := sender.Append(span)
@@ -273,7 +272,7 @@ func TestUDPSenderHugeSpan(t *testing.T) {
 }
 
 func TestUDPSender_defaultHostPort(t *testing.T) {
-	tr, err := NewUDPTransport("", 0, log.NullLogger)
+	tr, err := NewUDPTransport("", 0)
 	require.NoError(t, err)
 	assert.NoError(t, tr.Close())
 }

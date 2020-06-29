@@ -49,10 +49,21 @@ type udpConn interface {
 	Close() error
 }
 
-// NewAgentClientUDP creates a client that sends spans to Jaeger Agent over UDP.
-func NewAgentClientUDP(hostPort string, maxPacketSize int, logger log.Logger) (*AgentClientUDP, error) {
+// AgentClientUDPParams allows specifying options for initializing an AgentClientUDP. An instance of this struct should
+// be passed to NewAgentClientUDPWithParams.
+type AgentClientUDPParams struct {
+	HostPort      string
+	MaxPacketSize int
+	Logger        log.Logger
+}
+
+func initializeAgentClientUDP(hostPort string, maxPacketSize int, logger log.Logger) (*AgentClientUDP, error) {
 	if maxPacketSize == 0 {
 		maxPacketSize = UDPPacketMaxLength
+	}
+
+	if logger == nil {
+		logger = log.StdLogger
 	}
 
 	thriftBuffer := thrift.NewTMemoryBufferLen(maxPacketSize)
@@ -69,7 +80,7 @@ func NewAgentClientUDP(hostPort string, maxPacketSize int, logger log.Logger) (*
 
 	if ip := net.ParseIP(host); ip == nil {
 		// host is hostname, setup resolver loop in case host record changes during operation
-		connUDP, err = NewResolvedUDPConn(hostPort, time.Second*30, net.ResolveUDPAddr, net.DialUDP, logger)
+		connUDP, err = newResolvedUDPConn(hostPort, time.Second*30, net.ResolveUDPAddr, net.DialUDP, logger)
 		if err != nil {
 			return nil, err
 		}
@@ -90,13 +101,22 @@ func NewAgentClientUDP(hostPort string, maxPacketSize int, logger log.Logger) (*
 		return nil, err
 	}
 
-	clientUDP := &AgentClientUDP{
+	return &AgentClientUDP{
 		connUDP:       connUDP,
 		client:        client,
 		maxPacketSize: maxPacketSize,
 		thriftBuffer:  thriftBuffer,
-	}
-	return clientUDP, nil
+	}, nil
+}
+
+// NewAgentClientUDPWithParams creates a client that sends spans to Jaeger Agent over UDP.
+func NewAgentClientUDPWithParams(params AgentClientUDPParams) (*AgentClientUDP, error) {
+	return initializeAgentClientUDP(params.HostPort, params.MaxPacketSize, params.Logger)
+}
+
+// NewAgentClientUDP creates a client that sends spans to Jaeger Agent over UDP.
+func NewAgentClientUDP(hostPort string, maxPacketSize int) (*AgentClientUDP, error) {
+	return initializeAgentClientUDP(hostPort, maxPacketSize, nil)
 }
 
 // EmitZipkinBatch implements EmitZipkinBatch() of Agent interface
