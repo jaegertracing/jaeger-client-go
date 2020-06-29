@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/uber/jaeger-client-go/log"
@@ -30,7 +31,7 @@ type resolvedUDPConn struct {
 	resolveFunc resolveFunc
 	dialFunc    dialFunc
 	logger      log.Logger
-	bufferBytes int
+	bufferBytes int64
 
 	connMtx   sync.RWMutex
 	conn      *net.UDPConn
@@ -108,9 +109,7 @@ func (c *resolvedUDPConn) attemptDialNewAddr(newAddr *net.UDPAddr) error {
 		return err
 	}
 
-	c.connMtx.RLock()
-	bufferBytes := c.bufferBytes
-	c.connMtx.RUnlock()
+	bufferBytes := int(atomic.LoadInt64(&c.bufferBytes))
 
 	if bufferBytes != 0 {
 		if err = connUDP.SetWriteBuffer(bufferBytes); err != nil {
@@ -186,9 +185,7 @@ func (c *resolvedUDPConn) SetWriteBuffer(bytes int) error {
 	c.connMtx.RUnlock()
 
 	if err == nil {
-		c.connMtx.Lock()
-		c.bufferBytes = bytes
-		c.connMtx.Unlock()
+		atomic.StoreInt64(&c.bufferBytes, int64(bytes))
 	}
 
 	return err
