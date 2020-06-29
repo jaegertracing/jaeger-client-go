@@ -215,7 +215,7 @@ func TestResolvedUDPConnEventuallyDials(t *testing.T) {
 	if runtime.GOOS == "darwin" {
 		assert.Equal(t, 65000, bufferBytes)
 	} else {
-		assert.Equal(t, 65000*2, bufferBytes)
+		assert.GreaterOrEqual(t, 65000*2, bufferBytes)
 	}
 
 	expectedString := "yo this is a test"
