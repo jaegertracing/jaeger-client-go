@@ -17,6 +17,7 @@ package utils
 import (
 	"fmt"
 	"net"
+	"runtime"
 	"syscall"
 	"testing"
 	"time"
@@ -211,7 +212,11 @@ func TestResolvedUDPConnEventuallyDials(t *testing.T) {
 
 	fd, _ := clientConn.File()
 	bufferBytes, _ := syscall.GetsockoptInt(int(fd.Fd()), syscall.SOL_SOCKET, syscall.SO_SNDBUF)
-	assert.Equal(t, 65000, bufferBytes)
+	if runtime.GOOS == "darwin" {
+		assert.Equal(t, 65000, bufferBytes)
+	} else {
+		assert.Equal(t, 65000*2, bufferBytes)
+	}
 
 	expectedString := "yo this is a test"
 	_, err = conn.Write([]byte(expectedString))
