@@ -66,25 +66,27 @@ type UDPTransportParams struct {
 	Logger        log.Logger
 }
 
-func initializeUDPTransport(hostPort string, maxPacketSize int, logger log.Logger) (*udpSender, error) {
-	if len(hostPort) == 0 {
-		hostPort = fmt.Sprintf("%s:%d", DefaultUDPSpanServerHost, DefaultUDPSpanServerPort)
+// NewUDPTransportWithParams creates a reporter that submits spans to jaeger-agent.
+// TODO: (breaking change) move to transport/ package.
+func NewUDPTransportWithParams(params UDPTransportParams) (Transport, error) {
+	if len(params.HostPort) == 0 {
+		params.HostPort = fmt.Sprintf("%s:%d", DefaultUDPSpanServerHost, DefaultUDPSpanServerPort)
 	}
 
-	if maxPacketSize == 0 {
-		maxPacketSize = utils.UDPPacketMaxLength
+	if params.MaxPacketSize == 0 {
+		params.MaxPacketSize = utils.UDPPacketMaxLength
 	}
 
 	protocolFactory := thrift.NewTCompactProtocolFactory()
 
 	// Each span is first written to thriftBuffer to determine its size in bytes.
-	thriftBuffer := thrift.NewTMemoryBufferLen(maxPacketSize)
+	thriftBuffer := thrift.NewTMemoryBufferLen(params.MaxPacketSize)
 	thriftProtocol := protocolFactory.GetProtocol(thriftBuffer)
 
 	client, err := utils.NewAgentClientUDPWithParams(utils.AgentClientUDPParams{
-		HostPort:      hostPort,
-		MaxPacketSize: maxPacketSize,
-		Logger:        logger,
+		HostPort:      params.HostPort,
+		MaxPacketSize: params.MaxPacketSize,
+		Logger:        params.Logger,
 	})
 	if err != nil {
 		return nil, err
@@ -92,22 +94,19 @@ func initializeUDPTransport(hostPort string, maxPacketSize int, logger log.Logge
 
 	return &udpSender{
 		client:         client,
-		maxSpanBytes:   maxPacketSize - emitBatchOverhead,
+		maxSpanBytes:   params.MaxPacketSize - emitBatchOverhead,
 		thriftBuffer:   thriftBuffer,
 		thriftProtocol: thriftProtocol,
 	}, nil
 }
 
-// NewUDPTransportWithParams creates a reporter that submits spans to jaeger-agent.
-// TODO: (breaking change) move to transport/ package.
-func NewUDPTransportWithParams(params UDPTransportParams) (Transport, error) {
-	return initializeUDPTransport(params.HostPort, params.MaxPacketSize, params.Logger)
-}
-
 // NewUDPTransport creates a reporter that submits spans to jaeger-agent.
 // TODO: (breaking change) move to transport/ package.
 func NewUDPTransport(hostPort string, maxPacketSize int) (Transport, error) {
-	return initializeUDPTransport(hostPort, maxPacketSize, nil)
+	return NewUDPTransportWithParams(UDPTransportParams{
+		HostPort:      hostPort,
+		MaxPacketSize: maxPacketSize,
+	})
 }
 
 // SetReporterStats implements reporterstats.Receiver.

@@ -50,14 +50,12 @@ func newResolvedUDPConn(hostPort string, resolveTimeout time.Duration, resolveFu
 		resolveFunc: resolveFunc,
 		dialFunc:    dialFunc,
 		logger:      logger,
+		closeChan:   make(chan struct{}),
 	}
 
-	err := conn.attemptResolveAndDial()
-	if err != nil {
-		logger.Error(fmt.Sprintf("failed resolving destination address on connection startup, with err: %q. retrying in %s", err.Error(), resolveTimeout.String()))
+	if err := conn.attemptResolveAndDial(); err != nil {
+		logger.Error(fmt.Sprintf("failed resolving destination address on connection startup, with err: %q. retrying in %s", err.Error(), resolveTimeout))
 	}
-
-	conn.closeChan = make(chan struct{})
 
 	go conn.resolveLoop(resolveTimeout)
 
@@ -96,7 +94,7 @@ func (c *resolvedUDPConn) attemptResolveAndDial() error {
 	}
 
 	if err := c.attemptDialNewAddr(newAddr); err != nil {
-		return fmt.Errorf("failed to dial newly resolved addr %q, with err: %w", newAddr.String(), err)
+		return fmt.Errorf("failed to dial newly resolved addr '%s', with err: %w", newAddr, err)
 	}
 
 	return nil
@@ -105,7 +103,6 @@ func (c *resolvedUDPConn) attemptResolveAndDial() error {
 func (c *resolvedUDPConn) attemptDialNewAddr(newAddr *net.UDPAddr) error {
 	connUDP, err := c.dialFunc(newAddr.Network(), nil, newAddr)
 	if err != nil {
-		// failed to dial new address
 		return err
 	}
 
@@ -163,6 +160,8 @@ func (c *resolvedUDPConn) Write(b []byte) (int, error) {
 // Close stops the resolveLoop, then closes the connection via net.udpConn 's implementation
 func (c *resolvedUDPConn) Close() error {
 	close(c.closeChan)
+
+	// aqcuire rlock before closing conn to ensure calls to Write drain
 	c.connMtx.RLock()
 	defer c.connMtx.RUnlock()
 

@@ -57,36 +57,37 @@ type AgentClientUDPParams struct {
 	Logger        log.Logger
 }
 
-func initializeAgentClientUDP(hostPort string, maxPacketSize int, logger log.Logger) (*AgentClientUDP, error) {
-	if maxPacketSize == 0 {
-		maxPacketSize = UDPPacketMaxLength
+// NewAgentClientUDPWithParams creates a client that sends spans to Jaeger Agent over UDP.
+func NewAgentClientUDPWithParams(params AgentClientUDPParams) (*AgentClientUDP, error) {
+	if params.MaxPacketSize == 0 {
+		params.MaxPacketSize = UDPPacketMaxLength
 	}
 
-	if logger == nil {
-		logger = log.StdLogger
+	if params.Logger == nil {
+		params.Logger = log.StdLogger
 	}
 
-	thriftBuffer := thrift.NewTMemoryBufferLen(maxPacketSize)
+	thriftBuffer := thrift.NewTMemoryBufferLen(params.MaxPacketSize)
 	protocolFactory := thrift.NewTCompactProtocolFactory()
 	client := agent.NewAgentClientFactory(thriftBuffer, protocolFactory)
 
 	var connUDP udpConn
 	var err error
 
-	host, _, err := net.SplitHostPort(hostPort)
+	host, _, err := net.SplitHostPort(params.HostPort)
 	if err != nil {
 		return nil, err
 	}
 
 	if ip := net.ParseIP(host); ip == nil {
 		// host is hostname, setup resolver loop in case host record changes during operation
-		connUDP, err = newResolvedUDPConn(hostPort, time.Second*30, net.ResolveUDPAddr, net.DialUDP, logger)
+		connUDP, err = newResolvedUDPConn(params.HostPort, time.Second*30, net.ResolveUDPAddr, net.DialUDP, params.Logger)
 		if err != nil {
 			return nil, err
 		}
 	} else {
 		// have to use resolve even though we know hostPort contains a literal ip, in case address is ipv6 with a zone
-		destAddr, err := net.ResolveUDPAddr("udp", hostPort)
+		destAddr, err := net.ResolveUDPAddr("udp", params.HostPort)
 		if err != nil {
 			return nil, err
 		}
@@ -97,26 +98,24 @@ func initializeAgentClientUDP(hostPort string, maxPacketSize int, logger log.Log
 		}
 	}
 
-	if err := connUDP.SetWriteBuffer(maxPacketSize); err != nil {
+	if err := connUDP.SetWriteBuffer(params.MaxPacketSize); err != nil {
 		return nil, err
 	}
 
 	return &AgentClientUDP{
 		connUDP:       connUDP,
 		client:        client,
-		maxPacketSize: maxPacketSize,
+		maxPacketSize: params.MaxPacketSize,
 		thriftBuffer:  thriftBuffer,
 	}, nil
 }
 
-// NewAgentClientUDPWithParams creates a client that sends spans to Jaeger Agent over UDP.
-func NewAgentClientUDPWithParams(params AgentClientUDPParams) (*AgentClientUDP, error) {
-	return initializeAgentClientUDP(params.HostPort, params.MaxPacketSize, params.Logger)
-}
-
 // NewAgentClientUDP creates a client that sends spans to Jaeger Agent over UDP.
 func NewAgentClientUDP(hostPort string, maxPacketSize int) (*AgentClientUDP, error) {
-	return initializeAgentClientUDP(hostPort, maxPacketSize, nil)
+	return NewAgentClientUDPWithParams(AgentClientUDPParams{
+		HostPort:      hostPort,
+		MaxPacketSize: maxPacketSize,
+	})
 }
 
 // EmitZipkinBatch implements EmitZipkinBatch() of Agent interface
