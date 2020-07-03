@@ -30,7 +30,6 @@ import (
 )
 
 type mockResolver struct {
-	MockHost string
 	mock.Mock
 }
 
