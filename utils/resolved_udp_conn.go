@@ -106,9 +106,7 @@ func (c *resolvedUDPConn) attemptDialNewAddr(newAddr *net.UDPAddr) error {
 		return err
 	}
 
-	bufferBytes := int(atomic.LoadInt64(&c.bufferBytes))
-
-	if bufferBytes != 0 {
+	if bufferBytes := int(atomic.LoadInt64(&c.bufferBytes)); bufferBytes != 0 {
 		if err = connUDP.SetWriteBuffer(bufferBytes); err != nil {
 			return err
 		}
@@ -136,7 +134,7 @@ func (c *resolvedUDPConn) Write(b []byte) (int, error) {
 	c.connMtx.RLock()
 	if c.conn == nil {
 		// if connection is not initialized indicate this with err in order to hook into retry logic
-		err = fmt.Errorf("UDP connection not yet initialized, a valid address has not been resolved")
+		err = fmt.Errorf("UDP connection not yet initialized, an address has not been resolved")
 	} else {
 		bytesWritten, err = c.conn.Write(b)
 	}

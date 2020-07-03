@@ -77,6 +77,10 @@ func NewUDPTransportWithParams(params UDPTransportParams) (Transport, error) {
 		params.MaxPacketSize = utils.UDPPacketMaxLength
 	}
 
+	if params.Logger == nil {
+		params.Logger = log.StdLogger
+	}
+
 	protocolFactory := thrift.NewTCompactProtocolFactory()
 
 	// Each span is first written to thriftBuffer to determine its size in bytes.

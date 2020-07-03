@@ -55,6 +55,8 @@ type AgentClientUDPParams struct {
 	HostPort      string
 	MaxPacketSize int
 	Logger        log.Logger
+	ResolveFunc   resolveFunc
+	DialFunc      dialFunc
 }
 
 // NewAgentClientUDPWithParams creates a client that sends spans to Jaeger Agent over UDP.
@@ -65,6 +67,14 @@ func NewAgentClientUDPWithParams(params AgentClientUDPParams) (*AgentClientUDP, 
 
 	if params.Logger == nil {
 		params.Logger = log.StdLogger
+	}
+
+	if params.ResolveFunc == nil {
+		params.ResolveFunc = net.ResolveUDPAddr
+	}
+
+	if params.DialFunc == nil {
+		params.DialFunc = net.DialUDP
 	}
 
 	thriftBuffer := thrift.NewTMemoryBufferLen(params.MaxPacketSize)
@@ -81,18 +91,18 @@ func NewAgentClientUDPWithParams(params AgentClientUDPParams) (*AgentClientUDP, 
 
 	if ip := net.ParseIP(host); ip == nil {
 		// host is hostname, setup resolver loop in case host record changes during operation
-		connUDP, err = newResolvedUDPConn(params.HostPort, time.Second*30, net.ResolveUDPAddr, net.DialUDP, params.Logger)
+		connUDP, err = newResolvedUDPConn(params.HostPort, time.Second*30, params.ResolveFunc, params.DialFunc, params.Logger)
 		if err != nil {
 			return nil, err
 		}
 	} else {
 		// have to use resolve even though we know hostPort contains a literal ip, in case address is ipv6 with a zone
-		destAddr, err := net.ResolveUDPAddr("udp", params.HostPort)
+		destAddr, err := params.ResolveFunc("udp", params.HostPort)
 		if err != nil {
 			return nil, err
 		}
 
-		connUDP, err = net.DialUDP(destAddr.Network(), nil, destAddr)
+		connUDP, err = params.DialFunc(destAddr.Network(), nil, destAddr)
 		if err != nil {
 			return nil, err
 		}
