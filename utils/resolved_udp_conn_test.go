@@ -87,9 +87,9 @@ func assertSockBufferSize(t *testing.T, expectedBytes int, conn *net.UDPConn) bo
 	// https://linux.die.net/man/7/socket
 	if runtime.GOOS == "linux" {
 		return assert.GreaterOrEqual(t, expectedBytes*2, bufferBytes)
-	} else {
-		return assert.Equal(t, expectedBytes, bufferBytes)
 	}
+
+	return assert.Equal(t, expectedBytes, bufferBytes)
 }
 
 func assertConnWritable(t *testing.T, conn udpConn, serverConn net.PacketConn) (allSucceed bool) {
