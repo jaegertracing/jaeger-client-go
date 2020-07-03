@@ -106,6 +106,26 @@ func TestNewAgentClientUDPWithParamsDefaults(t *testing.T) {
 	assert.NoError(t, agentClient.Close())
 }
 
+func TestNewAgentClientUDPDefaults(t *testing.T) {
+	mockServer, clientConn, err := newUDPConn()
+	clientConn.Close()
+	require.NoError(t, err)
+	defer mockServer.Close()
+
+	agentClient, err := NewAgentClientUDP(mockServer.LocalAddr().String(), 25000)
+	assert.NoError(t, err)
+	assert.NotNil(t, agentClient)
+	assert.Equal(t, 25000, agentClient.maxPacketSize)
+
+	if assert.IsType(t, &net.UDPConn{}, agentClient.connUDP) {
+		conn := agentClient.connUDP.(*net.UDPConn)
+		assertSockBufferSize(t, 25000, conn)
+		assertConnWritable(t, conn, mockServer)
+	}
+
+	assert.NoError(t, agentClient.Close())
+}
+
 func TestNewAgentClientUDPWithParamsIPHost(t *testing.T) {
 	hostPort := "123.123.123.123:34322"
 	resolver := mockResolver{}
