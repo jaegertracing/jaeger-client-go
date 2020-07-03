@@ -159,7 +159,7 @@ func (c *resolvedUDPConn) Write(b []byte) (int, error) {
 func (c *resolvedUDPConn) Close() error {
 	close(c.closeChan)
 
-	// aqcuire rlock before closing conn to ensure calls to Write drain
+	// acquire rlock before closing conn to ensure calls to Write drain
 	c.connMtx.RLock()
 	defer c.connMtx.RUnlock()
 
