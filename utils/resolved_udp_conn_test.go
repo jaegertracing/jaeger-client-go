@@ -136,9 +136,10 @@ func waitForConnCondition(conn *resolvedUDPConn, condition func(conn *resolvedUD
 		conn.connMtx.RLock()
 		conditionVal = condition(conn)
 		conn.connMtx.RUnlock()
-		if conditionVal {
+		if conditionVal || i >= 9 {
 			break
 		}
+
 		time.Sleep(time.Millisecond * 10)
 	}
 
