@@ -370,6 +370,34 @@ func TestResolvedUDPConnWriteRetry(t *testing.T) {
 	dialer.AssertExpectations(t)
 }
 
+func TestResolvedUDPConnWriteRetryFails(t *testing.T) {
+	hostPort := "blahblah:34322"
+
+	resolver := mockResolver{}
+	resolver.
+		On("ResolveUDPAddr", "udp", hostPort).
+		Return(nil, fmt.Errorf("failed to resolve")).Twice()
+
+	dialer := mockDialer{}
+
+	conn, err := newResolvedUDPConn(hostPort, time.Millisecond*10, resolver.ResolveUDPAddr, dialer.DialUDP, log.NullLogger)
+	assert.NoError(t, err)
+	require.NotNil(t, conn)
+
+	err = conn.SetWriteBuffer(UDPPacketMaxLength)
+	assert.NoError(t, err)
+
+	_, err = conn.Write([]byte("yo this is a test"))
+
+	assert.Error(t, err)
+
+	err = conn.Close()
+	assert.NoError(t, err)
+
+	resolver.AssertExpectations(t)
+	dialer.AssertExpectations(t)
+}
+
 func TestResolvedUDPConnChanges(t *testing.T) {
 	hostPort := "blahblah:34322"
 
