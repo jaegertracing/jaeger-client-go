@@ -110,6 +110,41 @@ func assertConnWritable(t *testing.T, conn udpConn, serverConn net.PacketConn) (
 	return allSucceed && assertion
 }
 
+func waitForCallWithTimeout(call *mock.Call) bool {
+	called := make(chan struct{})
+	call.Run(func(args mock.Arguments) {
+		close(called)
+	})
+
+	var wasCalled bool
+	// wait at most 100 milliseconds for the second call of ResolveUDPAddr that is supposed to fail
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*100)
+	select {
+	case <-called:
+		wasCalled = true
+	case <-ctx.Done():
+		fmt.Println("timed out")
+	}
+	cancel()
+
+	return wasCalled
+}
+
+func waitForConnCondition(conn *resolvedUDPConn, condition func(conn *resolvedUDPConn) bool) bool {
+	var conditionVal bool
+	for i := 0; i < 10; i++ {
+		conn.connMtx.RLock()
+		conditionVal = condition(conn)
+		conn.connMtx.RUnlock()
+		if conditionVal {
+			break
+		}
+		time.Sleep(time.Millisecond * 10)
+	}
+
+	return conditionVal
+}
+
 func TestNewResolvedUDPConn(t *testing.T) {
 	hostPort := "blahblah:34322"
 
@@ -208,7 +243,7 @@ func TestResolvedUDPConnEventuallyDials(t *testing.T) {
 		}, nil)
 
 	dialer := mockDialer{}
-	dialer.
+	dialCall := dialer.
 		On("DialUDP", "udp", (*net.UDPAddr)(nil), &net.UDPAddr{
 			IP:   net.IPv4(123, 123, 123, 123),
 			Port: 34322,
@@ -222,19 +257,14 @@ func TestResolvedUDPConnEventuallyDials(t *testing.T) {
 	err = conn.SetWriteBuffer(UDPPacketMaxLength)
 	assert.NoError(t, err)
 
-	for i := 0; i < 10; i++ {
-		conn.connMtx.RLock()
-		connected := conn.conn != nil
-		conn.connMtx.RUnlock()
-		if connected {
-			break
-		}
-		time.Sleep(time.Millisecond * 10)
-	}
+	wasCalled := waitForCallWithTimeout(dialCall)
+	assert.True(t, wasCalled)
 
-	conn.connMtx.RLock()
-	assert.NotNil(t, conn.conn)
-	conn.connMtx.RUnlock()
+	connEstablished := waitForConnCondition(conn, func(conn *resolvedUDPConn) bool {
+		return conn.conn != nil
+	})
+
+	assert.True(t, connEstablished)
 
 	assertConnWritable(t, conn, mockServer)
 	assertSockBufferSize(t, UDPPacketMaxLength, clientConn)
@@ -264,11 +294,7 @@ func TestResolvedUDPConnNoSwapIfFail(t *testing.T) {
 			Port: 34322,
 		}, nil).Once()
 
-	failCalled := make(chan struct{})
-	resolver.On("ResolveUDPAddr", "udp", hostPort).
-		Run(func(args mock.Arguments) {
-			close(failCalled)
-		}).
+	failCall := resolver.On("ResolveUDPAddr", "udp", hostPort).
 		Return(nil, fmt.Errorf("resolve failed"))
 
 	dialer := mockDialer{}
@@ -283,15 +309,7 @@ func TestResolvedUDPConnNoSwapIfFail(t *testing.T) {
 	assert.NoError(t, err)
 	require.NotNil(t, conn)
 
-	var wasCalled bool
-	// wait at most 100 milliseconds for the second call of ResolveUDPAddr that is supposed to fail
-	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*100)
-	select {
-	case <-failCalled:
-		wasCalled = true
-	case <-ctx.Done():
-	}
-	cancel()
+	wasCalled := waitForCallWithTimeout(failCall)
 
 	assert.True(t, wasCalled)
 
@@ -347,6 +365,75 @@ func TestResolvedUDPConnWriteRetry(t *testing.T) {
 
 	// assert the actual connection was closed
 	assert.Error(t, clientConn.Close())
+
+	resolver.AssertExpectations(t)
+	dialer.AssertExpectations(t)
+}
+
+func TestResolvedUDPConnChanges(t *testing.T) {
+	hostPort := "blahblah:34322"
+
+	mockServer, clientConn, err := newUDPConn()
+	require.NoError(t, err)
+	defer mockServer.Close()
+
+	mockServer2, clientConn2, err := newUDPConn()
+	require.NoError(t, err)
+	defer mockServer2.Close()
+
+	resolver := mockResolver{}
+	resolver.
+		On("ResolveUDPAddr", "udp", hostPort).
+		Return(&net.UDPAddr{
+			IP:   net.IPv4(123, 123, 123, 123),
+			Port: 34322,
+		}, nil).Once().
+		On("ResolveUDPAddr", "udp", hostPort).
+		Return(&net.UDPAddr{
+			IP:   net.IPv4(100, 100, 100, 100),
+			Port: 34322,
+		}, nil)
+
+	dialer := mockDialer{}
+	dialer.
+		On("DialUDP", "udp", (*net.UDPAddr)(nil), &net.UDPAddr{
+			IP:   net.IPv4(123, 123, 123, 123),
+			Port: 34322,
+		}).
+		Return(clientConn, nil).Once()
+
+	secondDial := dialer.On("DialUDP", "udp", (*net.UDPAddr)(nil), &net.UDPAddr{
+		IP:   net.IPv4(100, 100, 100, 100),
+		Port: 34322,
+	}).Return(clientConn2, nil).Once()
+
+	conn, err := newResolvedUDPConn(hostPort, time.Millisecond*10, resolver.ResolveUDPAddr, dialer.DialUDP, log.StdLogger)
+	assert.NoError(t, err)
+	require.NotNil(t, conn)
+
+	err = conn.SetWriteBuffer(UDPPacketMaxLength)
+	assert.NoError(t, err)
+
+	wasCalled := waitForCallWithTimeout(secondDial)
+	assert.True(t, wasCalled)
+
+	connSwapped := waitForConnCondition(conn, func(conn *resolvedUDPConn) bool {
+		return conn.conn == clientConn2
+	})
+
+	assert.True(t, connSwapped)
+
+	assertConnWritable(t, conn, mockServer2)
+	assertSockBufferSize(t, UDPPacketMaxLength, clientConn2)
+
+	err = conn.Close()
+	assert.NoError(t, err)
+
+	// assert the prev connection was closed
+	assert.Error(t, clientConn.Close())
+
+	// assert the actual connection was closed
+	assert.Error(t, clientConn2.Close())
 
 	resolver.AssertExpectations(t)
 	dialer.AssertExpectations(t)
