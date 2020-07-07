@@ -202,6 +202,8 @@ func TestReporter(t *testing.T) {
 	setEnv(t, envAgentPort, "6832")
 	setEnv(t, envUser, "user")
 	setEnv(t, envPassword, "password")
+	setEnv(t, envReporterAttemptReconnectingDisabled, "false")
+	setEnv(t, envReporterAttemptReconnectInterval, "40s")
 
 	// Existing ReporterConfig data
 	rc := ReporterConfig{
@@ -225,6 +227,8 @@ func TestReporter(t *testing.T) {
 	assert.Equal(t, "nonlocalhost:6832", cfg.LocalAgentHostPort)
 	assert.Equal(t, "user01", cfg.User)
 	assert.Equal(t, "password01", cfg.Password)
+	assert.Equal(t, false, cfg.DisableAttemptReconnecting)
+	assert.Equal(t, time.Second * 40, cfg.AttemptReconnectInterval)
 
 	// Prepare
 	setEnv(t, envEndpoint, "http://1.2.3.4:5678/api/traces")
