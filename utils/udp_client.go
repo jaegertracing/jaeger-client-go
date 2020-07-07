@@ -98,7 +98,6 @@ func NewAgentClientUDPWithParams(params AgentClientUDPParams) (*AgentClientUDP, 
 	var err error
 
 	if params.DisableAttemptReconnecting {
-		// have to use resolve even though we know hostPort contains a literal ip, in case address is ipv6 with a zone
 		destAddr, err := net.ResolveUDPAddr("udp", params.HostPort)
 		if err != nil {
 			return nil, err
