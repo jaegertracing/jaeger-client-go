@@ -167,7 +167,9 @@ func newHTTPServer(t *testing.T) *httpServer {
 	})
 
 	go func() {
-		http.ListenAndServe(":10001", nil)
+		if err := http.ListenAndServe(":10001", nil); err != nil && err != http.ErrServerClosed {
+			panic(err)
+		}
 	}()
 
 	return server
