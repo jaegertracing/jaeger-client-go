@@ -24,9 +24,9 @@ import (
 	"github.com/uber/jaeger-client-go/log"
 )
 
-// resolvedUDPConn is an implementation of udpConn that continually resolves the provided hostname and atomically swaps
-// the connection if the dial succeeds
-type resolvedUDPConn struct {
+// reconnectingUDPConn is an implementation of udpConn that resolves hostPort every resolveTimeout, if the resolved address is
+// different than the current conn then the new address is dialed and the conn is swapped.
+type reconnectingUDPConn struct {
 	hostPort    string
 	resolveFunc resolveFunc
 	dialFunc    dialFunc
@@ -42,10 +42,10 @@ type resolvedUDPConn struct {
 type resolveFunc func(network string, hostPort string) (*net.UDPAddr, error)
 type dialFunc func(network string, laddr, raddr *net.UDPAddr) (*net.UDPConn, error)
 
-// newResolvedUDPConn returns a new udpConn that resolves hostPort every resolveTimeout, if the resolved address is
+// newReconnectingUDPConn returns a new udpConn that resolves hostPort every resolveTimeout, if the resolved address is
 // different than the current conn then the new address is dialed and the conn is swapped.
-func newResolvedUDPConn(hostPort string, resolveTimeout time.Duration, resolveFunc resolveFunc, dialFunc dialFunc, logger log.Logger) (*resolvedUDPConn, error) {
-	conn := &resolvedUDPConn{
+func newReconnectingUDPConn(hostPort string, resolveTimeout time.Duration, resolveFunc resolveFunc, dialFunc dialFunc, logger log.Logger) (*reconnectingUDPConn, error) {
+	conn := &reconnectingUDPConn{
 		hostPort:    hostPort,
 		resolveFunc: resolveFunc,
 		dialFunc:    dialFunc,
@@ -57,12 +57,12 @@ func newResolvedUDPConn(hostPort string, resolveTimeout time.Duration, resolveFu
 		logger.Error(fmt.Sprintf("failed resolving destination address on connection startup, with err: %q. retrying in %s", err.Error(), resolveTimeout))
 	}
 
-	go conn.resolveLoop(resolveTimeout)
+	go conn.reconnectLoop(resolveTimeout)
 
 	return conn, nil
 }
 
-func (c *resolvedUDPConn) resolveLoop(resolveTimeout time.Duration) {
+func (c *reconnectingUDPConn) reconnectLoop(resolveTimeout time.Duration) {
 	ticker := time.NewTicker(resolveTimeout)
 	defer ticker.Stop()
 
@@ -78,7 +78,7 @@ func (c *resolvedUDPConn) resolveLoop(resolveTimeout time.Duration) {
 	}
 }
 
-func (c *resolvedUDPConn) attemptResolveAndDial() error {
+func (c *reconnectingUDPConn) attemptResolveAndDial() error {
 	newAddr, err := c.resolveFunc("udp", c.hostPort)
 	if err != nil {
 		return fmt.Errorf("failed to resolve new addr for host %q, with err: %w", c.hostPort, err)
@@ -100,7 +100,7 @@ func (c *resolvedUDPConn) attemptResolveAndDial() error {
 	return nil
 }
 
-func (c *resolvedUDPConn) attemptDialNewAddr(newAddr *net.UDPAddr) error {
+func (c *reconnectingUDPConn) attemptDialNewAddr(newAddr *net.UDPAddr) error {
 	connUDP, err := c.dialFunc(newAddr.Network(), nil, newAddr)
 	if err != nil {
 		return err
@@ -127,7 +127,7 @@ func (c *resolvedUDPConn) attemptDialNewAddr(newAddr *net.UDPAddr) error {
 }
 
 // Write calls net.udpConn.Write, if it fails an attempt is made to connect to a new addr, if that succeeds the write is retried before returning
-func (c *resolvedUDPConn) Write(b []byte) (int, error) {
+func (c *reconnectingUDPConn) Write(b []byte) (int, error) {
 	var bytesWritten int
 	var err error
 
@@ -155,13 +155,13 @@ func (c *resolvedUDPConn) Write(b []byte) (int, error) {
 	return bytesWritten, err
 }
 
-// Close stops the resolveLoop, then closes the connection via net.udpConn 's implementation
-func (c *resolvedUDPConn) Close() error {
+// Close stops the reconnectLoop, then closes the connection via net.udpConn 's implementation
+func (c *reconnectingUDPConn) Close() error {
 	close(c.closeChan)
 
-	// acquire rlock before closing conn to ensure calls to Write drain
-	c.connMtx.RLock()
-	defer c.connMtx.RUnlock()
+	// acquire rw lock before closing conn to ensure calls to Write drain
+	c.connMtx.Lock()
+	defer c.connMtx.Unlock()
 
 	if c.conn != nil {
 		return c.conn.Close()
@@ -172,7 +172,7 @@ func (c *resolvedUDPConn) Close() error {
 
 // SetWriteBuffer defers to the net.udpConn SetWriteBuffer implementation wrapped with a RLock. if no conn is currently held
 // and SetWriteBuffer is called store bufferBytes to be set for new conns
-func (c *resolvedUDPConn) SetWriteBuffer(bytes int) error {
+func (c *reconnectingUDPConn) SetWriteBuffer(bytes int) error {
 	var err error
 
 	c.connMtx.RLock()

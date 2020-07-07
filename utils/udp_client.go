@@ -49,18 +49,35 @@ type udpConn interface {
 	Close() error
 }
 
+const (
+	// DefaultUDPSpanServerHost is the default host to send the spans to, via UDP
+	DefaultUDPSpanServerHost = "localhost"
+
+	// DefaultUDPSpanServerPort is the default port to send the spans to, via UDP
+	DefaultUDPSpanServerPort = 6831
+)
+
 // AgentClientUDPParams allows specifying options for initializing an AgentClientUDP. An instance of this struct should
 // be passed to NewAgentClientUDPWithParams.
 type AgentClientUDPParams struct {
-	HostPort      string
-	MaxPacketSize int
-	Logger        log.Logger
-	ResolveFunc   resolveFunc
-	DialFunc      dialFunc
+	HostPort                   string
+	MaxPacketSize              int
+	Logger                     log.Logger
+	DisableAttemptReconnecting bool
+	AttemptReconnectInterval   time.Duration
 }
 
 // NewAgentClientUDPWithParams creates a client that sends spans to Jaeger Agent over UDP.
 func NewAgentClientUDPWithParams(params AgentClientUDPParams) (*AgentClientUDP, error) {
+	if len(params.HostPort) == 0 {
+		params.HostPort = fmt.Sprintf("%s:%d", DefaultUDPSpanServerHost, DefaultUDPSpanServerPort)
+	}
+
+	// validate hostport
+	if _, _, err := net.SplitHostPort(params.HostPort); err != nil {
+		return nil, err
+	}
+
 	if params.MaxPacketSize == 0 {
 		params.MaxPacketSize = UDPPacketMaxLength
 	}
@@ -69,12 +86,8 @@ func NewAgentClientUDPWithParams(params AgentClientUDPParams) (*AgentClientUDP, 
 		params.Logger = log.StdLogger
 	}
 
-	if params.ResolveFunc == nil {
-		params.ResolveFunc = net.ResolveUDPAddr
-	}
-
-	if params.DialFunc == nil {
-		params.DialFunc = net.DialUDP
+	if !params.DisableAttemptReconnecting && params.AttemptReconnectInterval == 0 {
+		params.AttemptReconnectInterval = time.Second * 30
 	}
 
 	thriftBuffer := thrift.NewTMemoryBufferLen(params.MaxPacketSize)
@@ -84,25 +97,20 @@ func NewAgentClientUDPWithParams(params AgentClientUDPParams) (*AgentClientUDP, 
 	var connUDP udpConn
 	var err error
 
-	host, _, err := net.SplitHostPort(params.HostPort)
-	if err != nil {
-		return nil, err
-	}
+	if params.DisableAttemptReconnecting {
+		// have to use resolve even though we know hostPort contains a literal ip, in case address is ipv6 with a zone
+		destAddr, err := net.ResolveUDPAddr("udp", params.HostPort)
+		if err != nil {
+			return nil, err
+		}
 
-	if ip := net.ParseIP(host); ip == nil {
-		// host is hostname, setup resolver loop in case host record changes during operation
-		connUDP, err = newResolvedUDPConn(params.HostPort, time.Second*30, params.ResolveFunc, params.DialFunc, params.Logger)
+		connUDP, err = net.DialUDP(destAddr.Network(), nil, destAddr)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		// have to use resolve even though we know hostPort contains a literal ip, in case address is ipv6 with a zone
-		destAddr, err := params.ResolveFunc("udp", params.HostPort)
-		if err != nil {
-			return nil, err
-		}
-
-		connUDP, err = params.DialFunc(destAddr.Network(), nil, destAddr)
+		// host is hostname, setup resolver loop in case host record changes during operation
+		connUDP, err = newReconnectingUDPConn(params.HostPort, params.AttemptReconnectInterval, net.ResolveUDPAddr, net.DialUDP, params.Logger)
 		if err != nil {
 			return nil, err
 		}

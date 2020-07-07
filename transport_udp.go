@@ -16,7 +16,6 @@ package jaeger
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/uber/jaeger-client-go/internal/reporterstats"
 	"github.com/uber/jaeger-client-go/log"
@@ -61,22 +60,12 @@ type udpSender struct {
 // UDPTransportParams allows specifying options for initializing a UDPTransport. An instance of this struct should
 // be passed to NewUDPTransportWithParams.
 type UDPTransportParams struct {
-	HostPort      string
-	MaxPacketSize int
-	Logger        log.Logger
+	utils.AgentClientUDPParams
 }
 
 // NewUDPTransportWithParams creates a reporter that submits spans to jaeger-agent.
 // TODO: (breaking change) move to transport/ package.
 func NewUDPTransportWithParams(params UDPTransportParams) (Transport, error) {
-	if len(params.HostPort) == 0 {
-		params.HostPort = fmt.Sprintf("%s:%d", DefaultUDPSpanServerHost, DefaultUDPSpanServerPort)
-	}
-
-	if params.MaxPacketSize == 0 {
-		params.MaxPacketSize = utils.UDPPacketMaxLength
-	}
-
 	if params.Logger == nil {
 		params.Logger = log.StdLogger
 	}
@@ -87,11 +76,7 @@ func NewUDPTransportWithParams(params UDPTransportParams) (Transport, error) {
 	thriftBuffer := thrift.NewTMemoryBufferLen(params.MaxPacketSize)
 	thriftProtocol := protocolFactory.GetProtocol(thriftBuffer)
 
-	client, err := utils.NewAgentClientUDPWithParams(utils.AgentClientUDPParams{
-		HostPort:      params.HostPort,
-		MaxPacketSize: params.MaxPacketSize,
-		Logger:        params.Logger,
-	})
+	client, err := utils.NewAgentClientUDPWithParams(params.AgentClientUDPParams)
 	if err != nil {
 		return nil, err
 	}
@@ -108,8 +93,10 @@ func NewUDPTransportWithParams(params UDPTransportParams) (Transport, error) {
 // TODO: (breaking change) move to transport/ package.
 func NewUDPTransport(hostPort string, maxPacketSize int) (Transport, error) {
 	return NewUDPTransportWithParams(UDPTransportParams{
-		HostPort:      hostPort,
-		MaxPacketSize: maxPacketSize,
+		AgentClientUDPParams: utils.AgentClientUDPParams{
+			HostPort:      hostPort,
+			MaxPacketSize: maxPacketSize,
+		},
 	})
 }
 

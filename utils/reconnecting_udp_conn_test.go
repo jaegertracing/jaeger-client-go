@@ -58,8 +58,16 @@ func (m *mockDialer) DialUDP(network string, laddr, raddr *net.UDPAddr) (*net.UD
 	return a0.(*net.UDPConn), args.Error(1)
 }
 
+func newUDPListener() (net.PacketConn, error) {
+	return net.ListenPacket("udp", "127.0.0.1:0")
+}
+
+func newUDPListenerOnPort(port int) (net.PacketConn, error) {
+	return net.ListenPacket("udp", fmt.Sprintf("127.0.0.1:%d", port))
+}
+
 func newUDPConn() (net.PacketConn, *net.UDPConn, error) {
-	mockServer, err := net.ListenPacket("udp", "127.0.0.1:0")
+	mockServer, err := newUDPListener()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -130,7 +138,7 @@ func waitForCallWithTimeout(call *mock.Call) bool {
 	return wasCalled
 }
 
-func waitForConnCondition(conn *resolvedUDPConn, condition func(conn *resolvedUDPConn) bool) bool {
+func waitForConnCondition(conn *reconnectingUDPConn, condition func(conn *reconnectingUDPConn) bool) bool {
 	var conditionVal bool
 	for i := 0; i < 10; i++ {
 		conn.connMtx.RLock()
@@ -171,7 +179,7 @@ func TestNewResolvedUDPConn(t *testing.T) {
 		Return(clientConn, nil).
 		Once()
 
-	conn, err := newResolvedUDPConn(hostPort, time.Hour, resolver.ResolveUDPAddr, dialer.DialUDP, log.NullLogger)
+	conn, err := newReconnectingUDPConn(hostPort, time.Hour, resolver.ResolveUDPAddr, dialer.DialUDP, log.NullLogger)
 	assert.NoError(t, err)
 	require.NotNil(t, conn)
 
@@ -210,7 +218,7 @@ func TestResolvedUDPConnWrites(t *testing.T) {
 		Return(clientConn, nil).
 		Once()
 
-	conn, err := newResolvedUDPConn(hostPort, time.Hour, resolver.ResolveUDPAddr, dialer.DialUDP, log.NullLogger)
+	conn, err := newReconnectingUDPConn(hostPort, time.Hour, resolver.ResolveUDPAddr, dialer.DialUDP, log.NullLogger)
 	assert.NoError(t, err)
 	require.NotNil(t, conn)
 
@@ -251,7 +259,7 @@ func TestResolvedUDPConnEventuallyDials(t *testing.T) {
 		}).
 		Return(clientConn, nil).Once()
 
-	conn, err := newResolvedUDPConn(hostPort, time.Millisecond*10, resolver.ResolveUDPAddr, dialer.DialUDP, log.NullLogger)
+	conn, err := newReconnectingUDPConn(hostPort, time.Millisecond*10, resolver.ResolveUDPAddr, dialer.DialUDP, log.NullLogger)
 	assert.NoError(t, err)
 	require.NotNil(t, conn)
 
@@ -261,7 +269,7 @@ func TestResolvedUDPConnEventuallyDials(t *testing.T) {
 	wasCalled := waitForCallWithTimeout(dialCall)
 	assert.True(t, wasCalled)
 
-	connEstablished := waitForConnCondition(conn, func(conn *resolvedUDPConn) bool {
+	connEstablished := waitForConnCondition(conn, func(conn *reconnectingUDPConn) bool {
 		return conn.conn != nil
 	})
 
@@ -306,7 +314,7 @@ func TestResolvedUDPConnNoSwapIfFail(t *testing.T) {
 		}).
 		Return(clientConn, nil).Once()
 
-	conn, err := newResolvedUDPConn(hostPort, time.Millisecond*10, resolver.ResolveUDPAddr, dialer.DialUDP, log.NullLogger)
+	conn, err := newReconnectingUDPConn(hostPort, time.Millisecond*10, resolver.ResolveUDPAddr, dialer.DialUDP, log.NullLogger)
 	assert.NoError(t, err)
 	require.NotNil(t, conn)
 
@@ -351,7 +359,7 @@ func TestResolvedUDPConnWriteRetry(t *testing.T) {
 		}).
 		Return(clientConn, nil).Once()
 
-	conn, err := newResolvedUDPConn(hostPort, time.Millisecond*10, resolver.ResolveUDPAddr, dialer.DialUDP, log.NullLogger)
+	conn, err := newReconnectingUDPConn(hostPort, time.Millisecond*10, resolver.ResolveUDPAddr, dialer.DialUDP, log.NullLogger)
 	assert.NoError(t, err)
 	require.NotNil(t, conn)
 
@@ -381,7 +389,7 @@ func TestResolvedUDPConnWriteRetryFails(t *testing.T) {
 
 	dialer := mockDialer{}
 
-	conn, err := newResolvedUDPConn(hostPort, time.Millisecond*10, resolver.ResolveUDPAddr, dialer.DialUDP, log.NullLogger)
+	conn, err := newReconnectingUDPConn(hostPort, time.Millisecond*10, resolver.ResolveUDPAddr, dialer.DialUDP, log.NullLogger)
 	assert.NoError(t, err)
 	require.NotNil(t, conn)
 
@@ -436,7 +444,7 @@ func TestResolvedUDPConnChanges(t *testing.T) {
 		Port: 34322,
 	}).Return(clientConn2, nil).Once()
 
-	conn, err := newResolvedUDPConn(hostPort, time.Millisecond*10, resolver.ResolveUDPAddr, dialer.DialUDP, log.StdLogger)
+	conn, err := newReconnectingUDPConn(hostPort, time.Millisecond*10, resolver.ResolveUDPAddr, dialer.DialUDP, log.StdLogger)
 	assert.NoError(t, err)
 	require.NotNil(t, conn)
 
@@ -446,7 +454,7 @@ func TestResolvedUDPConnChanges(t *testing.T) {
 	wasCalled := waitForCallWithTimeout(secondDial)
 	assert.True(t, wasCalled)
 
-	connSwapped := waitForConnCondition(conn, func(conn *resolvedUDPConn) bool {
+	connSwapped := waitForConnCondition(conn, func(conn *reconnectingUDPConn) bool {
 		return conn.conn == clientConn2
 	})
 

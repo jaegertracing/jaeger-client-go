@@ -83,12 +83,6 @@ const (
 	// at least a fixed number of traces per second.
 	SamplerTypeLowerBound = "lowerbound"
 
-	// DefaultUDPSpanServerHost is the default host to send the spans to, via UDP
-	DefaultUDPSpanServerHost = "localhost"
-
-	// DefaultUDPSpanServerPort is the default port to send the spans to, via UDP
-	DefaultUDPSpanServerPort = 6831
-
 	// DefaultSamplingServerPort is the default port to fetch sampling config from, via http
 	DefaultSamplingServerPort = 5778
 
