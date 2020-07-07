@@ -228,7 +228,7 @@ func TestReporter(t *testing.T) {
 	assert.Equal(t, "user01", cfg.User)
 	assert.Equal(t, "password01", cfg.Password)
 	assert.Equal(t, false, cfg.DisableAttemptReconnecting)
-	assert.Equal(t, time.Second * 40, cfg.AttemptReconnectInterval)
+	assert.Equal(t, time.Second*40, cfg.AttemptReconnectInterval)
 
 	// Prepare
 	setEnv(t, envEndpoint, "http://1.2.3.4:5678/api/traces")
