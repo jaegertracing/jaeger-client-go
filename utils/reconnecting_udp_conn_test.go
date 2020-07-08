@@ -17,6 +17,7 @@ package utils
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"net"
 	"runtime"
 	"syscall"
@@ -100,22 +101,18 @@ func assertSockBufferSize(t *testing.T, expectedBytes int, conn *net.UDPConn) bo
 	return assert.Equal(t, expectedBytes, bufferBytes)
 }
 
-func assertConnWritable(t *testing.T, conn udpConn, serverConn net.PacketConn) (allSucceed bool) {
+func assertConnWritable(t *testing.T, conn udpConn, serverConn net.PacketConn) {
 	expectedString := "yo this is a test"
 	_, err := conn.Write([]byte(expectedString))
-	allSucceed = assert.NoError(t, err)
+	require.NoError(t, err)
 
 	var buf = make([]byte, len(expectedString))
 	err = serverConn.SetReadDeadline(time.Now().Add(time.Second))
-	assertion := assert.NoError(t, err)
-	allSucceed = allSucceed && assertion
+	require.NoError(t, err)
 
 	_, _, err = serverConn.ReadFrom(buf)
-	assertion = assert.NoError(t, err)
-	allSucceed = allSucceed && assertion
-	assertion = assert.Equal(t, []byte(expectedString), buf)
-
-	return allSucceed && assertion
+	require.NoError(t, err)
+	require.Equal(t, []byte(expectedString), buf)
 }
 
 func waitForCallWithTimeout(call *mock.Call) bool {
@@ -154,6 +151,20 @@ func waitForConnCondition(conn *reconnectingUDPConn, condition func(conn *reconn
 	return conditionVal
 }
 
+func newMockUDPAddr(port int) (*net.UDPAddr, error) {
+	var buf = make([]byte, 4)
+	// random is not seeded to ensure tests are deterministic (also doesnt matter if ip is valid)
+	_, err := rand.Read(buf)
+	if err != nil {
+		return nil, err
+	}
+
+	return &net.UDPAddr{
+		IP:   net.IPv4(buf[0], buf[1], buf[2], buf[3]),
+		Port: port,
+	}, nil
+}
+
 func TestNewResolvedUDPConn(t *testing.T) {
 	hostPort := "blahblah:34322"
 
@@ -161,21 +172,18 @@ func TestNewResolvedUDPConn(t *testing.T) {
 	require.NoError(t, err)
 	defer mockServer.Close()
 
+	mockUDPAddr, err := newMockUDPAddr(34322)
+	require.NoError(t, err)
+
 	resolver := mockResolver{}
 	resolver.
 		On("ResolveUDPAddr", "udp", hostPort).
-		Return(&net.UDPAddr{
-			IP:   net.IPv4(123, 123, 123, 123),
-			Port: 34322,
-		}, nil).
+		Return(mockUDPAddr, nil).
 		Once()
 
 	dialer := mockDialer{}
 	dialer.
-		On("DialUDP", "udp", (*net.UDPAddr)(nil), &net.UDPAddr{
-			IP:   net.IPv4(123, 123, 123, 123),
-			Port: 34322,
-		}).
+		On("DialUDP", "udp", (*net.UDPAddr)(nil), mockUDPAddr).
 		Return(clientConn, nil).
 		Once()
 
@@ -200,21 +208,18 @@ func TestResolvedUDPConnWrites(t *testing.T) {
 	require.NoError(t, err)
 	defer mockServer.Close()
 
+	mockUDPAddr, err := newMockUDPAddr(34322)
+	require.NoError(t, err)
+
 	resolver := mockResolver{}
 	resolver.
 		On("ResolveUDPAddr", "udp", hostPort).
-		Return(&net.UDPAddr{
-			IP:   net.IPv4(123, 123, 123, 123),
-			Port: 34322,
-		}, nil).
+		Return(mockUDPAddr, nil).
 		Once()
 
 	dialer := mockDialer{}
 	dialer.
-		On("DialUDP", "udp", (*net.UDPAddr)(nil), &net.UDPAddr{
-			IP:   net.IPv4(123, 123, 123, 123),
-			Port: 34322,
-		}).
+		On("DialUDP", "udp", (*net.UDPAddr)(nil), mockUDPAddr).
 		Return(clientConn, nil).
 		Once()
 
@@ -241,22 +246,19 @@ func TestResolvedUDPConnEventuallyDials(t *testing.T) {
 	require.NoError(t, err)
 	defer mockServer.Close()
 
+	mockUDPAddr, err := newMockUDPAddr(34322)
+	require.NoError(t, err)
+
 	resolver := mockResolver{}
 	resolver.
 		On("ResolveUDPAddr", "udp", hostPort).
 		Return(nil, fmt.Errorf("failed to resolve")).Once().
 		On("ResolveUDPAddr", "udp", hostPort).
-		Return(&net.UDPAddr{
-			IP:   net.IPv4(123, 123, 123, 123),
-			Port: 34322,
-		}, nil)
+		Return(mockUDPAddr, nil)
 
 	dialer := mockDialer{}
 	dialCall := dialer.
-		On("DialUDP", "udp", (*net.UDPAddr)(nil), &net.UDPAddr{
-			IP:   net.IPv4(123, 123, 123, 123),
-			Port: 34322,
-		}).
+		On("DialUDP", "udp", (*net.UDPAddr)(nil), mockUDPAddr).
 		Return(clientConn, nil).Once()
 
 	conn, err := newReconnectingUDPConn(hostPort, time.Millisecond*10, resolver.ResolveUDPAddr, dialer.DialUDP, log.NullLogger)
@@ -295,23 +297,20 @@ func TestResolvedUDPConnNoSwapIfFail(t *testing.T) {
 	require.NoError(t, err)
 	defer mockServer.Close()
 
+	mockUDPAddr, err := newMockUDPAddr(34322)
+	require.NoError(t, err)
+
 	resolver := mockResolver{}
 	resolver.
 		On("ResolveUDPAddr", "udp", hostPort).
-		Return(&net.UDPAddr{
-			IP:   net.IPv4(123, 123, 123, 123),
-			Port: 34322,
-		}, nil).Once()
+		Return(mockUDPAddr, nil).Once()
 
 	failCall := resolver.On("ResolveUDPAddr", "udp", hostPort).
 		Return(nil, fmt.Errorf("resolve failed"))
 
 	dialer := mockDialer{}
 	dialer.
-		On("DialUDP", "udp", (*net.UDPAddr)(nil), &net.UDPAddr{
-			IP:   net.IPv4(123, 123, 123, 123),
-			Port: 34322,
-		}).
+		On("DialUDP", "udp", (*net.UDPAddr)(nil), mockUDPAddr).
 		Return(clientConn, nil).Once()
 
 	conn, err := newReconnectingUDPConn(hostPort, time.Millisecond*10, resolver.ResolveUDPAddr, dialer.DialUDP, log.NullLogger)
@@ -341,22 +340,19 @@ func TestResolvedUDPConnWriteRetry(t *testing.T) {
 	require.NoError(t, err)
 	defer mockServer.Close()
 
+	mockUDPAddr, err := newMockUDPAddr(34322)
+	require.NoError(t, err)
+
 	resolver := mockResolver{}
 	resolver.
 		On("ResolveUDPAddr", "udp", hostPort).
 		Return(nil, fmt.Errorf("failed to resolve")).Once().
 		On("ResolveUDPAddr", "udp", hostPort).
-		Return(&net.UDPAddr{
-			IP:   net.IPv4(123, 123, 123, 123),
-			Port: 34322,
-		}, nil).Once()
+		Return(mockUDPAddr, nil).Once()
 
 	dialer := mockDialer{}
 	dialer.
-		On("DialUDP", "udp", (*net.UDPAddr)(nil), &net.UDPAddr{
-			IP:   net.IPv4(123, 123, 123, 123),
-			Port: 34322,
-		}).
+		On("DialUDP", "udp", (*net.UDPAddr)(nil), mockUDPAddr).
 		Return(clientConn, nil).Once()
 
 	conn, err := newReconnectingUDPConn(hostPort, time.Millisecond*10, resolver.ResolveUDPAddr, dialer.DialUDP, log.NullLogger)
@@ -414,37 +410,42 @@ func TestResolvedUDPConnChanges(t *testing.T) {
 	require.NoError(t, err)
 	defer mockServer.Close()
 
+	mockUDPAddr1, err := newMockUDPAddr(34322)
+	require.NoError(t, err)
+
 	mockServer2, clientConn2, err := newUDPConn()
 	require.NoError(t, err)
 	defer mockServer2.Close()
 
+	mockUDPAddr2, err := newMockUDPAddr(34322)
+	require.NoError(t, err)
+
+	// ensure address doesn't duplicate mockUDPAddr1
+	for i := 0; i < 10 && mockUDPAddr2.IP.Equal(mockUDPAddr1.IP); i++ {
+		mockUDPAddr2, err = newMockUDPAddr(34322)
+		require.NoError(t, err)
+	}
+
+	// this is really unlikely to ever fail the test, but its here as a safeguard
+	require.False(t, mockUDPAddr2.IP.Equal(mockUDPAddr1.IP))
+
 	resolver := mockResolver{}
 	resolver.
 		On("ResolveUDPAddr", "udp", hostPort).
-		Return(&net.UDPAddr{
-			IP:   net.IPv4(123, 123, 123, 123),
-			Port: 34322,
-		}, nil).Once().
+		Return(mockUDPAddr1, nil).Once().
 		On("ResolveUDPAddr", "udp", hostPort).
-		Return(&net.UDPAddr{
-			IP:   net.IPv4(100, 100, 100, 100),
-			Port: 34322,
-		}, nil)
+		Return(mockUDPAddr2, nil)
 
 	dialer := mockDialer{}
 	dialer.
-		On("DialUDP", "udp", (*net.UDPAddr)(nil), &net.UDPAddr{
-			IP:   net.IPv4(123, 123, 123, 123),
-			Port: 34322,
-		}).
+		On("DialUDP", "udp", (*net.UDPAddr)(nil), mockUDPAddr1).
 		Return(clientConn, nil).Once()
 
-	secondDial := dialer.On("DialUDP", "udp", (*net.UDPAddr)(nil), &net.UDPAddr{
-		IP:   net.IPv4(100, 100, 100, 100),
-		Port: 34322,
-	}).Return(clientConn2, nil).Once()
+	secondDial := dialer.
+		On("DialUDP", "udp", (*net.UDPAddr)(nil), mockUDPAddr2).
+		Return(clientConn2, nil).Once()
 
-	conn, err := newReconnectingUDPConn(hostPort, time.Millisecond*10, resolver.ResolveUDPAddr, dialer.DialUDP, log.StdLogger)
+	conn, err := newReconnectingUDPConn(hostPort, time.Millisecond*10, resolver.ResolveUDPAddr, dialer.DialUDP, log.NullLogger)
 	assert.NoError(t, err)
 	require.NotNil(t, conn)
 
