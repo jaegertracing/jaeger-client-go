@@ -57,11 +57,13 @@ func TestNewAgentClientUDPWithParams(t *testing.T) {
 }
 
 func TestNewAgentClientUDPWithParamsDefaults(t *testing.T) {
-	mockServer, err := newUDPListenerOnPort(DefaultUDPSpanServerPort)
+	mockServer, err := newUDPListenerOnPort(6831)
 	require.NoError(t, err)
 	defer mockServer.Close()
 
-	agentClient, err := NewAgentClientUDPWithParams(AgentClientUDPParams{})
+	agentClient, err := NewAgentClientUDPWithParams(AgentClientUDPParams{
+		HostPort: "localhost:6831",
+	})
 	assert.NoError(t, err)
 	assert.NotNil(t, agentClient)
 	assert.Equal(t, UDPPacketMaxLength, agentClient.maxPacketSize)
@@ -74,11 +76,11 @@ func TestNewAgentClientUDPWithParamsDefaults(t *testing.T) {
 }
 
 func TestNewAgentClientUDPDefaults(t *testing.T) {
-	mockServer, err := newUDPListenerOnPort(DefaultUDPSpanServerPort)
+	mockServer, err := newUDPListenerOnPort(6831)
 	require.NoError(t, err)
 	defer mockServer.Close()
 
-	agentClient, err := NewAgentClientUDP(mockServer.LocalAddr().String(), 0)
+	agentClient, err := NewAgentClientUDP("localhost:6831", 0)
 	assert.NoError(t, err)
 	assert.NotNil(t, agentClient)
 	assert.Equal(t, UDPPacketMaxLength, agentClient.maxPacketSize)

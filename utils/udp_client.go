@@ -49,14 +49,6 @@ type udpConn interface {
 	Close() error
 }
 
-const (
-	// DefaultUDPSpanServerHost is the default host to send the spans to, via UDP
-	DefaultUDPSpanServerHost = "localhost"
-
-	// DefaultUDPSpanServerPort is the default port to send the spans to, via UDP
-	DefaultUDPSpanServerPort = 6831
-)
-
 // AgentClientUDPParams allows specifying options for initializing an AgentClientUDP. An instance of this struct should
 // be passed to NewAgentClientUDPWithParams.
 type AgentClientUDPParams struct {
@@ -69,10 +61,6 @@ type AgentClientUDPParams struct {
 
 // NewAgentClientUDPWithParams creates a client that sends spans to Jaeger Agent over UDP.
 func NewAgentClientUDPWithParams(params AgentClientUDPParams) (*AgentClientUDP, error) {
-	if len(params.HostPort) == 0 {
-		params.HostPort = fmt.Sprintf("%s:%d", DefaultUDPSpanServerHost, DefaultUDPSpanServerPort)
-	}
-
 	// validate hostport
 	if _, _, err := net.SplitHostPort(params.HostPort); err != nil {
 		return nil, err

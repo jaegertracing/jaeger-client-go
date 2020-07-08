@@ -24,8 +24,6 @@ import (
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
-	"github.com/uber/jaeger-client-go/utils"
-
 	"github.com/uber/jaeger-client-go"
 )
 
@@ -191,13 +189,13 @@ func (rc *ReporterConfig) reporterConfigFromEnv() (*ReporterConfig, error) {
 		rc.Password = pswd
 	} else {
 		useEnv := false
-		host := utils.DefaultUDPSpanServerHost
+		host := jaeger.DefaultUDPSpanServerHost
 		if e := os.Getenv(envAgentHost); e != "" {
 			host = e
 			useEnv = true
 		}
 
-		port := utils.DefaultUDPSpanServerPort
+		port := jaeger.DefaultUDPSpanServerPort
 		if e := os.Getenv(envAgentPort); e != "" {
 			if value, err := strconv.ParseInt(e, 10, 0); err == nil {
 				port = int(value)

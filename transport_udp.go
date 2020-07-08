@@ -16,6 +16,7 @@ package jaeger
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/uber/jaeger-client-go/internal/reporterstats"
 	"github.com/uber/jaeger-client-go/log"
@@ -66,6 +67,10 @@ type UDPTransportParams struct {
 // NewUDPTransportWithParams creates a reporter that submits spans to jaeger-agent.
 // TODO: (breaking change) move to transport/ package.
 func NewUDPTransportWithParams(params UDPTransportParams) (Transport, error) {
+	if len(params.HostPort) == 0 {
+		params.HostPort = fmt.Sprintf("%s:%d", DefaultUDPSpanServerHost, DefaultUDPSpanServerPort)
+	}
+
 	if params.Logger == nil {
 		params.Logger = log.StdLogger
 	}
