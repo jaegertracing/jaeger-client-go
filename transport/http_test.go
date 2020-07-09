@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/uber/jaeger-client-go/thrift"
 
 	"github.com/uber/jaeger-client-go"
@@ -167,7 +168,9 @@ func newHTTPServer(t *testing.T) *httpServer {
 	})
 
 	go func() {
-		http.ListenAndServe(":10001", nil)
+		if err := http.ListenAndServe(":10001", nil); err != nil && err != http.ErrServerClosed {
+			require.NoError(t, err)
+		}
 	}()
 
 	return server
