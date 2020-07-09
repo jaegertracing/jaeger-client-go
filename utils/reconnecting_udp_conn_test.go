@@ -151,18 +151,16 @@ func waitForConnCondition(conn *reconnectingUDPConn, condition func(conn *reconn
 	return conditionVal
 }
 
-func newMockUDPAddr(port int) (*net.UDPAddr, error) {
+func newMockUDPAddr(t *testing.T, port int) *net.UDPAddr {
 	var buf = make([]byte, 4)
 	// random is not seeded to ensure tests are deterministic (also doesnt matter if ip is valid)
 	_, err := rand.Read(buf)
-	if err != nil {
-		return nil, err
-	}
+	require.NoError(t, err)
 
 	return &net.UDPAddr{
 		IP:   net.IPv4(buf[0], buf[1], buf[2], buf[3]),
 		Port: port,
-	}, nil
+	}
 }
 
 func TestNewResolvedUDPConn(t *testing.T) {
@@ -172,8 +170,7 @@ func TestNewResolvedUDPConn(t *testing.T) {
 	require.NoError(t, err)
 	defer mockServer.Close()
 
-	mockUDPAddr, err := newMockUDPAddr(34322)
-	require.NoError(t, err)
+	mockUDPAddr := newMockUDPAddr(t, 34322)
 
 	resolver := mockResolver{}
 	resolver.
@@ -208,8 +205,7 @@ func TestResolvedUDPConnWrites(t *testing.T) {
 	require.NoError(t, err)
 	defer mockServer.Close()
 
-	mockUDPAddr, err := newMockUDPAddr(34322)
-	require.NoError(t, err)
+	mockUDPAddr := newMockUDPAddr(t, 34322)
 
 	resolver := mockResolver{}
 	resolver.
@@ -246,8 +242,7 @@ func TestResolvedUDPConnEventuallyDials(t *testing.T) {
 	require.NoError(t, err)
 	defer mockServer.Close()
 
-	mockUDPAddr, err := newMockUDPAddr(34322)
-	require.NoError(t, err)
+	mockUDPAddr := newMockUDPAddr(t, 34322)
 
 	resolver := mockResolver{}
 	resolver.
@@ -297,8 +292,7 @@ func TestResolvedUDPConnNoSwapIfFail(t *testing.T) {
 	require.NoError(t, err)
 	defer mockServer.Close()
 
-	mockUDPAddr, err := newMockUDPAddr(34322)
-	require.NoError(t, err)
+	mockUDPAddr := newMockUDPAddr(t, 34322)
 
 	resolver := mockResolver{}
 	resolver.
@@ -340,8 +334,7 @@ func TestResolvedUDPConnWriteRetry(t *testing.T) {
 	require.NoError(t, err)
 	defer mockServer.Close()
 
-	mockUDPAddr, err := newMockUDPAddr(34322)
-	require.NoError(t, err)
+	mockUDPAddr := newMockUDPAddr(t, 34322)
 
 	resolver := mockResolver{}
 	resolver.
@@ -410,20 +403,17 @@ func TestResolvedUDPConnChanges(t *testing.T) {
 	require.NoError(t, err)
 	defer mockServer.Close()
 
-	mockUDPAddr1, err := newMockUDPAddr(34322)
-	require.NoError(t, err)
+	mockUDPAddr1 := newMockUDPAddr(t, 34322)
 
 	mockServer2, clientConn2, err := newUDPConn()
 	require.NoError(t, err)
 	defer mockServer2.Close()
 
-	mockUDPAddr2, err := newMockUDPAddr(34322)
-	require.NoError(t, err)
+	mockUDPAddr2 := newMockUDPAddr(t, 34322)
 
 	// ensure address doesn't duplicate mockUDPAddr1
 	for i := 0; i < 10 && mockUDPAddr2.IP.Equal(mockUDPAddr1.IP); i++ {
-		mockUDPAddr2, err = newMockUDPAddr(34322)
-		require.NoError(t, err)
+		mockUDPAddr2 = newMockUDPAddr(t, 34322)
 	}
 
 	// this is really unlikely to ever fail the test, but its here as a safeguard
