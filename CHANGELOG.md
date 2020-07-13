@@ -1,9 +1,17 @@
 Changes by Version
 ==================
 
-2.24.1 (unreleased)
+2.25.0 (2020-07-13)
 -------------------
-- Nothing yet.
+## Breaking changes
+- [feat] Periodically re-resolve UDP server address, with opt-out (#520) -- Trevor Foster
+
+  The re-resolving of UDP address is now enabled by default, to make the client more robust in Kubernetes deployments.
+  The old resolve-once behavior can be restored by setting DisableAttemptReconnecting=true in the Configuration struct,
+  or via JAEGER_REPORTER_ATTEMPT_RECONNECTING_DISABLED=true environment variable.
+
+## Bug fixes
+- Do not add invalid context to references (#521) -- Yuri Shkuro
 
 
 2.24.0 (2020-06-14)
