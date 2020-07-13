@@ -414,6 +414,7 @@ func TestThrottling_DebugHeader(t *testing.T) {
 
 	sp := tracer.StartSpan("root", opentracing.ChildOf(ctx)).(*Span)
 	assert.True(t, sp.context.IsDebug())
+	assert.Len(t, sp.References(), 0)
 	closer.Close()
 
 	tracer, closer = NewTracer("DOOP", NewConstSampler(true), NewNullReporter(),

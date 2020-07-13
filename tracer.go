@@ -245,7 +245,10 @@ func (t *Tracer) startSpanWithOptions(
 			continue
 		}
 
-		references = append(references, Reference{Type: ref.Type, Context: ctxRef})
+		if ctxRef.IsValid() {
+			// we don't want empty context that contains only debug-id or baggage
+			references = append(references, Reference{Type: ref.Type, Context: ctxRef})
+		}
 
 		if !hasParent {
 			parent = ctxRef
