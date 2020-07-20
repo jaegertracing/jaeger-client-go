@@ -179,6 +179,28 @@ func TestBaggagePropagationHTTP(t *testing.T) {
 	assert.Equal(t, map[string]string{"some_key": "98:765"}, sp2.(SpanContext).baggage)
 }
 
+// TestOnlyBaggageHeaders verifies that if only baggage headers (in both default formats)
+// are present in the request without a trace ID header, then the baggage is still captured
+// into the new span.
+func TestOnlyBaggageHeaders(t *testing.T) {
+	tracer, closer := NewTracer("DOOP", NewConstSampler(true), NewNullReporter())
+	defer closer.Close()
+
+	// both formats of baggage headers should be parsed and
+	h := http.Header{
+		"uberctx-key1":   []string{"val1"},
+		"jaeger-baggage": []string{"key2=val2"},
+	}
+	spc, err := tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(h))
+	require.NoError(t, err)
+	require.Equal(t, map[string]string{"key1": "val1", "key2": "val2"}, spc.(SpanContext).baggage)
+
+	sp := tracer.StartSpan("baggage", opentracing.ChildOf(spc))
+	assert.Equal(t, "val1", sp.BaggageItem("key1"))
+	assert.Equal(t, "val2", sp.BaggageItem("key2"))
+	assert.Len(t, sp.(*Span).References(), 0, "must be a root span")
+}
+
 func TestJaegerBaggageHeader(t *testing.T) {
 	var testcases = []struct {
 		refFunc func(opentracing.SpanContext) opentracing.SpanReference
