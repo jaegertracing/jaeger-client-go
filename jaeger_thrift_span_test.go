@@ -126,7 +126,7 @@ func TestBuildLogs(t *testing.T) {
 		{field: log.Uint64("k", 123), expected: []*j.Tag{{Key: "k", VType: j.TagType_LONG, VLong: &someLong}}},
 		{field: log.Float32("k", 123), expected: []*j.Tag{{Key: "k", VType: j.TagType_DOUBLE, VDouble: &someDouble}}},
 		{field: log.Float64("k", 123), expected: []*j.Tag{{Key: "k", VType: j.TagType_DOUBLE, VDouble: &someDouble}}},
-		{field: log.Error(errors.New(errString)), expected: []*j.Tag{{Key: "error", VType: j.TagType_STRING, VStr: &errString}}},
+		{field: log.Error(errors.New(errString)), expected: []*j.Tag{{Key: "error.object", VType: j.TagType_STRING, VStr: &errString}}},
 		{field: log.Object("k", someSlice), expected: []*j.Tag{{Key: "k", VType: j.TagType_STRING, VStr: &someSliceString}}},
 		{
 			field: log.Lazy(func(fv log.Encoder) {
@@ -146,7 +146,7 @@ func TestBuildLogs(t *testing.T) {
 			},
 			// this is a bit fragile, but ¯\_(ツ)_/¯
 			expected: []*j.Tag{
-				{Key: "error", VType: j.TagType_STRING, VStr: getStringPtr("non-even keyValues len: 1")},
+				{Key: "error.object", VType: j.TagType_STRING, VStr: getStringPtr("non-even keyValues len: 1")},
 				{Key: "function", VType: j.TagType_STRING, VStr: getStringPtr("LogKV")},
 			},
 		},
@@ -403,7 +403,8 @@ func compareTags(t *testing.T, expected, actual *j.Tag, testName string) {
 		return
 	}
 	if expected == nil || actual == nil {
-		assert.Fail(t, "one of the tags is nil", testName)
+		t.Logf("one of the tags is nil, test=%s, expected=%v, actual=%v", testName, expected, actual)
+		assert.Fail(t, "one of the tags is nil")
 		return
 	}
 	assert.Equal(t, expected.Key, actual.Key, testName)

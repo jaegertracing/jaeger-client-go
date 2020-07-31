@@ -142,7 +142,7 @@ func TestThriftSpanLogs(t *testing.T) {
 		{fields: fields(log.Float32("something", 123)), expected: `{"something":"123.000000"}`},
 		{fields: fields(log.Float64("something", 123)), expected: `{"something":"123.000000"}`},
 		{fields: fields(log.Error(errors.New("drugs are baaad, m-k"))),
-			expected: `{"error":"drugs are baaad, m-k"}`},
+			expected: `{"error.object":"drugs are baaad, m-k"}`},
 		{fields: fields(log.Object("something", 123)), expected: `{"something":"123"}`},
 		{
 			fields: fields(log.Lazy(func(fv log.Encoder) {
@@ -161,7 +161,7 @@ func TestThriftSpanLogs(t *testing.T) {
 				sp.LogKV("non-even number of arguments")
 			},
 			// this is a bit fragile, but ¯\_(ツ)_/¯
-			expected: `{"error":"non-even keyValues len: 1","function":"LogKV"}`,
+			expected: `{"error.object":"non-even keyValues len: 1","function":"LogKV"}`,
 		},
 		{
 			logFunc: func(sp opentracing.Span) {
