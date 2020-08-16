@@ -361,3 +361,40 @@ func TestSpan_References(t *testing.T) {
 		})
 	}
 }
+
+func TestSpanContextRaces(t *testing.T) {
+	t.Skip("Skipped: test will panic with -race, see https://github.com/jaegertracing/jaeger-client-go/issues/526")
+	tracer, closer := NewTracer("test", NewConstSampler(true), NewNullReporter())
+	defer closer.Close()
+
+	span := tracer.StartSpan("test-span").(*Span)
+	end := make(chan struct{})
+
+	accessor := func(f func()) {
+		for {
+			select {
+			case <-end:
+				return
+			default:
+				f()
+			}
+		}
+	}
+	go accessor(func() {
+		span.Context()
+	})
+	go accessor(func() {
+		span.SetTag("k", "v")
+	})
+	go accessor(func() {
+		span.LogKV("k", "v")
+	})
+	go accessor(func() {
+		span.SetBaggageItem("k", "v")
+	})
+	go accessor(func() {
+		span.BaggageItem("k")
+	})
+	time.Sleep(100 * time.Millisecond)
+	close(end)
+}
