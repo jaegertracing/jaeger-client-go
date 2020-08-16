@@ -303,7 +303,14 @@ func (s *Span) fixLogsIfDropped() {
 	s.numDroppedLogs = 0
 }
 
-// SetBaggageItem implements SetBaggageItem() of opentracing.SpanContext
+// SetBaggageItem implements SetBaggageItem() of opentracing.SpanContext.
+// The call is proxied via tracer.baggageSetter to allow policies to be applied
+// before allowing to set/replace baggage keys.
+// The setter eventually stores a new SpanContext with extended baggage:
+//
+//     span.context = span.context.WithBaggageItem(key, value)
+//
+//  See SpanContext.WithBaggageItem() for explanation why it's done this way.
 func (s *Span) SetBaggageItem(key, value string) opentracing.Span {
 	s.Lock()
 	defer s.Unlock()

@@ -304,6 +304,14 @@ func (c *SpanContext) CopyFrom(ctx *SpanContext) {
 }
 
 // WithBaggageItem creates a new context with an extra baggage item.
+//
+// The SpanContext is designed to be immutable and passed by value. As such,
+// it cannot contain any locks, and should only hold immutable data, including baggage.
+// Another reason for why baggage is immutable is when the span context is passed
+// as a parent when starting a new span. The new span's baggage cannot affect the parent
+// span's baggage, so the child span either needs to take a copy of the parent baggage
+// (which is expensive and unnecessary since baggage rarely changes in the life span of
+// a trace), or it needs to do a copy-on-write, which is the approach taken here.
 func (c SpanContext) WithBaggageItem(key, value string) SpanContext {
 	var newBaggage map[string]string
 	if c.baggage == nil {
