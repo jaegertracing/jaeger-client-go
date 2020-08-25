@@ -439,7 +439,7 @@ func (t *Tracer) emitNewSpanMetrics(sp *Span, newTrace bool) {
 func (t *Tracer) reportSpan(sp *Span) {
 	if !sp.isSamplingFinalized() {
 		t.metrics.SpansFinishedDelayedSampling.Inc(1)
-	} else if sp.context.IsSampled() {
+	} else if sp.SpanContext().IsSampled() {
 		t.metrics.SpansFinishedSampled.Inc(1)
 	} else {
 		t.metrics.SpansFinishedNotSampled.Inc(1)
@@ -448,7 +448,7 @@ func (t *Tracer) reportSpan(sp *Span) {
 	// Note: if the reporter is processing Span asynchronously then it needs to Retain() the span,
 	// and then Release() it when no longer needed.
 	// Otherwise, the span may be reused for another trace and its data may be overwritten.
-	if sp.context.IsSampled() {
+	if sp.SpanContext().IsSampled() {
 		t.reporter.Report(sp)
 	}
 

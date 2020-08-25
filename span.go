@@ -99,6 +99,9 @@ func (s *Span) SetTag(key string, value interface{}) opentracing.Span {
 	return s.setTagInternal(key, value, true)
 }
 
+// setTagInternal sets tags in a thread-safe manner if lock param is set to true.
+// lock param can be set to false if concurrent access in not expected like when span is created.
+// The caller shouldn't obtain any lock on the span while calling this as it will lead to a deadlock.
 func (s *Span) setTagInternal(key string, value interface{}, lock bool) opentracing.Span {
 	s.observer.OnSetTag(key, value)
 	if key == string(ext.SamplingPriority) && !setSamplingPriority(s, value) {
@@ -120,8 +123,8 @@ func (s *Span) setTagInternal(key string, value interface{}, lock bool) opentrac
 
 // SpanContext returns span context
 func (s *Span) SpanContext() SpanContext {
-	s.Lock()
-	defer s.Unlock()
+	s.RLock()
+	defer s.RUnlock()
 	return s.context
 }
 
@@ -345,7 +348,7 @@ func (s *Span) FinishWithOptions(options opentracing.FinishOptions) {
 		decision := s.tracer.sampler.OnFinishSpan(s)
 		s.applySamplingDecision(decision, true)
 	}
-	if s.context.IsSampled() {
+	if s.SpanContext().IsSampled() {
 		s.Lock()
 		s.fixLogsIfDropped()
 		if len(options.LogRecords) > 0 || len(options.BulkLogData) > 0 {
@@ -366,8 +369,8 @@ func (s *Span) FinishWithOptions(options opentracing.FinishOptions) {
 
 // Context implements opentracing.Span API
 func (s *Span) Context() opentracing.SpanContext {
-	s.Lock()
-	defer s.Unlock()
+	s.RLock()
+	defer s.RUnlock()
 	return s.context
 }
 
@@ -425,12 +428,15 @@ func (s *Span) serviceName() string {
 	return s.tracer.serviceName
 }
 
+// applySamplingDecision modifies sampling state in a thread-safe manner if lock param is set to true.
+// lock param can be set to false if concurrent access in not expected like when span is created.
+// The caller shouldn't obtain any lock on the span while calling this as it will lead to a deadlock.
 func (s *Span) applySamplingDecision(decision SamplingDecision, lock bool) {
 	if !decision.Retryable {
-		s.context.samplingState.setFinal()
+		s.SpanContext().samplingState.setFinal()
 	}
 	if decision.Sample {
-		s.context.samplingState.setSampled()
+		s.SpanContext().samplingState.setSampled()
 		if len(decision.Tags) > 0 {
 			if lock {
 				s.Lock()
@@ -445,12 +451,12 @@ func (s *Span) applySamplingDecision(decision SamplingDecision, lock bool) {
 
 // Span can be written to if it is sampled or the sampling decision has not been finalized.
 func (s *Span) isWriteable() bool {
-	state := s.context.samplingState
+	state := s.SpanContext().samplingState
 	return !state.isFinal() || state.isSampled()
 }
 
 func (s *Span) isSamplingFinalized() bool {
-	return s.context.samplingState.isFinal()
+	return s.SpanContext().samplingState.isFinal()
 }
 
 // setSamplingPriority returns true if the flag was updated successfully, false otherwise.
@@ -469,18 +475,19 @@ func setSamplingPriority(s *Span, value interface{}) bool {
 	if !ok {
 		return false
 	}
+	ctx := s.SpanContext()
 	if val == 0 {
-		s.context.samplingState.unsetSampled()
-		s.context.samplingState.setFinal()
+		ctx.samplingState.unsetSampled()
+		ctx.samplingState.setFinal()
 		return true
 	}
 	if s.tracer.options.noDebugFlagOnForcedSampling {
-		s.context.samplingState.setSampled()
-		s.context.samplingState.setFinal()
+		ctx.samplingState.setSampled()
+		ctx.samplingState.setFinal()
 		return true
 	} else if s.tracer.isDebugAllowed(s.operationName) {
-		s.context.samplingState.setDebugAndSampled()
-		s.context.samplingState.setFinal()
+		ctx.samplingState.setDebugAndSampled()
+		ctx.samplingState.setFinal()
 		return true
 	}
 	return false
@@ -488,7 +495,5 @@ func setSamplingPriority(s *Span, value interface{}) bool {
 
 // EnableFirehose enables firehose flag on the span context
 func EnableFirehose(s *Span) {
-	s.Lock()
-	defer s.Unlock()
-	s.context.samplingState.setFirehose()
+	s.SpanContext().samplingState.setFirehose()
 }
