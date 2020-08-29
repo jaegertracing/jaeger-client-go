@@ -215,6 +215,13 @@ func (p *BinaryPropagator) Inject(
 	return nil
 }
 
+// These are intended to be unimaginably high: above this number we declare
+// the data is corrupted, to protect against running out of memory
+const (
+	maxBinaryBaggage  = 1024 * 1024
+	maxBinaryValueLen = 100 * 1024 * 1024
+)
+
 // Extract implements Extractor of BinaryPropagator
 func (p *BinaryPropagator) Extract(abstractCarrier interface{}) (SpanContext, error) {
 	carrier, ok := abstractCarrier.(io.Reader)
@@ -245,6 +252,9 @@ func (p *BinaryPropagator) Extract(abstractCarrier interface{}) (SpanContext, er
 	if err := binary.Read(carrier, binary.BigEndian, &numBaggage); err != nil {
 		return emptyContext, opentracing.ErrSpanContextCorrupted
 	}
+	if numBaggage > maxBinaryBaggage {
+		return emptyContext, opentracing.ErrSpanContextCorrupted
+	}
 	if iNumBaggage := int(numBaggage); iNumBaggage > 0 {
 		ctx.baggage = make(map[string]string, iNumBaggage)
 		buf := p.buffers.Get().(*bytes.Buffer)
@@ -255,6 +265,9 @@ func (p *BinaryPropagator) Extract(abstractCarrier interface{}) (SpanContext, er
 			if err := binary.Read(carrier, binary.BigEndian, &keyLen); err != nil {
 				return emptyContext, opentracing.ErrSpanContextCorrupted
 			}
+			if keyLen > maxBinaryValueLen {
+				return emptyContext, opentracing.ErrSpanContextCorrupted
+			}
 			buf.Reset()
 			buf.Grow(int(keyLen))
 			if n, err := io.CopyN(buf, carrier, int64(keyLen)); err != nil || int32(n) != keyLen {
@@ -263,6 +276,9 @@ func (p *BinaryPropagator) Extract(abstractCarrier interface{}) (SpanContext, er
 			key := buf.String()
 
 			if err := binary.Read(carrier, binary.BigEndian, &valLen); err != nil {
+				return emptyContext, opentracing.ErrSpanContextCorrupted
+			}
+			if valLen > maxBinaryValueLen {
 				return emptyContext, opentracing.ErrSpanContextCorrupted
 			}
 			buf.Reset()

@@ -16,7 +16,9 @@ package jaeger
 
 import (
 	"bytes"
+	"encoding/base64"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -125,6 +127,26 @@ func TestSpanPropagator(t *testing.T) {
 		{Name: "jaeger.tracer.traces", Tags: map[string]string{"state": "started", "sampled": "y"}, Value: 1},
 		{Name: "jaeger.tracer.traces", Tags: map[string]string{"state": "joined", "sampled": "y"}, Value: len(tests)},
 	}...)
+}
+
+func TestBinaryCorruption(t *testing.T) {
+	const op = "test"
+	reporter := NewInMemoryReporter()
+	tracer, closer := NewTracer("x", NewConstSampler(true), reporter)
+
+	sp := tracer.StartSpan(op)
+	carrier := new(bytes.Buffer)
+	err := tracer.Inject(sp.Context(), opentracing.Binary, carrier)
+	assert.NoError(t, err)
+
+	// suppose we encode the data then forget to decode it
+	data := base64.StdEncoding.EncodeToString(carrier.Bytes())
+	_, err = tracer.Extract(opentracing.Binary, strings.NewReader(data))
+	if assert.Error(t, err) {
+		assert.Equal(t, opentracing.ErrSpanContextCorrupted, err)
+	}
+	sp.Finish()
+	closer.Close()
 }
 
 func TestSpanIntegrityAfterSerialize(t *testing.T) {
