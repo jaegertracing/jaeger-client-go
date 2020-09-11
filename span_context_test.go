@@ -64,9 +64,9 @@ func TestContextFromString(t *testing.T) {
 	assert.EqualValues(t, 1, ctx.spanID)
 	assert.EqualValues(t, 1, ctx.parentID)
 	assert.True(t, ctx.IsSampled())
-	assert.Equal(t, "ff", SpanID(255).String())
-	assert.Equal(t, "ff", TraceID{Low: 255}.String())
-	assert.Equal(t, "ff00000000000000ff", TraceID{High: 255, Low: 255}.String())
+	assert.Equal(t, "00000000000000ff", SpanID(255).String())
+	assert.Equal(t, "00000000000000ff", TraceID{Low: 255}.String())
+	assert.Equal(t, "00000000000000ff00000000000000ff", TraceID{High: 255, Low: 255}.String())
 	ctx = NewSpanContext(TraceID{High: 255, Low: 255}, SpanID(1), SpanID(1), false, nil)
 	assert.Equal(t, "00000000000000ff00000000000000ff:0000000000000001:0000000000000001:0", ctx.String())
 }

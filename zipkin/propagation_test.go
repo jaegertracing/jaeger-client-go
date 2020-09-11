@@ -32,33 +32,33 @@ var (
 
 var (
 	rootSampledHeader = opentracing.TextMapCarrier{
-		"x-b3-traceid": "1",
-		"x-b3-spanid":  "2",
-		"x-b3-sampled": "1",
+		"x-b3-traceid": "0000000000000001",
+		"x-b3-spanid":  "0000000000000002",
+		"x-b3-sampled": "0000000000000001",
 		"baggage-foo":  "bar",
 	}
 	nonRootSampledHeader = opentracing.TextMapCarrier{
-		"x-b3-traceid":      "1",
-		"x-b3-spanid":       "2",
-		"x-b3-parentspanid": "1",
+		"x-b3-traceid":      "0000000000000001",
+		"x-b3-spanid":       "0000000000000002",
+		"x-b3-parentspanid": "0000000000000001",
 		"x-b3-sampled":      "1",
 	}
 	nonRootNonSampledHeader = opentracing.TextMapCarrier{
-		"x-b3-traceid":      "1",
-		"x-b3-spanid":       "2",
-		"x-b3-parentspanid": "1",
+		"x-b3-traceid":      "0000000000000001",
+		"x-b3-spanid":       "0000000000000002",
+		"x-b3-parentspanid": "0000000000000001",
 		"x-b3-sampled":      "0",
 	}
 	rootSampledBooleanHeader = opentracing.TextMapCarrier{
-		"x-b3-traceid": "1",
-		"x-b3-spanid":  "2",
+		"x-b3-traceid": "0000000000000001",
+		"x-b3-spanid":  "0000000000000002",
 		"x-b3-sampled": "true",
 		"baggage-foo":  "bar",
 	}
 	nonRootSampledBooleanHeader = opentracing.TextMapCarrier{
-		"x-b3-traceid":      "1",
-		"x-b3-spanid":       "2",
-		"x-b3-parentspanid": "1",
+		"x-b3-traceid":      "0000000000000001",
+		"x-b3-spanid":       "0000000000000002",
+		"x-b3-parentspanid": "0000000000000001",
 		"x-b3-sampled":      "true",
 	}
 	invalidHeader = opentracing.TextMapCarrier{
@@ -69,12 +69,12 @@ var (
 	}
 	sampled128bitTraceID = opentracing.TextMapCarrier{
 		"x-b3-traceid": "463ac35c9f6413ad48485a3953bb6124",
-		"x-b3-spanid":  "2",
+		"x-b3-spanid":  "0000000000000002",
 		"x-b3-sampled": "1",
 	}
 	invalidTraceID = opentracing.TextMapCarrier{
 		"x-b3-traceid": "00000000000000000000000000000000",
-		"x-b3-spanid":  "2",
+		"x-b3-spanid":  "0000000000000002",
 		"x-b3-sampled": "1",
 	}
 )
