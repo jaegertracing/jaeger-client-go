@@ -379,7 +379,7 @@ func (t TraceID) IsValid() bool {
 // ------- SpanID -------
 
 func (s SpanID) String() string {
-	return fmt.Sprintf("%x", uint64(s))
+	return fmt.Sprintf("%016x", uint64(s))
 }
 
 // SpanIDFromString creates a SpanID from a hexadecimal string

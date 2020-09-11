@@ -189,6 +189,33 @@ func TestTraceIDString(t *testing.T) {
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			assert.Equal(t, tc.expected, tc.in.String())
+			parsed, err := TraceIDFromString(tc.in.String())
+			assert.NoError(t, err)
+			assert.Equal(t, tc.in, parsed)
+		})
+	}
+}
+
+func TestSpanIDString(t *testing.T) {
+	var tests = map[string]struct {
+		in       SpanID
+		expected string
+	}{
+		"SpanID zero": {
+			in:       0,
+			expected: "0000000000000000",
+		},
+		"SpanID non zero": {
+			in:       math.MaxUint64/16 - 405,
+			expected: "0ffffffffffffe6a",
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, tc.in.String())
+			parsed, err := SpanIDFromString(tc.in.String())
+			assert.NoError(t, err)
+			assert.Equal(t, tc.in, parsed)
 		})
 	}
 }
