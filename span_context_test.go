@@ -15,6 +15,7 @@
 package jaeger
 
 import (
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -165,4 +166,29 @@ func TestSpanContext_CopyFrom(t *testing.T) {
 	ctx2.CopyFrom(&ctx)
 	assert.Equal(t, ctx, ctx2)
 	assert.Equal(t, "y", ctx2.baggage["x"])
+}
+
+func TestTraceIDString(t *testing.T) {
+	var tests = map[string]struct {
+		in       TraceID
+		expected string
+	}{
+		"Empty TraceID": {
+			in:       TraceID{},
+			expected: "0000000000000000",
+		},
+		"TraceID low only": {
+			in:       TraceID{Low: math.MaxUint64/16 - 405},
+			expected: "0ffffffffffffe6a",
+		},
+		"TraceID low and high": {
+			in:       TraceID{High: math.MaxUint64 / 16, Low: math.MaxUint64/16 - 405},
+			expected: "0fffffffffffffff0ffffffffffffe6a",
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, tc.in.String())
+		})
+	}
 }
