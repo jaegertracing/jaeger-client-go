@@ -32,31 +32,31 @@ var (
 
 var (
 	rootSampledHeader = opentracing.TextMapCarrier{
-		"x-b3-traceid": "1",
+		"x-b3-traceid": "0000000000000001",
 		"x-b3-spanid":  "2",
 		"x-b3-sampled": "1",
 		"baggage-foo":  "bar",
 	}
 	nonRootSampledHeader = opentracing.TextMapCarrier{
-		"x-b3-traceid":      "1",
+		"x-b3-traceid":      "0000000000000001",
 		"x-b3-spanid":       "2",
 		"x-b3-parentspanid": "1",
 		"x-b3-sampled":      "1",
 	}
 	nonRootNonSampledHeader = opentracing.TextMapCarrier{
-		"x-b3-traceid":      "1",
+		"x-b3-traceid":      "0000000000000001",
 		"x-b3-spanid":       "2",
 		"x-b3-parentspanid": "1",
 		"x-b3-sampled":      "0",
 	}
 	rootSampledBooleanHeader = opentracing.TextMapCarrier{
-		"x-b3-traceid": "1",
+		"x-b3-traceid": "0000000000000001",
 		"x-b3-spanid":  "2",
 		"x-b3-sampled": "true",
 		"baggage-foo":  "bar",
 	}
 	nonRootSampledBooleanHeader = opentracing.TextMapCarrier{
-		"x-b3-traceid":      "1",
+		"x-b3-traceid":      "0000000000000001",
 		"x-b3-spanid":       "2",
 		"x-b3-parentspanid": "1",
 		"x-b3-sampled":      "true",
@@ -156,7 +156,7 @@ func TestCustomBaggagePrefix(t *testing.T) {
 	err := propag.Inject(sc, hdr)
 	assert.Nil(t, err)
 	m := opentracing.TextMapCarrier{
-		"x-b3-traceid": "1",
+		"x-b3-traceid": "0000000000000001",
 		"x-b3-spanid":  "2",
 		"x-b3-sampled": "1",
 		"emoji:)foo":   "bar",

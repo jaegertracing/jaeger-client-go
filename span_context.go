@@ -344,9 +344,9 @@ func (c *SpanContext) isDebugIDContainerOnly() bool {
 
 func (t TraceID) String() string {
 	if t.High == 0 {
-		return fmt.Sprintf("%x", t.Low)
+		return fmt.Sprintf("%016x", t.Low)
 	}
-	return fmt.Sprintf("%x%016x", t.High, t.Low)
+	return fmt.Sprintf("%016x%016x", t.High, t.Low)
 }
 
 // TraceIDFromString creates a TraceID from a hexadecimal string
@@ -379,7 +379,7 @@ func (t TraceID) IsValid() bool {
 // ------- SpanID -------
 
 func (s SpanID) String() string {
-	return fmt.Sprintf("%x", uint64(s))
+	return fmt.Sprintf("%016x", uint64(s))
 }
 
 // SpanIDFromString creates a SpanID from a hexadecimal string

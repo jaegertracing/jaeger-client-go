@@ -15,6 +15,7 @@
 package jaeger
 
 import (
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -63,9 +64,9 @@ func TestContextFromString(t *testing.T) {
 	assert.EqualValues(t, 1, ctx.spanID)
 	assert.EqualValues(t, 1, ctx.parentID)
 	assert.True(t, ctx.IsSampled())
-	assert.Equal(t, "ff", SpanID(255).String())
-	assert.Equal(t, "ff", TraceID{Low: 255}.String())
-	assert.Equal(t, "ff00000000000000ff", TraceID{High: 255, Low: 255}.String())
+	assert.Equal(t, "00000000000000ff", SpanID(255).String())
+	assert.Equal(t, "00000000000000ff", TraceID{Low: 255}.String())
+	assert.Equal(t, "00000000000000ff00000000000000ff", TraceID{High: 255, Low: 255}.String())
 	ctx = NewSpanContext(TraceID{High: 255, Low: 255}, SpanID(1), SpanID(1), false, nil)
 	assert.Equal(t, "00000000000000ff00000000000000ff:0000000000000001:0000000000000001:0", ctx.String())
 }
@@ -165,4 +166,56 @@ func TestSpanContext_CopyFrom(t *testing.T) {
 	ctx2.CopyFrom(&ctx)
 	assert.Equal(t, ctx, ctx2)
 	assert.Equal(t, "y", ctx2.baggage["x"])
+}
+
+func TestTraceIDString(t *testing.T) {
+	var tests = map[string]struct {
+		in       TraceID
+		expected string
+	}{
+		"Empty TraceID": {
+			in:       TraceID{},
+			expected: "0000000000000000",
+		},
+		"TraceID low only": {
+			in:       TraceID{Low: math.MaxUint64/16 - 405},
+			expected: "0ffffffffffffe6a",
+		},
+		"TraceID low and high": {
+			in:       TraceID{High: math.MaxUint64 / 16, Low: math.MaxUint64/16 - 405},
+			expected: "0fffffffffffffff0ffffffffffffe6a",
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, tc.in.String())
+			parsed, err := TraceIDFromString(tc.in.String())
+			assert.NoError(t, err)
+			assert.Equal(t, tc.in, parsed)
+		})
+	}
+}
+
+func TestSpanIDString(t *testing.T) {
+	var tests = map[string]struct {
+		in       SpanID
+		expected string
+	}{
+		"SpanID zero": {
+			in:       0,
+			expected: "0000000000000000",
+		},
+		"SpanID non zero": {
+			in:       math.MaxUint64/16 - 405,
+			expected: "0ffffffffffffe6a",
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, tc.in.String())
+			parsed, err := SpanIDFromString(tc.in.String())
+			assert.NoError(t, err)
+			assert.Equal(t, tc.in, parsed)
+		})
+	}
 }
