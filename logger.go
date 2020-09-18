@@ -26,7 +26,7 @@ type Logger interface {
 	// Error logs a message at error priority
 	Error(msg string)
 
-	// Infof logs a message at info priority
+	// Info logs a message at info priority
 	Info(msg string)
 
 	// Infof logs a message at info priority
@@ -42,7 +42,7 @@ func (l *stdLogger) Error(msg string) {
 	log.Printf("ERROR: %s", msg)
 }
 
-// Infof logs a message at info priority
+// Info logs a message at info priority
 func (l *stdLogger) Info(msg string) {
 	log.Printf(msg)
 }
