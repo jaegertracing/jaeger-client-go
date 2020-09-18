@@ -23,6 +23,7 @@ import (
 func TestLogger(t *testing.T) {
 	for _, logger := range []Logger{StdLogger, NullLogger} {
 		logger.Infof("Hi %s", "there")
+		logger.Info("Big")
 		logger.Error("Bad wolf")
 	}
 }
@@ -30,11 +31,13 @@ func TestLogger(t *testing.T) {
 func TestCompatibility(t *testing.T) {
 	for _, logger := range []log.Logger{StdLogger, NullLogger} {
 		logger.Infof("Hi %s", "there")
+		logger.Info("Big")
 		logger.Error("Bad wolf")
 	}
 
 	for _, logger := range []Logger{log.StdLogger, log.NullLogger} {
 		logger.Infof("Hi %s", "there")
+		logger.Info("Big")
 		logger.Error("Bad wolf")
 	}
 }
