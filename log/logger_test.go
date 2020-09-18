@@ -85,6 +85,11 @@ func TestDebugLogAdapter_delegation(t *testing.T) {
 	assert.False(t, infoErrorLogger.infoCalled)
 	assert.False(t, infoErrorLogger.errorCalled)
 
+	adapted.Info("Frodo")
+	assert.True(t, infoErrorLogger.infoCalled)
+	assert.Equal(t, "Frodo", infoErrorLogger.msg)
+	infoErrorLogger.Reset()
+
 	adapted.Infof("Bodo", "Proudfoot")
 	assert.True(t, infoErrorLogger.infoCalled)
 	assert.Equal(t, "Bodo", infoErrorLogger.msg)
