@@ -120,7 +120,7 @@ func DebugLogAdapter(logger Logger) DebugLogger {
 	if debugLogger, ok := logger.(DebugLogger); ok {
 		return debugLogger
 	}
-	logger.Infof("debug logging disabled")
+	logger.Info("debug logging disabled")
 	return debugDisabledLogAdapter{logger: logger}
 }
 
