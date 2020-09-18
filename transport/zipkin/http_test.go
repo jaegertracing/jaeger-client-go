@@ -118,6 +118,8 @@ func (r *recordingLogger) Error(msg string) {
 	r.errors = append(r.errors, msg)
 }
 
+func (r *recordingLogger) Info(msg string) {}
+
 func (r *recordingLogger) Infof(msg string, args ...interface{}) {}
 
 func TestHTTPErrorLogging(t *testing.T) {
@@ -144,7 +146,7 @@ func TestHTTPErrorLogging(t *testing.T) {
 	}
 
 	for _, tc := range tcs {
-		logger := new(recordingLogger)
+		logger := &recordingLogger{}
 
 		sender, err := NewHTTPTransport(tc.URL)
 		require.NoError(t, err)

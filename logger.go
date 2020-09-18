@@ -27,6 +27,9 @@ type Logger interface {
 	Error(msg string)
 
 	// Infof logs a message at info priority
+	Info(msg string)
+
+	// Infof logs a message at info priority
 	Infof(msg string, args ...interface{})
 }
 
@@ -40,6 +43,11 @@ func (l *stdLogger) Error(msg string) {
 }
 
 // Infof logs a message at info priority
+func (l *stdLogger) Info(msg string) {
+	log.Printf(msg)
+}
+
+// Infof logs a message at info priority
 func (l *stdLogger) Infof(msg string, args ...interface{}) {
 	log.Printf(msg, args...)
 }
@@ -50,4 +58,5 @@ var NullLogger = &nullLogger{}
 type nullLogger struct{}
 
 func (l *nullLogger) Error(msg string)                      {}
+func (l *nullLogger) Info(msg string)                       {}
 func (l *nullLogger) Infof(msg string, args ...interface{}) {}

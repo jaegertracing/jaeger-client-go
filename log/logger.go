@@ -30,6 +30,9 @@ type Logger interface {
 	Error(msg string)
 
 	// Infof logs a message at info priority
+	Info(msg string)
+
+	// Infof logs a message at info priority
 	Infof(msg string, args ...interface{})
 }
 
@@ -40,6 +43,11 @@ type stdLogger struct{}
 
 func (l *stdLogger) Error(msg string) {
 	log.Printf("ERROR: %s", msg)
+}
+
+// Infof logs a message at info priority
+func (l *stdLogger) Info(msg string) {
+	log.Printf(msg)
 }
 
 // Infof logs a message at info priority
@@ -58,6 +66,7 @@ var NullLogger = &nullLogger{}
 type nullLogger struct{}
 
 func (l *nullLogger) Error(msg string)                       {}
+func (l *nullLogger) Info(msg string)                        {}
 func (l *nullLogger) Infof(msg string, args ...interface{})  {}
 func (l *nullLogger) Debugf(msg string, args ...interface{}) {}
 
@@ -71,6 +80,13 @@ type BytesBufferLogger struct {
 func (l *BytesBufferLogger) Error(msg string) {
 	l.mux.Lock()
 	l.buf.WriteString(fmt.Sprintf("ERROR: %s\n", msg))
+	l.mux.Unlock()
+}
+
+// Info implements Logger.
+func (l *BytesBufferLogger) Info(msg string) {
+	l.mux.Lock()
+	l.buf.WriteString("INFO: " + msg + "\n")
 	l.mux.Unlock()
 }
 
@@ -130,6 +146,10 @@ type debugDisabledLogAdapter struct {
 
 func (d debugDisabledLogAdapter) Error(msg string) {
 	d.logger.Error(msg)
+}
+
+func (d debugDisabledLogAdapter) Info(msg string) {
+	d.logger.Info(msg)
 }
 
 func (d debugDisabledLogAdapter) Infof(msg string, args ...interface{}) {

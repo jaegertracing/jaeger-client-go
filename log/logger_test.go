@@ -52,6 +52,11 @@ func (i *mockLogger) Error(msg string) {
 	i.msg = msg
 }
 
+func (i *mockLogger) Info(msg string) {
+	i.infoCalled = true
+	i.msg = msg
+}
+
 func (i *mockLogger) Infof(msg string, args ...interface{}) {
 	i.infoCalled = true
 	i.msg = msg
