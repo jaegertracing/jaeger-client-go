@@ -47,7 +47,7 @@ func (l *stdLogger) Error(msg string) {
 
 // Info logs a message at info priority
 func (l *stdLogger) Info(msg string) {
-	log.Printf(msg)
+	log.Print(msg)
 }
 
 // Infof logs a message at info priority
