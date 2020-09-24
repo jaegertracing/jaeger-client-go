@@ -5,7 +5,7 @@ imports:
   version: 3a771d992973f24aa725d07868b467d1ddfceafb
   subpackages:
   - quantile
-- name: github.com/codahale/hdrhistogram
+- name: github.com/HdrHistogram/hdrhistogram-go
   version: 3a0bb77429bd3a61596f5e8a3172445844342120
 - name: github.com/crossdock/crossdock-go
   version: 049aabb0122b03bc9bd30cab8f3f91fb60166361
@@ -70,7 +70,7 @@ imports:
 - name: github.com/uber-go/atomic
   version: 845920076a298bdb984fb0f1b86052e4ca0a281c
 - name: github.com/uber/jaeger-lib
-  version: a87ae9d84fb038a8d79266298970720be7c80fcd
+  version: 48cc1df63e6be0d63b95677f0d22beb880bce1e4
   subpackages:
   - metrics
   - metrics/metricstest
