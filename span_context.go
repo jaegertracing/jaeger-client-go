@@ -217,9 +217,9 @@ func (c SpanContext) String() string {
 		flags = c.samplingState.stateFlags.Load()
 	}
 	if c.traceID.High == 0 {
-		return fmt.Sprintf("%016x:%016x:%016x:%x", c.traceID.Low, uint64(c.spanID), uint64(c.parentID), flags)
+		return fmt.Sprintf("%016x:%016x:%016x:%02x", c.traceID.Low, uint64(c.spanID), uint64(c.parentID), flags)
 	}
-	return fmt.Sprintf("%016x%016x:%016x:%016x:%x", c.traceID.High, c.traceID.Low, uint64(c.spanID), uint64(c.parentID), flags)
+	return fmt.Sprintf("%016x%016x:%016x:%016x:%02x", c.traceID.High, c.traceID.Low, uint64(c.spanID), uint64(c.parentID), flags)
 }
 
 // ContextFromString reconstructs the Context encoded in a string
