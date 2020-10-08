@@ -22,12 +22,106 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/uber/jaeger-lib/metrics"
 	mTestutils "github.com/uber/jaeger-lib/metrics/metricstest"
 
 	"github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-client-go/testutils"
 	"github.com/uber/jaeger-client-go/thrift-gen/sampling"
 )
+
+func TestRemotelyControlledSampler_updateRace(t *testing.T) {
+	m := &Metrics{
+		SamplerRetrieved: metrics.NullCounter,
+		SamplerUpdated:   metrics.NullCounter,
+	}
+	initSampler, _ := NewProbabilisticSampler(0.123)
+	logger := log.NullLogger
+	fetcher := &testSamplingStrategyFetcher{response: []byte("probabilistic")}
+	parser := new(testSamplingStrategyParser)
+	updaters := []SamplerUpdater{new(ProbabilisticSamplerUpdater)}
+	sampler := NewRemotelyControlledSampler(
+		"test",
+		SamplerOptions.Metrics(m),
+		SamplerOptions.MaxOperations(42),
+		SamplerOptions.OperationNameLateBinding(true),
+		SamplerOptions.InitialSampler(initSampler),
+		SamplerOptions.Logger(logger),
+		SamplerOptions.SamplingServerURL("my url"),
+		SamplerOptions.SamplingRefreshInterval(time.Millisecond),
+		SamplerOptions.SamplingStrategyFetcher(fetcher),
+		SamplerOptions.SamplingStrategyParser(parser),
+		SamplerOptions.Updaters(updaters...),
+	)
+
+	s := makeSpan(1, "test")
+	end := make(chan struct{})
+
+	accessor := func(f func()) {
+		for {
+			select {
+			case <-end:
+				return
+			default:
+				f()
+			}
+		}
+	}
+
+	go accessor(func() {
+		sampler.UpdateSampler()
+	})
+
+	go accessor(func() {
+		sampler.IsSampled(TraceID{Low: 1}, "test")
+	})
+
+	go accessor(func() {
+		sampler.OnCreateSpan(s)
+	})
+
+	go accessor(func() {
+		sampler.OnSetTag(s, "test", 1)
+	})
+
+	go accessor(func() {
+		sampler.OnFinishSpan(s)
+	})
+
+	go accessor(func() {
+		sampler.OnSetOperationName(s, "test")
+	})
+
+	time.Sleep(100 * time.Millisecond)
+	close(end)
+	sampler.Close()
+}
+
+type testSamplingStrategyFetcher struct {
+	response []byte
+}
+
+func (c *testSamplingStrategyFetcher) Fetch(serviceName string) ([]byte, error) {
+	return []byte(c.response), nil
+}
+
+type testSamplingStrategyParser struct {
+}
+
+func (p *testSamplingStrategyParser) Parse(response []byte) (interface{}, error) {
+	strategy := new(sampling.SamplingStrategyResponse)
+
+	switch string(response) {
+	case "probabilistic":
+		strategy.StrategyType = sampling.SamplingStrategyType_PROBABILISTIC
+		strategy.ProbabilisticSampling = &sampling.ProbabilisticSamplingStrategy{
+			SamplingRate: 0.85,
+		}
+		return strategy, nil
+	}
+
+	return nil, errors.New("unknown strategy test request")
+}
 
 func TestRemoteSamplerOptions(t *testing.T) {
 	m := new(Metrics)
