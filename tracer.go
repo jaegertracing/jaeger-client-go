@@ -320,7 +320,7 @@ func (t *Tracer) startSpanWithOptions(
 	sp.references = references
 	sp.firstInProcess = rpcServer || sp.context.parentID == 0
 
-	if !sp.isSamplingFinalized() {
+	if !sp.context.isSamplingFinalized() {
 		decision := t.sampler.OnCreateSpan(sp)
 		sp.applySamplingDecision(decision, false)
 	}
@@ -413,7 +413,7 @@ func (t *Tracer) newSpan() *Span {
 // calling client-side span, but obviously the server side span is
 // no longer a root span of the trace.
 func (t *Tracer) emitNewSpanMetrics(sp *Span, newTrace bool) {
-	if !sp.isSamplingFinalized() {
+	if !sp.context.isSamplingFinalized() {
 		t.metrics.SpansStartedDelayedSampling.Inc(1)
 		if newTrace {
 			t.metrics.TracesStartedDelayedSampling.Inc(1)
@@ -437,7 +437,7 @@ func (t *Tracer) emitNewSpanMetrics(sp *Span, newTrace bool) {
 }
 
 func (t *Tracer) reportSpan(sp *Span) {
-	if !sp.isSamplingFinalized() {
+	if !sp.context.isSamplingFinalized() {
 		t.metrics.SpansFinishedDelayedSampling.Inc(1)
 	} else if sp.context.IsSampled() {
 		t.metrics.SpansFinishedSampled.Inc(1)

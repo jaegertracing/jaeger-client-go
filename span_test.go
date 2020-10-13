@@ -403,6 +403,9 @@ func TestSpanContextRaces(t *testing.T) {
 	go accessor(func() {
 		span.SpanContext().samplingState.setFlag(flagDebug)
 	})
+	go accessor(func() {
+		span.SetOperationName("test")
+	})
 	time.Sleep(100 * time.Millisecond)
 	close(end)
 }

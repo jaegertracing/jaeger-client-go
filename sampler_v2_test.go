@@ -72,16 +72,16 @@ func TestSpanRemainsWriteable(t *testing.T) {
 	defer closer.Close()
 
 	span := tracer.StartSpan("op1").(*Span)
-	assert.True(t, span.isWriteable(), "span is writeable when created")
-	assert.False(t, span.isSamplingFinalized(), "span is not finalized when created")
+	assert.True(t, span.context.isWriteable(), "span is writeable when created")
+	assert.False(t, span.context.isSamplingFinalized(), "span is not finalized when created")
 
 	span.SetTag("k1", "v1")
-	assert.True(t, span.isWriteable(), "span is writeable after setting tags")
+	assert.True(t, span.context.isWriteable(), "span is writeable after setting tags")
 	assert.Equal(t, opentracing.Tags{"k1": "v1"}, span.Tags())
 
 	span.SetOperationName("op2")
-	assert.False(t, span.isWriteable(), "span is not writeable after sampler returns retryable=true")
-	assert.True(t, span.isSamplingFinalized(), "span is finalized after sampler returns retryable=true")
+	assert.False(t, span.context.isWriteable(), "span is not writeable after sampler returns retryable=true")
+	assert.True(t, span.context.isSamplingFinalized(), "span is finalized after sampler returns retryable=true")
 }
 
 func TestSpanSharesSamplingStateWithChildren(t *testing.T) {
@@ -89,14 +89,14 @@ func TestSpanSharesSamplingStateWithChildren(t *testing.T) {
 	defer closer.Close()
 
 	sp1 := tracer.StartSpan("op1").(*Span)
-	assert.False(t, sp1.isSamplingFinalized(), "span is not finalized when created")
+	assert.False(t, sp1.context.isSamplingFinalized(), "span is not finalized when created")
 
 	sp2 := tracer.StartSpan("op2", opentracing.ChildOf(sp1.Context())).(*Span)
-	assert.False(t, sp2.isSamplingFinalized(), "child span is not finalized when created")
+	assert.False(t, sp2.context.isSamplingFinalized(), "child span is not finalized when created")
 
 	sp2.SetOperationName("op3")
-	assert.True(t, sp2.isSamplingFinalized(), "child span is finalized after changing operation name")
-	assert.True(t, sp1.isSamplingFinalized(), "parent span is also finalized after child is finalized")
+	assert.True(t, sp2.context.isSamplingFinalized(), "child span is finalized after changing operation name")
+	assert.True(t, sp1.context.isSamplingFinalized(), "parent span is also finalized after child is finalized")
 }
 
 func TestSamplingIsFinalizedOnSamplingPriorityTag(t *testing.T) {
@@ -125,10 +125,10 @@ func TestSamplingIsFinalizedOnSamplingPriorityTag(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			span := tracer.StartSpan("op1").(*Span)
-			assert.False(t, span.isSamplingFinalized(), "span is not finalized when created")
+			assert.False(t, span.context.isSamplingFinalized(), "span is not finalized when created")
 
 			ext.SamplingPriority.Set(span, tt.priority)
-			assert.True(t, span.isSamplingFinalized(), "span is finalized after sampling.priority tag")
+			assert.True(t, span.context.isSamplingFinalized(), "span is finalized after sampling.priority tag")
 			assert.Equal(t, tt.expectedSampled, span.context.IsSampled(), "span is sampled after sampling.priority tag")
 			assert.Equal(t, tt.expectedTags, span.Tags(), "sampling.priority tag in the span")
 		})
@@ -149,7 +149,7 @@ func TestSamplingIsFinalizedWithV1Samplers(t *testing.T) {
 			defer closer.Close()
 
 			span := tracer.StartSpan("op1").(*Span)
-			assert.True(t, span.isSamplingFinalized(), "span is finalized when created with V1 sampler")
+			assert.True(t, span.context.isSamplingFinalized(), "span is finalized when created with V1 sampler")
 		})
 	}
 }
@@ -159,12 +159,12 @@ func TestSamplingIsNotFinalizedWhenContextIsInjected(t *testing.T) {
 	defer closer.Close()
 
 	span := tracer.StartSpan("op1").(*Span)
-	assert.False(t, span.isSamplingFinalized(), "span is not finalized when created")
+	assert.False(t, span.context.isSamplingFinalized(), "span is not finalized when created")
 
 	err := tracer.Inject(span.Context(), opentracing.TextMap, opentracing.TextMapCarrier{})
 	require.NoError(t, err)
 
-	assert.False(t, span.isSamplingFinalized(), "span is not finalized after context is serialized")
+	assert.False(t, span.context.isSamplingFinalized(), "span is not finalized after context is serialized")
 }
 
 func TestSamplingIsFinalizedInChildSpanOfRemoteParent(t *testing.T) {
@@ -174,7 +174,7 @@ func TestSamplingIsFinalizedInChildSpanOfRemoteParent(t *testing.T) {
 			defer closer.Close()
 
 			span := tracer.StartSpan("parent").(*Span)
-			assert.False(t, span.isSamplingFinalized(), "span is not finalized when created")
+			assert.False(t, span.context.isSamplingFinalized(), "span is not finalized when created")
 			assert.Equal(t, sampled, span.context.IsSampled())
 
 			carrier := opentracing.TextMapCarrier{}
@@ -184,7 +184,7 @@ func TestSamplingIsFinalizedInChildSpanOfRemoteParent(t *testing.T) {
 			parentContext, err := tracer.Extract(opentracing.TextMap, carrier)
 			require.NoError(t, err)
 			childSpan := tracer.StartSpan("child", opentracing.ChildOf(parentContext)).(*Span)
-			assert.True(t, childSpan.isSamplingFinalized(), "child span is finalized")
+			assert.True(t, childSpan.context.isSamplingFinalized(), "child span is finalized")
 			assert.Equal(t, sampled, childSpan.context.IsSampled())
 		})
 	}
@@ -195,15 +195,15 @@ func TestSpanIsWriteableIfSampledOrNotFinalized(t *testing.T) {
 	defer closer.Close()
 
 	span := tracer.StartSpan("span").(*Span)
-	assert.False(t, span.isSamplingFinalized(), "span is not finalized when created")
+	assert.False(t, span.context.isSamplingFinalized(), "span is not finalized when created")
 	assert.False(t, span.context.IsSampled(), "span is not sampled")
-	assert.True(t, span.isWriteable(), "span is writeable")
+	assert.True(t, span.context.isWriteable(), "span is writeable")
 
 	tracer.(*Tracer).sampler = NewConstSampler(true)
 	span = tracer.StartSpan("span").(*Span)
-	assert.True(t, span.isSamplingFinalized(), "span is finalized when created")
+	assert.True(t, span.context.isSamplingFinalized(), "span is finalized when created")
 	assert.True(t, span.context.IsSampled(), "span is sampled")
-	assert.True(t, span.isWriteable(), "span is writeable")
+	assert.True(t, span.context.isWriteable(), "span is writeable")
 }
 
 func TestSetOperationOverridesOperationOnSampledSpan(t *testing.T) {
@@ -211,14 +211,14 @@ func TestSetOperationOverridesOperationOnSampledSpan(t *testing.T) {
 	defer closer.Close()
 
 	span := tracer.StartSpan("op1").(*Span)
-	assert.True(t, span.isSamplingFinalized(), "span is finalized when created")
+	assert.True(t, span.context.isSamplingFinalized(), "span is finalized when created")
 	assert.True(t, span.context.IsSampled(), "span is sampled")
 	assert.Equal(t, "op1", span.OperationName())
 	assert.Equal(t, makeSamplerTags("const", true), span.tags)
 
 	span.tags = []Tag{} // easier to check that tags are not re-added
 	span.SetOperationName("op2")
-	assert.True(t, span.isSamplingFinalized(), "span is finalized when created")
+	assert.True(t, span.context.isSamplingFinalized(), "span is finalized when created")
 	assert.True(t, span.context.IsSampled(), "span is sampled")
 	assert.Equal(t, "op2", span.OperationName())
 	assert.Equal(t, []Tag{}, span.tags, "sampling tags are not re-added")
