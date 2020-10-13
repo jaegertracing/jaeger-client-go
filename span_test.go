@@ -363,7 +363,6 @@ func TestSpan_References(t *testing.T) {
 }
 
 func TestSpanContextRaces(t *testing.T) {
-	t.Skip("Skipped: test will panic with -race, see https://github.com/jaegertracing/jaeger-client-go/issues/526")
 	tracer, closer := NewTracer("test", NewConstSampler(true), NewNullReporter())
 	defer closer.Close()
 
@@ -394,6 +393,15 @@ func TestSpanContextRaces(t *testing.T) {
 	})
 	go accessor(func() {
 		span.BaggageItem("k")
+	})
+	go accessor(func() {
+		ext.SamplingPriority.Set(span, 0)
+	})
+	go accessor(func() {
+		EnableFirehose(span)
+	})
+	go accessor(func() {
+		span.SpanContext().samplingState.setFlag(flagDebug)
 	})
 	time.Sleep(100 * time.Millisecond)
 	close(end)
