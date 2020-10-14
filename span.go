@@ -475,13 +475,13 @@ func (s SpanContext) isSamplingFinalized() bool {
 // setSamplingPriority returns true if the flag was updated successfully, false otherwise.
 // The behavior of setSamplingPriority is surprising
 // If noDebugFlagOnForcedSampling is set
-//     setSamplingPriority(span, 1) always sets only flagSampled
+//     setSamplingPriority(..., 1) always sets only flagSampled
 // If noDebugFlagOnForcedSampling is unset, and isDebugAllowed passes
-//     setSamplingPriority(span, 1) sets both flagSampled and flagDebug
+//     setSamplingPriority(..., 1) sets both flagSampled and flagDebug
 // However,
-//     setSamplingPriority(span, 0) always only resets flagSampled
+//     setSamplingPriority(..., 0) always only resets flagSampled
 //
-// This means that doing a setSamplingPriority(span, 1) followed by setSamplingPriority(span, 0) can
+// This means that doing a setSamplingPriority(..., 1) followed by setSamplingPriority(..., 0) can
 // leave flagDebug set
 func setSamplingPriority(state *samplingState, operationName string, tracer *Tracer, value interface{}) bool {
 	val, ok := value.(uint16)
