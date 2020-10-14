@@ -406,6 +406,9 @@ func TestSpanContextRaces(t *testing.T) {
 	go accessor(func() {
 		span.SetOperationName("test")
 	})
+	go accessor(func() {
+		span.FinishWithOptions(opentracing.FinishOptions{})
+	})
 	time.Sleep(100 * time.Millisecond)
 	close(end)
 }
