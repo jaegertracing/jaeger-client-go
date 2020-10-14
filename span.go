@@ -102,14 +102,17 @@ func (s *Span) SetTag(key string, value interface{}) opentracing.Span {
 
 func (s *Span) setTagInternal(key string, value interface{}, lock bool) opentracing.Span {
 	var ctx SpanContext
+	var operationName string
 	if lock {
 		ctx = s.SpanContext()
+		operationName = s.OperationName()
 	} else {
 		ctx = s.context
+		operationName = s.operationName
 	}
 
 	s.observer.OnSetTag(key, value)
-	if key == string(ext.SamplingPriority) && !setSamplingPriority(s, ctx, value) {
+	if key == string(ext.SamplingPriority) && !setSamplingPriority(ctx.samplingState, operationName, s.tracer, value) {
 		return s
 	}
 	if !ctx.isSamplingFinalized() {
@@ -480,23 +483,23 @@ func (s SpanContext) isSamplingFinalized() bool {
 //
 // This means that doing a setSamplingPriority(span, 1) followed by setSamplingPriority(span, 0) can
 // leave flagDebug set
-func setSamplingPriority(s *Span, ctx SpanContext, value interface{}) bool {
+func setSamplingPriority(state *samplingState, operationName string, tracer *Tracer, value interface{}) bool {
 	val, ok := value.(uint16)
 	if !ok {
 		return false
 	}
 	if val == 0 {
-		ctx.samplingState.unsetSampled()
-		ctx.samplingState.setFinal()
+		state.unsetSampled()
+		state.setFinal()
 		return true
 	}
-	if s.tracer.options.noDebugFlagOnForcedSampling {
-		ctx.samplingState.setSampled()
-		ctx.samplingState.setFinal()
+	if tracer.options.noDebugFlagOnForcedSampling {
+		state.setSampled()
+		state.setFinal()
 		return true
-	} else if s.tracer.isDebugAllowed(s.operationName) {
-		ctx.samplingState.setDebugAndSampled()
-		ctx.samplingState.setFinal()
+	} else if tracer.isDebugAllowed(operationName) {
+		state.setDebugAndSampled()
+		state.setFinal()
 		return true
 	}
 	return false
