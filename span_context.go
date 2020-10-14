@@ -271,6 +271,16 @@ func (c SpanContext) Flags() byte {
 	return c.samplingState.flags()
 }
 
+// Span can be written to if it is sampled or the sampling decision has not been finalized.
+func (c SpanContext) isWriteable() bool {
+	state := c.samplingState
+	return !state.isFinal() || state.isSampled()
+}
+
+func (c SpanContext) isSamplingFinalized() bool {
+	return c.samplingState.isFinal()
+}
+
 // NewSpanContext creates a new instance of SpanContext
 func NewSpanContext(traceID TraceID, spanID, parentID SpanID, sampled bool, baggage map[string]string) SpanContext {
 	samplingState := &samplingState{}

@@ -462,16 +462,6 @@ func (s *Span) applySamplingDecision(decision SamplingDecision, lock bool) {
 	}
 }
 
-// Span can be written to if it is sampled or the sampling decision has not been finalized.
-func (s SpanContext) isWriteable() bool {
-	state := s.samplingState
-	return !state.isFinal() || state.isSampled()
-}
-
-func (s SpanContext) isSamplingFinalized() bool {
-	return s.samplingState.isFinal()
-}
-
 // setSamplingPriority returns true if the flag was updated successfully, false otherwise.
 // The behavior of setSamplingPriority is surprising
 // If noDebugFlagOnForcedSampling is set
