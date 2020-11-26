@@ -21,6 +21,9 @@ jobs:
       with:
         go-version: ^1.15
 
+    - name: Print environment
+      run: go version && echo $GOPATH
+
     - name: Install tools
       run: make install-ci USE_DEP=true
 
