@@ -12,8 +12,8 @@ jobs:
       fail-fast: true
     runs-on: ubuntu-latest
     env:
-      GOPATH: ${{HOME}}/go
-      PROJECT: ${{HOME}}/go/src/github.com/uber/jaeger-client-go
+      GOPATH: /go
+      PROJECT: /go/src/github.com/uber/jaeger-client-go
 
     steps:
     - name: Check out code
@@ -27,6 +27,7 @@ jobs:
     - name: Install tools
       run: |
         echo $GOPATH
+        mkdir -p $GOPATH
         export PATH=$PATH:$(go env GOPATH)/bin
         echo $PATH
         mkdir -p $(dirname ${{PROJECT}})
