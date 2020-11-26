@@ -48,7 +48,7 @@ type Configuration struct {
 	// Value can be provided by FromEnv() via the environment variable named JAEGER_RPC_METRICS
 	RPCMetrics bool `yaml:"rpc_metrics"`
 
-	// Gen128Bit isntructs the tracer to generate 128-bit wide trace IDs, compatible with W3C Trace Context.
+	// Gen128Bit instructs the tracer to generate 128-bit wide trace IDs, compatible with W3C Trace Context.
 	// Value can be provided by FromEnv() via the environment variable named JAEGER_TRACEID_128BIT.
 	Gen128Bit bool `yaml:"traceid_128bit"`
 
@@ -272,8 +272,9 @@ func (c Configuration) NewTracer(options ...Option) (opentracing.Tracer, io.Clos
 		jaeger.TracerOptions.MaxTagValueLength(opts.maxTagValueLength),
 		jaeger.TracerOptions.NoDebugFlagOnForcedSampling(opts.noDebugFlagOnForcedSampling),
 	}
+
 	if c.Gen128Bit || opts.gen128Bit {
-		tracerOptions = append(tracerOptions, jaeger.TracerOptions.Gen128Bit(opts.gen128Bit))
+		tracerOptions = append(tracerOptions, jaeger.TracerOptions.Gen128Bit(true))
 	}
 
 	for _, tag := range opts.tags {
