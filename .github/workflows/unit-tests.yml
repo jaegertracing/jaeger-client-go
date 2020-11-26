@@ -1,0 +1,51 @@
+name: "Unit Tests"
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  unit-tests:
+    strategy:
+      fail-fast: true
+    runs-on: ubuntu-latest
+    env:
+      PROJECT: src/github.com/uber/jaeger-client-go
+
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v2
+
+    - name: Setup go env
+      uses: actions/setup-go@v2
+      with:
+        go-version: ^1.15
+
+    - name: Install tools
+      run: |
+        export GOPATH=$HOME/go
+        export PROJECT=$GOPATH/${{env.PROJECT}}
+        mkdir -p $GOPATH
+        export PATH=$PATH:$(go env GOPATH)/bin
+        mkdir -p $(dirname $PROJECT)
+        ln -s $(pwd) $PROJECT
+        cd $PROJECT
+        make install-ci USE_DEP=true
+        dep version
+
+    - name: Run tests
+      run: |
+        export GOPATH=$HOME/go
+        export PROJECT=$GOPATH/${{env.PROJECT}}
+        export PATH=$PATH:$(go env GOPATH)/bin
+        cd $PROJECT
+        make test-ci
+
+    - name: Upload coverage to codecov
+      uses: codecov/codecov-action@v1
+      with:
+        file: cover.out
+        fail_ci_if_error: true
+        verbose: true
