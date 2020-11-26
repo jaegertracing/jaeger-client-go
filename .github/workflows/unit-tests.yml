@@ -25,10 +25,17 @@ jobs:
       run: go version && echo $GOPATH
 
     - name: Install tools
-      run: make install-ci USE_DEP=true
+      run: |
+        export GOPATH=$HOME/go
+        export PATH=$PATH:$(go env GOPATH)/bin
+        make install-ci USE_DEP=true
+        echo $PATH
+        go version
+        dep version
 
     - name: Run tests
-      run: make test-ci
+      run: |
+        make test-ci
 
     - name: Upload coverage to codecov
       uses: codecov/codecov-action@v1
