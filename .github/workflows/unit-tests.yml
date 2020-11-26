@@ -26,19 +26,22 @@ jobs:
 
     - name: Install tools
       run: |
-        echo $GOPATH
+        export GOPATH=${{env.GOPATH}}
+        export PROJECT=${{env.PROJECT}}
         mkdir -p $GOPATH
         export PATH=$PATH:$(go env GOPATH)/bin
         echo $PATH
-        mkdir -p $(dirname ${{PROJECT}})
-        ln -s $(pwd) ${{PROJECT}}
-        cd ${{PROJECT}}
+        mkdir -p $(dirname $PROJECT)
+        ln -s $(pwd) $PROJECT
+        cd $PROJECT
         make install-ci USE_DEP=true
         dep version
 
     - name: Run tests
       run: |
-        cd ${{PROJECT}}
+        export GOPATH=${{env.GOPATH}}
+        export PROJECT=${{env.PROJECT}}
+        cd $PROJECT
         make test-ci
 
     - name: Upload coverage to codecov
