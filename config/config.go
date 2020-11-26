@@ -40,11 +40,17 @@ type Configuration struct {
 	// Can be provided by FromEnv() via the environment variable named JAEGER_SERVICE_NAME
 	ServiceName string `yaml:"serviceName"`
 
-	// Disabled can be provided by FromEnv() via the environment variable named JAEGER_DISABLED
+	// Disabled makes the config return opentracing.NoopTracer.
+	// Value can be provided by FromEnv() via the environment variable named JAEGER_DISABLED.
 	Disabled bool `yaml:"disabled"`
 
-	// RPCMetrics can be provided by FromEnv() via the environment variable named JAEGER_RPC_METRICS
+	// RPCMetrics enables generations of RPC metrics (requires metrics factory to be provided).
+	// Value can be provided by FromEnv() via the environment variable named JAEGER_RPC_METRICS
 	RPCMetrics bool `yaml:"rpc_metrics"`
+
+	// Gen128Bit isntructs the tracer to generate 128-bit wide trace IDs, compatible with W3C Trace Context.
+	// Value can be provided by FromEnv() via the environment variable named JAEGER_TRACEID_128BIT.
+	Gen128Bit bool `yaml:"traceid_128bit"`
 
 	// Tags can be provided by FromEnv() via the environment variable named JAEGER_TAGS
 	Tags []opentracing.Tag `yaml:"tags"`
@@ -261,11 +267,13 @@ func (c Configuration) NewTracer(options ...Option) (opentracing.Tracer, io.Clos
 		jaeger.TracerOptions.Metrics(tracerMetrics),
 		jaeger.TracerOptions.Logger(opts.logger),
 		jaeger.TracerOptions.CustomHeaderKeys(c.Headers),
-		jaeger.TracerOptions.Gen128Bit(opts.gen128Bit),
 		jaeger.TracerOptions.PoolSpans(opts.poolSpans),
 		jaeger.TracerOptions.ZipkinSharedRPCSpan(opts.zipkinSharedRPCSpan),
 		jaeger.TracerOptions.MaxTagValueLength(opts.maxTagValueLength),
 		jaeger.TracerOptions.NoDebugFlagOnForcedSampling(opts.noDebugFlagOnForcedSampling),
+	}
+	if c.Gen128Bit || opts.gen128Bit {
+		tracerOptions = append(tracerOptions, jaeger.TracerOptions.Gen128Bit(opts.gen128Bit))
 	}
 
 	for _, tag := range opts.tags {
