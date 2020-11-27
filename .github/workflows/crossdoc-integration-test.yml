@@ -1,0 +1,39 @@
+name: "Integration Tests"
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  crossdock-tests:
+    strategy:
+      fail-fast: true
+    runs-on: ubuntu-latest
+    env:
+      PROJECT: github.com/uber/jaeger-client-go
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - uses: actions/setup-go@v2
+      with:
+        go-version: ^1.15
+
+    - name: Install tools
+      run: |
+        export GOPATH=$HOME/go
+        export PROJECT=$GOPATH/src/${{env.PROJECT}}
+        mkdir -p $GOPATH
+        export PATH=$PATH:$(go env GOPATH)/bin
+        mkdir -p $(dirname $PROJECT)
+        ln -s $(pwd) $PROJECT
+        cd $PROJECT
+        make install-ci USE_DEP=true
+        dep version
+
+    - name: Run tests
+      run: |
+        docker-compose version
+        make crossdock || make crossdock-logs
