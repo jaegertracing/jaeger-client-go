@@ -21,7 +21,7 @@ jobs:
       with:
         go-version: ^1.15
 
-    - name: Install tools
+    - name: Install dependencies and tools
       run: |
         export GOPATH=$HOME/go
         export PROJECT=$GOPATH/src/${{env.PROJECT}}
@@ -62,7 +62,7 @@ jobs:
       with:
         go-version: ^1.15
 
-    - name: Install tools
+    - name: Install dependencies and tools
       run: |
         export GOPATH=$HOME/go
         export PROJECT=$GOPATH/src/${{env.PROJECT}}

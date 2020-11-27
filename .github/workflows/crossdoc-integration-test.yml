@@ -21,7 +21,7 @@ jobs:
       with:
         go-version: ^1.15
 
-    - name: Install tools
+    - name: Install dependencies and tools
       run: |
         export GOPATH=$HOME/go
         export PROJECT=$GOPATH/src/${{env.PROJECT}}
@@ -32,10 +32,15 @@ jobs:
         cd $PROJECT
         make install-ci USE_DEP=true
         dep version
+        docker-compose version
 
     - name: Run tests
       run: |
-        docker-compose version
-        make crossdock || make crossdock-logs
+        make crossdock
+
+    - name: Dump docker-compose logs
+      if: ${{ failure() }}
+      run: |
+        make crossdock-logs
 
 # TODO publish crossdock image to Docher Hub
