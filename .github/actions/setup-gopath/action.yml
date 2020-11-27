@@ -1,0 +1,16 @@
+name: 'Setup GOPATH'
+description: 'Link repo into GOPATH and export $PROJECT var'
+runs:
+  using: "composite"
+  steps: 
+    - name: Setup GOPATH
+    - run: |
+        export GOPATH=$(go env GOPATH)
+        echo "GOPATH=$GOPATH"
+        export PROJECT=$GOPATH/src/${{env.PROJECT}}
+        mkdir -p $(dirname $PROJECT)
+        ln -s $(pwd) $PROJECT
+        # write to GH files to make vars available to later steps
+        echo "PROJECT=$PROJECT" >>"$GITHUB_ENV"
+        echo "GOPATH=$GOPATH" >>"$GITHUB_ENV"
+        echo "$GOPATH/bin" >>"$GITHUB_PATH"
