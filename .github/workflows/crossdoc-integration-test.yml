@@ -37,3 +37,5 @@ jobs:
       run: |
         docker-compose version
         make crossdock || make crossdock-logs
+
+# TODO publish crossdock image to Docher Hub
