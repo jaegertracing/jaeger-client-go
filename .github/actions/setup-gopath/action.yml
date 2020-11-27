@@ -4,9 +4,9 @@ runs:
   using: "composite"
   steps: 
     - name: Setup GOPATH
-    - run: |
+      shell: bash
+      run: |
         export GOPATH=$(go env GOPATH)
-        echo "GOPATH=$GOPATH"
         export PROJECT=$GOPATH/src/${{env.PROJECT}}
         mkdir -p $(dirname $PROJECT)
         ln -s $(pwd) $PROJECT
@@ -14,3 +14,6 @@ runs:
         echo "PROJECT=$PROJECT" >>"$GITHUB_ENV"
         echo "GOPATH=$GOPATH" >>"$GITHUB_ENV"
         echo "$GOPATH/bin" >>"$GITHUB_PATH"
+        # print summary 
+        echo "GOPATH=$GOPATH"
+        echo "PROJECT=$PROJECT"

@@ -23,6 +23,11 @@ jobs:
 
     - uses: ./.github/actions/setup-gopath
 
+    - name: Check GOPATH
+      run: |
+        echo "GOPATH=$GOPATH"
+        echo "PROJECT=$PROJECT"
+
     - name: Setup GOPATH
       run: |
         export GOPATH=$(go env GOPATH)
