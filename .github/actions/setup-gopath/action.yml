@@ -7,7 +7,7 @@ runs:
       shell: bash
       run: |
         export GOPATH=$(go env GOPATH)
-        export PROJECT=$GOPATH/src/${{env.PROJECT}}
+        export PROJECT=$GOPATH/src/github.com/uber/jaeger-client-go
         mkdir -p $(dirname $PROJECT)
         ln -s $(pwd) $PROJECT
         # write to GH files to make vars available to later steps
