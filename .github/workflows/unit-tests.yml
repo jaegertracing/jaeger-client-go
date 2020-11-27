@@ -21,7 +21,7 @@ jobs:
       with:
         go-version: ^1.15
 
-    - uses: .github/actions/setup-gopath
+    - uses: ./.github/actions/setup-gopath
 
     - name: Setup GOPATH
       run: |
