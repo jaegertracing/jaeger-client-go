@@ -123,6 +123,7 @@ func TestConfigFromEnv(t *testing.T) {
 	setEnv(t, envServiceName, "my-service")
 	setEnv(t, envDisabled, "false")
 	setEnv(t, envRPCMetrics, "true")
+	setEnv(t, env128bit, "true")
 	setEnv(t, envTags, "KEY=VALUE")
 
 	// test with env set
@@ -133,6 +134,7 @@ func TestConfigFromEnv(t *testing.T) {
 	assert.Equal(t, "my-service", cfg.ServiceName)
 	assert.Equal(t, false, cfg.Disabled)
 	assert.Equal(t, true, cfg.RPCMetrics)
+	assert.Equal(t, true, cfg.Gen128Bit)
 	assert.Equal(t, "KEY", cfg.Tags[0].Key)
 	assert.Equal(t, "VALUE", cfg.Tags[0].Value)
 
@@ -140,6 +142,7 @@ func TestConfigFromEnv(t *testing.T) {
 	unsetEnv(t, envServiceName)
 	unsetEnv(t, envDisabled)
 	unsetEnv(t, envRPCMetrics)
+	unsetEnv(t, env128bit)
 	unsetEnv(t, envTags)
 }
 
@@ -477,6 +480,10 @@ func TestParsingErrorsFromEnv(t *testing.T) {
 		},
 		{
 			envVar: envDisabled,
+			value:  "NOT_A_BOOLEAN",
+		},
+		{
+			envVar: env128bit,
 			value:  "NOT_A_BOOLEAN",
 		},
 		{
