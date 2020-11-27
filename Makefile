@@ -61,7 +61,7 @@ install:
 	@echo install: USE_DEP=$(USE_DEP) USE_GLIDE=$(USE_GLIDE)
 ifeq ($(USE_DEP),true)
 	dep version || make install-dep
-	dep ensure
+	dep ensure -vendor-only -v
 endif
 ifeq ($(USE_GLIDE),true)
 	glide --version || go get github.com/Masterminds/glide
@@ -131,4 +131,3 @@ ifeq ($(CI_SKIP_LINT),true)
 else
 	make lint
 endif
-

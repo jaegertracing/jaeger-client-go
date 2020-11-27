@@ -12,21 +12,19 @@ jobs:
       fail-fast: true
     runs-on: ubuntu-latest
     env:
-      PROJECT: src/github.com/uber/jaeger-client-go
+      PROJECT: github.com/uber/jaeger-client-go
 
     steps:
-    - name: Check out code
-      uses: actions/checkout@v2
+    - uses: actions/checkout@v2
 
-    - name: Setup go env
-      uses: actions/setup-go@v2
+    - uses: actions/setup-go@v2
       with:
         go-version: ^1.15
 
-    - name: Install tools
+    - name: Install dependencies and tools
       run: |
         export GOPATH=$HOME/go
-        export PROJECT=$GOPATH/${{env.PROJECT}}
+        export PROJECT=$GOPATH/src/${{env.PROJECT}}
         mkdir -p $GOPATH
         export PATH=$PATH:$(go env GOPATH)/bin
         mkdir -p $(dirname $PROJECT)
@@ -38,7 +36,7 @@ jobs:
     - name: Run tests
       run: |
         export GOPATH=$HOME/go
-        export PROJECT=$GOPATH/${{env.PROJECT}}
+        export PROJECT=$GOPATH/src/${{env.PROJECT}}
         export PATH=$PATH:$(go env GOPATH)/bin
         cd $PROJECT
         make test-ci
@@ -55,21 +53,19 @@ jobs:
       fail-fast: true
     runs-on: ubuntu-latest
     env:
-      PROJECT: src/github.com/uber/jaeger-client-go
+      PROJECT: github.com/uber/jaeger-client-go
 
     steps:
-    - name: Check out code
-      uses: actions/checkout@v2
+    - uses: actions/checkout@v2
 
-    - name: Setup go env
-      uses: actions/setup-go@v2
+    - uses: actions/setup-go@v2
       with:
         go-version: ^1.15
 
-    - name: Install tools
+    - name: Install dependencies and tools
       run: |
         export GOPATH=$HOME/go
-        export PROJECT=$GOPATH/${{env.PROJECT}}
+        export PROJECT=$GOPATH/src/${{env.PROJECT}}
         mkdir -p $GOPATH
         export PATH=$PATH:$(go env GOPATH)/bin
         mkdir -p $(dirname $PROJECT)
@@ -81,7 +77,7 @@ jobs:
     - name: Run tests
       run: |
         export GOPATH=$HOME/go
-        export PROJECT=$GOPATH/${{env.PROJECT}}
+        export PROJECT=$GOPATH/src/${{env.PROJECT}}
         export PATH=$PATH:$(go env GOPATH)/bin
         cd $PROJECT
         make test-ci
