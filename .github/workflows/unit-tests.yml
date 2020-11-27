@@ -21,36 +21,37 @@ jobs:
       with:
         go-version: ^1.15
 
-    - uses: ./.github/actions/setup-gopath
-
-    - name: Check GOPATH
-      run: |
-        echo "GOPATH=$GOPATH"
-        echo "PROJECT=$PROJECT"
-
     - name: Setup GOPATH
-      run: |
-        export GOPATH=$(go env GOPATH)
-        echo "GOPATH=$GOPATH"
-        export PROJECT=$GOPATH/src/${{env.PROJECT}}
-        mkdir -p $(dirname $PROJECT)
-        ln -s $(pwd) $PROJECT
-        # write to GH files to make vars available to later steps
-        echo "PROJECT=$PROJECT" >>"$GITHUB_ENV"
-        echo "GOPATH=$GOPATH" >>"$GITHUB_ENV"
-        echo "$GOPATH/bin" >>"$GITHUB_PATH"
+      uses: ./.github/actions/setup-gopath
+
+    # - name: Check GOPATH
+    #   run: |
+    #     echo "GOPATH=$GOPATH"
+    #     echo "PROJECT=$PROJECT"
+
+    # - name: Setup GOPATH
+    #   run: |
+    #     export GOPATH=$(go env GOPATH)
+    #     echo "GOPATH=$GOPATH"
+    #     export PROJECT=$GOPATH/src/${{env.PROJECT}}
+    #     mkdir -p $(dirname $PROJECT)
+    #     ln -s $(pwd) $PROJECT
+    #     # write to GH files to make vars available to later steps
+    #     echo "PROJECT=$PROJECT" >>"$GITHUB_ENV"
+    #     echo "GOPATH=$GOPATH" >>"$GITHUB_ENV"
+    #     echo "$GOPATH/bin" >>"$GITHUB_PATH"
 
     - name: Install dependencies and tools
       run: |
-        # cd $GOPATH/src/${{env.PROJECT}}
         cd $PROJECT
+        pwd
         make install-ci USE_DEP=true
         dep version
 
     - name: Run tests
       run: |
-        # cd $GOPATH/src/${{env.PROJECT}}
         cd $PROJECT
+        pwd
         make test-ci
 
     - name: Upload coverage to codecov
