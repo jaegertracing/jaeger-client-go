@@ -36,6 +36,9 @@ jobs:
 
     - name: Run tests
       run: |
+        export GOPATH=$HOME/go
+        export PROJECT=$GOPATH/src/${{env.PROJECT}}
+        cd $PROJECT
         make crossdock
 
     - name: Dump docker-compose logs
