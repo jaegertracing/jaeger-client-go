@@ -23,25 +23,26 @@ jobs:
 
     - name: Setup GOPATH
       run: |
-        echo "GOPATH=$(go env GOPATH)"
+        export GOPATH=$(go env GOPATH)
+        echo "GOPATH=$GOPATH"
+        export PROJECT=$GOPATH/src/${{env.PROJECT}}
+        mkdir -p $(dirname $PROJECT)
+        ln -s $(pwd) $PROJECT
+        # write to GH files to make vars available to later steps
+        echo "PROJECT=$PROJECT" >>"$GITHUB_ENV"
+        echo "GOPATH=$GOPATH" >>"$GITHUB_ENV"
+        echo "$GOPATH/bin" >>"$GITHUB_PATH"
 
     - name: Install dependencies and tools
       run: |
-        export GOPATH=$HOME/go
-        export PROJECT=$GOPATH/src/${{env.PROJECT}}
-        mkdir -p $GOPATH
-        export PATH=$PATH:$(go env GOPATH)/bin
-        mkdir -p $(dirname $PROJECT)
-        ln -s $(pwd) $PROJECT
+        # cd $GOPATH/src/${{env.PROJECT}}
         cd $PROJECT
         make install-ci USE_DEP=true
         dep version
 
     - name: Run tests
       run: |
-        export GOPATH=$HOME/go
-        export PROJECT=$GOPATH/src/${{env.PROJECT}}
-        export PATH=$PATH:$(go env GOPATH)/bin
+        # cd $GOPATH/src/${{env.PROJECT}}
         cd $PROJECT
         make test-ci
 
