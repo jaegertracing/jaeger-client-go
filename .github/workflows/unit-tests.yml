@@ -21,6 +21,10 @@ jobs:
       with:
         go-version: ^1.15
 
+    - name: Setup GOPATH
+      run: |
+        echo "GOPATH=$(go env GOPATH)"
+
     - name: Install dependencies and tools
       run: |
         export GOPATH=$HOME/go
