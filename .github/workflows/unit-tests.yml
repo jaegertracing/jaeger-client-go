@@ -11,73 +11,46 @@ jobs:
     strategy:
       fail-fast: true
     runs-on: ubuntu-latest
-    env:
-      PROJECT: github.com/uber/jaeger-client-go
-
     steps:
-    - uses: actions/checkout@v2
-
-    - uses: actions/setup-go@v2
-      with:
-        go-version: ^1.15
-
-    - name: Install dependencies and tools
-      run: |
-        export GOPATH=$HOME/go
-        export PROJECT=$GOPATH/src/${{env.PROJECT}}
-        mkdir -p $GOPATH
-        export PATH=$PATH:$(go env GOPATH)/bin
-        mkdir -p $(dirname $PROJECT)
-        ln -s $(pwd) $PROJECT
-        cd $PROJECT
-        make install-ci USE_DEP=true
-        dep version
-
-    - name: Run tests
-      run: |
-        export GOPATH=$HOME/go
-        export PROJECT=$GOPATH/src/${{env.PROJECT}}
-        export PATH=$PATH:$(go env GOPATH)/bin
-        cd $PROJECT
-        make test-ci
-
-    - name: Upload coverage to codecov
-      uses: codecov/codecov-action@v1
-      with:
-        file: cover.out
-        fail_ci_if_error: true
-        verbose: true
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: ^1.15
+      - name: Setup GOPATH
+        uses: ./.github/actions/setup-gopath
+      - name: Install dependencies and tools
+        run: |
+          cd $PROJECT
+          make install-ci USE_DEP=true
+          dep version
+      - name: Run tests
+        run: |
+          cd $PROJECT
+          make test-ci
+      - name: Upload coverage to codecov
+        uses: codecov/codecov-action@v1
+        with:
+          file: cover.out
+          fail_ci_if_error: true
+          verbose: true
 
   unit-tests-glide:
     strategy:
       fail-fast: true
     runs-on: ubuntu-latest
-    env:
-      PROJECT: github.com/uber/jaeger-client-go
-
     steps:
-    - uses: actions/checkout@v2
-
-    - uses: actions/setup-go@v2
-      with:
-        go-version: ^1.15
-
-    - name: Install dependencies and tools
-      run: |
-        export GOPATH=$HOME/go
-        export PROJECT=$GOPATH/src/${{env.PROJECT}}
-        mkdir -p $GOPATH
-        export PATH=$PATH:$(go env GOPATH)/bin
-        mkdir -p $(dirname $PROJECT)
-        ln -s $(pwd) $PROJECT
-        cd $PROJECT
-        make install-ci USE_DEP=false USE_GLIDE=true
-        glide -v
-
-    - name: Run tests
-      run: |
-        export GOPATH=$HOME/go
-        export PROJECT=$GOPATH/src/${{env.PROJECT}}
-        export PATH=$PATH:$(go env GOPATH)/bin
-        cd $PROJECT
-        make test-ci
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: ^1.15
+      - name: Setup GOPATH
+        uses: ./.github/actions/setup-gopath
+      - name: Install dependencies and tools
+        run: |
+          cd $PROJECT
+          make install-ci USE_DEP=false USE_GLIDE=true
+          glide -v
+      - name: Run tests
+        run: |
+          cd $PROJECT
+          make test-ci
