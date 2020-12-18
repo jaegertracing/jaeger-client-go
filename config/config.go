@@ -277,6 +277,10 @@ func (c Configuration) NewTracer(options ...Option) (opentracing.Tracer, io.Clos
 		tracerOptions = append(tracerOptions, jaeger.TracerOptions.Gen128Bit(true))
 	}
 
+	if opts.randomNumber != nil {
+		tracerOptions = append(tracerOptions, jaeger.TracerOptions.RandomNumber(opts.randomNumber))
+	}
+
 	for _, tag := range opts.tags {
 		tracerOptions = append(tracerOptions, jaeger.TracerOptions.Tag(tag.Key, tag.Value))
 	}
