@@ -905,7 +905,7 @@ func TestWithRandomNumber(t *testing.T) {
 		ServiceName: "test-random-number",
 	}
 	randomNum := func() uint64 { return 1 }
-	_, closer, err := cfg.NewTracer(WithRandomNunmber(randomNum))
+	_, closer, err := cfg.NewTracer(WithRandomNumber(randomNum))
 	assert.NoError(t, err)
 	defer closeCloser(t, closer)
 }
