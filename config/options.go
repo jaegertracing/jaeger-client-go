@@ -148,7 +148,7 @@ func Extractor(format interface{}, extractor jaeger.Extractor) Option {
 	}
 }
 
-// WithRandomNumber set the Tracer random number func
+// WithRandomNumber supplies a random number generator function to the Tracer used to generate trace and span IDs.
 func WithRandomNumber(f func() uint64) Option {
 	return func(c *Options) {
 		c.randomNumber = f
