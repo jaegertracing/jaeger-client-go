@@ -899,3 +899,13 @@ func TestThrottlerDefaultConfig(t *testing.T) {
 	assert.NoError(t, err)
 	defer closeCloser(t, closer)
 }
+
+func TestWithRandomNumber(t *testing.T) {
+	cfg := &Configuration{
+		ServiceName: "test-random-number",
+	}
+	randomNum := func() uint64 { return 1 }
+	_, closer, err := cfg.NewTracer(WithRandomNunmber(randomNum))
+	assert.NoError(t, err)
+	defer closeCloser(t, closer)
+}

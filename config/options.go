@@ -148,8 +148,8 @@ func Extractor(format interface{}, extractor jaeger.Extractor) Option {
 	}
 }
 
-// WithRandonNunmber set the Tracer random number func
-func WithRandonNunmber(f func() uint64) Option {
+// WithRandomNunmber set the Tracer random number func
+func WithRandomNunmber(f func() uint64) Option {
 	return func(c *Options) {
 		c.randomNumber = f
 	}
