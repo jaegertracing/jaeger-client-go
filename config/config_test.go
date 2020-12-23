@@ -908,10 +908,10 @@ func TestWithRandomNumber(t *testing.T) {
 	}
 	randomNum := func() uint64 { return traceID }
 	tracer, closer, err := cfg.NewTracer(WithRandomNumber(randomNum))
-	span:=tracer.StartSpan("test-span")
+	span := tracer.StartSpan("test-span")
 	spanCtx := span.Context().(jaeger.SpanContext)
 
 	assert.NoError(t, err)
-	assert.Equal(t, spanCtx.TraceID().Low ,traceID)
+	assert.Equal(t, spanCtx.TraceID().Low, traceID)
 	defer closeCloser(t, closer)
 }
