@@ -912,6 +912,6 @@ func TestWithRandomNumber(t *testing.T) {
 	spanCtx := span.Context().(jaeger.SpanContext)
 
 	assert.NoError(t, err)
-	assert.Equal(t, spanCtx.TraceID().Low, traceID)
+	assert.Equal(t, traceID, spanCtx.TraceID().Low)
 	defer closeCloser(t, closer)
 }
