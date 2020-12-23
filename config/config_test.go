@@ -899,3 +899,19 @@ func TestThrottlerDefaultConfig(t *testing.T) {
 	assert.NoError(t, err)
 	defer closeCloser(t, closer)
 }
+
+func TestWithRandomNumber(t *testing.T) {
+	const traceID uint64 = 1
+
+	cfg := &Configuration{
+		ServiceName: "test-random-number",
+	}
+	randomNum := func() uint64 { return traceID }
+	tracer, closer, err := cfg.NewTracer(WithRandomNumber(randomNum))
+	span := tracer.StartSpan("test-span")
+	spanCtx := span.Context().(jaeger.SpanContext)
+
+	assert.NoError(t, err)
+	assert.Equal(t, traceID, spanCtx.TraceID().Low)
+	defer closeCloser(t, closer)
+}
