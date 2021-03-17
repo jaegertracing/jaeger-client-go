@@ -17,6 +17,7 @@ jobs:
         uses: ./.github/actions/setup-gopath
       - name: run FOSSA analysis
         env:
+          GO111MODULE=off
           # FOSSA Push-Only API Token
           FOSSA_API_KEY: '304657e2357ba57b416b94e6b119131b'
         run: |
