@@ -23,5 +23,7 @@ jobs:
         run: |
           cd $PROJECT
           curl -H 'Cache-Control: no-cache' https://raw.githubusercontent.com/fossas/fossa-cli/master/install.sh | bash
+          echo GO111MODULE=$GO111MODULE
+          go list -json -tags github.com/crossdock/crossdock-go
           fossa init
           fossa analyze
