@@ -257,6 +257,7 @@ func TestParseCommaSeperatedMap(t *testing.T) {
 		{"malformed", map[string]string{}},
 		{"malformed, string", map[string]string{}},
 		{"another malformed string", map[string]string{}},
+		{"key2=value2,    key3    =    value3   ", map[string]string{"key2": "value2", "key3": "    value3"}},
 	}
 
 	for _, testcase := range testcases {

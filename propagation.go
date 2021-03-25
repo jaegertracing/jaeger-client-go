@@ -292,7 +292,7 @@ func (p *TextMapPropagator) parseCommaSeparatedMap(value string) map[string]stri
 	for _, kvpair := range strings.Split(value, ",") {
 		kv := strings.Split(strings.TrimSpace(kvpair), "=")
 		if len(kv) == 2 {
-			baggage[kv[0]] = kv[1]
+			baggage[strings.TrimSpace(kv[0])] = kv[1]
 		} else {
 			log.Printf("Malformed value passed in for %s", p.headerKeys.JaegerBaggageHeader)
 		}
