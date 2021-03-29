@@ -314,6 +314,7 @@ func (c *SpanContext) CopyFrom(ctx *SpanContext) {
 }
 
 // WithBaggageItem creates a new context with an extra baggage item.
+// Delete a baggage item if provided blank value.
 //
 // The SpanContext is designed to be immutable and passed by value. As such,
 // it cannot contain any locks, and should only hold immutable data, including baggage.
@@ -324,6 +325,18 @@ func (c *SpanContext) CopyFrom(ctx *SpanContext) {
 // a trace), or it needs to do a copy-on-write, which is the approach taken here.
 func (c SpanContext) WithBaggageItem(key, value string) SpanContext {
 	var newBaggage map[string]string
+	// unset baggage item
+	if value == "" {
+		if _, ok := c.baggage[key]; !ok {
+			return c
+		}
+		newBaggage = make(map[string]string, len(c.baggage))
+		for k, v := range c.baggage {
+			newBaggage[k] = v
+		}
+		delete(newBaggage, key)
+		return SpanContext{c.traceID, c.spanID, c.parentID, newBaggage, "", c.samplingState, c.remote}
+	}
 	if c.baggage == nil {
 		newBaggage = map[string]string{key: value}
 	} else {

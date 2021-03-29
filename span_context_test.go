@@ -79,6 +79,19 @@ func TestSpanContext_WithBaggageItem(t *testing.T) {
 	assert.Equal(t, map[string]string{"some-KEY": "Some-Other-Value"}, ctx.baggage)
 }
 
+func TestSpanContext_WithBaggageItem_Delete(t *testing.T) {
+	var ctx SpanContext
+	ctx = ctx.WithBaggageItem("some-KEY", "")
+	assert.Nil(t, ctx.baggage)
+	ctx = ctx.WithBaggageItem("some-KEY", "Some-Value")
+	assert.Equal(t, map[string]string{"some-KEY": "Some-Value"}, ctx.baggage)
+	ctx = ctx.WithBaggageItem("another-KEY", "")
+	assert.Equal(t, map[string]string{"some-KEY": "Some-Value"}, ctx.baggage)
+	ctx2 := ctx.WithBaggageItem("some-KEY", "")
+	assert.Equal(t, map[string]string{"some-KEY": "Some-Value"}, ctx.baggage, "parent unchanged")
+	assert.Equal(t, map[string]string{}, ctx2.baggage)
+}
+
 func TestSpanContext_Flags(t *testing.T) {
 
 	var tests = map[string]struct {
