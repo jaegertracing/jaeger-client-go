@@ -429,7 +429,7 @@ func (rc *ReporterConfig) NewReporter(
 func (rc *ReporterConfig) newTransport(logger jaeger.Logger) (jaeger.Transport, error) {
 	switch {
 	case rc.CollectorEndpoint != "":
-		httpOptions := []transport.HTTPOption{transport.HTTPBatchSize(1), transport.HTTPHeaders(rc.HTTPHeaders)}
+		httpOptions := []transport.HTTPOption{transport.HTTPHeaders(rc.HTTPHeaders)}
 		if rc.User != "" && rc.Password != "" {
 			httpOptions = append(httpOptions, transport.HTTPBasicAuth(rc.User, rc.Password))
 		}
