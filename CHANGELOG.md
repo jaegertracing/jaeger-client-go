@@ -1,10 +1,18 @@
 Changes by Version
 ==================
 
-2.25.1 (unreleased)
+2.26.0 (2021-04-16)
 -------------------
-- Nothing yet.
-
+- Delete a baggage item when value is blank (#562) -- evan.kim
+- Trim baggage key when parsing (#566) -- sicong.huang
+- feat: extend configuration to support custom randomNumber func (#555) -- NemoO_o
+- Support JAEGER_TRACEID_128BIT env var (#547) -- Yuri Shkuro
+- Additional context protections (#544) -- Joe Elliott
+- Lock RemotelyControlledSampler.sampler on callbacks (#543) -- Dima
+- Upgrade build to Go 1.15 (#539) -- Yuri Shkuro
+- Upgrade to jaeger-lib@2.3.0 to fix broken codahale/hdrhistogram dependency (#537) -- Yuri Shkuro
+- Prefix TraceID/SpanID.String() with zeroes (#533) -- Lukas Vogel
+- Upgrade to OpenTracing Go 1.2 (#525) -- Yuri Shkuro
 
 2.25.0 (2020-07-13)
 -------------------
