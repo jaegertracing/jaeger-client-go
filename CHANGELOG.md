@@ -1,6 +1,10 @@
 Changes by Version
 ==================
 
+2.26.1 (unreleased)
+-------------------
+- Nothing yet.
+
 2.26.0 (2021-04-16)
 -------------------
 - Delete a baggage item when value is blank (#562) -- evan.kim
