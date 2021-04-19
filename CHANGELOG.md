@@ -1,9 +1,10 @@
 Changes by Version
 ==================
 
-2.26.1 (unreleased)
+2.27.0 (2021-04-19)
 -------------------
-- Nothing yet.
+- Don't override HTTP Reporter batch size to 1; default to 100, user can override (#571) -- R. Aidan Campbell
+
 
 2.26.0 (2021-04-16)
 -------------------
@@ -17,6 +18,7 @@ Changes by Version
 - Upgrade to jaeger-lib@2.3.0 to fix broken codahale/hdrhistogram dependency (#537) -- Yuri Shkuro
 - Prefix TraceID/SpanID.String() with zeroes (#533) -- Lukas Vogel
 - Upgrade to OpenTracing Go 1.2 (#525) -- Yuri Shkuro
+
 
 2.25.0 (2020-07-13)
 -------------------
