@@ -1,6 +1,11 @@
 Changes by Version
 ==================
 
+2.27.1 (unreleased)
+-------------------
+- Nothing yet
+
+
 2.27.0 (2021-04-19)
 -------------------
 - Don't override HTTP Reporter batch size to 1; default to 100, user can override (#571) -- R. Aidan Campbell
