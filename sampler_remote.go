@@ -29,6 +29,7 @@ import (
 )
 
 const (
+	defaultRemoteSamplingTimeout   = 10 * time.Second
 	defaultSamplingRefreshInterval = time.Minute
 )
 
@@ -298,8 +299,22 @@ func (u *AdaptiveSamplerUpdater) Update(sampler SamplerV2, strategy interface{})
 // -----------------------
 
 type httpSamplingStrategyFetcher struct {
-	serverURL string
-	logger    log.DebugLogger
+	serverURL  string
+	logger     log.DebugLogger
+	httpClient http.Client
+}
+
+func newHTTPSamplingStrategyFetcher(serverURL string, logger log.DebugLogger) *httpSamplingStrategyFetcher {
+	customTransport := http.DefaultTransport.(*http.Transport).Clone()
+	customTransport.ResponseHeaderTimeout = defaultRemoteSamplingTimeout
+
+	return &httpSamplingStrategyFetcher{
+		serverURL: serverURL,
+		logger:    logger,
+		httpClient: http.Client{
+			Transport: customTransport,
+		},
+	}
 }
 
 func (f *httpSamplingStrategyFetcher) Fetch(serviceName string) ([]byte, error) {
@@ -307,8 +322,7 @@ func (f *httpSamplingStrategyFetcher) Fetch(serviceName string) ([]byte, error) 
 	v.Set("service", serviceName)
 	uri := f.serverURL + "?" + v.Encode()
 
-	// TODO create and reuse http.Client with proper timeout settings, etc.
-	resp, err := http.Get(uri)
+	resp, err := f.httpClient.Get(uri)
 	if err != nil {
 		return nil, err
 	}
