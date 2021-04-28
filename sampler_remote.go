@@ -304,12 +304,12 @@ type httpSamplingStrategyFetcher struct {
 	httpClient http.Client
 }
 
-func newHTTPSamplingStrategyFetcher(serverUrl string, logger log.DebugLogger) *httpSamplingStrategyFetcher {
+func newHTTPSamplingStrategyFetcher(serverURL string, logger log.DebugLogger) *httpSamplingStrategyFetcher {
 	customTransport := http.DefaultTransport.(*http.Transport).Clone()
 	customTransport.ResponseHeaderTimeout = defaultRemoteSamplingTimeout
 
 	return &httpSamplingStrategyFetcher{
-		serverURL: serverUrl,
+		serverURL: serverURL,
 		logger:    logger,
 		httpClient: http.Client{
 			Transport: customTransport,
