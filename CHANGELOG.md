@@ -1,9 +1,9 @@
 Changes by Version
 ==================
 
-2.27.1 (unreleased)
+2.28.0 (2021-04-30)
 -------------------
-- Nothing yet
+- HTTPSamplingStrategyFetcher: Use http client with 10 second timeout (#578) -- Joe Elliott
 
 
 2.27.0 (2021-04-19)
