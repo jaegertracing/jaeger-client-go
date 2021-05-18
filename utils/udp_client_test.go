@@ -15,6 +15,7 @@
 package utils
 
 import (
+	"context"
 	"net"
 	"testing"
 
@@ -114,5 +115,5 @@ func TestNewAgentClientUDPWithParamsReconnectingDisabled(t *testing.T) {
 func TestAgentClientUDPNotSupportZipkin(t *testing.T) {
 	agentClient := AgentClientUDP{}
 
-	assert.Error(t, agentClient.EmitZipkinBatch([]*zipkincore.Span{{Name: "fakespan"}}))
+	assert.Error(t, agentClient.EmitZipkinBatch(context.Background(), []*zipkincore.Span{{Name: "fakespan"}}))
 }

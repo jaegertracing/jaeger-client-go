@@ -15,6 +15,7 @@
 package jaeger
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -155,7 +156,7 @@ func (s *udpSender) Flush() (int, error) {
 	}
 	s.batchSeqNo++
 	batchSeqNo := int64(s.batchSeqNo)
-	err := s.client.EmitBatch(&j.Batch{
+	err := s.client.EmitBatch(context.Background(), &j.Batch{
 		Process: s.process,
 		Spans:   s.spanBuffer,
 		SeqNo:   &batchSeqNo,

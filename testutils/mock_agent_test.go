@@ -15,6 +15,7 @@
 package testutils
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -44,7 +45,7 @@ func TestMockAgentSpanServer(t *testing.T) {
 		}
 		batch.Spans = spans
 
-		err = client.EmitBatch(batch)
+		err = client.EmitBatch(context.Background(), batch)
 		assert.NoError(t, err)
 
 		for k := 0; k < 100; k++ {
