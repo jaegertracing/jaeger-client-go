@@ -27,6 +27,7 @@ package zipkin
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -141,15 +142,16 @@ func (c *HTTPTransport) Close() error {
 func httpSerialize(spans []*zipkincore.Span) (*bytes.Buffer, error) {
 	t := thrift.NewTMemoryBuffer()
 	p := thrift.NewTBinaryProtocolTransport(t)
-	if err := p.WriteListBegin(thrift.STRUCT, len(spans)); err != nil {
+	ctx := context.Background()
+	if err := p.WriteListBegin(ctx, thrift.STRUCT, len(spans)); err != nil {
 		return nil, err
 	}
 	for _, s := range spans {
-		if err := s.Write(p); err != nil {
+		if err := s.Write(ctx, p); err != nil {
 			return nil, err
 		}
 	}
-	if err := p.WriteListEnd(); err != nil {
+	if err := p.WriteListEnd(ctx); err != nil {
 		return nil, err
 	}
 	return t.Buffer, nil

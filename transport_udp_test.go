@@ -43,7 +43,7 @@ func getThriftSpanByteLength(t *testing.T, span *Span) int {
 	jSpan := BuildJaegerThrift(span)
 	transport := thrift.NewTMemoryBufferLen(1000)
 	protocolFactory := thrift.NewTCompactProtocolFactory()
-	err := jSpan.Write(protocolFactory.GetProtocol(transport))
+	err := jSpan.Write(context.Background(), protocolFactory.GetProtocol(transport))
 	require.NoError(t, err)
 	return transport.Len()
 }
@@ -56,7 +56,7 @@ func getThriftProcessByteLengthFromTracer(t *testing.T, tracer *Tracer) int {
 func getThriftProcessByteLength(t *testing.T, process *j.Process) int {
 	transport := thrift.NewTMemoryBufferLen(1000)
 	protocolFactory := thrift.NewTCompactProtocolFactory()
-	err := process.Write(protocolFactory.GetProtocol(transport))
+	err := process.Write(context.Background(), protocolFactory.GetProtocol(transport))
 	require.NoError(t, err)
 	return transport.Len()
 }

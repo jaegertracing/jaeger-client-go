@@ -117,7 +117,7 @@ func (s *udpSender) SetReporterStats(rs reporterstats.ReporterStats) {
 
 func (s *udpSender) calcSizeOfSerializedThrift(thriftStruct thrift.TStruct) int {
 	s.thriftBuffer.Reset()
-	_ = thriftStruct.Write(s.thriftProtocol)
+	_ = thriftStruct.Write(context.Background(), s.thriftProtocol)
 	return s.thriftBuffer.Len()
 }
 

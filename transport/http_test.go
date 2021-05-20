@@ -15,6 +15,7 @@
 package transport
 
 import (
+	"context"
 	"io/ioutil"
 	"net/http"
 	"sync"
@@ -154,7 +155,7 @@ func newHTTPServer(t *testing.T) *httpServer {
 		}
 		transport := thrift.NewTBinaryProtocolTransport(buffer)
 		batch := &j.Batch{}
-		if err = batch.Read(transport); err != nil {
+		if err = batch.Read(context.Background(), transport); err != nil {
 			t.Error(err)
 			return
 		}
