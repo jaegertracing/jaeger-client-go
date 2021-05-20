@@ -15,6 +15,7 @@
 package jaeger
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"testing"
@@ -26,6 +27,7 @@ import (
 	"github.com/uber/jaeger-client-go/internal/reporterstats"
 	"github.com/uber/jaeger-client-go/testutils"
 	"github.com/uber/jaeger-client-go/thrift"
+	"github.com/uber/jaeger-client-go/thrift-gen/agent"
 	j "github.com/uber/jaeger-client-go/thrift-gen/jaeger"
 )
 
@@ -41,7 +43,7 @@ func getThriftSpanByteLength(t *testing.T, span *Span) int {
 	jSpan := BuildJaegerThrift(span)
 	transport := thrift.NewTMemoryBufferLen(1000)
 	protocolFactory := thrift.NewTCompactProtocolFactory()
-	err := jSpan.Write(protocolFactory.GetProtocol(transport))
+	err := jSpan.Write(context.Background(), protocolFactory.GetProtocol(transport))
 	require.NoError(t, err)
 	return transport.Len()
 }
@@ -54,7 +56,7 @@ func getThriftProcessByteLengthFromTracer(t *testing.T, tracer *Tracer) int {
 func getThriftProcessByteLength(t *testing.T, process *j.Process) int {
 	transport := thrift.NewTMemoryBufferLen(1000)
 	protocolFactory := thrift.NewTCompactProtocolFactory()
-	err := process.Write(protocolFactory.GetProtocol(transport))
+	err := process.Write(context.Background(), protocolFactory.GetProtocol(transport))
 	require.NoError(t, err)
 	return transport.Len()
 }
@@ -68,7 +70,7 @@ func newSpan() *Span {
 func TestEmitBatchOverhead(t *testing.T) {
 	transport := thrift.NewTMemoryBufferLen(1000)
 	protocolFactory := thrift.NewTCompactProtocolFactory()
-	client := j.NewAgentClientFactory(transport, protocolFactory)
+	client := agent.NewAgentClientFactory(transport, protocolFactory)
 
 	span := newSpan()
 	spanSize := getThriftSpanByteLength(t, span)
@@ -86,7 +88,6 @@ func TestEmitBatchOverhead(t *testing.T) {
 			Process: process,
 			Spans:   spans,
 		}
-		client.SeqId = -2 // this causes the longest encoding of varint32 as 5 bytes
 
 		for _, stats := range []bool{false, true} {
 			if stats {
@@ -100,7 +101,7 @@ func TestEmitBatchOverhead(t *testing.T) {
 			}
 			t.Run(fmt.Sprintf("n=%d,stats=%t", n, stats), func(t *testing.T) {
 				transport.Reset()
-				err := client.EmitBatch(batch)
+				err := client.EmitBatch(context.Background(), batch)
 				require.NoError(t, err)
 				processSize := getThriftProcessByteLength(t, process)
 				overhead := transport.Len() - n*spanSize - processSize

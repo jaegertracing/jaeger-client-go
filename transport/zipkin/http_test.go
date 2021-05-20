@@ -26,6 +26,7 @@ package zipkin
 // https://github.com/openzipkin/zipkin-go-opentracing/
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -228,7 +229,8 @@ func newHTTPServer(t *testing.T) *httpServer {
 			return
 		}
 		transport := thrift.NewTBinaryProtocolTransport(buffer)
-		_, size, err := transport.ReadListBegin()
+		ctx := context.Background()
+		_, size, err := transport.ReadListBegin(ctx)
 		if err != nil {
 			t.Error(err)
 			return
@@ -236,13 +238,13 @@ func newHTTPServer(t *testing.T) *httpServer {
 		var spans []*zipkincore.Span
 		for i := 0; i < size; i++ {
 			zs := &zipkincore.Span{}
-			if err = zs.Read(transport); err != nil {
+			if err = zs.Read(ctx, transport); err != nil {
 				t.Error(err)
 				return
 			}
 			spans = append(spans, zs)
 		}
-		if err := transport.ReadListEnd(); err != nil {
+		if err := transport.ReadListEnd(ctx); err != nil {
 			t.Error(err)
 			return
 		}
