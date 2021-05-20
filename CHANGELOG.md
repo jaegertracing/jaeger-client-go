@@ -1,9 +1,9 @@
 Changes by Version
 ==================
 
-2.28.1 (unreleased)
+2.29.0 (unreleased)
 -------------------
-- Nothing yet
+- Update vendored thrift to 0.14.1 (#584) -- @nhatthm
 
 
 2.28.0 (2021-04-30)
