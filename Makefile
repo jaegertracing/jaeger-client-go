@@ -47,15 +47,30 @@ fmt:
 	./scripts/updateLicenses.sh
 
 .PHONY: lint
-lint:
+lint: vet golint lint-fmt lint-thrift-testing
+
+.PHONY: vet
+vet:
 	$(GOVET) $(PACKAGES)
+
+.PHONY: golint
+golint:
 	@cat /dev/null > $(LINT_LOG)
 	@$(foreach pkg, $(PACKAGES), $(GOLINT) $(pkg) | grep -v crossdock/thrift >> $(LINT_LOG) || true;)
 	@[ ! -s "$(LINT_LOG)" ] || (echo "Lint Failures" | cat - $(LINT_LOG) && false)
+
+.PHONY: lint-fmt
+lint-fmt:
 	@$(GOFMT) -e -s -l $(ALL_SRC) > $(FMT_LOG)
 	./scripts/updateLicenses.sh >> $(FMT_LOG)
 	@[ ! -s "$(FMT_LOG)" ] || (echo "go fmt or license check failures, run 'make fmt'" | cat - $(FMT_LOG) && false)
 
+# make sure thrift/ module does not import "testing"
+.PHONY: lint-thrift-testing
+lint-thrift-testing:
+	@cat /dev/null > $(LINT_LOG)
+	@(grep -rn '"testing"' thrift | grep -v README.md > $(LINT_LOG)) || true
+	@[ ! -s "$(LINT_LOG)" ] || (echo '"thrift" module must not import "testing", see issue #585' | cat - $(LINT_LOG) && false)
 
 .PHONY: install
 install:

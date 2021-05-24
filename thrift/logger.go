@@ -22,7 +22,6 @@ package thrift
 import (
 	"log"
 	"os"
-	"testing"
 )
 
 // Logger is a simple wrapper of a logging function.
@@ -49,15 +48,6 @@ func StdLogger(logger *log.Logger) Logger {
 	}
 	return func(msg string) {
 		logger.Print(msg)
-	}
-}
-
-// TestLogger is a Logger implementation can be used in test codes.
-//
-// It fails the test when being called.
-func TestLogger(tb testing.TB) Logger {
-	return func(msg string) {
-		tb.Errorf("logger called with msg: %q", msg)
 	}
 }
 
