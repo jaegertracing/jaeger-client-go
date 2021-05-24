@@ -4,7 +4,7 @@ This is a partial copy of Apache Thrift v0.14.1 (https://github.com/apache/thrif
 
 It is vendored code to avoid compatibility issues with Thrift versions.
 
-The file logger.go is modified to remove dependency on "testing" (see Issuer #585).
+The file logger.go is modified to remove dependency on "testing" (see Issue #585).
 
 See:
   * https://github.com/jaegertracing/jaeger-client-go/pull/584
