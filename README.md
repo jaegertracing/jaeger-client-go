@@ -70,6 +70,7 @@ JAEGER_SAMPLING_ENDPOINT | The URL for the sampling configuration server when us
 JAEGER_SAMPLER_MAX_OPERATIONS | The maximum number of operations that the sampler will keep track of (default `2000`).
 JAEGER_SAMPLER_REFRESH_INTERVAL | How often the `remote` sampler should poll the configuration server for the appropriate sampling strategy, e.g. "1m" or "30s" ([valid units][timeunits]; default `1m`).
 JAEGER_TAGS | A comma separated list of `name=value` tracer-level tags, which get added to all reported spans. The value can also refer to an environment variable using the format `${envVarName:defaultValue}`.
+JAEGER_TRACEID_128BIT | Whether to enable 128bit trace-id generation, `true` or `false`. If not enabled, the SDK defaults to 64bit trace-ids.
 JAEGER_DISABLED | Whether the tracer is disabled or not. If `true`, the `opentracing.NoopTracer` is used (default `false`).
 JAEGER_RPC_METRICS | Whether to store RPC metrics, `true` or `false` (default `false`).
 
