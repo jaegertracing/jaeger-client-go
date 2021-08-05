@@ -39,7 +39,7 @@ make install
 
 ## Initialization
 
-See tracer initialization examples in [godoc](https://godoc.org/github.com/uber/jaeger-client-go/config#pkg-examples)
+See tracer initialization examples in [godoc](https://pkg.go.dev/github.com/uber/jaeger-client-go/config#pkg-examples)
 and [config/example_test.go](./config/example_test.go).
 
 ### Environment variables
@@ -312,8 +312,8 @@ defer span.Finish()
 [Apache 2.0 License](LICENSE).
 
 
-[doc-img]: https://godoc.org/github.com/uber/jaeger-client-go?status.svg
-[doc]: https://godoc.org/github.com/uber/jaeger-client-go
+[doc-img]: https://pkg.go.dev/badge/github.com/uber/jaeger-client-go.svg
+[doc]: https://pkg.go.dev/github.com/uber/jaeger-client-go
 [ci-img]: https://travis-ci.org/jaegertracing/jaeger-client-go.svg?branch=master
 [ci]: https://travis-ci.org/jaegertracing/jaeger-client-go
 [cov-img]: https://codecov.io/gh/jaegertracing/jaeger-client-go/branch/master/graph/badge.svg
