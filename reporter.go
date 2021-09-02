@@ -193,7 +193,7 @@ func (r *reporterStats) incDroppedCount() {
 
 type remoteReporter struct {
 	// These fields must be first in the struct because `sync/atomic` expects 64-bit alignment.
-	// Cf. https://github.com/jaegertracing/jaeger-client-go/v3/issues/155, https://goo.gl/zW7dgq
+	// Cf. https://github.com/jaegertracing/jaeger-client-go/issues/155, https://goo.gl/zW7dgq
 	queueLength int64 // used to update metrics.Gauge
 	closed      int64 // 0 - not closed, 1 - closed
 
