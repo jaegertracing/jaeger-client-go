@@ -1,6 +1,6 @@
-PROJECT_ROOT=github.com/jaegertracing/jaeger-client-go/v3
+PROJECT_ROOT=github.com/jaegertracing/jaeger-client-go
 export GO111MODULE=on
-PACKAGES := . $(shell GO111MODULE=on go list ./... | awk -F/ 'NR>1 {print "./"$$4"/..."}' | grep -v -e ./thrift-gen/... -e ./thrift/... | sort -u)
+PACKAGES := . $(shell GO111MODULE=off go list ./... | awk -F/ 'NR>1 {print "./"$$4"/..."}' | grep -v -e ./thrift-gen/... -e ./thrift/... | sort -u)
 # all .go files that don't exist in hidden directories
 ALL_SRC := $(shell find . -name "*.go" | grep -v -e vendor -e thrift-gen -e ./thrift/ \
         -e ".*/\..*" \
