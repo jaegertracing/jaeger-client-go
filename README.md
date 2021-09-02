@@ -31,8 +31,8 @@ we recommend using semantic versions for dependencies.  The error  may be fixed 
 `make install` (it will install `dep` if you don't have it):
 
 ```shell
-go get -u github.com/jaegertracing/jaeger-client-go/v3/
-cd $GOPATH/src/github.com/jaegertracing/jaeger-client-go/v3/
+go get -u github.com/jaegertracing/jaeger-client-go/v3
+cd $GOPATH/src/github.com/jaegertracing/jaeger-client-go
 git submodule update --init --recursive
 make install
 ```
@@ -312,8 +312,8 @@ defer span.Finish()
 [Apache 2.0 License](LICENSE).
 
 
-[doc-img]: https://pkg.go.dev/badge/github.com/jaegertracing/jaeger-client-go/v3.svg
-[doc]: https://pkg.go.dev/github.com/jaegertracing/jaeger-client-go/v3
+[doc-img]: https://pkg.go.dev/badge/github.com/jaegertracing/jaeger-client-go.svg
+[doc]: https://pkg.go.dev/github.com/jaegertracing/jaeger-client-go
 [ci-img]: https://travis-ci.org/jaegertracing/jaeger-client-go.svg?branch=master
 [ci]: https://travis-ci.org/jaegertracing/jaeger-client-go
 [cov-img]: https://codecov.io/gh/jaegertracing/jaeger-client-go/branch/master/graph/badge.svg
