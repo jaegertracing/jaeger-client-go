@@ -27,14 +27,14 @@ make install
 
 ## Initialization
 
-See tracer initialization examples in [godoc](https://pkg.go.dev/github.com/jaegertracing/jaeger-client-go/v3/config#pkg-examples)
+See tracer initialization examples in [godoc](https://pkg.go.dev/github.com/jaegertracing/jaeger-client-go/config#pkg-examples)
 and [config/example_test.go](./config/example_test.go).
 
 ### Environment variables
 
 The tracer can be initialized with values coming from environment variables, if it is
 [built from a config](https://pkg.go.dev/github.com/jaegertracing/jaeger-client-go/v3/config?tab=doc#Configuration.NewTracer)
-that was created via [FromEnv()](https://pkg.go.dev/github.com/jaegertracing/jaeger-client-go/v3/config?tab=doc#FromEnv).
+that was created via [FromEnv()](https://pkg.go.dev/github.com/jaegertracing/jaeger-client-go/config?tab=doc#FromEnv).
 None of the env vars are required and all of them can be overridden via direct setting 
 of the property on the configuration object.
 
