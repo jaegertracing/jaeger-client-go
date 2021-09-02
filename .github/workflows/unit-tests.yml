@@ -21,7 +21,7 @@ jobs:
       - name: Install dependencies and tools
         run: |
           cd $PROJECT
-          make install-ci USE_DEP=true
+          make install-ci
           dep version
       - name: Run tests
         run: |
@@ -48,7 +48,7 @@ jobs:
       - name: Install dependencies and tools
         run: |
           cd $PROJECT
-          make install-ci USE_DEP=false USE_GLIDE=true
+          make install-ci
           glide -v
       - name: Run tests
         run: |
