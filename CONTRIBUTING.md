@@ -22,7 +22,7 @@ file for details.
 This library uses [dep](https://golang.github.io/dep/) to manage dependencies.
 
 To get started, make sure you clone the Git repository into the correct location
-`github.com/uber/jaeger-client-go` relative to `$GOPATH`:
+`github.com/jaegertracing/jaeger-client-go/v3` relative to `$GOPATH`:
 
 ```
 mkdir -p $GOPATH/src/github.com/uber
@@ -55,7 +55,7 @@ import (
 	"github.com/uber/jaeger-lib/metrics"
 	"go.uber.org/zap"
 
-	"github.com/uber/jaeger-client-go/config"
+	"github.com/jaegertracing/jaeger-client-go/v3/config"
 )
 ```
 

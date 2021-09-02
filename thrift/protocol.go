@@ -173,5 +173,4 @@ func Skip(ctx context.Context, self TProtocol, fieldType TType, maxDepth int) (e
 	default:
 		return NewTProtocolExceptionWithType(INVALID_DATA, errors.New(fmt.Sprintf("Unknown data type %d", fieldType)))
 	}
-	return nil
 }

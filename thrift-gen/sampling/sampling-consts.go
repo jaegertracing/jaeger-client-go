@@ -2,12 +2,12 @@
 
 package sampling
 
-import(
+import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/jaegertracing/jaeger-client-go/v3/thrift"
 	"time"
-	"github.com/uber/jaeger-client-go/thrift"
 )
 
 // (needed to ensure safety because of naive import list construction.)
@@ -17,7 +17,5 @@ var _ = context.Background
 var _ = time.Now
 var _ = bytes.Equal
 
-
 func init() {
 }
-

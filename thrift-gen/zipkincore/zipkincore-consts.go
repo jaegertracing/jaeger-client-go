@@ -2,12 +2,12 @@
 
 package zipkincore
 
-import(
+import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/jaegertracing/jaeger-client-go/v3/thrift"
 	"time"
-	"github.com/uber/jaeger-client-go/thrift"
 )
 
 // (needed to ensure safety because of naive import list construction.)
@@ -36,4 +36,3 @@ const MESSAGE_ADDR = "ma"
 
 func init() {
 }
-

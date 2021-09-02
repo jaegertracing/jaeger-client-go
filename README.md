@@ -6,7 +6,7 @@ Instrumentation library that implements an
 [OpenTracing Go](https://github.com/opentracing/opentracing-go) Tracer for Jaeger (https://jaegertracing.io).
 
 **IMPORTANT**: The library's import path is based on its original location under `github.com/uber`. Do not try to import it as `github.com/jaegertracing`, it will not compile. We might revisit this in the next major release.
-  * :white_check_mark: `import "github.com/uber/jaeger-client-go"`
+  * :white_check_mark: `import "github.com/jaegertracing/jaeger-client-go/v3"`
   * :x: `import "github.com/jaegertracing/jaeger-client-go"`
 
 ## How to Contribute
@@ -21,7 +21,7 @@ For example, Jaeger backend imports this library like this:
 
 ```toml
 [[constraint]]
-  name = "github.com/uber/jaeger-client-go"
+  name = "github.com/jaegertracing/jaeger-client-go/v3"
   version = "2.17"
 ```
 
@@ -31,22 +31,22 @@ we recommend using semantic versions for dependencies.  The error  may be fixed 
 `make install` (it will install `dep` if you don't have it):
 
 ```shell
-go get -u github.com/uber/jaeger-client-go/
-cd $GOPATH/src/github.com/uber/jaeger-client-go/
+go get -u github.com/jaegertracing/jaeger-client-go/v3/
+cd $GOPATH/src/github.com/jaegertracing/jaeger-client-go/v3/
 git submodule update --init --recursive
 make install
 ```
 
 ## Initialization
 
-See tracer initialization examples in [godoc](https://pkg.go.dev/github.com/uber/jaeger-client-go/config#pkg-examples)
+See tracer initialization examples in [godoc](https://pkg.go.dev/github.com/jaegertracing/jaeger-client-go/v3/config#pkg-examples)
 and [config/example_test.go](./config/example_test.go).
 
 ### Environment variables
 
 The tracer can be initialized with values coming from environment variables, if it is
-[built from a config](https://pkg.go.dev/github.com/uber/jaeger-client-go/config?tab=doc#Configuration.NewTracer)
-that was created via [FromEnv()](https://pkg.go.dev/github.com/uber/jaeger-client-go/config?tab=doc#FromEnv).
+[built from a config](https://pkg.go.dev/github.com/jaegertracing/jaeger-client-go/v3/config?tab=doc#Configuration.NewTracer)
+that was created via [FromEnv()](https://pkg.go.dev/github.com/jaegertracing/jaeger-client-go/v3/config?tab=doc#FromEnv).
 None of the env vars are required and all of them can be overridden via direct setting 
 of the property on the configuration object.
 
@@ -113,7 +113,7 @@ constructor, for example:
 
 ```go
 import (
-    "github.com/uber/jaeger-client-go/config"
+    "github.com/jaegertracing/jaeger-client-go/v3/config"
     "github.com/uber/jaeger-lib/metrics/prometheus"
 )
 
@@ -312,8 +312,8 @@ defer span.Finish()
 [Apache 2.0 License](LICENSE).
 
 
-[doc-img]: https://pkg.go.dev/badge/github.com/uber/jaeger-client-go.svg
-[doc]: https://pkg.go.dev/github.com/uber/jaeger-client-go
+[doc-img]: https://pkg.go.dev/badge/github.com/jaegertracing/jaeger-client-go/v3.svg
+[doc]: https://pkg.go.dev/github.com/jaegertracing/jaeger-client-go/v3
 [ci-img]: https://travis-ci.org/jaegertracing/jaeger-client-go.svg?branch=master
 [ci]: https://travis-ci.org/jaegertracing/jaeger-client-go
 [cov-img]: https://codecov.io/gh/jaegertracing/jaeger-client-go/branch/master/graph/badge.svg

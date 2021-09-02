@@ -7,7 +7,7 @@ PROJECT_ROOT="$(
 	pwd
 )"
 
-IMPORT_PATH=github.com/uber/jaeger-client-go
+IMPORT_PATH=github.com/jaegertracing/jaeger-client-go/v3
 THRIFT_GEN_DIR=thrift-gen
 THRIFT_GO_ARGS=thrift_import="github.com/apache/thrift/lib/go/thrift"
 
@@ -22,7 +22,7 @@ thrift -o ./ --gen go:${THRIFT_GO_ARGS} --out crossdock/thrift/ idl/thrift/cross
 
 sed -i 's|"zipkincore"|"'${IMPORT_PATH}'/thrift-gen/zipkincore"|g' ${THRIFT_GEN_DIR}/agent/*.go
 sed -i 's|"jaeger"|"'${IMPORT_PATH}'/thrift-gen/jaeger"|g' ${THRIFT_GEN_DIR}/agent/*.go
-sed -i 's|"github.com/apache/thrift/lib/go/thrift"|"github.com/uber/jaeger-client-go/thrift"|g' \
+sed -i 's|"github.com/apache/thrift/lib/go/thrift"|"github.com/jaegertracing/jaeger-client-go/v3/thrift"|g' \
 	${THRIFT_GEN_DIR}/*/*.go crossdock/thrift/tracetest/*.go
 
 rm -rf thrift-gen/*/*-remote

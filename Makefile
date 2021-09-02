@@ -1,13 +1,11 @@
-PROJECT_ROOT=github.com/uber/jaeger-client-go
-export GO111MODULE=off
-PACKAGES := . $(shell GO111MODULE=off go list ./... | awk -F/ 'NR>1 {print "./"$$4"/..."}' | grep -v -e ./thrift-gen/... -e ./thrift/... | sort -u)
+PROJECT_ROOT=github.com/jaegertracing/jaeger-client-go/v3
+export GO111MODULE=on
+PACKAGES := . $(shell GO111MODULE=oon go list ./... | awk -F/ 'NR>1 {print "./"$$4"/..."}' | grep -v -e ./thrift-gen/... -e ./thrift/... | sort -u)
 # all .go files that don't exist in hidden directories
 ALL_SRC := $(shell find . -name "*.go" | grep -v -e vendor -e thrift-gen -e ./thrift/ \
         -e ".*/\..*" \
         -e ".*/_.*" \
         -e ".*/mocks.*")
-
-USE_DEP := true
 
 -include crossdock/rules.mk
 
@@ -34,9 +32,6 @@ test-and-lint: test fmt lint
 
 .PHONY: test
 test:
-ifeq ($(USE_DEP),true)
-	dep check
-endif
 	bash -c "set -e; set -o pipefail; $(GOTEST) $(PACKAGES) | $(COLORIZE)"
 
 .PHONY: fmt
@@ -70,19 +65,6 @@ lint-thrift-testing:
 	@(grep -rn '"testing"' thrift | grep -v README.md > $(LINT_LOG)) || true
 	@[ ! -s "$(LINT_LOG)" ] || (echo '"thrift" module must not import "testing", see issue #585' | cat - $(LINT_LOG) && false)
 
-.PHONY: install
-install:
-	@echo install: USE_DEP=$(USE_DEP) USE_GLIDE=$(USE_GLIDE)
-ifeq ($(USE_DEP),true)
-	dep version || make install-dep
-	dep ensure -vendor-only -v
-endif
-ifeq ($(USE_GLIDE),true)
-	glide --version || go get github.com/Masterminds/glide
-	glide install
-endif
-
-
 .PHONY: cover
 cover:
 	$(GOTEST) -cover -coverprofile cover.out $(PACKAGES)
@@ -113,11 +95,6 @@ idl-submodule:
 .PHONY: thrift-image
 thrift-image:
 	$(THRIFT) -version
-
-.PHONY: install-dep
-install-dep:
-	- curl -L -s https://github.com/golang/dep/releases/download/v0.5.0/dep-linux-amd64 -o $$GOPATH/bin/dep
-	- chmod +x $$GOPATH/bin/dep
 
 .PHONY: install-ci
 install-ci: install
