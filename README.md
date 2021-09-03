@@ -5,10 +5,6 @@
 Instrumentation library that implements an
 [OpenTracing Go](https://github.com/opentracing/opentracing-go) Tracer for Jaeger (https://jaegertracing.io).
 
-**IMPORTANT**: The library's import path is based on its original location under `github.com/uber`. Do not try to import it as `github.com/jaegertracing`, it will not compile. We might revisit this in the next major release.
-  * :white_check_mark: `import "github.com/jaegertracing/jaeger-client-go/v3"`
-  * :x: `import "github.com/jaegertracing/jaeger-client-go"`
-
 ## How to Contribute
 
 Please see [CONTRIBUTING.md](CONTRIBUTING.md).
