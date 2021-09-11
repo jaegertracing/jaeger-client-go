@@ -83,6 +83,20 @@ func TestHTTPTransport(t *testing.T) {
 	assert.Equal(t, "my-value", server.getHeader().Get("my-key"))
 }
 
+func TestHTTPTransport_Error404(t *testing.T) {
+	server := newHTTPServer(t)
+	sender := NewHTTPTransport(
+		"http://localhost:10001/api/v1/non-exist",
+		HTTPBatchSize(1),
+		HTTPBasicAuth("Bender", "Rodriguez"),
+		HTTPHeaders(map[string]string{"my-key": "my-value"}),
+	)
+
+	assert.NotNil(t, server)
+	assert.NotNil(t, sender)
+	assert.EqualError(t, sender.send([]*j.Span{{}}), "error while sending spans to collector: [POST] http://localhost:10001/api/v1/non-exist, received non-successful status: 404")
+}
+
 func TestHTTPOptions(t *testing.T) {
 	roundTripper := &http.Transport{
 		MaxIdleConns: 80000,

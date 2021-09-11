@@ -160,7 +160,7 @@ func (c *HTTPTransport) send(spans []*j.Span) error {
 	io.Copy(ioutil.Discard, resp.Body)
 	resp.Body.Close()
 	if resp.StatusCode >= http.StatusBadRequest {
-		return fmt.Errorf("error from collector: %d", resp.StatusCode)
+		return fmt.Errorf("error while sending spans to collector: [%s] %s, received non-successful status: %d", req.Method, req.URL.String(), resp.StatusCode)
 	}
 	return nil
 }
