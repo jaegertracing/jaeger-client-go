@@ -1,5 +1,9 @@
 [![GoDoc][doc-img]][doc] [![Build Status][ci-img]][ci] [![Coverage Status][cov-img]][cov] [![OpenTracing 1.0 Enabled][ot-img]][ot-url]
 
+# 🛑 This library is being deprecated!
+
+We urge all users to migrate to [OpenTelemetry](https://opentelemetry.io/). Please refer to the [notice in the documentation](https://www.jaegertracing.io/docs/latest/client-libraries/#deprecating-jaeger-clients) for details.
+
 # Jaeger Bindings for Go OpenTracing API
 
 Instrumentation library that implements an
