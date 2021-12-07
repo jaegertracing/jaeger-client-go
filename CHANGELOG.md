@@ -1,6 +1,11 @@
 Changes by Version
 ==================
 
+2.30.1 (unreleased)
+-------------------
+- Nothing yet.
+
+
 2.30.0 (2021-12-07)
 -------------------
 - Add deprecation notice -- Yuri Shkuro
