@@ -19,6 +19,12 @@ Please see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Installation
 
+### Preferred
+
+Add `github.com/uber/jaeger-client-go` to `go.mod`.
+
+### Old way
+
 We recommended using a dependency manager like [dep](https://golang.github.io/dep/)
 and [semantic versioning](http://semver.org/) when including this library into an application.
 For example, Jaeger backend imports this library like this:
@@ -46,12 +52,16 @@ make install
 See tracer initialization examples in [godoc](https://pkg.go.dev/github.com/uber/jaeger-client-go/config#pkg-examples)
 and [config/example_test.go](./config/example_test.go).
 
+There are two ways to create a tracer:
+  * Using [Configuration](https://pkg.go.dev/github.com/uber/jaeger-client-go/config#Configuration) struct that allows declarative configuration. For example, you can populate that struct from a YAML/JSON config, or ask it to initialize itself using environment variables (see next section).
+  * Using [NewTracer()](https://pkg.go.dev/github.com/uber/jaeger-client-go#NewTracer) function that allows for full programmatic control of configuring the tracer using TracerOptions.
+
 ### Environment variables
 
 The tracer can be initialized with values coming from environment variables, if it is
 [built from a config](https://pkg.go.dev/github.com/uber/jaeger-client-go/config?tab=doc#Configuration.NewTracer)
 that was created via [FromEnv()](https://pkg.go.dev/github.com/uber/jaeger-client-go/config?tab=doc#FromEnv).
-None of the env vars are required and all of them can be overridden via direct setting 
+None of the env vars are required and all of them can be overridden via direct setting
 of the property on the configuration object.
 
 Property| Description
@@ -199,7 +209,7 @@ Version 2.20 introduced the ability to delay sampling decisions in the life cycl
 of the root span. It involves several features and architectural changes:
   * **Shared sampling state**: the sampling state is shared across all local
     (i.e. in-process) spans for a given trace.
-  * **New `SamplerV2` API** allows the sampler to be called at multiple points 
+  * **New `SamplerV2` API** allows the sampler to be called at multiple points
     in the life cycle of a span:
     * on span creation
     * on overwriting span operation name
