@@ -1,6 +1,6 @@
 [![GoDoc][doc-img]][doc] [![Build Status][ci-img]][ci] [![Coverage Status][cov-img]][cov] [![OpenTracing 1.0 Enabled][ot-img]][ot-url]
 
-# 🛑 This library is being deprecated!
+# 🛑 This library is DEPRECATED!
 
 No new pull requests are accepted except for security fixes.
 
