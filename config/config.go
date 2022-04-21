@@ -247,7 +247,7 @@ func (c Configuration) NewTracer(options ...Option) (opentracing.Tracer, io.Clos
 
 	sampler := opts.sampler
 	if sampler == nil {
-		s, err := c.Sampler.NewSampler(c.ServiceName, tracerMetrics)
+		s, err := c.Sampler.NewSampler(c.ServiceName, tracerMetrics, opts.logger)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -365,6 +365,7 @@ func (c Configuration) InitGlobalTracer(
 func (sc *SamplerConfig) NewSampler(
 	serviceName string,
 	metrics *jaeger.Metrics,
+	logger jaeger.Logger,
 ) (jaeger.Sampler, error) {
 	samplerType := strings.ToLower(sc.Type)
 	if samplerType == jaeger.SamplerTypeConst {
@@ -385,7 +386,7 @@ func (sc *SamplerConfig) NewSampler(
 	if samplerType == jaeger.SamplerTypeRemote || sc.Type == "" {
 		sc2 := *sc
 		sc2.Type = jaeger.SamplerTypeProbabilistic
-		initSampler, err := sc2.NewSampler(serviceName, nil)
+		initSampler, err := sc2.NewSampler(serviceName, nil, logger)
 		if err != nil {
 			return nil, err
 		}
@@ -396,6 +397,7 @@ func (sc *SamplerConfig) NewSampler(
 			jaeger.SamplerOptions.MaxOperations(sc.MaxOperations),
 			jaeger.SamplerOptions.OperationNameLateBinding(sc.OperationNameLateBinding),
 			jaeger.SamplerOptions.SamplingRefreshInterval(sc.SamplingRefreshInterval),
+			jaeger.SamplerOptions.Logger(logger),
 		}
 		options = append(options, sc.Options...)
 		return jaeger.NewRemotelyControlledSampler(serviceName, options...), nil
