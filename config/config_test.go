@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -40,11 +41,56 @@ func TestNewSamplerConst(t *testing.T) {
 	}{{1, true}, {0, false}}
 	for _, tst := range constTests {
 		cfg := &SamplerConfig{Type: jaeger.SamplerTypeConst, Param: tst.param}
-		s, err := cfg.NewSampler("x", nil)
+		s, err := cfg.NewSampler("x", nil, log.NullLogger)
 		require.NoError(t, err)
 		s1, ok := s.(*jaeger.ConstSampler)
 		require.True(t, ok, "converted to constSampler")
 		require.Equal(t, tst.decision, s1.Decision, "decision")
+	}
+}
+
+type testLogger struct {
+	called bool
+	mutex  sync.RWMutex
+}
+
+func (t *testLogger) Error(msg string) {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+	t.called = true
+}
+
+func (t *testLogger) Infof(msg string, args ...interface{}) {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+	t.called = true
+}
+
+func (t *testLogger) Debugf(msg string, args ...interface{}) {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+	t.called = true
+}
+
+func (t *testLogger) isCalled() bool {
+	t.mutex.RLock()
+	defer t.mutex.RUnlock()
+	return t.called
+}
+
+func TestNewSamplerRemoteLogger(t *testing.T) {
+	constTests := []struct {
+		param    float64
+		decision bool
+	}{{1, true}, {0, false}}
+	for _, tst := range constTests {
+		cfg := &SamplerConfig{Type: jaeger.SamplerTypeRemote, Param: tst.param}
+		logger := &testLogger{}
+		s, err := cfg.NewSampler("x", nil, logger)
+		require.NoError(t, err)
+		_, ok := s.(*jaeger.RemotelyControlledSampler)
+		require.True(t, ok, "converted to constSampler")
+		require.True(t, logger.isCalled(), "logger method is called")
 	}
 }
 
@@ -55,7 +101,7 @@ func TestNewSamplerProbabilistic(t *testing.T) {
 	}{{1.5, true}, {0.5, false}}
 	for _, tst := range constTests {
 		cfg := &SamplerConfig{Type: jaeger.SamplerTypeProbabilistic, Param: tst.param}
-		s, err := cfg.NewSampler("x", nil)
+		s, err := cfg.NewSampler("x", nil, log.NullLogger)
 		if tst.error {
 			require.Error(t, err)
 		} else {
@@ -154,7 +200,7 @@ func TestSamplerConfig(t *testing.T) {
 	setEnv(t, envSamplerMaxOperations, "10")
 	setEnv(t, envSamplerRefreshInterval, "1m1s") // 61 seconds
 
-	//existing SamplerConfig data
+	// existing SamplerConfig data
 	sc := SamplerConfig{
 		Type:                    "const-sample-config",
 		Param:                   2,
@@ -190,7 +236,7 @@ func TestSamplerConfigOptions(t *testing.T) {
 			jaeger.SamplerOptions.InitialSampler(initSampler),
 		},
 	}
-	sampler, err := cfg.NewSampler("service", jaeger.NewNullMetrics())
+	sampler, err := cfg.NewSampler("service", jaeger.NewNullMetrics(), log.NullLogger)
 	require.NoError(t, err)
 	defer sampler.Close()
 	assert.Same(t, initSampler, sampler.(*jaeger.RemotelyControlledSampler).Sampler())
@@ -562,7 +608,7 @@ func TestParsingUserPasswordErrorEnv(t *testing.T) {
 
 func TestInvalidSamplerType(t *testing.T) {
 	cfg := &SamplerConfig{MaxOperations: 10}
-	s, err := cfg.NewSampler("x", jaeger.NewNullMetrics())
+	s, err := cfg.NewSampler("x", jaeger.NewNullMetrics(), log.NullLogger)
 	require.NoError(t, err)
 	rcs, ok := s.(*jaeger.RemotelyControlledSampler)
 	require.True(t, ok, "converted to RemotelyControlledSampler")
