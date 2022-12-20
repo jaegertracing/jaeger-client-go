@@ -326,10 +326,7 @@ func (t *Tracer) startSpanWithOptions(
 	}
 	sp.observer = t.observer.OnStartSpan(sp, operationName, options)
 
-	if tagsTotalLength := len(options.Tags) + len(internalTags); tagsTotalLength > 0 {
-		if sp.tags == nil || cap(sp.tags) < tagsTotalLength {
-			sp.tags = make([]Tag, 0, tagsTotalLength)
-		}
+	if len(options.Tags)+len(internalTags) > 0 {
 		sp.tags = append(sp.tags, internalTags...)
 		for k, v := range options.Tags {
 			sp.setTagInternal(k, v, false)
