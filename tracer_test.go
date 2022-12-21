@@ -101,10 +101,42 @@ func (s *tracerSuite) TestBeginRootSpan() {
 
 func (s *tracerSuite) TestStartRootSpanWithOptions() {
 	ts := time.Now()
-	sp := s.tracer.StartSpan("get_address", opentracing.StartTime(ts))
+	t := opentracing.Tags{
+		"testTag1": "test tag 1",
+		"testTag2": "test tag 2",
+		"testTag3": "test tag 3",
+	}
+	sp := s.tracer.StartSpan("get_address", opentracing.StartTime(ts), t)
 	ss := sp.(*Span)
+
 	s.Equal("get_address", ss.operationName)
 	s.Equal(ts, ss.startTime)
+	et := opentracing.Tags{
+		SamplerTypeTagKey:  SamplerTypeConst,
+		SamplerParamTagKey: true,
+		"testTag1":         "test tag 1",
+		"testTag2":         "test tag 2",
+		"testTag3":         "test tag 3",
+	}
+	s.Equal(et, ss.Tags())
+}
+
+func (s *tracerSuite) TestStartRootSpanWithDebugHeader() {
+	h := http.Header{}
+	h.Add(JaegerDebugHeader, "x")
+	ctx, err := s.tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(h))
+	require.NoError(s.T(), err)
+
+	sp := s.tracer.StartSpan("get_address", opentracing.ChildOf(ctx))
+	ss := sp.(*Span)
+
+	s.Equal("get_address", ss.operationName)
+	et := opentracing.Tags{
+		JaegerDebugHeader:  "x",
+		SamplerTypeTagKey:  SamplerTypeConst,
+		SamplerParamTagKey: true,
+	}
+	s.Equal(et, ss.Tags())
 }
 
 func (s *tracerSuite) TestStartChildSpan() {
