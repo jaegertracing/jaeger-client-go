@@ -73,6 +73,22 @@ func TestRateLimiterMaxBalance(t *testing.T) {
 	assert.False(t, rl.CheckCredit(1.0))
 }
 
+func TestRateLimiterZeroCreditsPerSecond(t *testing.T) {
+	rl := NewRateLimiter(0, 1.0)
+	// stop time
+	ts := time.Now()
+	rl.lastTick = ts
+	rl.timeNow = func() time.Time {
+		return ts
+	}
+	assert.False(t, rl.CheckCredit(1.0), "on initialization, should not have any credit for 1 message")
+
+	rl.timeNow = func() time.Time {
+		return ts.Add(time.Second * 20)
+	}
+	assert.False(t, rl.CheckCredit(1.0))
+}
+
 func TestRateLimiterReconfigure(t *testing.T) {
 	rl := NewRateLimiter(1, 1.0)
 	assertBalance := func(expected float64) {
