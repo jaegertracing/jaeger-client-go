@@ -21,7 +21,7 @@ import (
 
 // RateLimiter is a filter used to check if a message that is worth itemCost units is within the rate limits.
 //
-// TODO (breaking change) remove this interface in favor of public struct below
+// # TODO (breaking change) remove this interface in favor of public struct below
 //
 // Deprecated, use ReconfigurableRateLimiter.
 type RateLimiter interface {
@@ -55,9 +55,13 @@ type ReconfigurableRateLimiter struct {
 
 // NewRateLimiter creates a new ReconfigurableRateLimiter.
 func NewRateLimiter(creditsPerSecond, maxBalance float64) *ReconfigurableRateLimiter {
+	balance := maxBalance
+	if creditsPerSecond == 0 {
+		balance = 0
+	}
 	return &ReconfigurableRateLimiter{
 		creditsPerSecond: creditsPerSecond,
-		balance:          maxBalance,
+		balance:          balance,
 		maxBalance:       maxBalance,
 		lastTick:         time.Now(),
 		timeNow:          time.Now,
